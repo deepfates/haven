@@ -10,7 +10,9 @@ import {
 } from "../state/atoms";
 import type { JsonRpcMessage, JsonRpcNotification, Session } from "../types/acp";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:3000";
+// Connect to same host, use wss if page is https
+const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+const WS_URL = import.meta.env.VITE_WS_URL || `${protocol}//${window.location.host}`;
 
 let requestId = 0;
 function nextId() {

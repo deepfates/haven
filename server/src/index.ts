@@ -1,14 +1,19 @@
 import { WebSocketServer, WebSocket } from "ws";
+import { createServer } from "http";
 import { AgentConnection } from "./agent.js";
 import type { JsonRpcMessage, JsonRpcRequest, BridgeConfig } from "./types.js";
+import { join } from "path";
+import { existsSync } from "fs";
 
 const config: BridgeConfig = {
-  port: parseInt(process.env.PORT || "3000"),
+  port: parseInt(process.env.PORT || "8080"),
   host: process.env.HOST || "0.0.0.0",
   // Use the Zed ACP adapter for Claude Code
   agentCommand: process.env.AGENT_COMMAND || "npx @zed-industries/claude-code-acp",
-  defaultCwd: process.env.DEFAULT_CWD || process.cwd(),
+  defaultCwd: process.env.DEFAULT_CWD || "/home/sprite",
 };
+
+const STATIC_DIR = process.env.STATIC_DIR || join(import.meta.dir, "../../client/dist");
 
 // Session management
 const sessions = new Map<string, AgentConnection>();
@@ -18,10 +23,47 @@ function generateSessionId(): string {
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-// WebSocket server
-const wss = new WebSocketServer({ port: config.port, host: config.host });
+// HTTP server for static files
+const server = createServer(async (req, res) => {
+  const url = new URL(req.url || "/", `http://${req.headers.host}`);
+  let filePath = join(STATIC_DIR, url.pathname === "/" ? "index.html" : url.pathname);
 
-console.log(`ACP Bridge listening on ws://${config.host}:${config.port}`);
+  // If file doesn't exist, serve index.html for client-side routing
+  if (!existsSync(filePath)) {
+    filePath = join(STATIC_DIR, "index.html");
+  }
+
+  try {
+    const file = Bun.file(filePath);
+    if (await file.exists()) {
+      const content = await file.arrayBuffer();
+      const ext = filePath.split(".").pop();
+      const contentType: Record<string, string> = {
+        html: "text/html",
+        js: "application/javascript",
+        css: "text/css",
+        svg: "image/svg+xml",
+        json: "application/json",
+      };
+      res.writeHead(200, { "Content-Type": contentType[ext || "html"] || "application/octet-stream" });
+      res.end(Buffer.from(content));
+    } else {
+      res.writeHead(404);
+      res.end("Not found");
+    }
+  } catch {
+    res.writeHead(500);
+    res.end("Internal error");
+  }
+});
+
+// WebSocket server attached to HTTP server
+const wss = new WebSocketServer({ server });
+
+server.listen(config.port, config.host, () => {
+  console.log(`ACP Bridge listening on http://${config.host}:${config.port}`);
+  console.log(`Serving static files from ${STATIC_DIR}`);
+});
 
 wss.on("connection", (ws: WebSocket) => {
   console.log("Client connected");
