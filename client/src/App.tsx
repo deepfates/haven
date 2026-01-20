@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { currentSessionIdAtom, connectionStatusAtom } from "./state/atoms";
 import { useAcpConnection } from "./hooks/useAcpConnection";
 import { Inbox } from "./components/Inbox";
@@ -8,6 +8,7 @@ import "./styles.css";
 
 export default function App() {
   const [currentSessionId] = useAtom(currentSessionIdAtom);
+  const setCurrentSessionId = useSetAtom(currentSessionIdAtom);
   const [connectionStatus] = useAtom(connectionStatusAtom);
   const { createSession, sendPrompt, respondToPermission, cancelSession } = useAcpConnection();
   const [isCreating, setIsCreating] = useState(false);
@@ -18,7 +19,9 @@ export default function App() {
 
     try {
       const title = `Task ${new Date().toLocaleTimeString()}`;
-      await createSession(title);
+      const sessionId = await createSession(title);
+      // Navigate to the new session immediately
+      setCurrentSessionId(sessionId);
     } catch (err) {
       console.error("Failed to create session:", err);
     } finally {

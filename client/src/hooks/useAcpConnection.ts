@@ -98,12 +98,34 @@ export function useAcpConnection() {
 
   const handleNotification = useCallback(
     (message: JsonRpcNotification & { _sessionId?: string }) => {
-      const sessionId = message._sessionId;
+      const sessionId = message._sessionId || (message.params as { sessionId?: string })?.sessionId;
 
       switch (message.method) {
         case "session/update": {
           const params = message.params as { update: unknown };
           handleSessionUpdate(sessionId!, params.update);
+          break;
+        }
+        case "session/ready": {
+          if (sessionId) {
+            updateSession({ id: sessionId, changes: { status: "running" } });
+          }
+          break;
+        }
+        case "session/error": {
+          if (sessionId) {
+            const params = message.params as { error?: string };
+            updateSession({ id: sessionId, changes: { status: "error" } });
+            addMessage({
+              sessionId,
+              message: {
+                id: `error_${Date.now()}`,
+                type: "agent",
+                content: `Error: ${params.error || "Unknown error"}`,
+                timestamp: Date.now(),
+              },
+            });
+          }
           break;
         }
         case "session/closed": {
@@ -243,13 +265,18 @@ export function useAcpConnection() {
   // API methods
   const createSession = useCallback(
     async (title: string, cwd?: string) => {
-      const result = await sendRequest<{ sessionId: string }>("session/new", { cwd });
+      const result = await sendRequest<{ sessionId: string; status?: string }>("session/new", { cwd });
 
       const newSession: Session = {
         id: result.sessionId,
-        status: "running",
+        status: result.status === "initializing" ? "waiting" : "running",
         title,
-        messages: [],
+        messages: result.status === "initializing" ? [{
+          id: `init_${Date.now()}`,
+          type: "agent",
+          content: "Initializing agent...",
+          timestamp: Date.now(),
+        }] : [],
       };
 
       setSessions((prev) => {
