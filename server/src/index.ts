@@ -127,60 +127,105 @@ function handleClientMessage(ws: WebSocket, message: JsonRpcMessage) {
   }
 }
 
+// Map bridge sessionId to agent's internal sessionId
+const sessionIdMap = new Map<string, string>();
+
 async function handleSessionNew(ws: WebSocket, request: JsonRpcRequest) {
   const params = (request.params || {}) as { sessionId?: string; cwd?: string };
-  const sessionId = params.sessionId || generateSessionId();
+  const bridgeSessionId = params.sessionId || generateSessionId();
   const cwd = params.cwd || config.defaultCwd;
 
-  if (sessions.has(sessionId)) {
+  if (sessions.has(bridgeSessionId)) {
     sendError(ws, request.id, -32600, "Session already exists");
     return;
   }
 
-  const agent = new AgentConnection(sessionId, cwd, config.agentCommand, {
+  // Track pending init responses
+  const pendingInit = new Map<string | number, (result: unknown) => void>();
+
+  const agent = new AgentConnection(bridgeSessionId, cwd, config.agentCommand, {
     onMessage: (msg) => {
-      // Forward agent messages to client, tagged with session
+      // Check if this is a response to one of our init requests
+      if ("id" in msg && "result" in msg) {
+        const handler = pendingInit.get(msg.id);
+        if (handler) {
+          pendingInit.delete(msg.id);
+          handler(msg.result);
+          return;
+        }
+      }
+
+      // Forward agent messages to client, tagged with bridge sessionId
       ws.send(JSON.stringify({
         ...msg,
-        _sessionId: sessionId,
+        _sessionId: bridgeSessionId,
       }));
     },
     onClose: () => {
-      console.log(`Agent for session ${sessionId} exited`);
-      sessions.delete(sessionId);
-      clientSessions.get(ws)?.delete(sessionId);
+      console.log(`Agent for session ${bridgeSessionId} exited`);
+      sessions.delete(bridgeSessionId);
+      sessionIdMap.delete(bridgeSessionId);
+      clientSessions.get(ws)?.delete(bridgeSessionId);
 
       // Notify client
       ws.send(JSON.stringify({
         jsonrpc: "2.0",
         method: "session/closed",
-        params: { sessionId },
+        params: { sessionId: bridgeSessionId },
       }));
     },
   });
 
   try {
     await agent.start();
-    sessions.set(sessionId, agent);
-    clientSessions.get(ws)?.add(sessionId);
+    sessions.set(bridgeSessionId, agent);
+    clientSessions.get(ws)?.add(bridgeSessionId);
 
-    // Send initialize to agent
+    // Step 1: Initialize the agent
+    const initPromise = new Promise<void>((resolve) => {
+      pendingInit.set(`init_${bridgeSessionId}`, () => resolve());
+    });
+
     agent.send({
       jsonrpc: "2.0",
-      id: `init_${sessionId}`,
+      id: `init_${bridgeSessionId}`,
       method: "initialize",
       params: { protocolVersion: 1, capabilities: {} },
     });
 
-    sendResult(ws, request.id, { sessionId });
+    await initPromise;
+
+    // Step 2: Create a session in the agent to get its sessionId
+    const newSessionPromise = new Promise<{ sessionId: string }>((resolve, reject) => {
+      const timeoutId = setTimeout(() => reject(new Error("session/new timeout")), 30000);
+      pendingInit.set(`newsession_${bridgeSessionId}`, (result) => {
+        clearTimeout(timeoutId);
+        resolve(result as { sessionId: string });
+      });
+    });
+
+    agent.send({
+      jsonrpc: "2.0",
+      id: `newsession_${bridgeSessionId}`,
+      method: "session/new",
+      params: { cwd, mcpServers: [] },
+    });
+
+    const { sessionId: agentSessionId } = await newSessionPromise;
+    sessionIdMap.set(bridgeSessionId, agentSessionId);
+
+    console.log(`Session mapped: ${bridgeSessionId} -> ${agentSessionId}`);
+    sendResult(ws, request.id, { sessionId: bridgeSessionId });
   } catch (err) {
     console.error("Failed to start agent:", err);
+    agent.kill();
+    sessions.delete(bridgeSessionId);
     sendError(ws, request.id, -32603, "Failed to start agent");
   }
 }
 
 function handleSessionPrompt(ws: WebSocket, request: JsonRpcRequest) {
-  const params = request.params as { sessionId: string; content: unknown };
+  const params = request.params as { sessionId: string; content?: unknown; prompt?: unknown };
   if (!params?.sessionId) {
     sendError(ws, request.id, -32602, "Missing sessionId");
     return;
@@ -192,12 +237,22 @@ function handleSessionPrompt(ws: WebSocket, request: JsonRpcRequest) {
     return;
   }
 
-  // Forward to agent
+  // Get the agent's internal sessionId
+  const agentSessionId = sessionIdMap.get(params.sessionId);
+  if (!agentSessionId) {
+    sendError(ws, request.id, -32602, "Session not initialized");
+    return;
+  }
+
+  // ACP expects "prompt" array, not "content" - support both for compatibility
+  const prompt = params.prompt || params.content;
+
+  // Forward to agent with agent's internal sessionId
   agent.send({
     jsonrpc: "2.0",
     id: request.id,
     method: "session/prompt",
-    params: { content: params.content },
+    params: { sessionId: agentSessionId, prompt },
   });
 }
 
@@ -214,11 +269,18 @@ function handleSessionCancel(ws: WebSocket, request: JsonRpcRequest) {
     return;
   }
 
+  // Get the agent's internal sessionId
+  const agentSessionId = sessionIdMap.get(params.sessionId);
+  if (!agentSessionId) {
+    sendError(ws, request.id, -32602, "Session not initialized");
+    return;
+  }
+
   agent.send({
     jsonrpc: "2.0",
     id: request.id,
     method: "session/cancel",
-    params: {},
+    params: { sessionId: agentSessionId },
   });
 }
 

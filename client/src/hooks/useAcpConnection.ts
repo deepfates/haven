@@ -280,7 +280,7 @@ export function useAcpConnection() {
 
       await sendRequest("session/prompt", {
         sessionId,
-        content: [{ type: "text", text }],
+        prompt: [{ type: "text", text }],
       });
     },
     [sendRequest, addMessage, updateSession]
