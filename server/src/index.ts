@@ -5,7 +5,8 @@ import type { JsonRpcMessage, JsonRpcRequest, BridgeConfig } from "./types.js";
 const config: BridgeConfig = {
   port: parseInt(process.env.PORT || "3000"),
   host: process.env.HOST || "0.0.0.0",
-  agentCommand: process.env.AGENT_COMMAND || "claude",
+  // Use the Zed ACP adapter for Claude Code
+  agentCommand: process.env.AGENT_COMMAND || "npx @zed-industries/claude-code-acp",
   defaultCwd: process.env.DEFAULT_CWD || process.cwd(),
 };
 

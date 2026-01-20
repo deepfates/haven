@@ -22,7 +22,7 @@ export class AgentConnection {
   async start(): Promise<void> {
     const args = this.agentCommand.split(" ");
     const cmd = args[0];
-    const cmdArgs = [...args.slice(1), "--acp"];
+    const cmdArgs = args.slice(1);
 
     this.process = Bun.spawn([cmd, ...cmdArgs], {
       cwd: this.cwd,

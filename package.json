@@ -1,0 +1,14 @@
+{
+  "name": "acp-client",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"bun run dev:server\" \"bun run dev:client\"",
+    "dev:server": "cd server && bun run dev",
+    "dev:client": "cd client && bun run dev",
+    "build": "cd client && bun run build",
+    "typecheck": "cd server && bun run typecheck && cd ../client && bunx tsc --noEmit"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
