@@ -8,10 +8,8 @@ import {
   addMessageAtom,
   appendToLastMessageAtom,
   updateToolCallAtom,
-  getLastSeq,
-  updateLastSeq,
 } from "../state/atoms";
-import type { JsonRpcMessage, JsonRpcNotification, JsonRpcRequest, Session } from "../types/acp";
+import type { JsonRpcMessage, JsonRpcNotification, Session } from "../types/acp";
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const WS_URL = import.meta.env.VITE_WS_URL || `${protocol}//${window.location.host}`;
@@ -21,9 +19,48 @@ function nextId() {
   return ++requestId;
 }
 
+// Types for service API responses
+interface ServiceSession {
+  id: string;
+  agentType: string;
+  cwd: string;
+  title: string | null;
+  status: string;
+  exitReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ServiceUpdate {
+  seq: number;
+  updateType: string;
+  payload: {
+    sessionUpdate: string;
+    content?: { type: string; text?: string };
+    toolCallId?: string;
+    title?: string;
+    status?: string;
+    locations?: { path: string; line?: number }[];
+    rawOutput?: unknown;
+    entries?: Session["plan"];
+    [key: string]: unknown;
+  };
+  createdAt: string;
+}
+
+interface PendingRequest {
+  requestId: string;
+  requestType: string;
+  payload: {
+    toolCall?: { id: string; name: string; rawInput?: unknown };
+    options?: { optionId: string; name: string; kind: string }[];
+  };
+}
+
 export function useAcpConnection() {
   const wsRef = useRef<ReconnectingWebSocket | null>(null);
   const pendingRequests = useRef<Map<number | string, (result: unknown) => void>>(new Map());
+  const pendingRejects = useRef<Map<number | string, (error: Error) => void>>(new Map());
 
   const [connectionStatus, setConnectionStatus] = useAtom(connectionStatusAtom);
   const [, setSessions] = useAtom(sessionsAtom);
@@ -38,10 +75,12 @@ export function useAcpConnection() {
       return new Promise((resolve, reject) => {
         const id = nextId();
         pendingRequests.current.set(id, (result) => resolve(result as T));
+        pendingRejects.current.set(id, reject);
         wsRef.current?.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
         setTimeout(() => {
           if (pendingRequests.current.has(id)) {
             pendingRequests.current.delete(id);
+            pendingRejects.current.delete(id);
             reject(new Error("Request timeout"));
           }
         }, 30000);
@@ -50,22 +89,27 @@ export function useAcpConnection() {
     []
   );
 
-  // Handle session update notifications (tool calls, message chunks, etc.)
-  const handleSessionUpdate = useCallback(
-    (sessionId: string, update: unknown) => {
-      const u = update as { sessionUpdate: string; [key: string]: unknown };
+  // Process a session update from the service
+  const processUpdate = useCallback(
+    (sessionId: string, update: ServiceUpdate) => {
+      const payload = update.payload;
 
-      switch (u.sessionUpdate) {
+      switch (payload.sessionUpdate) {
+        case "user_message_chunk":
+        case "user_message": {
+          // User messages are already added optimistically, skip duplicates
+          break;
+        }
+
         case "agent_message_chunk": {
-          const contentBlock = u.content as { type: string; text?: string };
-          const text = contentBlock?.text || "";
+          const text = payload.content?.text || "";
           appendToLastMessage({ sessionId, content: text });
           break;
         }
 
         case "tool_call": {
-          const toolCallId = u.toolCallId as string;
-          const title = u.title as string;
+          const toolCallId = payload.toolCallId as string;
+          const title = payload.title as string;
           addMessage({
             sessionId,
             message: {
@@ -76,9 +120,9 @@ export function useAcpConnection() {
               toolCall: {
                 id: toolCallId,
                 name: title,
-                status: ((u.status as string) || "pending") as "pending" | "running" | "completed" | "failed",
-                fileLocations: u.locations as { path: string; line?: number }[] | undefined,
-                rawOutput: u.rawOutput,
+                status: (payload.status || "pending") as "pending" | "running" | "completed" | "failed",
+                fileLocations: payload.locations,
+                rawOutput: payload.rawOutput,
               },
             },
           });
@@ -88,10 +132,10 @@ export function useAcpConnection() {
         case "tool_call_update": {
           updateToolCall({
             sessionId,
-            toolCallId: u.toolCallId as string,
-            status: u.status as string,
-            locations: u.locations as { path: string; line?: number }[],
-            rawOutput: u.rawOutput,
+            toolCallId: payload.toolCallId as string,
+            status: payload.status as string,
+            locations: payload.locations,
+            rawOutput: payload.rawOutput,
           });
           break;
         }
@@ -99,112 +143,111 @@ export function useAcpConnection() {
         case "plan": {
           updateSession({
             id: sessionId,
-            changes: { plan: u.entries as Session["plan"] },
+            changes: { plan: payload.entries },
           });
           break;
         }
       }
     },
-    [updateSession, addMessage, appendToLastMessage, updateToolCall]
+    [addMessage, appendToLastMessage, updateToolCall, updateSession]
   );
 
-  // Handle notifications from agent
+  // Handle notifications from service
   const handleNotification = useCallback(
-    (message: JsonRpcNotification & { _sessionId?: string }) => {
-      const sessionId = message._sessionId || (message.params as { sessionId?: string })?.sessionId;
+    (message: JsonRpcNotification) => {
+      const params = message.params as { sessionId?: string; [key: string]: unknown };
+      const sessionId = params?.sessionId;
 
       switch (message.method) {
-        case "session/update": {
-          const params = message.params as { update: unknown };
-          if (sessionId) handleSessionUpdate(sessionId, params.update);
-          break;
-        }
-        case "session/ready": {
-          if (sessionId) updateSession({ id: sessionId, changes: { status: "running" } });
-          break;
-        }
-        case "session/error": {
-          if (sessionId) {
-            const params = message.params as { error?: string };
-            updateSession({ id: sessionId, changes: { status: "error" } });
-            addMessage({
-              sessionId,
-              message: {
-                id: `error_${Date.now()}`,
-                type: "agent",
-                content: `Error: ${params.error || "Unknown error"}`,
-                timestamp: Date.now(),
-              },
-            });
+        case "session/updated": {
+          // New updates for a session
+          const updates = params.updates as ServiceUpdate[];
+          if (sessionId && updates) {
+            for (const update of updates) {
+              processUpdate(sessionId, update);
+            }
           }
           break;
         }
-        case "session/closed": {
-          if (sessionId) updateSession({ id: sessionId, changes: { status: "completed" } });
+
+        case "session/status_changed": {
+          // Session status changed
+          if (sessionId) {
+            const status = params.status as string;
+            const exitReason = params.exitReason as string | undefined;
+
+            const statusMap: Record<string, Session["status"]> = {
+              initializing: "waiting",
+              running: "running",
+              waiting: "waiting",
+              completed: "completed",
+              error: "error",
+              exited: "completed",
+            };
+
+            updateSession({
+              id: sessionId,
+              changes: {
+                status: statusMap[status] || "running",
+              },
+            });
+
+            if (status === "exited" || status === "error") {
+              addMessage({
+                sessionId,
+                message: {
+                  id: `status_${Date.now()}`,
+                  type: "agent",
+                  content: exitReason ? `Session ended: ${exitReason}` : "Session ended",
+                  timestamp: Date.now(),
+                },
+              });
+            }
+          }
+          break;
+        }
+
+        case "session/request": {
+          // Agent is requesting something (permission)
+          if (sessionId) {
+            const requestId = params.requestId as string | number;
+            const request = params.request as PendingRequest["payload"];
+
+            if (request?.toolCall && request?.options) {
+              updateSession({
+                id: sessionId,
+                changes: {
+                  status: "waiting",
+                  pendingApproval: {
+                    requestId,
+                    id: request.toolCall.id,
+                    toolName: request.toolCall.name,
+                    input: request.toolCall.rawInput,
+                    options: request.options as Session["pendingApproval"] extends { options: infer O } ? O : never,
+                  },
+                },
+              });
+            }
+          }
           break;
         }
       }
     },
-    [updateSession, addMessage, handleSessionUpdate]
-  );
-
-  // Handle requests from agent (like permission requests)
-  const handleAgentRequest = useCallback(
-    (message: JsonRpcRequest & { _sessionId?: string }) => {
-      const sessionId = message._sessionId || (message.params as { sessionId?: string })?.sessionId;
-
-      if (message.method === "session/request_permission" && sessionId) {
-        const params = message.params as {
-          toolCall: { id: string; name: string; rawInput?: unknown };
-          options: { optionId: string; name: string; kind: "allow_once" | "allow_always" | "reject_once" | "reject_always" }[];
-        };
-
-        updateSession({
-          id: sessionId,
-          changes: {
-            status: "waiting",
-            pendingApproval: {
-              requestId: message.id,
-              id: params.toolCall.id,
-              toolName: params.toolCall.name,
-              input: params.toolCall.rawInput,
-              options: params.options,
-            },
-          },
-        });
-      }
-    },
-    [updateSession]
-  );
-
-  // Process a message (notification or request from agent)
-  const processMessage = useCallback(
-    (message: JsonRpcMessage & { _sessionId?: string; _seq?: number }) => {
-      // Track sequence number
-      if (message._sessionId && typeof message._seq === "number") {
-        updateLastSeq(message._sessionId, message._seq);
-      }
-
-      if ("method" in message && !("id" in message)) {
-        handleNotification(message as JsonRpcNotification & { _sessionId?: string });
-      } else if ("method" in message && "id" in message) {
-        handleAgentRequest(message as JsonRpcRequest & { _sessionId?: string });
-      }
-    },
-    [handleNotification, handleAgentRequest]
+    [processUpdate, updateSession, addMessage]
   );
 
   // Handle incoming WebSocket messages
   const handleMessage = useCallback(
     (data: string) => {
       try {
-        const message = JSON.parse(data) as JsonRpcMessage & { _sessionId?: string; _seq?: number };
+        const message = JSON.parse(data) as JsonRpcMessage;
 
         // Response to our request
         if ("id" in message && "result" in message) {
           const handler = pendingRequests.current.get(message.id);
           if (handler) {
             pendingRequests.current.delete(message.id);
+            pendingRejects.current.delete(message.id);
             handler(message.result);
           }
           return;
@@ -212,97 +255,180 @@ export function useAcpConnection() {
 
         // Error response
         if ("id" in message && "error" in message) {
-          pendingRequests.current.delete(message.id);
-          console.error("RPC error:", message.error);
+          const rejecter = pendingRejects.current.get(message.id);
+          if (rejecter) {
+            pendingRequests.current.delete(message.id);
+            pendingRejects.current.delete(message.id);
+            const err = message.error as { message?: string };
+            rejecter(new Error(err?.message || "Unknown error"));
+          } else {
+            console.error("RPC error:", message.error);
+          }
           return;
         }
 
-        // Process agent message
-        processMessage(message);
+        // Notification from service
+        if ("method" in message && !("id" in message)) {
+          handleNotification(message as JsonRpcNotification);
+        }
       } catch (err) {
         console.error("Failed to parse message:", err);
       }
     },
-    [processMessage]
+    [handleNotification]
   );
 
-  // Sync a session - replay missed messages
-  const syncSession = useCallback(
-    async (sessionId: string) => {
-      const lastSeq = getLastSeq(sessionId);
-      console.log(`[sync] Session ${sessionId} from seq ${lastSeq}`);
+  // Convert service session to client session
+  const serviceToClientSession = (s: ServiceSession, messages: Session["messages"] = []): Session => ({
+    id: s.id,
+    title: s.title || "Session",
+    status: (s.status === "exited" ? "completed" : s.status) as Session["status"],
+    messages,
+  });
 
+  // Load a session's full data
+  const loadSession = useCallback(
+    async (sessionId: string) => {
       try {
         const result = await sendRequest<{
-          sessionId: string;
-          status: string;
-          messages: Array<JsonRpcMessage & { _sessionId: string; _seq: number }>;
-          currentSeq: number;
-        }>("session/sync", { sessionId, lastSeq });
+          session: ServiceSession;
+          updates: ServiceUpdate[];
+          pendingRequests: PendingRequest[];
+        }>("session/get", { sessionId });
 
-        console.log(`[sync] Replaying ${result.messages.length} messages`);
+        // Build messages from updates
+        const messages: Session["messages"] = [];
+        let lastAgentMessage: Session["messages"][0] | null = null;
 
-        for (const msg of result.messages) {
-          processMessage(msg);
+        for (const update of result.updates) {
+          const payload = update.payload;
+
+          switch (payload.sessionUpdate) {
+            case "user_message":
+            case "user_message_chunk": {
+              const text = payload.content?.text || "";
+              if (text) {
+                messages.push({
+                  id: `user_${update.seq}`,
+                  type: "user",
+                  content: text,
+                  timestamp: new Date(update.createdAt).getTime(),
+                });
+              }
+              lastAgentMessage = null;
+              break;
+            }
+
+            case "agent_message_chunk": {
+              const text = payload.content?.text || "";
+              if (lastAgentMessage && lastAgentMessage.type === "agent") {
+                lastAgentMessage.content += text;
+              } else {
+                lastAgentMessage = {
+                  id: `agent_${update.seq}`,
+                  type: "agent",
+                  content: text,
+                  timestamp: new Date(update.createdAt).getTime(),
+                };
+                messages.push(lastAgentMessage);
+              }
+              break;
+            }
+
+            case "tool_call": {
+              messages.push({
+                id: payload.toolCallId || `tool_${update.seq}`,
+                type: "tool",
+                content: payload.title || "Tool call",
+                timestamp: new Date(update.createdAt).getTime(),
+                toolCall: {
+                  id: payload.toolCallId || `tool_${update.seq}`,
+                  name: payload.title || "",
+                  status: (payload.status || "pending") as "pending" | "running" | "completed" | "failed",
+                  fileLocations: payload.locations,
+                  rawOutput: payload.rawOutput,
+                },
+              });
+              lastAgentMessage = null;
+              break;
+            }
+          }
         }
 
-        const statusMap: Record<string, Session["status"]> = {
-          ready: "running",
-          initializing: "waiting",
-          error: "error",
-          closed: "completed",
-        };
+        // Build session
+        const session = serviceToClientSession(result.session, messages);
 
-        updateSession({
-          id: sessionId,
-          changes: { status: statusMap[result.status] || "running" },
+        // Add pending approval if any
+        if (result.pendingRequests.length > 0) {
+          const pending = result.pendingRequests[0];
+          if (pending.payload.toolCall && pending.payload.options) {
+            session.pendingApproval = {
+              requestId: pending.requestId,
+              id: pending.payload.toolCall.id,
+              toolName: pending.payload.toolCall.name,
+              input: pending.payload.toolCall.rawInput,
+              options: pending.payload.options as Session["pendingApproval"] extends { options: infer O } ? O : never,
+            };
+            session.status = "waiting";
+          }
+        }
+
+        setSessions((prev) => {
+          const next = new Map(prev);
+          next.set(sessionId, session);
+          return next;
         });
+
+        return session;
       } catch (err) {
-        console.error(`[sync] Failed:`, err);
+        console.error(`[loadSession] Failed:`, err);
+        throw err;
       }
     },
-    [sendRequest, processMessage, updateSession]
+    [sendRequest, setSessions]
   );
 
-  // Restore sessions on reconnect
-  const restoreSessions = useCallback(async () => {
+  // Fetch all sessions on connect
+  const fetchSessions = useCallback(async () => {
     try {
-      const result = await sendRequest<{
-        sessions: Array<{ id: string; status: string; lastSeq: number }>;
-      }>("session/list");
+      const result = await sendRequest<{ sessions: ServiceSession[] }>("session/list");
 
       console.log("[ACP] Sessions:", result.sessions);
 
-      const serverIds = new Set(result.sessions.map((s) => s.id));
-
-      // Mark dead sessions
+      // Update sessions map
       setSessions((prev) => {
         const next = new Map(prev);
+        const serverIds = new Set(result.sessions.map((s) => s.id));
+
+        // Mark sessions not on server as completed
         for (const [id, session] of next) {
           if (!serverIds.has(id) && session.status !== "completed" && session.status !== "error") {
-            next.set(id, { ...session, status: "completed", pendingApproval: undefined });
+            next.set(id, { ...session, status: "completed" });
           }
         }
+
+        // Add/update sessions from server
+        for (const s of result.sessions) {
+          const existing = next.get(s.id);
+          if (existing) {
+            // Update status but keep messages
+            next.set(s.id, {
+              ...existing,
+              title: s.title || existing.title,
+              status: (s.status === "exited" ? "completed" : s.status) as Session["status"],
+            });
+          } else {
+            // New session, will load details when opened
+            next.set(s.id, serviceToClientSession(s));
+          }
+        }
+
         return next;
       });
-
-      // Sync each server session
-      for (const s of result.sessions) {
-        setSessions((prev) => {
-          if (!prev.has(s.id)) {
-            const next = new Map(prev);
-            next.set(s.id, { id: s.id, status: "running", title: "Session", messages: [] });
-            return next;
-          }
-          return prev;
-        });
-
-        await syncSession(s.id);
-      }
     } catch (err) {
-      console.error("[ACP] Restore failed:", err);
+      console.error("[ACP] Fetch sessions failed:", err);
     }
-  }, [sendRequest, setSessions, syncSession]);
+  }, [sendRequest, setSessions]);
 
   // Connect on mount
   useEffect(() => {
@@ -313,7 +439,7 @@ export function useAcpConnection() {
 
     ws.onopen = () => {
       setConnectionStatus("connected");
-      restoreSessions();
+      fetchSessions();
     };
 
     ws.onclose = () => {
@@ -331,21 +457,18 @@ export function useAcpConnection() {
     return () => {
       ws.close();
     };
-  }, [handleMessage, setConnectionStatus, restoreSessions]);
+  }, [handleMessage, setConnectionStatus, fetchSessions]);
 
   // API
   const createSession = useCallback(
     async (title: string, cwd?: string) => {
-      const result = await sendRequest<{ sessionId: string; status?: string }>("session/new", { cwd });
+      const result = await sendRequest<{ sessionId: string }>("session/new", { title, cwd });
 
       const newSession: Session = {
         id: result.sessionId,
-        status: result.status === "initializing" ? "waiting" : "running",
+        status: "waiting",
         title,
-        messages:
-          result.status === "initializing"
-            ? [{ id: `init_${Date.now()}`, type: "agent", content: "Initializing...", timestamp: Date.now() }]
-            : [],
+        messages: [{ id: `init_${Date.now()}`, type: "agent", content: "Initializing...", timestamp: Date.now() }],
       };
 
       setSessions((prev) => {
@@ -388,17 +511,20 @@ export function useAcpConnection() {
   );
 
   const respondToPermission = useCallback(
-    (sessionId: string, requestId: string | number, optionId: string) => {
+    async (sessionId: string, requestId: string | number, optionId: string) => {
       updateSession({ id: sessionId, changes: { pendingApproval: undefined, status: "running" } });
-      wsRef.current?.send(
-        JSON.stringify({
-          jsonrpc: "2.0",
-          id: requestId,
-          result: { outcome: { outcome: "selected", optionId } },
-        })
-      );
+
+      try {
+        await sendRequest("session/respond", {
+          sessionId,
+          requestId: String(requestId),
+          response: { outcome: { outcome: "selected", optionId } },
+        });
+      } catch (err) {
+        console.error("[respondToPermission] Failed:", err);
+      }
     },
-    [updateSession]
+    [sendRequest, updateSession]
   );
 
   const cancelSession = useCallback(
@@ -409,5 +535,25 @@ export function useAcpConnection() {
     [sendRequest, updateSession]
   );
 
-  return { connectionStatus, createSession, sendPrompt, respondToPermission, cancelSession };
+  const archiveSession = useCallback(
+    async (sessionId: string) => {
+      await sendRequest("session/archive", { sessionId });
+      setSessions((prev) => {
+        const next = new Map(prev);
+        next.delete(sessionId);
+        return next;
+      });
+    },
+    [sendRequest, setSessions]
+  );
+
+  return {
+    connectionStatus,
+    createSession,
+    sendPrompt,
+    respondToPermission,
+    cancelSession,
+    archiveSession,
+    loadSession,
+  };
 }

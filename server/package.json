@@ -10,10 +10,12 @@
   },
   "dependencies": {
     "@zed-industries/claude-code-acp": "^0.1.0",
+    "better-sqlite3": "^12.6.2",
     "json-rpc-2.0": "^1.7.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/bun": "latest",
     "@types/ws": "^8.5.13",
     "typescript": "^5.7.0"
