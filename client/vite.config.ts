@@ -10,9 +10,14 @@ export default defineConfig({
     hmr: true,
     proxy: {
       "/ws": {
-        target: "ws://localhost:8090",
+        target: "http://localhost:8090",
         ws: true,
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("error", (err) => {
+            console.log("[proxy] error:", err.message);
+          });
+        },
       },
     },
   },
