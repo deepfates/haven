@@ -194,6 +194,22 @@ button.icon {
   text-overflow: ellipsis;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Reconnecting banner */
+.reconnecting-banner {
+  background: var(--warning);
+  color: #000;
+  text-align: center;
+  padding: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .back-button {
   font-size: 24px;
   background: transparent;

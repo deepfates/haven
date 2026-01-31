@@ -1,19 +1,21 @@
 import { useState, useRef, useEffect } from "react";
 import { useAtom, useSetAtom } from "jotai";
-import { currentSessionAtom, currentSessionIdAtom } from "../state/atoms";
+import { currentSessionAtom, currentSessionIdAtom, connectionStatusAtom } from "../state/atoms";
 import { ApprovalCard } from "./ApprovalCard";
 
 interface SessionViewProps {
   onSendPrompt: (sessionId: string, text: string) => void;
-  onRespondPermission: (sessionId: string, permissionId: string, allow: boolean) => void;
+  onRespondPermission: (sessionId: string, requestId: string | number, optionId: string) => void;
   onCancel: (sessionId: string) => void;
 }
 
 export function SessionView({ onSendPrompt, onRespondPermission, onCancel }: SessionViewProps) {
   const [session] = useAtom(currentSessionAtom);
   const setCurrentSessionId = useSetAtom(currentSessionIdAtom);
+  const [connectionStatus] = useAtom(connectionStatusAtom);
   const [input, setInput] = useState("");
   const feedRef = useRef<HTMLDivElement>(null);
+  const isDisconnected = connectionStatus !== "connected";
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -41,16 +43,26 @@ export function SessionView({ onSendPrompt, onRespondPermission, onCancel }: Ses
 
   return (
     <div className="session-view">
+      {isDisconnected && (
+        <div className="reconnecting-banner">
+          {connectionStatus === "connecting" ? "Reconnecting..." : "Disconnected"}
+        </div>
+      )}
       <div className="session-header">
         <button className="back-button icon" onClick={() => setCurrentSessionId(null)}>
           ←
         </button>
         <h2>{session.title}</h2>
-        {session.status === "running" && (
-          <button className="secondary" onClick={() => onCancel(session.id)}>
-            Stop
-          </button>
-        )}
+        <div className="header-right">
+          {isDisconnected && (
+            <span className={`status-dot ${connectionStatus}`} title={connectionStatus} />
+          )}
+          {session.status === "running" && !isDisconnected && (
+            <button className="secondary" onClick={() => onCancel(session.id)}>
+              Stop
+            </button>
+          )}
+        </div>
       </div>
 
       {planProgress && (
@@ -93,8 +105,8 @@ export function SessionView({ onSendPrompt, onRespondPermission, onCancel }: Ses
         {session.pendingApproval && (
           <ApprovalCard
             request={session.pendingApproval}
-            onRespond={(allow) =>
-              onRespondPermission(session.id, session.pendingApproval!.id, allow)
+            onRespond={(optionId) =>
+              onRespondPermission(session.id, session.pendingApproval!.requestId, optionId)
             }
           />
         )}
@@ -105,10 +117,10 @@ export function SessionView({ onSendPrompt, onRespondPermission, onCancel }: Ses
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Type to redirect..."
-          disabled={session.status === "waiting"}
+          placeholder={isDisconnected ? "Reconnecting..." : "Type to redirect..."}
+          disabled={session.status === "waiting" || isDisconnected}
         />
-        <button type="submit" disabled={!input.trim() || session.status === "waiting"}>
+        <button type="submit" disabled={!input.trim() || session.status === "waiting" || isDisconnected}>
           Send
         </button>
       </form>
