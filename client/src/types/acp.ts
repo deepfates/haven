@@ -51,6 +51,7 @@ export interface ToolCall {
   name: string;
   status: "pending" | "running" | "completed" | "failed";
   fileLocations?: FileLocation[];
+  rawOutput?: unknown;
 }
 
 export interface FileLocation {
@@ -64,8 +65,16 @@ export interface PlanEntry {
   status: "pending" | "in_progress" | "completed";
 }
 
+export interface PermissionOption {
+  optionId: string;
+  name: string;
+  kind: "allow_once" | "allow_always" | "reject_once" | "reject_always";
+}
+
 export interface PermissionRequest {
-  id: string;
+  requestId: string | number; // The JSON-RPC request ID for responding
+  id: string; // Tool call ID
   toolName: string;
   input: unknown;
+  options: PermissionOption[];
 }
