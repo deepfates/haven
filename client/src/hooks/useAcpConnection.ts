@@ -12,7 +12,7 @@ import {
 import type { JsonRpcMessage, JsonRpcNotification, Session } from "../types/acp";
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-const WS_URL = import.meta.env.VITE_WS_URL || `${protocol}//${window.location.host}`;
+const WS_URL = import.meta.env.VITE_WS_URL || `${protocol}//${window.location.host}/ws`;
 
 let requestId = 0;
 function nextId() {
@@ -306,7 +306,16 @@ export function useAcpConnection() {
           switch (payload.sessionUpdate) {
             case "user_message":
             case "user_message_chunk": {
-              const text = payload.content?.text || "";
+              let text = payload.content?.text || "";
+              // Handle legacy format where text was JSON.stringify'd prompt array
+              if (text.startsWith("[{") && text.includes('"type":"text"')) {
+                try {
+                  const parsed = JSON.parse(text) as Array<{ type: string; text?: string }>;
+                  text = parsed[0]?.text || text;
+                } catch {
+                  // Keep original if parse fails
+                }
+              }
               if (text) {
                 messages.push({
                   id: `user_${update.seq}`,

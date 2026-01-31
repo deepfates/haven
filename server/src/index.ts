@@ -74,7 +74,7 @@ function persistAndPush(sessionId: string, updateType: string, payload: object) 
   });
 }
 
-// HTTP server for static files
+// HTTP server for static files (production mode)
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
   let filePath = join(STATIC_DIR, url.pathname === "/" ? "index.html" : url.pathname);
@@ -107,10 +107,24 @@ const server = createServer(async (req, res) => {
   }
 });
 
-const wss = new WebSocketServer({ server });
+// Don't auto-attach to server - we'll handle upgrades manually
+const wss = new WebSocketServer({ noServer: true });
+
+// Handle WebSocket upgrades on /ws path
+server.on("upgrade", (req, socket, head) => {
+  const url = req.url || "";
+
+  if (url.startsWith("/ws")) {
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit("connection", ws, req);
+    });
+  } else {
+    socket.destroy();
+  }
+});
 
 server.listen(config.port, config.host, () => {
-  console.log(`ACP Service listening on http://${config.host}:${config.port}`);
+  console.log(`ACP Bridge listening on http://${config.host}:${config.port}`);
   console.log(`Serving static files from ${STATIC_DIR}`);
   console.log(`Database: ~/.acp-client/sessions.db`);
 });
@@ -274,7 +288,7 @@ function handleAgentMessage(
   // Agent request (e.g., permission request)
   if ("method" in msg && "id" in msg) {
     const request = msg as JsonRpcRequest;
-    console.log(`[agent] Request from ${sessionId}:`, request.method);
+    console.log(`[agent] Request from ${sessionId}:`, request.method, JSON.stringify(request).slice(0, 500));
 
     const proc = agentProcesses.get(sessionId);
     if (proc) {
@@ -514,9 +528,12 @@ async function handleSessionPrompt(ws: WebSocket, request: JsonRpcRequest) {
   }
 
   // Store user message as an update
+  // prompt is an array like [{type: "text", text: "..."}]
+  const promptArray = params.prompt as Array<{ type: string; text?: string }>;
+  const promptText = promptArray?.[0]?.text || JSON.stringify(params.prompt);
   persistAndPush(params.sessionId, "user_message", {
     sessionUpdate: "user_message_chunk",
-    content: { type: "text", text: (params.prompt as { text?: string })?.text || JSON.stringify(params.prompt) },
+    content: { type: "text", text: promptText },
   });
 
   sessions.setStatus(params.sessionId, "running");
@@ -547,10 +564,14 @@ function handleSessionRespond(ws: WebSocket, request: JsonRpcRequest) {
     return;
   }
 
+  // Convert requestId back to number if it was originally a number
+  // (JSON-RPC allows both string and number IDs, agent uses numbers)
+  const originalId = /^\d+$/.test(params.requestId) ? parseInt(params.requestId, 10) : params.requestId;
+
   // Forward response to agent
   proc.agent.send({
     jsonrpc: "2.0",
-    id: params.requestId,
+    id: originalId,
     result: params.response,
   });
 
