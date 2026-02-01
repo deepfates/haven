@@ -35,15 +35,16 @@ export interface SessionNewParams {
 
 export interface SessionPromptParams {
   sessionId: string;
-  content: ContentPart[];
+  prompt: ContentBlock[];
 }
 
-export interface ContentPart {
-  type: "text" | "image" | "resource";
+export interface ContentBlock {
+  type: "text" | "image" | "audio" | "resource_link" | "embedded_resource";
   text?: string;
   uri?: string;
   mimeType?: string;
   data?: string;
+  [key: string]: unknown;
 }
 
 export interface SessionUpdate {
@@ -52,11 +53,12 @@ export interface SessionUpdate {
 }
 
 export type SessionUpdateType =
-  | { type: "agent_message_chunk"; content: string }
-  | { type: "tool_call"; id: string; name: string; status: ToolStatus; fileLocations?: FileLocation[] }
-  | { type: "tool_call_update"; id: string; status: ToolStatus; content?: string; fileLocations?: FileLocation[] }
-  | { type: "plan"; entries: PlanEntry[] }
-  | { type: "request_permission"; id: string; toolName: string; input: unknown };
+  | { sessionUpdate: "agent_message_chunk"; content: ContentBlock }
+  | { sessionUpdate: "user_message_chunk"; content: ContentBlock }
+  | { sessionUpdate: "agent_thought_chunk"; content: ContentBlock }
+  | { sessionUpdate: "tool_call"; id: string; name: string; status: ToolStatus; locations?: FileLocation[]; rawInput?: unknown; rawOutput?: unknown }
+  | { sessionUpdate: "tool_call_update"; id: string; status: ToolStatus; locations?: FileLocation[]; rawOutput?: unknown }
+  | { sessionUpdate: "plan"; entries: PlanEntry[] };
 
 export type ToolStatus = "pending" | "running" | "completed" | "failed";
 

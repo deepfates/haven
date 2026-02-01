@@ -61,6 +61,7 @@ export function useAcpConnection() {
   const wsRef = useRef<ReconnectingWebSocket | null>(null);
   const pendingRequests = useRef<Map<number | string, (result: unknown) => void>>(new Map());
   const pendingRejects = useRef<Map<number | string, (error: Error) => void>>(new Map());
+  const pendingTimeouts = useRef<Map<number | string, ReturnType<typeof setTimeout>>>(new Map());
 
   const [connectionStatus, setConnectionStatus] = useAtom(connectionStatusAtom);
   const [, setSessions] = useAtom(sessionsAtom);
@@ -71,19 +72,34 @@ export function useAcpConnection() {
 
   // Send a request and wait for response
   const sendRequest = useCallback(
-    <T>(method: string, params?: unknown): Promise<T> => {
+    <T>(method: string, params?: unknown, timeoutMs = 30000): Promise<T> => {
       return new Promise((resolve, reject) => {
         const id = nextId();
-        pendingRequests.current.set(id, (result) => resolve(result as T));
-        pendingRejects.current.set(id, reject);
+        pendingRequests.current.set(id, (result) => {
+          const timeout = pendingTimeouts.current.get(id);
+          if (timeout) clearTimeout(timeout);
+          pendingTimeouts.current.delete(id);
+          resolve(result as T);
+        });
+        pendingRejects.current.set(id, (error) => {
+          const timeout = pendingTimeouts.current.get(id);
+          if (timeout) clearTimeout(timeout);
+          pendingTimeouts.current.delete(id);
+          reject(error);
+        });
         wsRef.current?.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
-        setTimeout(() => {
-          if (pendingRequests.current.has(id)) {
-            pendingRequests.current.delete(id);
-            pendingRejects.current.delete(id);
-            reject(new Error("Request timeout"));
-          }
-        }, 30000);
+
+        if (timeoutMs > 0) {
+          const timeout = setTimeout(() => {
+            if (pendingRequests.current.has(id)) {
+              pendingRequests.current.delete(id);
+              pendingRejects.current.delete(id);
+              pendingTimeouts.current.delete(id);
+              reject(new Error("Request timeout"));
+            }
+          }, timeoutMs);
+          pendingTimeouts.current.set(id, timeout);
+        }
       });
     },
     []
@@ -248,6 +264,9 @@ export function useAcpConnection() {
           if (handler) {
             pendingRequests.current.delete(message.id);
             pendingRejects.current.delete(message.id);
+            const timeout = pendingTimeouts.current.get(message.id);
+            if (timeout) clearTimeout(timeout);
+            pendingTimeouts.current.delete(message.id);
             handler(message.result);
           }
           return;
@@ -259,6 +278,9 @@ export function useAcpConnection() {
           if (rejecter) {
             pendingRequests.current.delete(message.id);
             pendingRejects.current.delete(message.id);
+            const timeout = pendingTimeouts.current.get(message.id);
+            if (timeout) clearTimeout(timeout);
+            pendingTimeouts.current.delete(message.id);
             const err = message.error as { message?: string };
             rejecter(new Error(err?.message || "Unknown error"));
           } else {
@@ -501,7 +523,7 @@ export function useAcpConnection() {
       updateSession({ id: sessionId, changes: { status: "running" } });
 
       try {
-        await sendRequest("session/prompt", { sessionId, prompt: [{ type: "text", text }] });
+        await sendRequest("session/prompt", { sessionId, prompt: [{ type: "text", text }] }, 0);
       } catch (err) {
         console.error("[sendPrompt] Failed:", err);
         addMessage({

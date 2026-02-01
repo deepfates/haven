@@ -3,7 +3,7 @@ import { createServer } from "http";
 import { AgentConnection } from "./agent.js";
 import { sessions, updates, pendingRequests } from "./db.js";
 import type { JsonRpcMessage, JsonRpcRequest, BridgeConfig } from "./types.js";
-import { join } from "path";
+import { join, resolve, sep } from "path";
 import { existsSync } from "fs";
 
 const config: BridgeConfig = {
@@ -28,6 +28,9 @@ const sessionClients = new Map<string, Set<WebSocket>>();
 
 // Track pending agent requests (permission requests that need client response)
 const pendingAgentRequests = new Map<string | number, { sessionId: string; agent: AgentConnection }>();
+
+// Track pending client requests awaiting agent response (e.g., session/prompt)
+const pendingClientRequests = new Map<string | number, { ws: WebSocket; sessionId: string }>();
 
 function generateSessionId(): string {
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -77,10 +80,19 @@ function persistAndPush(sessionId: string, updateType: string, payload: object) 
 // HTTP server for static files (production mode)
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
-  let filePath = join(STATIC_DIR, url.pathname === "/" ? "index.html" : url.pathname);
+  const rawPath = url.pathname === "/" ? "/index.html" : url.pathname;
+  const safePath = decodeURIComponent(rawPath);
+  let filePath = resolve(STATIC_DIR, "." + safePath);
+  const staticRoot = resolve(STATIC_DIR) + sep;
+
+  if (!filePath.startsWith(staticRoot)) {
+    res.writeHead(404);
+    res.end("Not found");
+    return;
+  }
 
   if (!existsSync(filePath)) {
-    filePath = join(STATIC_DIR, "index.html");
+    filePath = resolve(STATIC_DIR, "index.html");
   }
 
   try {
@@ -147,6 +159,13 @@ wss.on("connection", (ws: WebSocket) => {
     // Remove from all session client lists
     for (const [, clients] of sessionClients) {
       clients.delete(ws);
+    }
+
+    // Clean up pending client requests for this socket
+    for (const [id, pending] of pendingClientRequests) {
+      if (pending.ws === ws) {
+        pendingClientRequests.delete(id);
+      }
     }
   });
 
@@ -275,12 +294,26 @@ function handleAgentMessage(
   msg: JsonRpcMessage,
   pendingInit: Map<string | number, (result: unknown) => void>
 ) {
-  // Check if this is a response to init requests
-  if ("id" in msg && "result" in msg) {
+  // Check if this is a response to init requests or a pending client request
+  if ("id" in msg && ("result" in msg || "error" in msg)) {
     const handler = pendingInit.get(msg.id);
     if (handler) {
       pendingInit.delete(msg.id);
-      handler(msg.result);
+      if ("result" in msg) {
+        handler(msg.result);
+      } else {
+        console.error(`[init] ${sessionId} failed:`, msg.error);
+        sessions.setStatus(sessionId, "error");
+      }
+      return;
+    }
+
+    const pending = pendingClientRequests.get(msg.id);
+    if (pending) {
+      pendingClientRequests.delete(msg.id);
+      if (pending.ws.readyState === WebSocket.OPEN) {
+        pending.ws.send(JSON.stringify(msg));
+      }
       return;
     }
   }
@@ -538,7 +571,9 @@ async function handleSessionPrompt(ws: WebSocket, request: JsonRpcRequest) {
 
   sessions.setStatus(params.sessionId, "running");
 
-  // Forward to agent
+  // Forward to agent and await response
+  pendingClientRequests.set(request.id, { ws, sessionId: params.sessionId });
+
   proc.agent.send({
     jsonrpc: "2.0",
     id: request.id,
@@ -547,7 +582,6 @@ async function handleSessionPrompt(ws: WebSocket, request: JsonRpcRequest) {
   });
 
   // Response will come back through agent message handler
-  sendResult(ws, request.id, { success: true });
 }
 
 // Respond to agent request
@@ -576,7 +610,7 @@ function handleSessionRespond(ws: WebSocket, request: JsonRpcRequest) {
   });
 
   // Clean up
-  pendingAgentRequests.delete(params.requestId);
+  pendingAgentRequests.delete(originalId);
   pendingRequests.delete(params.sessionId, params.requestId);
   sessions.setStatus(params.sessionId, "running");
 
