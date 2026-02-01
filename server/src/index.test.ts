@@ -1,14 +1,16 @@
 import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } from "bun:test";
 import { WebSocket } from "ws";
 import { createServer as createNetServer } from "net";
-import { mkdtempSync, writeFileSync, rmSync } from "fs";
+import { mkdtempSync, writeFileSync, rmSync, existsSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
 let PORT = Number(process.env.ACP_TEST_PORT || 0);
 let WS_URL = "";
-const SERVER_CWD = process.env.ACP_SERVER_CWD || process.cwd();
-const TEST_CWD = process.env.ACP_TEST_CWD || process.cwd();
+const ROOT_CWD = process.cwd();
+const DEFAULT_SERVER_CWD = join(ROOT_CWD, "server");
+const SERVER_CWD = process.env.ACP_SERVER_CWD || (existsSync(DEFAULT_SERVER_CWD) ? DEFAULT_SERVER_CWD : ROOT_CWD);
+const TEST_CWD = process.env.ACP_TEST_CWD || ROOT_CWD;
 
 let serverProcess: ReturnType<typeof Bun.spawn> | null = null;
 let staticDir: string | null = null;
