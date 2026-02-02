@@ -5,15 +5,18 @@ import { sessions, updates, pendingRequests } from "./db.js";
 import type { JsonRpcMessage, JsonRpcRequest, BridgeConfig } from "./types.js";
 import { join, resolve, sep } from "path";
 import { existsSync } from "fs";
+import { homedir } from "os";
 
 const config: BridgeConfig = {
   port: parseInt(process.env.PORT || "8080"),
   host: process.env.HOST || "0.0.0.0",
-  agentCommand: process.env.AGENT_COMMAND || "npx @zed-industries/claude-code-acp",
-  defaultCwd: process.env.DEFAULT_CWD || "/home/sprite",
+  agentCommand:
+    process.env.AGENT_COMMAND || "npx @zed-industries/claude-code-acp",
+  defaultCwd: process.env.DEFAULT_CWD || homedir(),
 };
 
-const STATIC_DIR = process.env.STATIC_DIR || join(import.meta.dir, "../../client/dist");
+const STATIC_DIR =
+  process.env.STATIC_DIR || join(import.meta.dir, "../../client/dist");
 
 // Runtime state (not persisted - rebuilt on restart)
 interface AgentProcess {
@@ -27,10 +30,16 @@ const agentProcesses = new Map<string, AgentProcess>();
 const sessionClients = new Map<string, Set<WebSocket>>();
 
 // Track pending agent requests (permission requests that need client response)
-const pendingAgentRequests = new Map<string | number, { sessionId: string; agent: AgentConnection }>();
+const pendingAgentRequests = new Map<
+  string | number,
+  { sessionId: string; agent: AgentConnection }
+>();
 
 // Track pending client requests awaiting agent response (e.g., session/prompt)
-const pendingClientRequests = new Map<string | number, { ws: WebSocket; sessionId: string }>();
+const pendingClientRequests = new Map<
+  string | number,
+  { ws: WebSocket; sessionId: string }
+>();
 
 function generateSessionId(): string {
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -57,7 +66,11 @@ function pushToClients(sessionId: string, message: object) {
 }
 
 // Store update and push to clients
-function persistAndPush(sessionId: string, updateType: string, payload: object) {
+function persistAndPush(
+  sessionId: string,
+  updateType: string,
+  payload: object,
+) {
   const seq = updates.getLastSeq(sessionId) + 1;
   updates.add(sessionId, seq, updateType, payload);
 
@@ -107,7 +120,10 @@ const server = createServer(async (req, res) => {
         svg: "image/svg+xml",
         json: "application/json",
       };
-      res.writeHead(200, { "Content-Type": contentType[ext || "html"] || "application/octet-stream" });
+      res.writeHead(200, {
+        "Content-Type":
+          contentType[ext || "html"] || "application/octet-stream",
+      });
       res.end(Buffer.from(content));
     } else {
       res.writeHead(404);
@@ -178,10 +194,16 @@ function handleClientMessage(ws: WebSocket, message: JsonRpcMessage) {
   console.log(`[client] Received:`, JSON.stringify(message).slice(0, 200));
 
   // Response to pending agent request (permission response)
-  if ("id" in message && ("result" in message || "error" in message) && !("method" in message)) {
+  if (
+    "id" in message &&
+    ("result" in message || "error" in message) &&
+    !("method" in message)
+  ) {
     const pending = pendingAgentRequests.get(message.id);
     if (pending) {
-      console.log(`[service] Forwarding client response for request ${message.id}`);
+      console.log(
+        `[service] Forwarding client response for request ${message.id}`,
+      );
       pendingAgentRequests.delete(message.id);
 
       // Delete from DB
@@ -231,11 +253,14 @@ function handleClientMessage(ws: WebSocket, message: JsonRpcMessage) {
 
 // List sessions
 function handleSessionList(ws: WebSocket, request: JsonRpcRequest) {
-  const params = (request.params || {}) as { archived?: boolean; status?: string[] };
+  const params = (request.params || {}) as {
+    archived?: boolean;
+    status?: string[];
+  };
   const sessionList = sessions.list(params.archived || false, params.status);
 
   sendResult(ws, request.id, {
-    sessions: sessionList.map(s => ({
+    sessions: sessionList.map((s) => ({
       id: s.id,
       agentType: s.agent_type,
       cwd: s.cwd,
@@ -250,7 +275,11 @@ function handleSessionList(ws: WebSocket, request: JsonRpcRequest) {
 
 // Create new session
 async function handleSessionNew(ws: WebSocket, request: JsonRpcRequest) {
-  const params = (request.params || {}) as { agentType?: string; cwd?: string; title?: string };
+  const params = (request.params || {}) as {
+    agentType?: string;
+    cwd?: string;
+    title?: string;
+  };
   const sessionId = generateSessionId();
   const agentType = params.agentType || "claude-code-acp";
   const cwd = params.cwd || config.defaultCwd;
@@ -292,7 +321,7 @@ async function handleSessionNew(ws: WebSocket, request: JsonRpcRequest) {
 function handleAgentMessage(
   sessionId: string,
   msg: JsonRpcMessage,
-  pendingInit: Map<string | number, (result: unknown) => void>
+  pendingInit: Map<string | number, (result: unknown) => void>,
 ) {
   // Check if this is a response to init requests or a pending client request
   if ("id" in msg && ("result" in msg || "error" in msg)) {
@@ -321,7 +350,11 @@ function handleAgentMessage(
   // Agent request (e.g., permission request)
   if ("method" in msg && "id" in msg) {
     const request = msg as JsonRpcRequest;
-    console.log(`[agent] Request from ${sessionId}:`, request.method, JSON.stringify(request).slice(0, 500));
+    console.log(
+      `[agent] Request from ${sessionId}:`,
+      request.method,
+      JSON.stringify(request).slice(0, 500),
+    );
 
     const proc = agentProcesses.get(sessionId);
     if (proc) {
@@ -335,7 +368,7 @@ function handleAgentMessage(
         sessionId,
         String(msg.id),
         "permission",
-        request.params as object
+        request.params as object,
       );
 
       sessions.setStatus(sessionId, "waiting");
@@ -355,7 +388,9 @@ function handleAgentMessage(
     const notification = msg as { method: string; params?: unknown };
 
     if (notification.method === "session/update" && notification.params) {
-      const params = notification.params as { update?: { sessionUpdate?: string } };
+      const params = notification.params as {
+        update?: { sessionUpdate?: string };
+      };
       const updateType = params.update?.sessionUpdate || "unknown";
 
       // Persist and push
@@ -392,7 +427,10 @@ async function initializeAgentSession(sessionId: string, cwd: string) {
   try {
     // Step 1: Initialize
     const initPromise = new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("init timeout")), 60000);
+      const timeout = setTimeout(
+        () => reject(new Error("init timeout")),
+        60000,
+      );
       pendingInit.set(`init_${sessionId}`, () => {
         clearTimeout(timeout);
         resolve();
@@ -409,13 +447,18 @@ async function initializeAgentSession(sessionId: string, cwd: string) {
     await initPromise;
 
     // Step 2: Create session with agent
-    const sessionPromise = new Promise<{ sessionId: string }>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("session timeout")), 60000);
-      pendingInit.set(`newsession_${sessionId}`, (result) => {
-        clearTimeout(timeout);
-        resolve(result as { sessionId: string });
-      });
-    });
+    const sessionPromise = new Promise<{ sessionId: string }>(
+      (resolve, reject) => {
+        const timeout = setTimeout(
+          () => reject(new Error("session timeout")),
+          60000,
+        );
+        pendingInit.set(`newsession_${sessionId}`, (result) => {
+          clearTimeout(timeout);
+          resolve(result as { sessionId: string });
+        });
+      },
+    );
 
     agent.send({
       jsonrpc: "2.0",
@@ -437,7 +480,6 @@ async function initializeAgentSession(sessionId: string, cwd: string) {
       method: "session/status_changed",
       params: { sessionId, status: "running" },
     });
-
   } catch (err) {
     console.error(`Failed to initialize ${sessionId}:`, err);
     sessions.setStatus(sessionId, "error");
@@ -474,9 +516,10 @@ function handleSessionGet(ws: WebSocket, request: JsonRpcRequest) {
 
   // Get updates
   const since = params.since ?? 0;
-  const updateList = since > 0
-    ? updates.listSince(params.sessionId, since)
-    : updates.list(params.sessionId);
+  const updateList =
+    since > 0
+      ? updates.listSince(params.sessionId, since)
+      : updates.list(params.sessionId);
 
   // Get pending requests
   const pending = pendingRequests.listForSession(params.sessionId);
@@ -492,13 +535,13 @@ function handleSessionGet(ws: WebSocket, request: JsonRpcRequest) {
       createdAt: session.created_at,
       updatedAt: session.updated_at,
     },
-    updates: updateList.map(u => ({
+    updates: updateList.map((u) => ({
       seq: u.seq,
       updateType: u.update_type,
       payload: JSON.parse(u.payload),
       createdAt: u.created_at,
     })),
-    pendingRequests: pending.map(p => ({
+    pendingRequests: pending.map((p) => ({
       requestId: p.request_id,
       requestType: p.request_type,
       payload: JSON.parse(p.payload),
@@ -532,7 +575,12 @@ async function handleSessionPrompt(ws: WebSocket, request: JsonRpcRequest) {
   // If agent died but session exists, try to resume
   if (!proc && session.agent_session_id) {
     // TODO: Implement agent restart/resume
-    sendError(ws, request.id, -32602, "Agent not running. Session resume not yet implemented.");
+    sendError(
+      ws,
+      request.id,
+      -32602,
+      "Agent not running. Session resume not yet implemented.",
+    );
     return;
   }
 
@@ -544,7 +592,7 @@ async function handleSessionPrompt(ws: WebSocket, request: JsonRpcRequest) {
   // Wait for initialization if needed
   if (!session.agent_session_id) {
     for (let i = 0; i < 120; i++) {
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 500));
       const updated = sessions.get(params.sessionId);
       if (updated?.agent_session_id) break;
       if (updated?.status === "error") {
@@ -586,7 +634,11 @@ async function handleSessionPrompt(ws: WebSocket, request: JsonRpcRequest) {
 
 // Respond to agent request
 function handleSessionRespond(ws: WebSocket, request: JsonRpcRequest) {
-  const params = request.params as { sessionId: string; requestId: string; response: object };
+  const params = request.params as {
+    sessionId: string;
+    requestId: string;
+    response: object;
+  };
   if (!params?.sessionId || !params?.requestId) {
     sendError(ws, request.id, -32602, "Missing sessionId or requestId");
     return;
@@ -600,7 +652,9 @@ function handleSessionRespond(ws: WebSocket, request: JsonRpcRequest) {
 
   // Convert requestId back to number if it was originally a number
   // (JSON-RPC allows both string and number IDs, agent uses numbers)
-  const originalId = /^\d+$/.test(params.requestId) ? parseInt(params.requestId, 10) : params.requestId;
+  const originalId = /^\d+$/.test(params.requestId)
+    ? parseInt(params.requestId, 10)
+    : params.requestId;
 
   // Forward response to agent
   proc.agent.send({
@@ -665,10 +719,19 @@ function handleSessionArchive(ws: WebSocket, request: JsonRpcRequest) {
   sendResult(ws, request.id, { success: true });
 }
 
-function sendResult(ws: WebSocket, id: string | number | null, result: unknown) {
+function sendResult(
+  ws: WebSocket,
+  id: string | number | null,
+  result: unknown,
+) {
   ws.send(JSON.stringify({ jsonrpc: "2.0", id, result }));
 }
 
-function sendError(ws: WebSocket, id: string | number | null, code: number, message: string) {
+function sendError(
+  ws: WebSocket,
+  id: string | number | null,
+  code: number,
+  message: string,
+) {
   ws.send(JSON.stringify({ jsonrpc: "2.0", id, error: { code, message } }));
 }
