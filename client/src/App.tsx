@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAtom, useSetAtom } from "jotai";
 import { currentSessionIdAtom, connectionStatusAtom } from "./state/atoms";
 import { useAcpConnection } from "./hooks/useAcpConnection";
@@ -11,8 +11,11 @@ export default function App() {
   const [currentSessionId] = useAtom(currentSessionIdAtom);
   const setCurrentSessionId = useSetAtom(currentSessionIdAtom);
   const [connectionStatus] = useAtom(connectionStatusAtom);
-  const { createSession, sendPrompt, respondToPermission, cancelSession, loadSession } = useAcpConnection();
+  const { createSession, sendPrompt, respondToPermission, cancelSession, archiveSession, loadSession } = useAcpConnection();
   const [isCreating, setIsCreating] = useState(false);
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Load session data and subscribe to push notifications when a session is selected
   useEffect(() => {
@@ -23,20 +26,32 @@ export default function App() {
     }
   }, [currentSessionId, connectionStatus, loadSession]);
 
-  const handleCreateSession = async () => {
+  const openNewModal = () => {
+    setNewTitle("");
+    setShowNewModal(true);
+    setTimeout(() => titleInputRef.current?.focus(), 100);
+  };
+
+  const handleCreateSession = async (title?: string) => {
     if (isCreating) return;
     setIsCreating(true);
+    setShowNewModal(false);
 
     try {
-      const title = `Task ${new Date().toLocaleTimeString()}`;
-      const sessionId = await createSession(title);
-      // Navigate to the new session immediately
+      const sessionTitle = title?.trim() || `New conversation`;
+      const sessionId = await createSession(sessionTitle);
       setCurrentSessionId(sessionId);
     } catch (err) {
       console.error("Failed to create session:", err);
     } finally {
       setIsCreating(false);
+      setNewTitle("");
     }
+  };
+
+  const handleModalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleCreateSession(newTitle);
   };
 
   // Show session view if one is selected
@@ -73,7 +88,7 @@ export default function App() {
           <ThemeSwitcher />
           <button
             className="btn btn-primary btn-sm"
-            onClick={handleCreateSession}
+            onClick={openNewModal}
             disabled={isCreating || connectionStatus !== "connected"}
           >
             {isCreating ? (
@@ -85,8 +100,41 @@ export default function App() {
         </div>
       </header>
       <main className="flex-1 overflow-y-auto">
-        <Inbox onCreateSession={handleCreateSession} />
+        <Inbox onCreateSession={openNewModal} onArchiveSession={archiveSession} />
       </main>
+
+      {/* New Session Modal */}
+      <dialog className={`modal ${showNewModal ? "modal-open" : ""}`}>
+        <div className="modal-box">
+          <h3 className="font-bold text-lg mb-4">New Conversation</h3>
+          <form onSubmit={handleModalSubmit}>
+            <input
+              ref={titleInputRef}
+              type="text"
+              className="input input-bordered w-full"
+              placeholder="What would you like to work on?"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              autoFocus
+            />
+            <div className="modal-action">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setShowNewModal(false)}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={isCreating}>
+                {isCreating ? <span className="loading loading-spinner loading-xs" /> : "Create"}
+              </button>
+            </div>
+          </form>
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button onClick={() => setShowNewModal(false)}>close</button>
+        </form>
+      </dialog>
     </div>
   );
 }
