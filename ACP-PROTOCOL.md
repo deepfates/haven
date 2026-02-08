@@ -1,156 +1,105 @@
-# ACP Protocol Reference
+# ACP Bridge Reference
 
-Quick reference for building ACP clients. Based on [agentclientprotocol.com](https://agentclientprotocol.com).
+This file documents the two protocol hops in this repo:
 
-## Message Flow
+1. Browser <-> bridge (JSON-RPC 2.0 over WebSocket)
+2. Bridge <-> agent (ACP over stdio)
+
+For the authoritative ACP spec, see agentclientprotocol.com.
+
+## Browser <-> bridge (JSON-RPC)
+
+WebSocket endpoint: `/ws`
+
+### Requests
+
+`session/list`
+- Params: `{ archived?: boolean, status?: string[] }`
+- Result: `{ sessions: [{ id, agentType, cwd, title, status, exitReason, createdAt, updatedAt }] }`
+
+`session/new`
+- Params: `{ agentType?: string, cwd?: string, title?: string }`
+- Result: `{ sessionId }`
+
+`session/get`
+- Params: `{ sessionId: string, since?: number }`
+- Result:
+  ```json
+  {
+    "session": { "id": "...", "agentType": "...", "cwd": "...", "title": "...", "status": "...", "exitReason": null, "createdAt": "...", "updatedAt": "..." },
+    "updates": [{ "seq": 1, "updateType": "agent_message_chunk", "payload": { "sessionUpdate": "agent_message_chunk", "...": "..." }, "createdAt": "..." }],
+    "pendingRequests": [{ "requestId": "123", "requestType": "permission", "payload": { "...": "..." } }]
+  }
+  ```
+
+`session/prompt`
+- Params: `{ sessionId: string, prompt: ContentBlock[] }`
+- Result: `{ success: true }`
+
+`session/respond`
+- Params: `{ sessionId: string, requestId: string, response: object }`
+- Result: `{ success: true }`
+
+`session/cancel`
+- Params: `{ sessionId: string }`
+- Result: `{ success: true }`
+
+`session/archive`
+- Params: `{ sessionId: string }`
+- Result: `{ success: true }`
+
+`session/sync`
+- Alias for `session/get` (legacy clients).
+
+### Notifications
+
+`session/updated`
+- Params: `{ sessionId: string, updates: [{ seq, updateType, payload }] }`
+- `payload` is the ACP `update` object, including `sessionUpdate`.
+
+`session/status_changed`
+- Params: `{ sessionId: string, status: string, exitReason?: string }`
+
+`session/request`
+- Params: `{ sessionId: string, requestId: string|number, request: object }`
+- `request` is the ACP request params (typically `session/request_permission`).
+
+### Update types the UI handles
+
+- `user_message_chunk`
+- `agent_message_chunk`
+- `tool_call`
+- `tool_call_update`
+- `plan`
+
+Other ACP update types are currently ignored by the UI.
+
+## Bridge <-> agent (ACP over stdio)
+
+Message flow (simplified):
 
 ```
-Client                              Agent
-  |                                   |
-  |-- initialize ------------------>  |
-  |<-- result: capabilities --------  |
-  |                                   |
-  |-- session/new ----------------->  |
-  |<-- result: { sessionId } -------  |
-  |                                   |
-  |-- session/prompt -------------->  |
-  |<-- notification: session/update   |  (many)
-  |<-- notification: session/update   |
+Bridge                          Agent
+  |                               |
+  |-- initialize -------------->  |
+  |<-- result ------------------  |
+  |                               |
+  |-- session/new ------------->  |
+  |<-- result: { sessionId } ---  |
+  |                               |
+  |-- session/prompt ---------->  |
+  |<-- notification: session/update  (many)
   |<-- REQUEST: session/request_permission
-  |-- response: { outcome } -------->  |
-  |<-- notification: session/update   |
-  |<-- result: { stopReason } ------  |
+  |-- response: { outcome } ---->  |
+  |<-- notification: session/update
 ```
 
-## Key Methods
+## Permission requests
 
-### Client → Agent (Requests)
+Agents send `session/request_permission` as a JSON-RPC request. The bridge persists it and forwards it to the browser as `session/request`. The browser responds via `session/respond`, and the bridge forwards the response back to the agent using the original request id.
 
-| Method | Purpose |
-|--------|---------|
-| `initialize` | Negotiate protocol version and capabilities |
-| `session/new` | Create new session, returns `sessionId` |
-| `session/prompt` | Send user message, triggers streaming updates |
-| `session/cancel` | Notification to abort current prompt |
+## Current gaps
 
-### Agent → Client (Notifications)
-
-| Method | Purpose |
-|--------|---------|
-| `session/update` | Stream updates during prompt processing |
-
-### Agent → Client (Requests)
-
-| Method | Purpose |
-|--------|---------|
-| `session/request_permission` | Ask user to approve tool call |
-
-## Session Update Types
-
-The `session/update` notification has a `sessionUpdate` discriminator:
-
-```typescript
-type SessionUpdate =
-  | { sessionUpdate: "user_message_chunk", content: ContentBlock }
-  | { sessionUpdate: "agent_message_chunk", content: ContentBlock }
-  | { sessionUpdate: "agent_thought_chunk", content: ContentBlock }
-  | { sessionUpdate: "tool_call", ...ToolCall }
-  | { sessionUpdate: "tool_call_update", ...ToolCallUpdate }
-  | { sessionUpdate: "plan", entries: PlanEntry[] }
-  | { sessionUpdate: "available_commands_update", ... }
-  | { sessionUpdate: "current_mode_update", ... }
-```
-
-## Tool Call Structure
-
-```typescript
-type ToolCall = {
-  id: string;          // Unique ID
-  name: string;        // Tool name (e.g., "Read", "Bash")
-  status: "pending" | "in_progress" | "completed" | "failed";
-  kind?: "file" | "command" | "search" | "other";
-  locations?: { path: string, line?: number }[];
-  content?: ToolCallContent[];
-  rawInput?: unknown;
-  rawOutput?: unknown;
-}
-```
-
-## Permission Request Flow
-
-**Important:** Permission requests are NOT notifications - they're requests that require a response.
-
-```typescript
-// Agent sends REQUEST (has id)
-{
-  jsonrpc: "2.0",
-  id: "perm_123",
-  method: "session/request_permission",
-  params: {
-    sessionId: "sess_abc",
-    toolCall: { id, name, status, ... },
-    options: [
-      { optionId: "allow", name: "Allow", kind: "allow_once" },
-      { optionId: "reject", name: "Reject", kind: "reject_once" }
-    ]
-  }
-}
-
-// Client must RESPOND
-{
-  jsonrpc: "2.0",
-  id: "perm_123",  // Same ID!
-  result: {
-    outcome: { outcome: "selected", optionId: "allow" }
-    // OR: outcome: { outcome: "cancelled" }
-  }
-}
-```
-
-## Stop Reasons
-
-Prompt response `stopReason`:
-- `end_turn` - LLM finished normally
-- `max_tokens` - Token limit hit
-- `cancelled` - Client sent cancel notification
-- `refusal` - Agent declined to continue
-
-## Content Blocks
-
-User prompts and agent messages use ContentBlock:
-
-```typescript
-type ContentBlock =
-  | { type: "text", text: string }
-  | { type: "image", mimeType: string, data: string }
-  | { type: "audio", mimeType: string, data: string }
-  | { type: "resource_link", uri: string, ... }
-  | { type: "embedded_resource", ... }
-```
-
-## What Our Bridge Gets Wrong
-
-1. **Discriminator**: We use `type` but ACP uses `sessionUpdate`
-2. **Permission handling**: We treat it as notification, but it's a request needing response
-3. **Message forwarding**: We don't properly forward permission requests to client
-
-## Minimal Test Sequence
-
-```javascript
-// 1. Initialize
-send({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: 1, capabilities: {} }})
-// Wait for response
-
-// 2. Create session
-send({ jsonrpc: "2.0", id: 2, method: "session/new", params: { cwd: "/home/sprite", mcpServers: [] }})
-// Wait for response with sessionId
-
-// 3. Send prompt
-send({ jsonrpc: "2.0", id: 3, method: "session/prompt", params: {
-  sessionId: "...",
-  prompt: [{ type: "text", text: "say hello" }]
-}})
-// Handle session/update notifications
-// Handle session/request_permission REQUESTS (respond!)
-// Wait for final response with stopReason
-```
+- No session resume if an agent process exits.
+- Non-text content blocks are not rendered in the UI.
+- `agentType` is stored but does not select a different agent command.
