@@ -3,7 +3,10 @@ import { describe, test, expect, mock } from "bun:test";
 // Test the buffer processing logic in isolation
 describe("Agent Message Buffer", () => {
   // Simulating the buffer processing from AgentConnection
-  function processBuffer(buffer: string): { messages: unknown[]; remainder: string } {
+  function processBuffer(buffer: string): {
+    messages: unknown[];
+    remainder: string;
+  } {
     const lines = buffer.split("\n");
     const remainder = lines.pop() || "";
     const messages: unknown[] = [];
@@ -61,41 +64,52 @@ describe("Agent Message Buffer", () => {
   });
 });
 
-describe("Session Update Types", () => {
+describe("Session Update Types (ACP spec)", () => {
   test("agent_message_chunk structure", () => {
     const update = {
-      type: "agent_message_chunk",
-      content: "Hello, I'm working on that now.",
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "Hello, I'm working on that now." },
     };
 
-    expect(update.type).toBe("agent_message_chunk");
-    expect(typeof update.content).toBe("string");
+    expect(update.sessionUpdate).toBe("agent_message_chunk");
+    expect(update.content.type).toBe("text");
+    expect(typeof update.content.text).toBe("string");
   });
 
   test("tool_call structure", () => {
     const update = {
-      type: "tool_call",
-      id: "tool_123",
-      name: "Read",
-      status: "running" as const,
-      fileLocations: [{ path: "/home/sprite/test.ts", line: 42 }],
+      sessionUpdate: "tool_call",
+      toolCallId: "tool_123",
+      title: "Read",
+      status: "in_progress" as const,
+      locations: [{ path: "/home/user/test.ts", line: 42 }],
     };
 
-    expect(update.type).toBe("tool_call");
-    expect(update.name).toBe("Read");
-    expect(update.fileLocations).toHaveLength(1);
+    expect(update.sessionUpdate).toBe("tool_call");
+    expect(update.title).toBe("Read");
+    expect(update.toolCallId).toBe("tool_123");
+    expect(update.locations).toHaveLength(1);
   });
 
-  test("request_permission structure", () => {
-    const update = {
-      type: "request_permission",
-      id: "perm_456",
-      toolName: "Bash",
-      input: { command: "npm install" },
+  test("request_permission is a JSON-RPC request, not an update", () => {
+    // Per ACP spec, permissions are sent as JSON-RPC requests from agent to
+    // client, not as session/update notifications.
+    const permRequest = {
+      jsonrpc: "2.0" as const,
+      id: 1,
+      method: "session/request_permission",
+      params: {
+        sessionId: "sess_1",
+        toolCall: { toolCallId: "tool_1", title: "Bash", status: "pending" },
+        options: [
+          { optionId: "allow", name: "Allow", kind: "allow_once" },
+          { optionId: "deny", name: "Deny", kind: "reject_once" },
+        ],
+      },
     };
 
-    expect(update.type).toBe("request_permission");
-    expect(update.toolName).toBe("Bash");
+    expect(permRequest.method).toBe("session/request_permission");
+    expect(permRequest.params.options).toHaveLength(2);
   });
 });
 
@@ -123,7 +137,11 @@ describe("JSON-RPC Protocol", () => {
 
   test("response matches request id", () => {
     const request = { jsonrpc: "2.0" as const, id: 42, method: "test" };
-    const response = { jsonrpc: "2.0" as const, id: 42, result: { success: true } };
+    const response = {
+      jsonrpc: "2.0" as const,
+      id: 42,
+      result: { success: true },
+    };
 
     expect(response.id).toBe(request.id);
   });

@@ -30,16 +30,22 @@ const agentProcesses = new Map<string, AgentProcess>();
 const sessionClients = new Map<string, Set<WebSocket>>();
 
 // Track pending agent requests (permission requests that need client response)
+// Keyed by "sessionId:requestId" to avoid collisions across sessions
 const pendingAgentRequests = new Map<
-  string | number,
-  { sessionId: string; agent: AgentConnection }
+  string,
+  { sessionId: string; requestId: string | number; agent: AgentConnection }
 >();
 
 // Track pending client requests awaiting agent response (e.g., session/prompt)
+// Keyed by "sessionId:requestId" to avoid collisions across clients
 const pendingClientRequests = new Map<
-  string | number,
-  { ws: WebSocket; sessionId: string }
+  string,
+  { ws: WebSocket; sessionId: string; requestId: string | number }
 >();
+
+function pendingKey(sessionId: string, requestId: string | number): string {
+  return `${sessionId}:${requestId}`;
+}
 
 function generateSessionId(): string {
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -199,18 +205,21 @@ function handleClientMessage(ws: WebSocket, message: JsonRpcMessage) {
     ("result" in message || "error" in message) &&
     !("method" in message)
   ) {
-    const pending = pendingAgentRequests.get(message.id);
-    if (pending) {
-      console.log(
-        `[service] Forwarding client response for request ${message.id}`,
-      );
-      pendingAgentRequests.delete(message.id);
+    // Find matching pending agent request (client doesn't include sessionId
+    // in the response, so we scan by matching the request ID value)
+    for (const [key, pending] of pendingAgentRequests) {
+      if (String(pending.requestId) === String(message.id)) {
+        console.log(
+          `[service] Forwarding client response for request ${message.id}`,
+        );
+        pendingAgentRequests.delete(key);
 
-      // Delete from DB
-      pendingRequests.delete(pending.sessionId, String(message.id));
+        // Delete from DB
+        pendingRequests.delete(pending.sessionId, String(message.id));
 
-      pending.agent.send(message);
-      return;
+        pending.agent.send(message);
+        return;
+      }
     }
   }
 
@@ -337,11 +346,12 @@ function handleAgentMessage(
       return;
     }
 
-    const pending = pendingClientRequests.get(msg.id);
-    if (pending) {
-      pendingClientRequests.delete(msg.id);
-      if (pending.ws.readyState === WebSocket.OPEN) {
-        pending.ws.send(JSON.stringify(msg));
+    const clientKey = pendingKey(sessionId, msg.id);
+    const pendingClient = pendingClientRequests.get(clientKey);
+    if (pendingClient) {
+      pendingClientRequests.delete(clientKey);
+      if (pendingClient.ws.readyState === WebSocket.OPEN) {
+        pendingClient.ws.send(JSON.stringify(msg));
       }
       return;
     }
@@ -358,7 +368,11 @@ function handleAgentMessage(
 
     const proc = agentProcesses.get(sessionId);
     if (proc) {
-      pendingAgentRequests.set(msg.id, { sessionId, agent: proc.agent });
+      pendingAgentRequests.set(pendingKey(sessionId, msg.id), {
+        sessionId,
+        requestId: msg.id,
+        agent: proc.agent,
+      });
     }
 
     // Store pending request in DB
@@ -409,6 +423,30 @@ function handleAgentClose(sessionId: string) {
   }
 
   agentProcesses.delete(sessionId);
+
+  // Send error responses to any pending client requests for this session
+  for (const [key, pending] of pendingClientRequests) {
+    if (pending.sessionId === sessionId) {
+      pendingClientRequests.delete(key);
+      if (pending.ws.readyState === WebSocket.OPEN) {
+        pending.ws.send(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: pending.requestId,
+            error: { code: -32603, message: "Agent process exited" },
+          }),
+        );
+      }
+    }
+  }
+
+  // Clean up pending agent requests for this session
+  for (const [key, pending] of pendingAgentRequests) {
+    if (pending.sessionId === sessionId) {
+      pendingAgentRequests.delete(key);
+      pendingRequests.delete(sessionId, String(pending.requestId));
+    }
+  }
 
   pushToClients(sessionId, {
     jsonrpc: "2.0",
@@ -620,7 +658,11 @@ async function handleSessionPrompt(ws: WebSocket, request: JsonRpcRequest) {
   sessions.setStatus(params.sessionId, "running");
 
   // Forward to agent and await response
-  pendingClientRequests.set(request.id, { ws, sessionId: params.sessionId });
+  pendingClientRequests.set(pendingKey(params.sessionId, request.id), {
+    ws,
+    sessionId: params.sessionId,
+    requestId: request.id,
+  });
 
   proc.agent.send({
     jsonrpc: "2.0",
@@ -664,7 +706,7 @@ function handleSessionRespond(ws: WebSocket, request: JsonRpcRequest) {
   });
 
   // Clean up
-  pendingAgentRequests.delete(originalId);
+  pendingAgentRequests.delete(pendingKey(params.sessionId, originalId));
   pendingRequests.delete(params.sessionId, params.requestId);
   sessions.setStatus(params.sessionId, "running");
 
@@ -686,12 +728,45 @@ function handleSessionCancel(ws: WebSocket, request: JsonRpcRequest) {
   }
 
   const proc = agentProcesses.get(params.sessionId);
+
+  // Respond to any pending agent permission requests with "cancelled"
+  for (const [key, pending] of pendingAgentRequests) {
+    if (pending.sessionId === params.sessionId) {
+      pendingAgentRequests.delete(key);
+      if (proc) {
+        proc.agent.send({
+          jsonrpc: "2.0",
+          id: pending.requestId,
+          result: { outcome: { outcome: "cancelled" } },
+        });
+      }
+      pendingRequests.delete(params.sessionId, String(pending.requestId));
+    }
+  }
+
+  // Send cancel to agent
   if (proc && session.agent_session_id) {
     proc.agent.send({
       jsonrpc: "2.0",
       method: "session/cancel",
       params: { sessionId: session.agent_session_id },
     });
+  }
+
+  // Resolve any pending client requests (prompt) with an error
+  for (const [key, pending] of pendingClientRequests) {
+    if (pending.sessionId === params.sessionId) {
+      pendingClientRequests.delete(key);
+      if (pending.ws.readyState === WebSocket.OPEN) {
+        pending.ws.send(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: pending.requestId,
+            error: { code: -32603, message: "Session cancelled" },
+          }),
+        );
+      }
+    }
   }
 
   sessions.setStatus(params.sessionId, "completed");
@@ -715,6 +790,9 @@ function handleSessionArchive(ws: WebSocket, request: JsonRpcRequest) {
     proc.agent.kill();
     agentProcesses.delete(params.sessionId);
   }
+
+  // Stop tracking clients for this session
+  sessionClients.delete(params.sessionId);
 
   sendResult(ws, request.id, { success: true });
 }

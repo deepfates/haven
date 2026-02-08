@@ -103,6 +103,7 @@ export class AgentConnection {
 
     const line = JSON.stringify(message) + "\n";
     (stdin as FileSink).write(line);
+    (stdin as FileSink).flush();
   }
 
   kill(): void {
