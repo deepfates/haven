@@ -24,7 +24,10 @@ export interface JsonRpcNotification {
   params?: unknown;
 }
 
-export type JsonRpcMessage = JsonRpcRequest | JsonRpcResponse | JsonRpcNotification;
+export type JsonRpcMessage =
+  | JsonRpcRequest
+  | JsonRpcResponse
+  | JsonRpcNotification;
 
 // ACP-specific types
 
@@ -35,15 +38,16 @@ export interface SessionNewParams {
 
 export interface SessionPromptParams {
   sessionId: string;
-  content: ContentPart[];
+  prompt: ContentBlock[];
 }
 
-export interface ContentPart {
-  type: "text" | "image" | "resource";
+export interface ContentBlock {
+  type: "text" | "image" | "audio" | "resource_link" | "embedded_resource";
   text?: string;
   uri?: string;
   mimeType?: string;
   data?: string;
+  [key: string]: unknown;
 }
 
 export interface SessionUpdate {
@@ -52,23 +56,61 @@ export interface SessionUpdate {
 }
 
 export type SessionUpdateType =
-  | { type: "agent_message_chunk"; content: string }
-  | { type: "tool_call"; id: string; name: string; status: ToolStatus; fileLocations?: FileLocation[] }
-  | { type: "tool_call_update"; id: string; status: ToolStatus; content?: string; fileLocations?: FileLocation[] }
-  | { type: "plan"; entries: PlanEntry[] }
-  | { type: "request_permission"; id: string; toolName: string; input: unknown };
+  | { sessionUpdate: "agent_message_chunk"; content: ContentBlock }
+  | { sessionUpdate: "user_message_chunk"; content: ContentBlock }
+  | { sessionUpdate: "agent_thought_chunk"; content: ContentBlock }
+  | {
+      sessionUpdate: "tool_call";
+      toolCallId: string;
+      title: string;
+      kind?: ToolKind;
+      status?: ToolCallStatus;
+      locations?: ToolCallLocation[];
+      rawInput?: unknown;
+      rawOutput?: unknown;
+    }
+  | {
+      sessionUpdate: "tool_call_update";
+      toolCallId: string;
+      title?: string;
+      status?: ToolCallStatus;
+      locations?: ToolCallLocation[];
+      rawInput?: unknown;
+      rawOutput?: unknown;
+    }
+  | { sessionUpdate: "plan"; entries: PlanEntry[] }
+  | { sessionUpdate: "available_commands_update"; availableCommands: unknown[] }
+  | { sessionUpdate: "current_mode_update"; currentModeId: string }
+  | { sessionUpdate: "config_option_update"; configOptions: unknown[] }
+  | {
+      sessionUpdate: "session_info_update";
+      title?: string;
+      updatedAt?: string;
+    };
 
-export type ToolStatus = "pending" | "running" | "completed" | "failed";
+export type ToolCallStatus = "pending" | "in_progress" | "completed" | "failed";
 
-export interface FileLocation {
+export type ToolKind =
+  | "read"
+  | "edit"
+  | "delete"
+  | "move"
+  | "search"
+  | "execute"
+  | "think"
+  | "fetch"
+  | "switch_mode"
+  | "other";
+
+export interface ToolCallLocation {
   path: string;
   line?: number;
 }
 
 export interface PlanEntry {
-  id: string;
-  title: string;
+  content: string;
   status: "pending" | "in_progress" | "completed";
+  priority: "high" | "medium" | "low";
 }
 
 // Bridge-specific types

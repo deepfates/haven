@@ -9,10 +9,15 @@ import {
   appendToLastMessageAtom,
   updateToolCallAtom,
 } from "../state/atoms";
-import type { JsonRpcMessage, JsonRpcNotification, Session } from "../types/acp";
+import type {
+  JsonRpcMessage,
+  JsonRpcNotification,
+  Session,
+} from "../types/acp";
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-const WS_URL = import.meta.env.VITE_WS_URL || `${protocol}//${window.location.host}/ws`;
+const WS_URL =
+  import.meta.env.VITE_WS_URL || `${protocol}//${window.location.host}/ws`;
 
 let requestId = 0;
 function nextId() {
@@ -52,15 +57,28 @@ interface PendingRequest {
   requestId: string;
   requestType: string;
   payload: {
-    toolCall?: { id: string; name: string; rawInput?: unknown };
+    toolCall?: {
+      id?: string;
+      toolCallId?: string;
+      name?: string;
+      title?: string;
+      rawInput?: unknown;
+    };
     options?: { optionId: string; name: string; kind: string }[];
   };
 }
 
 export function useAcpConnection() {
   const wsRef = useRef<ReconnectingWebSocket | null>(null);
-  const pendingRequests = useRef<Map<number | string, (result: unknown) => void>>(new Map());
-  const pendingRejects = useRef<Map<number | string, (error: Error) => void>>(new Map());
+  const pendingRequests = useRef<
+    Map<number | string, (result: unknown) => void>
+  >(new Map());
+  const pendingRejects = useRef<Map<number | string, (error: Error) => void>>(
+    new Map(),
+  );
+  const pendingTimeouts = useRef<
+    Map<number | string, ReturnType<typeof setTimeout>>
+  >(new Map());
 
   const [connectionStatus, setConnectionStatus] = useAtom(connectionStatusAtom);
   const [, setSessions] = useAtom(sessionsAtom);
@@ -71,22 +89,39 @@ export function useAcpConnection() {
 
   // Send a request and wait for response
   const sendRequest = useCallback(
-    <T>(method: string, params?: unknown): Promise<T> => {
+    <T>(method: string, params?: unknown, timeoutMs = 30000): Promise<T> => {
       return new Promise((resolve, reject) => {
         const id = nextId();
-        pendingRequests.current.set(id, (result) => resolve(result as T));
-        pendingRejects.current.set(id, reject);
-        wsRef.current?.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
-        setTimeout(() => {
-          if (pendingRequests.current.has(id)) {
-            pendingRequests.current.delete(id);
-            pendingRejects.current.delete(id);
-            reject(new Error("Request timeout"));
-          }
-        }, 30000);
+        pendingRequests.current.set(id, (result) => {
+          const timeout = pendingTimeouts.current.get(id);
+          if (timeout) clearTimeout(timeout);
+          pendingTimeouts.current.delete(id);
+          resolve(result as T);
+        });
+        pendingRejects.current.set(id, (error) => {
+          const timeout = pendingTimeouts.current.get(id);
+          if (timeout) clearTimeout(timeout);
+          pendingTimeouts.current.delete(id);
+          reject(error);
+        });
+        wsRef.current?.send(
+          JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+        );
+
+        if (timeoutMs > 0) {
+          const timeout = setTimeout(() => {
+            if (pendingRequests.current.has(id)) {
+              pendingRequests.current.delete(id);
+              pendingRejects.current.delete(id);
+              pendingTimeouts.current.delete(id);
+              reject(new Error("Request timeout"));
+            }
+          }, timeoutMs);
+          pendingTimeouts.current.set(id, timeout);
+        }
       });
     },
-    []
+    [],
   );
 
   // Process a session update from the service
@@ -120,7 +155,11 @@ export function useAcpConnection() {
               toolCall: {
                 id: toolCallId,
                 name: title,
-                status: (payload.status || "pending") as "pending" | "running" | "completed" | "failed",
+                status: (payload.status || "pending") as
+                  | "pending"
+                  | "running"
+                  | "completed"
+                  | "failed",
                 fileLocations: payload.locations,
                 rawOutput: payload.rawOutput,
               },
@@ -149,13 +188,16 @@ export function useAcpConnection() {
         }
       }
     },
-    [addMessage, appendToLastMessage, updateToolCall, updateSession]
+    [addMessage, appendToLastMessage, updateToolCall, updateSession],
   );
 
   // Handle notifications from service
   const handleNotification = useCallback(
     (message: JsonRpcNotification) => {
-      const params = message.params as { sessionId?: string; [key: string]: unknown };
+      const params = message.params as {
+        sessionId?: string;
+        [key: string]: unknown;
+      };
       const sessionId = params?.sessionId;
 
       switch (message.method) {
@@ -198,7 +240,9 @@ export function useAcpConnection() {
                 message: {
                   id: `status_${Date.now()}`,
                   type: "agent",
-                  content: exitReason ? `Session ended: ${exitReason}` : "Session ended",
+                  content: exitReason
+                    ? `Session ended: ${exitReason}`
+                    : "Session ended",
                   timestamp: Date.now(),
                 },
               });
@@ -220,10 +264,17 @@ export function useAcpConnection() {
                   status: "waiting",
                   pendingApproval: {
                     requestId,
-                    id: request.toolCall.id,
-                    toolName: request.toolCall.name,
+                    id:
+                      request.toolCall.toolCallId || request.toolCall.id || "",
+                    toolName:
+                      request.toolCall.title || request.toolCall.name || "",
                     input: request.toolCall.rawInput,
-                    options: request.options as Session["pendingApproval"] extends { options: infer O } ? O : never,
+                    options:
+                      request.options as Session["pendingApproval"] extends {
+                        options: infer O;
+                      }
+                        ? O
+                        : never,
                   },
                 },
               });
@@ -233,7 +284,7 @@ export function useAcpConnection() {
         }
       }
     },
-    [processUpdate, updateSession, addMessage]
+    [processUpdate, updateSession, addMessage],
   );
 
   // Handle incoming WebSocket messages
@@ -248,6 +299,9 @@ export function useAcpConnection() {
           if (handler) {
             pendingRequests.current.delete(message.id);
             pendingRejects.current.delete(message.id);
+            const timeout = pendingTimeouts.current.get(message.id);
+            if (timeout) clearTimeout(timeout);
+            pendingTimeouts.current.delete(message.id);
             handler(message.result);
           }
           return;
@@ -259,6 +313,9 @@ export function useAcpConnection() {
           if (rejecter) {
             pendingRequests.current.delete(message.id);
             pendingRejects.current.delete(message.id);
+            const timeout = pendingTimeouts.current.get(message.id);
+            if (timeout) clearTimeout(timeout);
+            pendingTimeouts.current.delete(message.id);
             const err = message.error as { message?: string };
             rejecter(new Error(err?.message || "Unknown error"));
           } else {
@@ -275,14 +332,19 @@ export function useAcpConnection() {
         console.error("Failed to parse message:", err);
       }
     },
-    [handleNotification]
+    [handleNotification],
   );
 
   // Convert service session to client session
-  const serviceToClientSession = (s: ServiceSession, messages: Session["messages"] = []): Session => ({
+  const serviceToClientSession = (
+    s: ServiceSession,
+    messages: Session["messages"] = [],
+  ): Session => ({
     id: s.id,
     title: s.title || "Session",
-    status: (s.status === "exited" ? "completed" : s.status) as Session["status"],
+    status: (s.status === "exited"
+      ? "completed"
+      : s.status) as Session["status"],
     messages,
   });
 
@@ -299,6 +361,7 @@ export function useAcpConnection() {
         // Build messages from updates
         const messages: Session["messages"] = [];
         let lastAgentMessage: Session["messages"][0] | null = null;
+        let plan: Session["plan"] | undefined;
 
         for (const update of result.updates) {
           const payload = update.payload;
@@ -310,7 +373,10 @@ export function useAcpConnection() {
               // Handle legacy format where text was JSON.stringify'd prompt array
               if (text.startsWith("[{") && text.includes('"type":"text"')) {
                 try {
-                  const parsed = JSON.parse(text) as Array<{ type: string; text?: string }>;
+                  const parsed = JSON.parse(text) as Array<{
+                    type: string;
+                    text?: string;
+                  }>;
                   text = parsed[0]?.text || text;
                 } catch {
                   // Keep original if parse fails
@@ -353,7 +419,11 @@ export function useAcpConnection() {
                 toolCall: {
                   id: payload.toolCallId || `tool_${update.seq}`,
                   name: payload.title || "",
-                  status: (payload.status || "pending") as "pending" | "running" | "completed" | "failed",
+                  status: (payload.status || "pending") as
+                    | "pending"
+                    | "running"
+                    | "completed"
+                    | "failed",
                   fileLocations: payload.locations,
                   rawOutput: payload.rawOutput,
                 },
@@ -361,11 +431,19 @@ export function useAcpConnection() {
               lastAgentMessage = null;
               break;
             }
+
+            case "plan": {
+              plan = payload.entries as Session["plan"];
+              break;
+            }
           }
         }
 
         // Build session
         const session = serviceToClientSession(result.session, messages);
+        if (plan) {
+          session.plan = plan;
+        }
 
         // Add pending approval if any
         if (result.pendingRequests.length > 0) {
@@ -373,10 +451,21 @@ export function useAcpConnection() {
           if (pending.payload.toolCall && pending.payload.options) {
             session.pendingApproval = {
               requestId: pending.requestId,
-              id: pending.payload.toolCall.id,
-              toolName: pending.payload.toolCall.name,
+              id:
+                pending.payload.toolCall.toolCallId ||
+                pending.payload.toolCall.id ||
+                "",
+              toolName:
+                pending.payload.toolCall.title ||
+                pending.payload.toolCall.name ||
+                "",
               input: pending.payload.toolCall.rawInput,
-              options: pending.payload.options as Session["pendingApproval"] extends { options: infer O } ? O : never,
+              options: pending.payload
+                .options as Session["pendingApproval"] extends {
+                options: infer O;
+              }
+                ? O
+                : never,
             };
             session.status = "waiting";
           }
@@ -394,13 +483,15 @@ export function useAcpConnection() {
         throw err;
       }
     },
-    [sendRequest, setSessions]
+    [sendRequest, setSessions],
   );
 
   // Fetch all sessions on connect
   const fetchSessions = useCallback(async () => {
     try {
-      const result = await sendRequest<{ sessions: ServiceSession[] }>("session/list");
+      const result = await sendRequest<{ sessions: ServiceSession[] }>(
+        "session/list",
+      );
 
       console.log("[ACP] Sessions:", result.sessions);
 
@@ -411,7 +502,11 @@ export function useAcpConnection() {
 
         // Mark sessions not on server as completed
         for (const [id, session] of next) {
-          if (!serverIds.has(id) && session.status !== "completed" && session.status !== "error") {
+          if (
+            !serverIds.has(id) &&
+            session.status !== "completed" &&
+            session.status !== "error"
+          ) {
             next.set(id, { ...session, status: "completed" });
           }
         }
@@ -424,7 +519,9 @@ export function useAcpConnection() {
             next.set(s.id, {
               ...existing,
               title: s.title || existing.title,
-              status: (s.status === "exited" ? "completed" : s.status) as Session["status"],
+              status: (s.status === "exited"
+                ? "completed"
+                : s.status) as Session["status"],
             });
           } else {
             // New session, will load details when opened
@@ -453,6 +550,15 @@ export function useAcpConnection() {
 
     ws.onclose = () => {
       setConnectionStatus("disconnected");
+      // Reject all in-flight requests (especially those with timeoutMs=0)
+      for (const [id, rejecter] of pendingRejects.current) {
+        const timeout = pendingTimeouts.current.get(id);
+        if (timeout) clearTimeout(timeout);
+        pendingTimeouts.current.delete(id);
+        rejecter(new Error("WebSocket disconnected"));
+      }
+      pendingRequests.current.clear();
+      pendingRejects.current.clear();
     };
 
     ws.onmessage = (event) => {
@@ -471,13 +577,23 @@ export function useAcpConnection() {
   // API
   const createSession = useCallback(
     async (title: string, cwd?: string) => {
-      const result = await sendRequest<{ sessionId: string }>("session/new", { title, cwd });
+      const result = await sendRequest<{ sessionId: string }>("session/new", {
+        title,
+        cwd,
+      });
 
       const newSession: Session = {
         id: result.sessionId,
         status: "waiting",
         title,
-        messages: [{ id: `init_${Date.now()}`, type: "agent", content: "Initializing...", timestamp: Date.now() }],
+        messages: [
+          {
+            id: `init_${Date.now()}`,
+            type: "agent",
+            content: "Initializing...",
+            timestamp: Date.now(),
+          },
+        ],
       };
 
       setSessions((prev) => {
@@ -488,20 +604,29 @@ export function useAcpConnection() {
 
       return result.sessionId;
     },
-    [sendRequest, setSessions]
+    [sendRequest, setSessions],
   );
 
   const sendPrompt = useCallback(
     async (sessionId: string, text: string) => {
       addMessage({
         sessionId,
-        message: { id: `user_${Date.now()}`, type: "user", content: text, timestamp: Date.now() },
+        message: {
+          id: `user_${Date.now()}`,
+          type: "user",
+          content: text,
+          timestamp: Date.now(),
+        },
       });
 
       updateSession({ id: sessionId, changes: { status: "running" } });
 
       try {
-        await sendRequest("session/prompt", { sessionId, prompt: [{ type: "text", text }] });
+        await sendRequest(
+          "session/prompt",
+          { sessionId, prompt: [{ type: "text", text }] },
+          0,
+        );
       } catch (err) {
         console.error("[sendPrompt] Failed:", err);
         addMessage({
@@ -516,12 +641,15 @@ export function useAcpConnection() {
         updateSession({ id: sessionId, changes: { status: "error" } });
       }
     },
-    [sendRequest, addMessage, updateSession]
+    [sendRequest, addMessage, updateSession],
   );
 
   const respondToPermission = useCallback(
     async (sessionId: string, requestId: string | number, optionId: string) => {
-      updateSession({ id: sessionId, changes: { pendingApproval: undefined, status: "running" } });
+      updateSession({
+        id: sessionId,
+        changes: { pendingApproval: undefined, status: "running" },
+      });
 
       try {
         await sendRequest("session/respond", {
@@ -533,7 +661,7 @@ export function useAcpConnection() {
         console.error("[respondToPermission] Failed:", err);
       }
     },
-    [sendRequest, updateSession]
+    [sendRequest, updateSession],
   );
 
   const cancelSession = useCallback(
@@ -541,7 +669,7 @@ export function useAcpConnection() {
       await sendRequest("session/cancel", { sessionId });
       updateSession({ id: sessionId, changes: { status: "completed" } });
     },
-    [sendRequest, updateSession]
+    [sendRequest, updateSession],
   );
 
   const archiveSession = useCallback(
@@ -553,7 +681,7 @@ export function useAcpConnection() {
         return next;
       });
     },
-    [sendRequest, setSessions]
+    [sendRequest, setSessions],
   );
 
   return {

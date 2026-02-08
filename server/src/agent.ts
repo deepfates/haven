@@ -13,23 +13,20 @@ export class AgentConnection {
     private sessionId: string,
     private cwd: string,
     private agentCommand: string,
-    handlers: { onMessage: MessageHandler; onClose: () => void }
+    handlers: { onMessage: MessageHandler; onClose: () => void },
   ) {
     this.onMessage = handlers.onMessage;
     this.onClose = handlers.onClose;
   }
 
   async start(): Promise<void> {
-    const args = this.agentCommand.split(" ");
-    const cmd = args[0];
-    const cmdArgs = args.slice(1);
-
-    this.process = Bun.spawn([cmd, ...cmdArgs], {
+    // Use shell to properly handle PATH, shebang scripts, and version managers like nvm
+    this.process = Bun.spawn(["sh", "-c", this.agentCommand], {
       cwd: this.cwd,
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env },
+      env: process.env,
     });
 
     this.readStdout();
@@ -106,6 +103,7 @@ export class AgentConnection {
 
     const line = JSON.stringify(message) + "\n";
     (stdin as FileSink).write(line);
+    (stdin as FileSink).flush();
   }
 
   kill(): void {

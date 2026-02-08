@@ -6,10 +6,12 @@
     "dev:server": "cd server && bun run dev",
     "dev:client": "cd client && bun run dev",
     "build": "cd client && bun run build",
-    "typecheck": "cd server && bun run typecheck && cd ../client && bunx tsc --noEmit"
+    "typecheck": "cd server && bun run typecheck && cd ../client && bunx tsc --noEmit",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
     "@agentclientprotocol/sdk": "^0.13.1",
+    "@playwright/test": "^1.58.1",
     "concurrently": "^9.1.0",
     "playwright": "^1.58.1",
     "taiko": "^1.4.7",

@@ -1,10 +1,37 @@
 import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } from "bun:test";
 import { WebSocket } from "ws";
+import { createServer as createNetServer } from "net";
+import { mkdtempSync, writeFileSync, rmSync, existsSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
-const PORT = 8081; // Use different port than production
-const WS_URL = `ws://localhost:${PORT}`;
+let PORT = Number(process.env.ACP_TEST_PORT || 0);
+let WS_URL = "";
+const ROOT_CWD = process.cwd();
+const DEFAULT_SERVER_CWD = join(ROOT_CWD, "server");
+const SERVER_CWD = process.env.ACP_SERVER_CWD || (existsSync(DEFAULT_SERVER_CWD) ? DEFAULT_SERVER_CWD : ROOT_CWD);
+const TEST_CWD = process.env.ACP_TEST_CWD || ROOT_CWD;
 
 let serverProcess: ReturnType<typeof Bun.spawn> | null = null;
+let staticDir: string | null = null;
+let testHome: string | null = null;
+
+async function getFreePort(): Promise<number> {
+  return await new Promise((resolve, reject) => {
+    const srv = createNetServer();
+    srv.listen(0, "127.0.0.1", () => {
+      const address = srv.address();
+      if (address && typeof address === "object") {
+        const port = address.port;
+        srv.close(() => resolve(port));
+      } else {
+        srv.close();
+        reject(new Error("Failed to acquire port"));
+      }
+    });
+    srv.on("error", reject);
+  });
+}
 
 // Helper to send JSON-RPC request and get response
 function sendRequest(ws: WebSocket, method: string, params?: unknown): Promise<{ id: number; result?: unknown; error?: unknown }> {
@@ -27,23 +54,47 @@ function sendRequest(ws: WebSocket, method: string, params?: unknown): Promise<{
 }
 
 // Wait for WebSocket to be ready
-function waitForOpen(ws: WebSocket): Promise<void> {
+function waitForOpen(ws: WebSocket, timeoutMs = 5000): Promise<void> {
   return new Promise((resolve, reject) => {
     if (ws.readyState === WebSocket.OPEN) {
       resolve();
       return;
     }
-    ws.once("open", resolve);
-    ws.once("error", reject);
+    const timeout = setTimeout(() => reject(new Error("WebSocket open timeout")), timeoutMs);
+    ws.once("open", () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+    ws.once("error", (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
   });
 }
 
 describe("ACP Bridge Server", () => {
   beforeAll(async () => {
+    if (!PORT) {
+      PORT = await getFreePort();
+    }
+    WS_URL = `ws://localhost:${PORT}/ws`;
+
+    // Create temp static dir and home to isolate DB
+    staticDir = mkdtempSync(join(tmpdir(), "acp-client-static-"));
+    writeFileSync(join(staticDir, "index.html"), "<!doctype html><html><body>OK</body></html>");
+
+    testHome = mkdtempSync(join(tmpdir(), "acp-client-home-"));
+
     // Start server on test port
     serverProcess = Bun.spawn(["bun", "run", "src/index.ts"], {
-      cwd: "/home/sprite/acp-client/server",
-      env: { ...process.env, PORT: String(PORT) },
+      cwd: SERVER_CWD,
+      env: {
+        ...process.env,
+        PORT: String(PORT),
+        STATIC_DIR: staticDir,
+        HOME: testHome,
+        AGENT_COMMAND: process.env.ACP_TEST_AGENT_COMMAND || "/usr/bin/true",
+      },
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -54,6 +105,12 @@ describe("ACP Bridge Server", () => {
 
   afterAll(() => {
     serverProcess?.kill();
+    if (staticDir) {
+      rmSync(staticDir, { recursive: true, force: true });
+    }
+    if (testHome) {
+      rmSync(testHome, { recursive: true, force: true });
+    }
   });
 
   describe("WebSocket Connection", () => {
@@ -78,20 +135,20 @@ describe("ACP Bridge Server", () => {
     });
 
     test("session/new creates a session", async () => {
-      const response = await sendRequest(ws, "session/new", { cwd: "/home/sprite" });
+      const response = await sendRequest(ws, "session/new", { cwd: TEST_CWD });
       expect(response.result).toBeDefined();
       expect((response.result as { sessionId: string }).sessionId).toMatch(/^session_/);
     });
 
     test("session/prompt fails without sessionId", async () => {
-      const response = await sendRequest(ws, "session/prompt", { content: [{ type: "text", text: "hello" }] });
+      const response = await sendRequest(ws, "session/prompt", { prompt: [{ type: "text", text: "hello" }] });
       expect(response.error).toBeDefined();
     });
 
     test("session/prompt fails with invalid sessionId", async () => {
       const response = await sendRequest(ws, "session/prompt", {
         sessionId: "nonexistent",
-        content: [{ type: "text", text: "hello" }],
+        prompt: [{ type: "text", text: "hello" }],
       });
       expect(response.error).toBeDefined();
     });
