@@ -1,6 +1,6 @@
-# Haven (ACP Client)
+# haven
 
-Haven is a mobile-first web client and local bridge for ACP agents. In practice, your "haven" is just the machine running the bridge and agent processes. Fly.io Sprites are a convenient way to host that machine, but they are not required.
+Haven is a mobile-first web client and local bridge for ACP agents. The theory is that you give a whole computer to your agents, whether as a VM or container or whatever, and the computer file system and the software within it becomes their sort of house or shared space. A haven. And you can interact with them from wherever through the mobile web client, spin up and talk to different agents. Like Codex and Claude Code and all the other ones supported by agent client protocol. 
 
 This repo includes:
 - A bridge server that speaks ACP to an agent over stdio and exposes a WebSocket JSON-RPC API to the browser.
