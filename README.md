@@ -1,4 +1,4 @@
-# haven
+# 🏡 haven
 
 Haven is a mobile-first web client and local bridge for ACP agents. The theory is that you give a whole computer to your agents, whether as a VM or container or whatever, and the computer file system and the software within it becomes their sort of house or shared space. A haven. And you can interact with them from wherever through the mobile web client, spin up and talk to different agents. Like Codex and Claude Code and all the other ones supported by agent client protocol. 
 
