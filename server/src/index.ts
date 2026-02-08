@@ -100,7 +100,14 @@ function persistAndPush(
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
   const rawPath = url.pathname === "/" ? "/index.html" : url.pathname;
-  const safePath = decodeURIComponent(rawPath);
+  let safePath: string;
+  try {
+    safePath = decodeURIComponent(rawPath);
+  } catch {
+    res.writeHead(400);
+    res.end("Bad request");
+    return;
+  }
   let filePath = resolve(STATIC_DIR, "." + safePath);
   const staticRoot = resolve(STATIC_DIR) + sep;
 
