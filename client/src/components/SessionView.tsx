@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useAtom, useSetAtom } from "jotai";
+import Markdown from "react-markdown";
 import { currentSessionAtom, currentSessionIdAtom, connectionStatusAtom } from "../state/atoms";
 import { ApprovalCard } from "./ApprovalCard";
 import { ThemeSwitcher } from "./ThemeSwitcher";
@@ -111,37 +112,57 @@ export function SessionView({ onSendPrompt, onRespondPermission, onCancel }: Ses
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={feedRef}>
+      <div className="flex-1 overflow-y-auto p-4" ref={feedRef}>
+        <div className="max-w-3xl mx-auto space-y-4">
+        {session.messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-base-content/50">
+            {session.status === "connecting" || session.status === "running" ? (
+              <>
+                <span className="loading loading-dots loading-lg mb-4" />
+                <p>Agent is starting up...</p>
+              </>
+            ) : session.status === "error" ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 text-error mb-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                </svg>
+                <p>Session ended with an error</p>
+              </>
+            ) : (
+              <p>No messages yet</p>
+            )}
+          </div>
+        )}
         {session.messages.map((message) => {
           if (message.type === "tool") {
+            const status = message.toolCall?.status;
             return (
-              <div key={message.id} className="flex items-start gap-2 text-sm">
-                <span className="text-base-content/50">
-                  {message.toolCall?.status === "completed" ? (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={2}
-                      stroke="currentColor"
-                      className="w-4 h-4 text-success"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="m4.5 12.75 6 6 9-13.5"
-                      />
+              <div key={message.id} className="flex items-start gap-3 py-2 px-3 rounded-lg bg-base-200/50 text-sm">
+                <div className="flex-shrink-0 mt-0.5">
+                  {status === "completed" ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-success">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  ) : status === "failed" ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-error">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                     </svg>
                   ) : (
-                    <span className="loading loading-spinner loading-xs" />
+                    <span className="loading loading-spinner loading-xs text-primary" />
                   )}
-                </span>
-                <div className="flex-1">
-                  <span className="text-base-content/70">{message.content}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    {message.toolCall?.name && (
+                      <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-base-300 text-base-content/70">
+                        {message.toolCall.name}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-base-content/80 mt-1">{message.content}</p>
                   {message.toolCall?.fileLocations?.map((loc, i) => (
-                    <div key={i} className="text-xs font-mono text-primary mt-1">
-                      {loc.path}
-                      {loc.line ? `:${loc.line}` : ""}
+                    <div key={i} className="font-mono text-xs text-primary mt-1 truncate">
+                      {loc.path}{loc.line ? `:${loc.line}` : ""}
                     </div>
                   ))}
                 </div>
@@ -161,7 +182,31 @@ export function SessionView({ onSendPrompt, onRespondPermission, onCancel }: Ses
                     : "chat-bubble-neutral"
                 } whitespace-pre-wrap`}
               >
-                {message.content}
+                {message.type === "agent" ? (
+                  <Markdown
+                    components={{
+                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
+                      li: ({ children }) => <li className="ml-2">{children}</li>,
+                      code: ({ children, className }) => {
+                        const isBlock = className?.includes("language-");
+                        return isBlock ? (
+                          <pre className="bg-base-300 rounded p-2 my-2 overflow-x-auto text-sm">
+                            <code>{children}</code>
+                          </pre>
+                        ) : (
+                          <code className="bg-base-300 rounded px-1 text-sm">{children}</code>
+                        );
+                      },
+                      strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                    }}
+                  >
+                    {message.content}
+                  </Markdown>
+                ) : (
+                  message.content
+                )}
               </div>
             </div>
           );
@@ -175,28 +220,31 @@ export function SessionView({ onSendPrompt, onRespondPermission, onCancel }: Ses
             }
           />
         )}
+        </div>
       </div>
 
-      <form
-        className="flex gap-2 p-4 bg-base-200 border-t border-base-300"
-        onSubmit={handleSubmit}
-      >
-        <input
-          type="text"
-          className="input input-bordered flex-1"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={isDisconnected ? "Reconnecting..." : "Type to redirect..."}
-          disabled={session.status === "waiting" || isDisconnected}
-        />
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={!input.trim() || session.status === "waiting" || isDisconnected}
+      <div className="bg-base-200 border-t border-base-300 p-4">
+        <form
+          className="flex gap-2 max-w-3xl mx-auto"
+          onSubmit={handleSubmit}
         >
-          Send
-        </button>
-      </form>
+          <input
+            type="text"
+            className="input input-bordered flex-1"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={isDisconnected ? "Reconnecting..." : "Send a message..."}
+            disabled={session.status === "waiting" || isDisconnected}
+          />
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={!input.trim() || session.status === "waiting" || isDisconnected}
+          >
+            Send
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
