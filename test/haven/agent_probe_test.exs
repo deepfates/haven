@@ -3,6 +3,18 @@ defmodule Haven.AgentProbeTest do
 
   alias Haven.AgentProbe
 
+  setup do
+    original = Application.get_env(:haven, :agents)
+
+    on_exit(fn ->
+      if original do
+        Application.put_env(:haven, :agents, original)
+      else
+        Application.delete_env(:haven, :agents)
+      end
+    end)
+  end
+
   test "runs a prompt through Haven's configured agent path" do
     assert {:ok, report} =
              AgentProbe.run(
@@ -97,6 +109,77 @@ defmodule Haven.AgentProbeTest do
            end)
   end
 
+  test "probes file reads through a configured external ACP command" do
+    Application.put_env(:haven, :agents, %{
+      "fake-probe-file-read" => fake_agent_spec("file-read")
+    })
+
+    assert {:ok, report} =
+             AgentProbe.run(
+               agent: "fake-probe-file-read",
+               workspace: File.cwd!(),
+               prompt: "read-file",
+               file_read_policy: "allow",
+               timeout: 5_000,
+               expect_events: [
+                 "agent_initialized",
+                 "agent_session_started",
+                 "file_read_requested",
+                 "capability_policy_applied",
+                 "file_read_succeeded",
+                 "turn_finished"
+               ]
+             )
+
+    assert report.status == "idle"
+    assert report.missing_expected_events == []
+    assert report.agent == "fake-probe-file-read"
+
+    assert Enum.any?(report.events, fn
+             %{type: "agent_message_chunk", payload: %{"text" => text}} ->
+               String.starts_with?(text, "Fake read file:")
+
+             _event ->
+               false
+           end)
+  end
+
+  test "probes terminal commands through a configured external ACP command" do
+    Application.put_env(:haven, :agents, %{
+      "fake-probe-terminal" => fake_agent_spec("terminal")
+    })
+
+    assert {:ok, report} =
+             AgentProbe.run(
+               agent: "fake-probe-terminal",
+               workspace: File.cwd!(),
+               prompt: "terminal",
+               terminal_create_policy: "allow",
+               timeout: 5_000,
+               expect_events: [
+                 "agent_initialized",
+                 "agent_session_started",
+                 "terminal_create_requested",
+                 "terminal_created",
+                 "terminal_output_succeeded",
+                 "terminal_released",
+                 "turn_finished"
+               ]
+             )
+
+    assert report.status == "idle"
+    assert report.missing_expected_events == []
+    assert report.agent == "fake-probe-terminal"
+
+    assert Enum.any?(report.events, fn
+             %{type: "agent_message_chunk", payload: %{"text" => text}} ->
+               text == "Fake terminal output: external (exit 0)"
+
+             _event ->
+               false
+           end)
+  end
+
   test "passes when expected events are present" do
     assert {:ok, report} =
              AgentProbe.run(
@@ -128,6 +211,22 @@ defmodule Haven.AgentProbeTest do
   end
 
   defp event_types(report), do: Enum.map(report.events, & &1.type)
+
+  defp fake_agent_spec(scenario) do
+    %{
+      executable: System.find_executable("mix"),
+      args: [
+        "run",
+        "--no-compile",
+        "--no-start",
+        "test/support/fake_agent_runner.exs",
+        scenario,
+        "{workspace}"
+      ],
+      cwd: "{workspace}",
+      env: [{"MIX_ENV", "test"}]
+    }
+  end
 
   defp permission_denied?(%{type: "permission_resolved", payload: payload}) do
     payload["option_id"] == "deny" and payload["actor"] == "local_user"

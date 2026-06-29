@@ -118,6 +118,9 @@ Evidence:
 - A test-only fake ACP harness is launched through the configured external-agent
   command path and verifies partial streamed chunks are appended durably in
   order.
+- Agent probe integration tests launch the same configured external-agent
+  harness and verify durable file-read and terminal-command events through the
+  probe path, not only through the built-in `stub-acp` agent.
 - Tests assert the run detail returns to visible `idle` after completion.
 - LiveView integration tests cancel a run while it is blocked on permission and
   verify the outstanding permission is durably resolved as cancelled.
@@ -332,14 +335,16 @@ Evidence:
   write a pretty JSON report with `--report`, giving real-agent validation a
   durable artifact format instead of a copied terminal transcript. Current
   automated coverage runs this probe against `stub-acp`, including file policy
-  allow and terminal-create policy deny stories; real-agent proof still
-  requires running the same probe against a non-stub configured ACP command with
-  expectations for the specific story being validated.
+  allow and terminal-create policy deny stories, and against the configured
+  test-only fake ACP harness for file-read and terminal-command stories.
+  Real-agent proof still requires running the same probe against a non-test
+  configured ACP command with expectations for the specific story being
+  validated.
 
 Still missing:
 
-- Real external agent coverage for file requests.
-- Real external agent coverage for terminal requests.
+- Real non-test external agent coverage for file requests.
+- Real non-test external agent coverage for terminal requests.
 - Full file diff/artifact projections for review; current evidence is only a
   bounded proposed-content preview on write permission requests.
 - PTY-style interactive terminal sessions.
@@ -351,11 +356,12 @@ Still missing:
 These are not cosmetic gaps. They are core to the full Grei telos and should not
 be counted as complete until there is executable evidence.
 
-- Real external ACP agent integration beyond `priv/agent_stub.exs`.
+- Real external ACP agent integration beyond `priv/agent_stub.exs` and the
+  configured test-only fake ACP harness.
 - A committed `mix haven.agent_probe --report` JSON artifact from a real
   configured ACP agent under `docs/probes/`.
-- File read/write capability requests from a real external agent.
-- Terminal capability requests from a real external agent.
+- File read/write capability requests from a real non-test external agent.
+- Terminal capability requests from a real non-test external agent.
 - Interactive terminal behavior.
 - Authentication flows for agents that require auth; configured env can pass
   secrets to launched agents, but no interactive auth flow is proven.

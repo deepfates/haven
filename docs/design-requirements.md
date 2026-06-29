@@ -345,6 +345,9 @@ Proven:
   failed instead of hanging indefinitely.
 - The same post-start malformed-output failure path is proven through the
   configured external-agent command path using the fake ACP harness.
+- The configured test-only fake ACP harness can exercise file-read and
+  terminal-command ACP client callbacks through `mix haven.agent_probe`,
+  reducing reliance on the built-in stub for capability validation.
 - Timeline events expose a visible and machine-readable provenance marker
   (`app`, `user`, `agent`, `client`, `protocol`, or `runtime`) so users can
   distinguish app decisions from protocol and runtime activity.
@@ -353,10 +356,11 @@ Proven:
 
 Not yet proven:
 
-- Real external agents beyond the local stub.
-- File capability handling against real external agents.
+- Real external agents beyond the local stub and configured test-only fake
+  harness.
+- File capability handling against real non-test external agents.
 - Full file diff/artifact projections for write review.
-- Terminal capability handling against real external agents.
+- Terminal capability handling against real non-test external agents.
 - Ask/approval workflow for terminal creation policy.
 - Interactive terminal sessions and process-tree kill behavior.
 - ACP-native session resume policy.
