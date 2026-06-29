@@ -55,6 +55,7 @@ mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "read 
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "run tests" --expect-event terminal_created --expect-event terminal_output_succeeded
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "run tests" --report docs/probes/my-agent-terminal.json
 mix haven.agent_probe --list-agents --preflight --workspace /path/to/repo
+mix haven.agent_probe --list-agents --registry --workspace /path/to/repo
 ```
 
 Configured agents can be supplied at runtime with `HAVEN_AGENTS_JSON`:
@@ -85,6 +86,10 @@ real-agent checks into acceptance contracts instead of best-effort smoke.
 Use `--list-agents --preflight` first when a saved command merely looks
 plausible: it starts a short durable run for each probe candidate and verifies
 the ACP initialize/session handshake before you attempt a full evidence report.
+Use `--list-agents --registry` to fetch the public ACP Registry and print
+npx-backed agent command suggestions that can be supplied through
+`HAVEN_AGENTS_JSON`. Registry commands download and run third-party code; run
+preflight and evidence probes only with an approved workspace and auth scope.
 `--report path.json` writes the full report as pretty JSON for committed proof
 artifacts. Passing the probe with `stub-acp` proves the harness; passing it with
 a real configured ACP agent is the next integration milestone. See

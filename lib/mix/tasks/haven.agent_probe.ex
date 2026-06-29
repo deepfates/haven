@@ -8,12 +8,15 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --report docs/probes/my-agent.json
       mix haven.agent_probe --list-agents --workspace .
       mix haven.agent_probe --list-agents --preflight --workspace .
+      mix haven.agent_probe --list-agents --registry --workspace .
 
   Use `--list-agents` to inspect configured agent commands, whether they
   resolve on this machine, and whether they are eligible for
   `--require-real-agent` evidence.
   Add `--preflight` to `--list-agents` to try ACP initialization/session
   creation for each eligible probe candidate before attempting a full report.
+  Add `--registry` to `--list-agents` to show npx-backed ACP agent suggestions
+  from the public ACP registry.
   Use `--resolve-permissions allow` or `--resolve-permissions deny` when the
   probe prompt is expected to trigger permission-gated file or terminal work.
   Use `--file-read-policy`, `--file-write-policy`, and
@@ -53,7 +56,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     redact_env: :keep,
     require_real_agent: :boolean,
     list_agents: :boolean,
-    preflight: :boolean
+    preflight: :boolean,
+    registry: :boolean
   ]
 
   @aliases [a: :agent, w: :workspace, p: :prompt, t: :timeout]
@@ -73,7 +77,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       print_agent_inventory(
         Keyword.fetch!(opts, :workspace),
         Keyword.get(opts, :preflight, false),
-        Keyword.get(opts, :timeout, 5_000)
+        Keyword.get(opts, :timeout, 5_000),
+        Keyword.get(opts, :registry, false)
       )
     else
       case Haven.AgentProbe.run(opts) do
@@ -135,7 +140,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     end
   end
 
-  defp print_agent_inventory(workspace, preflight?, preflight_timeout) do
+  defp print_agent_inventory(workspace, preflight?, preflight_timeout, registry?) do
     inventory = Haven.AgentProbe.agent_inventory(workspace)
 
     Mix.shell().info("Workspace: #{workspace}")
@@ -192,6 +197,10 @@ defmodule Mix.Tasks.Haven.AgentProbe do
           "Real-agent probe candidates: #{Enum.map_join(candidates, ", ", & &1.agent)}"
         )
     end
+
+    if registry? do
+      print_registry_suggestions()
+    end
   end
 
   defp inspect_args(args) when length(args) > 12 do
@@ -225,6 +234,71 @@ defmodule Mix.Tasks.Haven.AgentProbe do
               "  preflight last event: #{event.type} #{Jason.encode!(event.payload)}"
             )
         end
+    end
+  end
+
+  defp print_registry_suggestions do
+    Mix.shell().info("")
+    Mix.shell().info("ACP registry npx suggestions:")
+
+    Mix.shell().info(
+      "  warning: registry commands download and run third-party code; preflight or probe them only with an approved workspace and auth scope"
+    )
+
+    case Haven.AgentRegistry.fetch_suggestions() do
+      {:ok, []} ->
+        Mix.shell().info("  none found")
+
+      {:ok, suggestions} ->
+        npx_status =
+          case System.find_executable("npx") do
+            nil -> "missing"
+            path -> path
+          end
+
+        Mix.shell().info("  npx: #{npx_status}")
+
+        suggestions
+        |> Enum.take(12)
+        |> Enum.each(fn suggestion ->
+          Mix.shell().info(
+            "  - #{suggestion.id} (#{suggestion.name} #{suggestion.version || "unknown"})"
+          )
+
+          Mix.shell().info("    config: #{registry_config_command(suggestion)}")
+        end)
+
+        if length(suggestions) > 12 do
+          Mix.shell().info("  ... #{length(suggestions) - 12} more npx registry entries")
+        end
+
+      {:error, reason} ->
+        Mix.shell().info("  registry unavailable: #{inspect(reason)}")
+    end
+  end
+
+  defp registry_config_command(suggestion) do
+    agent_json =
+      %{
+        suggestion.id => %{
+          executable: suggestion.executable,
+          args: suggestion.args,
+          cwd: "{workspace}",
+          env: suggestion.env
+        }
+      }
+      |> Jason.encode!()
+
+    "HAVEN_AGENTS_JSON=#{shell_arg(agent_json)} mix haven.agent_probe --list-agents --preflight --workspace #{shell_arg(File.cwd!())}"
+  end
+
+  defp shell_arg(value) do
+    value = to_string(value)
+
+    if String.match?(value, ~r/^[A-Za-z0-9_.,:\/=@+-]+$/) do
+      value
+    else
+      "'#{String.replace(value, "'", "'\"'\"'")}'"
     end
   end
 

@@ -380,6 +380,10 @@ Evidence:
   into an explicit ACP boot check by creating short durable runs for eligible
   candidates and verifying `agent_initialized` plus `agent_session_started`
   before a user attempts a full evidence report.
+- `mix haven.agent_probe --list-agents --registry` fetches the public ACP
+  Registry and prints npx-backed `HAVEN_AGENTS_JSON` suggestions, so Haven can
+  guide users toward real ACP adapters such as `claude-acp`, `codex-acp`, and
+  `gemini` instead of relying on local shell placeholders.
 - The inbox Agent Setup panel surfaces the same probe-readiness distinction for
   saved agent configs, showing whether a saved command is a probe candidate or
   a rejected local harness/invalid command, rendering a basic
@@ -397,6 +401,17 @@ Evidence:
   `/bin/sh -c cat` candidates as `preflight: failed` with last event
   `agent_protocol_failed`, preserving durable failed preflight runs for
   inspection.
+- Local registry discovery succeeds with `npx` installed and surfaces current
+  npx-backed ACP adapters from the official registry, but no suggested adapter
+  has been authenticated and committed as a passing `docs/probes/*.json`
+  evidence artifact yet.
+- A registry-configured `codex-acp` command passed Haven preflight locally:
+  `agent_initialized` and `agent_session_started` were recorded for a durable
+  run through `npx @agentclientprotocol/codex-acp@1.0.1`.
+- A full prompt/report probe against `codex-acp` was not run in this workspace
+  because it would execute a third-party adapter with local Codex auth against
+  the real repository; that requires explicit approval and an approved
+  workspace/auth scope before it can count as evidence.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
   gate rather than only a documentation convention.

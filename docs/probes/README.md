@@ -24,6 +24,7 @@ Examples:
 ```bash
 mix haven.agent_probe --list-agents --workspace /path/to/repo
 mix haven.agent_probe --list-agents --preflight --workspace /path/to/repo
+mix haven.agent_probe --list-agents --registry --workspace /path/to/repo
 
 mix haven.agent_probe \
   --agent my-agent \
@@ -93,6 +94,12 @@ Use `--list-agents --preflight` when a command is only a probe candidate. The
 preflight creates a short durable run and verifies ACP initialization plus
 session creation, surfacing failures such as a generic shell command that starts
 successfully but answers the ACP `initialize` request incorrectly.
+
+Use `--list-agents --registry` to fetch the public ACP Registry and print
+npx-backed agent command suggestions, including the `HAVEN_AGENTS_JSON` shape
+needed to try each suggestion through Haven's preflight path. Registry commands
+download and run third-party code; use an approved workspace, approved auth
+scope, and redactions before attempting a full evidence report.
 
 Before committing a report, inspect it for secrets in command arguments,
 environment-derived output, prompts, and agent messages.
