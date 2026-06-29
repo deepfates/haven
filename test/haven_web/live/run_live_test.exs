@@ -129,6 +129,48 @@ defmodule HavenWeb.RunLiveTest do
     assert render(view) =~ "idle"
   end
 
+  test "filters timeline events by provenance", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Filtered timeline run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "hello from filter test"})
+    |> render_submit()
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+    assert has_element?(view, "#timeline-filters")
+    assert has_element?(view, "#timeline-filter-agent")
+
+    view
+    |> element("#timeline-filter-agent")
+    |> render_click()
+
+    assert has_element?(view, ~s|[data-event-kind="agent"]|, "Agent")
+    assert render(view) =~ "Echo: hello from filter test"
+    refute has_element?(view, ~s|[data-event-kind="user"]|)
+    refute has_element?(view, ~s|[data-event-kind="runtime"]|)
+
+    view
+    |> element("#timeline-filter-runtime")
+    |> render_click()
+
+    assert has_element?(view, ~s|[data-event-kind="runtime"]|, "Runtime")
+    refute render(view) =~ "Echo: hello from filter test"
+    refute has_element?(view, ~s|[data-event-kind="agent"]|)
+
+    view
+    |> element("#timeline-filter-all")
+    |> render_click()
+
+    assert has_element?(view, ~s|[data-event-kind="runtime"]|, "Runtime")
+    assert has_element?(view, ~s|[data-event-kind="agent"]|, "Agent")
+    assert has_element?(view, ~s|[data-event-kind="user"]|, "User")
+  end
+
   test "surfaces and resolves exact permission requests", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Permission run"})
     stop_run_server_on_exit(run.id)

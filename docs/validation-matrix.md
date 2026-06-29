@@ -94,11 +94,13 @@ Evidence:
 - LiveView integration tests and browser smoke verify timeline events carry
   explicit provenance labels and `data-event-kind` markers for app, user, agent,
   client, protocol, and runtime events.
+- LiveView integration tests verify timeline controls can filter persisted
+  events by provenance without mutating the run event log.
 
 Still missing:
 
 - Rich protocol event normalization.
-- Rich filtering or grouping by event provenance.
+- Rich grouping by event provenance and other timeline facets.
 
 ### Prompting And Control
 

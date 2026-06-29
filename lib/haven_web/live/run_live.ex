@@ -4,6 +4,16 @@ defmodule HavenWeb.RunLive do
   alias Haven.Events
   alias Haven.Runs
 
+  @event_filters [
+    {"all", "All"},
+    {"app", "App"},
+    {"user", "User"},
+    {"agent", "Agent"},
+    {"client", "Client"},
+    {"protocol", "Protocol"},
+    {"runtime", "Runtime"}
+  ]
+
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     if connected?(socket) do
@@ -14,6 +24,7 @@ defmodule HavenWeb.RunLive do
     {:ok,
      socket
      |> assign(:prompt, "")
+     |> assign(:event_filter, "all")
      |> assign_run(id)}
   end
 
@@ -61,6 +72,15 @@ defmodule HavenWeb.RunLive do
     {:noreply, assign_run(socket, socket.assigns.run.id)}
   end
 
+  def handle_event("filter_events", %{"kind" => kind}, socket) do
+    kind = if valid_event_filter?(kind), do: kind, else: "all"
+
+    {:noreply,
+     socket
+     |> assign(:event_filter, kind)
+     |> assign_event_projection(socket.assigns.events)}
+  end
+
   @impl true
   def handle_info({:event_appended, _event}, socket) do
     {:noreply, assign_run(socket, socket.assigns.run.id)}
@@ -80,11 +100,40 @@ defmodule HavenWeb.RunLive do
     socket
     |> assign(:run, run)
     |> assign(:events, events)
+    |> assign_event_projection(events)
     |> assign(:live?, live?)
     |> assign(:can_prompt?, live? and run.status == "idle")
     |> assign(:can_cancel?, live? and run.status in ["initializing", "running", "waiting"])
     |> assign(:can_reconnect?, can_reconnect?(run, live?))
     |> assign(:pending_permission, latest_pending_permission(events))
+  end
+
+  defp assign_event_projection(socket, events) do
+    filter = socket.assigns[:event_filter] || "all"
+
+    socket
+    |> assign(:event_filters, @event_filters)
+    |> assign(:event_counts, event_counts(events))
+    |> assign(:filtered_events, filter_events(events, filter))
+  end
+
+  defp valid_event_filter?(kind) do
+    Enum.any?(@event_filters, fn {filter, _label} -> filter == kind end)
+  end
+
+  defp filter_events(events, "all"), do: events
+
+  defp filter_events(events, filter) do
+    Enum.filter(events, &(event_kind(&1.type) == filter))
+  end
+
+  defp event_counts(events) do
+    counts =
+      events
+      |> Enum.map(&event_kind(&1.type))
+      |> Enum.frequencies()
+
+    Map.put(counts, "all", length(events))
   end
 
   defp can_reconnect?(run, live?) do
@@ -269,7 +318,38 @@ defmodule HavenWeb.RunLive do
             </header>
 
             <section class="space-y-3">
-              <.event :for={event <- @events} event={event} />
+              <div
+                id="timeline-filters"
+                class="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
+              >
+                <button
+                  :for={{kind, label} <- @event_filters}
+                  id={"timeline-filter-#{kind}"}
+                  type="button"
+                  phx-click="filter_events"
+                  phx-value-kind={kind}
+                  class={[
+                    "inline-flex h-8 items-center rounded-md border px-3 text-xs font-semibold transition",
+                    @event_filter == kind &&
+                      "border-zinc-950 bg-zinc-950 text-white",
+                    @event_filter != kind &&
+                      "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  ]}
+                >
+                  {label}
+                  <span class="ml-1 text-[11px] opacity-70">
+                    {Map.get(@event_counts, kind, 0)}
+                  </span>
+                </button>
+              </div>
+              <div
+                :if={@filtered_events == []}
+                id="timeline-empty-filter"
+                class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+              >
+                No events match this filter.
+              </div>
+              <.event :for={event <- @filtered_events} event={event} />
             </section>
           </div>
 

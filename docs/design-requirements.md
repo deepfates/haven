@@ -340,6 +340,8 @@ Proven:
 - Timeline events expose a visible and machine-readable provenance marker
   (`app`, `user`, `agent`, `client`, `protocol`, or `runtime`) so users can
   distinguish app decisions from protocol and runtime activity.
+- The run timeline can be filtered by provenance so users can inspect app,
+  user, agent, client, protocol, and runtime events separately.
 
 Not yet proven:
 
