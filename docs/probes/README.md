@@ -77,3 +77,6 @@ reports include `redactions` metadata, but never the raw redaction values.
 Use `--require-real-agent` on any report intended to count as Grei/Haven
 real-agent evidence. It rejects the built-in stub and the known local test
 harness scripts used by automated coverage.
+
+Committed `*.json` reports in this directory are validated by
+`mix haven.probe_reports`, which also runs as part of `mix precommit`.

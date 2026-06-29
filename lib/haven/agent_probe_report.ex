@@ -1,0 +1,150 @@
+defmodule Haven.AgentProbeReport do
+  @moduledoc """
+  Validates committed `mix haven.agent_probe --report` artifacts.
+
+  This is intentionally stricter than the probe runner itself. Stub and local
+  harness reports are useful while developing, but committed Grei evidence
+  should prove a real configured ACP command passed an explicit acceptance
+  contract.
+  """
+
+  @accepted_statuses ~w(idle closed failed)
+
+  @spec validate_file(Path.t()) :: :ok | {:error, [String.t()]}
+  def validate_file(path) do
+    with {:ok, content} <- File.read(path),
+         {:ok, report} <- Jason.decode(content) do
+      validate(report)
+    else
+      {:error, %Jason.DecodeError{} = error} ->
+        {:error, ["invalid JSON: #{Exception.message(error)}"]}
+
+      {:error, reason} ->
+        {:error, ["could not read report: #{inspect(reason)}"]}
+    end
+  end
+
+  @spec validate(map()) :: :ok | {:error, [String.t()]}
+  def validate(report) when is_map(report) do
+    errors =
+      []
+      |> require_string(report, "agent")
+      |> reject_stub_agent(report)
+      |> require_string(report, "workspace")
+      |> require_string(report, "prompt")
+      |> require_accepted_status(report)
+      |> require_real_agent_evidence(report)
+      |> require_expected_events(report)
+      |> require_no_missing_events(report)
+      |> require_no_errors(report)
+      |> require_events(report)
+      |> require_expected_events_present(report)
+      |> Enum.reverse()
+
+    if errors == [], do: :ok, else: {:error, errors}
+  end
+
+  def validate(_report), do: {:error, ["report must be a JSON object"]}
+
+  defp require_string(errors, report, key) do
+    case Map.get(report, key) do
+      value when is_binary(value) and value != "" -> errors
+      _value -> ["#{key} must be a non-empty string" | errors]
+    end
+  end
+
+  defp reject_stub_agent(errors, %{"agent" => "stub-acp"}) do
+    ["agent must not be stub-acp" | errors]
+  end
+
+  defp reject_stub_agent(errors, _report), do: errors
+
+  defp require_accepted_status(errors, report) do
+    case Map.get(report, "status") do
+      status when status in @accepted_statuses -> errors
+      _status -> ["status must be one of #{Enum.join(@accepted_statuses, ", ")}" | errors]
+    end
+  end
+
+  defp require_real_agent_evidence(errors, report) do
+    case Map.get(report, "real_agent_evidence") do
+      %{"required" => true, "accepted" => true} -> errors
+      _value -> ["real_agent_evidence must have required=true and accepted=true" | errors]
+    end
+  end
+
+  defp require_expected_events(errors, report) do
+    case Map.get(report, "expected_events") do
+      events when is_list(events) and events != [] ->
+        if Enum.all?(events, &is_binary/1) do
+          errors
+        else
+          ["expected_events must be a non-empty list of event names" | errors]
+        end
+
+      _events ->
+        ["expected_events must be a non-empty list of event names" | errors]
+    end
+  end
+
+  defp require_no_missing_events(errors, report) do
+    case Map.get(report, "missing_expected_events") do
+      [] -> errors
+      _events -> ["missing_expected_events must be empty" | errors]
+    end
+  end
+
+  defp require_no_errors(errors, report) do
+    case Map.get(report, "errors", %{}) do
+      errors_map when errors_map in [%{}, nil] -> errors
+      _errors -> ["errors must be empty or absent" | errors]
+    end
+  end
+
+  defp require_events(errors, report) do
+    case Map.get(report, "events") do
+      events when is_list(events) and events != [] ->
+        Enum.reduce(Enum.with_index(events, 1), errors, fn {event, index}, acc ->
+          validate_event(acc, event, index)
+        end)
+
+      _events ->
+        ["events must be a non-empty list" | errors]
+    end
+  end
+
+  defp validate_event(errors, %{"seq" => seq, "type" => type, "payload" => payload}, index)
+       when is_integer(seq) and is_binary(type) and type != "" and is_map(payload) do
+    if seq == index do
+      errors
+    else
+      ["event seq #{seq} must match ordered position #{index}" | errors]
+    end
+  end
+
+  defp validate_event(errors, _event, index) do
+    ["event #{index} must include integer seq, string type, and object payload" | errors]
+  end
+
+  defp require_expected_events_present(errors, report) do
+    expected_events = Map.get(report, "expected_events", [])
+
+    present_events =
+      report
+      |> Map.get("events", [])
+      |> Enum.filter(&is_map/1)
+      |> Enum.map(&Map.get(&1, "type"))
+      |> MapSet.new()
+
+    missing =
+      expected_events
+      |> Enum.filter(&is_binary/1)
+      |> Enum.reject(&MapSet.member?(present_events, &1))
+
+    if missing == [] do
+      errors
+    else
+      ["expected events are absent from events: #{Enum.join(missing, ", ")}" | errors]
+    end
+  end
+end

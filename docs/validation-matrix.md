@@ -346,6 +346,9 @@ Evidence:
 - Probe reports intended as real-agent evidence can require a real-agent guard;
   the guard rejects the built-in `stub-acp` and the configured local test
   harness scripts before writing a passing acceptance artifact.
+- `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
+  and is part of `mix precommit`, so real-agent evidence requirements are a
+  gate rather than only a documentation convention.
 
 Still missing:
 
