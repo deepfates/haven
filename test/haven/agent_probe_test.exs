@@ -55,6 +55,7 @@ defmodule Haven.AgentProbeTest do
              )
 
     assert report.missing_expected_events == []
+    assert report.expected_events == ["agent_initialized", "turn_finished"]
   end
 
   test "fails when expected events are missing" do
@@ -68,6 +69,7 @@ defmodule Haven.AgentProbeTest do
              )
 
     assert report.status == "idle"
+    assert report.expected_events == ["file_read_succeeded", "terminal_created"]
     assert report.missing_expected_events == ["file_read_succeeded", "terminal_created"]
     assert "turn_finished" in event_types(report)
   end

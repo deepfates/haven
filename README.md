@@ -53,6 +53,7 @@ mix haven.agent_probe --agent stub-acp --workspace . --prompt "hello"
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "summarize this repo"
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "read README.md" --resolve-permissions allow
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "run tests" --expect-event terminal_created --expect-event terminal_output_succeeded
+mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "run tests" --report docs/probes/my-agent-terminal.json
 ```
 
 Configured agents can be supplied at runtime with `HAVEN_AGENTS_JSON`:
@@ -80,8 +81,9 @@ sends the prompt through `RunServer`, optionally resolves permission stalls, and
 prints the persisted event timeline. Repeated `--expect-event` flags make the
 probe fail unless the run emits the required Haven event types, turning
 real-agent checks into acceptance contracts instead of best-effort smoke.
-Passing the probe with `stub-acp` proves the harness; passing it with a real
-configured ACP agent is the next integration milestone.
+`--report path.json` writes the full report as pretty JSON for committed proof
+artifacts. Passing the probe with `stub-acp` proves the harness; passing it with
+a real configured ACP agent is the next integration milestone.
 
 ## Shape
 

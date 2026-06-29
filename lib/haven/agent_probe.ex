@@ -23,6 +23,7 @@ defmodule Haven.AgentProbe do
           status: String.t(),
           events: [map()],
           prompt: String.t(),
+          expected_events: [String.t()],
           missing_expected_events: [String.t()]
         }
 
@@ -46,18 +47,21 @@ defmodule Haven.AgentProbe do
          {:ok, _run} <- wait_for_boot(run.id, timeout),
          :ok <- Runs.send_prompt(run.id, prompt),
          {:ok, finished} <- wait_for_finish(run.id, timeout, permission_resolution) do
+      expected_events = Enum.uniq(expected_events)
+
       finished
-      |> report(prompt)
+      |> report(prompt, expected_events)
       |> validate_expected_events(expected_events)
     else
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:error, :invalid_run, invalid_run_report(agent, workspace, prompt, changeset)}
+        {:error, :invalid_run,
+         invalid_run_report(agent, workspace, prompt, changeset, expected_events)}
 
       {:error, reason, run_id} ->
-        {:error, reason, report(Runs.get_run!(run_id), prompt)}
+        {:error, reason, report(Runs.get_run!(run_id), prompt, expected_events)}
 
       {:error, reason} ->
-        {:error, reason, invalid_run_report(agent, workspace, prompt, nil)}
+        {:error, reason, invalid_run_report(agent, workspace, prompt, nil, expected_events)}
     end
   end
 
@@ -145,7 +149,7 @@ defmodule Haven.AgentProbe do
     |> Enum.reject(&MapSet.member?(resolved, &1))
   end
 
-  defp report(run, prompt) do
+  defp report(run, prompt, expected_events) do
     %{
       run_id: run.id,
       agent: run.agent,
@@ -153,11 +157,12 @@ defmodule Haven.AgentProbe do
       status: run.status,
       prompt: prompt,
       events: Enum.map(Events.list_for_run(run.id), &event_report/1),
+      expected_events: expected_events,
       missing_expected_events: []
     }
   end
 
-  defp invalid_run_report(agent, workspace, prompt, changeset) do
+  defp invalid_run_report(agent, workspace, prompt, changeset, expected_events) do
     %{
       run_id: nil,
       agent: agent,
@@ -166,6 +171,7 @@ defmodule Haven.AgentProbe do
       prompt: prompt,
       errors: changeset_errors(changeset),
       events: [],
+      expected_events: expected_events,
       missing_expected_events: []
     }
   end
