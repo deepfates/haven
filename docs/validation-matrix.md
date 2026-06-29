@@ -387,6 +387,10 @@ Evidence:
   Registry and prints npx-backed `HAVEN_AGENTS_JSON` suggestions, so Haven can
   guide users toward real ACP adapters such as `claude-acp`, `codex-acp`, and
   `gemini` instead of relying on local shell placeholders.
+- `mix haven.agent_probe --save-registry-agent AGENT_ID` persists one registry
+  suggestion into the same Agent Setup table used by the UI, reducing the gap
+  between discovery and a preflighted saved command without treating the saved
+  command itself as evidence.
 - The inbox Agent Setup panel surfaces the same probe-readiness distinction for
   saved agent configs, showing whether a saved command is only a static probe
   candidate or a rejected local harness/invalid command, rendering basic boot,
@@ -416,6 +420,9 @@ Evidence:
 - A registry-configured `codex-acp` command passed Haven preflight locally:
   `agent_initialized` and `agent_session_started` were recorded for a durable
   run through `npx @agentclientprotocol/codex-acp@1.0.1`.
+- `mix haven.agent_probe --save-registry-agent codex-acp` now persists that
+  registry suggestion into the local Agent Setup table; local preflight against
+  the saved config passes, proving the registry-to-saved-agent workflow.
 - `docs/probes/codex-acp-basic.json` is a committed passing
   `--require-real-agent` report from `npx @agentclientprotocol/codex-acp@1.0.1`
   against the disposable workspace `/private/tmp/haven-acp-smoke`. It proves a
@@ -427,6 +434,11 @@ Evidence:
   workspace file and return a sentinel, but it does so through ACP
   `tool_call`/`tool_call_update` session updates rather than Haven's
   `fs/read_text_file` client request handler.
+- A current `/tmp` attempt to require `file_read_requested`,
+  `capability_policy_applied`, and `file_read_succeeded` against saved
+  `codex-acp` fails with `missing_expected_events`: the agent still reads the
+  file via a generic terminal `tool_call`, so it does not satisfy the
+  Haven-mediated `fs/*` proof requirement.
 - `docs/probes/codex-acp-terminal-tool-call.json` is a committed passing
   `--require-real-agent` report showing `codex-acp` can execute a terminal
   command and return a sentinel, but it does so through ACP

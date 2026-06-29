@@ -10,6 +10,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       mix haven.agent_probe --list-agents --workspace .
       mix haven.agent_probe --list-agents --preflight --workspace .
       mix haven.agent_probe --list-agents --registry --workspace .
+      mix haven.agent_probe --save-registry-agent codex-acp --workspace .
 
   Use `--list-agents` to inspect configured agent commands, whether they
   resolve on this machine, and whether they are eligible for
@@ -18,6 +19,9 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   creation for each eligible probe candidate before attempting a full report.
   Add `--registry` to `--list-agents` to show npx-backed ACP agent suggestions
   from the public ACP registry.
+  Use `--save-registry-agent AGENT_ID` to persist one public registry suggestion
+  into Haven's Agent Setup table, then run `--list-agents --preflight` before
+  treating it as evidence.
   Use `--resolve-permissions allow` or `--resolve-permissions deny` when the
   probe prompt is expected to trigger permission-gated file or terminal work.
   Use `--file-read-policy`, `--file-write-policy`, and
@@ -61,7 +65,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     require_real_agent: :boolean,
     list_agents: :boolean,
     preflight: :boolean,
-    registry: :boolean
+    registry: :boolean,
+    save_registry_agent: :string
   ]
 
   @aliases [a: :agent, w: :workspace, p: :prompt, t: :timeout]
@@ -77,24 +82,29 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     opts = normalize_opts(opts)
     report_path = Keyword.get(opts, :report)
 
-    if Keyword.get(opts, :list_agents, false) do
-      print_agent_inventory(
-        Keyword.fetch!(opts, :workspace),
-        Keyword.get(opts, :preflight, false),
-        Keyword.get(opts, :timeout, 5_000),
-        Keyword.get(opts, :registry, false)
-      )
-    else
-      case Haven.AgentProbe.run(opts) do
-        {:ok, report} ->
-          print_report(report)
-          write_report(report, report_path)
+    cond do
+      agent_id = Keyword.get(opts, :save_registry_agent) ->
+        save_registry_agent!(agent_id, Keyword.fetch!(opts, :workspace))
 
-        {:error, reason, report} ->
-          print_report(report)
-          write_report(report, report_path)
-          Mix.raise("Agent probe failed: #{reason}")
-      end
+      Keyword.get(opts, :list_agents, false) ->
+        print_agent_inventory(
+          Keyword.fetch!(opts, :workspace),
+          Keyword.get(opts, :preflight, false),
+          Keyword.get(opts, :timeout, 5_000),
+          Keyword.get(opts, :registry, false)
+        )
+
+      true ->
+        case Haven.AgentProbe.run(opts) do
+          {:ok, report} ->
+            print_report(report)
+            write_report(report, report_path)
+
+          {:error, reason, report} ->
+            print_report(report)
+            write_report(report, report_path)
+            Mix.raise("Agent probe failed: #{reason}")
+        end
     end
   end
 
@@ -280,6 +290,36 @@ defmodule Mix.Tasks.Haven.AgentProbe do
 
       {:error, reason} ->
         Mix.shell().info("  registry unavailable: #{inspect(reason)}")
+    end
+  end
+
+  defp save_registry_agent!(agent_id, workspace) do
+    case Haven.AgentRegistry.fetch_suggestions() do
+      {:ok, suggestions} ->
+        case Enum.find(suggestions, &(&1.id == agent_id)) do
+          nil ->
+            Mix.raise("Registry agent #{inspect(agent_id)} was not found")
+
+          suggestion ->
+            case Haven.Agents.upsert_agent_config_from_registry_suggestion(suggestion) do
+              {:ok, agent_config} ->
+                Mix.shell().info(
+                  "Saved registry agent #{agent_config.key}: #{agent_config.executable} #{inspect_args(Map.get(agent_config.args || %{}, "items", []))}"
+                )
+
+                Mix.shell().info(
+                  "Next: mix haven.agent_probe --list-agents --preflight --workspace #{shell_arg(workspace)}"
+                )
+
+              {:error, changeset} ->
+                Mix.raise(
+                  "Could not save registry agent #{inspect(agent_id)}: #{inspect(changeset.errors)}"
+                )
+            end
+        end
+
+      {:error, reason} ->
+        Mix.raise("Registry unavailable: #{inspect(reason)}")
     end
   end
 

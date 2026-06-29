@@ -63,6 +63,27 @@ defmodule Haven.Agents do
     Repo.delete(agent_config)
   end
 
+  def upsert_agent_config_from_registry_suggestion(%{
+        id: key,
+        executable: executable,
+        args: args,
+        env: env
+      })
+      when is_binary(key) and is_binary(executable) and is_list(args) and is_map(env) do
+    attrs = %{
+      key: key,
+      executable: executable,
+      args: args,
+      cwd: "{workspace}",
+      env: env
+    }
+
+    case Repo.get_by(AgentConfig, key: key) do
+      nil -> create_agent_config(attrs)
+      agent_config -> update_agent_config(agent_config, attrs)
+    end
+  end
+
   @spec command(String.t(), String.t()) :: {:ok, command()} | {:error, term()}
   def command("stub-acp", workspace) do
     case System.find_executable("elixir") do

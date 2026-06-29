@@ -158,6 +158,31 @@ defmodule Haven.AgentsTest do
     assert command.env == [{"WORKSPACE", "/repo"}]
   end
 
+  test "upserts persisted agent configs from registry suggestions" do
+    suggestion = %{
+      id: "codex-acp",
+      executable: "npx",
+      args: ["-y", "@agentclientprotocol/codex-acp@1.0.1"],
+      env: %{"CODEX_HOME" => "{workspace}/.codex"},
+      package: "@agentclientprotocol/codex-acp@1.0.1",
+      name: "Codex",
+      version: "1.0.1",
+      description: "ACP adapter"
+    }
+
+    assert {:ok, agent_config} = Agents.upsert_agent_config_from_registry_suggestion(suggestion)
+    assert agent_config.key == "codex-acp"
+    assert agent_config.executable == "npx"
+    assert agent_config.args == %{"items" => ["-y", "@agentclientprotocol/codex-acp@1.0.1"]}
+    assert agent_config.cwd == "{workspace}"
+    assert agent_config.env == %{"CODEX_HOME" => "{workspace}/.codex"}
+
+    updated = %{suggestion | args: ["-y", "@agentclientprotocol/codex-acp@1.0.2"]}
+    assert {:ok, updated_config} = Agents.upsert_agent_config_from_registry_suggestion(updated)
+    assert updated_config.id == agent_config.id
+    assert updated_config.args == %{"items" => ["-y", "@agentclientprotocol/codex-acp@1.0.2"]}
+  end
+
   test "deletes persisted agent configs" do
     assert {:ok, agent_config} =
              Agents.create_agent_config(%{

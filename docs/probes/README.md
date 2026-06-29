@@ -127,6 +127,11 @@ needed to try each suggestion through Haven's preflight path. Registry commands
 download and run third-party code; use an approved workspace, approved auth
 scope, and redactions before attempting a full evidence report.
 
+Use `--save-registry-agent AGENT_ID` to persist one registry suggestion into
+Haven's Agent Setup table. This only saves the command definition; run
+`--list-agents --preflight` afterward before treating the saved command as ACP
+evidence.
+
 Before committing a report, inspect it for secrets in command arguments,
 environment-derived output, prompts, and agent messages.
 
