@@ -41,12 +41,16 @@ Evidence:
   explicit workspace and that the run detail/ACP launch args reflect it.
 - Browser smoke verifies a missing workspace path stays on the inbox, renders
   `must be an existing directory`, and does not add the run to history.
+- Data-layer and LiveView integration tests verify terminal `failed`/`closed`
+  runs can be archived, active runs cannot be archived, and archive decisions
+  preserve run events while hiding the run from the default inbox.
+- Browser smoke verifies a failed run can be archived from History and
+  disappears from the inbox without deleting its run record.
 
 Still missing:
 
 - Agent/workspace persistence models and richer configuration management.
 - Workspace browse/picker affordances.
-- Archive/hide closed runs.
 - Filtering beyond the fixed lanes.
 
 ### Run Timeline
@@ -169,6 +173,8 @@ Evidence:
 - Tests and browser smoke verify explicit reconnect/restart appends
   `run_reconnect_requested`, starts a fresh ACP process, and reconnects prompt
   controls.
+- Tests and browser smoke verify terminal run archival hides old failed/closed
+  work from the default inbox while keeping durable run events.
 - Browser smoke verifies a run that actually recorded `agent_process_exited`
   and `turn_failed` can be restarted from the rendered run detail, then reloads
   with two process/session starts and final `idle` connected state.
@@ -187,8 +193,8 @@ Still missing:
 
 - ACP session resume semantics; current reconnect starts a fresh process/session.
 - Concurrent multi-run behavior under realistic load.
-- Production lifecycle policy for pruning or archiving failed and closed run
-  servers.
+- Production lifecycle policy for pruning archived run records and old event
+  logs.
 
 ### Workspace Capabilities
 

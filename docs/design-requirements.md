@@ -276,6 +276,9 @@ Proven:
 - The inbox can create runs with explicit title, workspace, and agent choice.
 - Run creation rejects missing workspace directories before starting an agent
   process, and the inbox renders that validation failure in place.
+- Terminal failed and closed runs can be archived from the inbox, hiding them
+  from the default attention surface while preserving their run records and
+  event history.
 - SQLite persistence is enough for narrow run/event proof.
 - One `RunServer` per live run is a good fit.
 - `agent_client_protocol` can own JSON-RPC request ids and response correlation.

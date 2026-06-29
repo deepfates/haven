@@ -11,6 +11,7 @@ defmodule Haven.Runs.Run do
     field :agent, :string
     field :status, :string, default: "idle"
     field :agent_session_id, :string
+    field :archived_at, :utc_datetime
 
     has_many :events, Haven.Events.Event
 

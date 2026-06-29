@@ -101,9 +101,34 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "section", "Needs You")
     assert has_element?(view, "section", "Running")
     assert has_element?(view, "section", "History")
-    assert has_element?(view, "a", "Needs approval")
-    assert has_element?(view, "a", "Still working")
-    assert has_element?(view, "a", "Quiet")
+    assert has_element?(view, "article", "Needs approval")
+    assert has_element?(view, "article", "Still working")
+    assert has_element?(view, "article", "Quiet")
+  end
+
+  test "archives terminal runs from history without deleting their events", %{conn: conn} do
+    run = insert_run!("Old failure", "failed")
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "article", "Old failure")
+    assert has_element?(view, "#archive-run-#{run.id}")
+
+    view
+    |> element("#archive-run-#{run.id}")
+    |> render_click()
+
+    refute has_element?(view, "article", "Old failure")
+    assert Runs.list_runs() == []
+
+    archived = Runs.get_run!(run.id)
+    assert archived.archived_at
+
+    assert [%{type: "run_created"}, %{type: "run_archived", payload: payload}] =
+             Events.list_for_run(run.id)
+
+    assert payload["actor"] == "local_user"
+    assert payload["previous_status"] == "failed"
   end
 
   defp insert_run!(title, status) do

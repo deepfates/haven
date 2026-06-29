@@ -29,6 +29,11 @@ defmodule HavenWeb.InboxLive do
     end
   end
 
+  def handle_event("archive_run", %{"id" => id}, socket) do
+    _ = Runs.archive_run(id)
+    {:noreply, assign_runs(socket)}
+  end
+
   @impl true
   def handle_info({:run_updated, _run}, socket), do: {:noreply, assign_runs(socket)}
 
@@ -81,17 +86,18 @@ defmodule HavenWeb.InboxLive do
   defp status_class("failed"), do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
   defp status_class(_), do: badge_class("border-zinc-200 bg-white text-zinc-600")
 
+  defp archivable?(run), do: run.status in ["closed", "failed"]
+
   defp badge_class(tone) do
     "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium " <>
       tone
   end
 
   defp run_card(assigns) do
+    assigns = assign_new(assigns, :show_archive, fn -> false end)
+
     ~H"""
-    <.link
-      navigate={~p"/runs/#{@run.id}"}
-      class="block rounded-lg border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50"
-    >
+    <article class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <h3 class="truncate font-semibold text-zinc-950">{@run.title}</h3>
@@ -99,10 +105,31 @@ defmodule HavenWeb.InboxLive do
         </div>
         <span class={status_class(@run.status)}>{@run.status}</span>
       </div>
-      <div class="mt-3 text-xs text-zinc-500">
-        {@run.agent} · updated {Calendar.strftime(@run.updated_at, "%H:%M:%S")}
+      <div class="mt-3 flex items-center justify-between gap-3">
+        <div class="text-xs text-zinc-500">
+          {@run.agent} · updated {Calendar.strftime(@run.updated_at, "%H:%M:%S")}
+        </div>
+        <div class="flex shrink-0 items-center gap-2">
+          <.link
+            navigate={~p"/runs/#{@run.id}"}
+            class="inline-flex h-8 items-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+          >
+            Open
+          </.link>
+          <button
+            :if={@show_archive and archivable?(@run)}
+            id={"archive-run-#{@run.id}"}
+            type="button"
+            title="Archive run"
+            class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950"
+            phx-click="archive_run"
+            phx-value-id={@run.id}
+          >
+            <.icon name="hero-archive-box" class="size-4" />
+          </button>
+        </div>
       </div>
-    </.link>
+    </article>
     """
   end
 
@@ -180,7 +207,7 @@ defmodule HavenWeb.InboxLive do
               No quiet runs yet. Start one above.
             </div>
             <div class="grid gap-3 md:grid-cols-2">
-              <.run_card :for={run <- @history} run={run} />
+              <.run_card :for={run <- @history} run={run} show_archive={true} />
             </div>
           </section>
         </section>

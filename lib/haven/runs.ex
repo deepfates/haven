@@ -6,7 +6,7 @@ defmodule Haven.Runs do
   alias Haven.Runs.{Run, RunServer}
 
   def list_runs do
-    Repo.all(from r in Run, order_by: [desc: r.updated_at])
+    Repo.all(from r in Run, where: is_nil(r.archived_at), order_by: [desc: r.updated_at])
   end
 
   def get_run!(id), do: Repo.get!(Run, id)
@@ -112,6 +112,44 @@ defmodule Haven.Runs do
   def cancel(run_id) do
     with {:ok, pid} <- ensure_started(run_id) do
       GenServer.call(pid, :cancel, 30_000)
+    end
+  end
+
+  def archive_run(run_id) do
+    run = get_run!(run_id)
+
+    cond do
+      run.status not in ["closed", "failed"] ->
+        {:error, :not_archivable}
+
+      run.archived_at ->
+        {:ok, run}
+
+      true ->
+        archived_at = DateTime.utc_now(:second)
+
+        Repo.transaction(fn ->
+          updated =
+            run
+            |> Ecto.Changeset.change(archived_at: archived_at)
+            |> Repo.update!()
+
+          Events.append!(run_id, "run_archived", %{
+            "actor" => "local_user",
+            "archived_at" => DateTime.to_iso8601(archived_at),
+            "previous_status" => run.status
+          })
+
+          updated
+        end)
+        |> case do
+          {:ok, updated} ->
+            Phoenix.PubSub.broadcast(Haven.PubSub, "runs", {:run_updated, updated})
+            {:ok, updated}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
     end
   end
 
