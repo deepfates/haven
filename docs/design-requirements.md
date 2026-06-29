@@ -299,6 +299,8 @@ Proven:
 - Ordered session updates should be projected from the ACP stream subscription.
 - Partial streamed agent chunks from a configured stdio ACP process can be
   projected and persisted in order.
+- Multiple live runs can prompt concurrently without transcript or status
+  cross-talk in the local ACP lifecycle.
 - Deterministic ACP file read/write requests can be handled, logged, and scoped
   to the selected workspace.
 - ACP file read and write requests are permission-gated before returning file

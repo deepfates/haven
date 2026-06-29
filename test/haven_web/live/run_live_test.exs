@@ -171,6 +171,68 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, ~s|[data-event-kind="user"]|, "User")
   end
 
+  test "keeps concurrent live runs isolated", %{conn: conn} do
+    {:ok, alpha} = Runs.create_run(%{"title" => "Alpha run"})
+    {:ok, beta} = Runs.create_run(%{"title" => "Beta run"})
+    stop_run_server_on_exit(alpha.id)
+    stop_run_server_on_exit(beta.id)
+    wait_for_idle_session!(alpha.id)
+    wait_for_idle_session!(beta.id)
+    Events.subscribe(alpha.id)
+    Events.subscribe(beta.id)
+
+    {:ok, alpha_view, _html} = live(conn, ~p"/runs/#{alpha.id}")
+    {:ok, beta_view, _html} = live(conn, ~p"/runs/#{beta.id}")
+
+    alpha_task = Task.async(fn -> Runs.send_prompt(alpha.id, "alpha only") end)
+    beta_task = Task.async(fn -> Runs.send_prompt(beta.id, "beta only") end)
+
+    assert Task.await(alpha_task, 1_000) == :ok
+    assert Task.await(beta_task, 1_000) == :ok
+
+    assert_receive {:event_appended,
+                    %{
+                      run_id: alpha_run_id,
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Echo: alpha only"}
+                    }},
+                   1_000
+
+    assert alpha_run_id == alpha.id
+
+    assert_receive {:event_appended,
+                    %{
+                      run_id: beta_run_id,
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Echo: beta only"}
+                    }},
+                   1_000
+
+    assert beta_run_id == beta.id
+
+    assert_receive {:event_appended, %{run_id: ^alpha_run_id, type: "turn_finished"}}, 1_000
+    assert_receive {:event_appended, %{run_id: ^beta_run_id, type: "turn_finished"}}, 1_000
+
+    alpha_html = render(alpha_view)
+    beta_html = render(beta_view)
+
+    assert alpha_html =~ "Echo: alpha only"
+    refute alpha_html =~ "Echo: beta only"
+    assert beta_html =~ "Echo: beta only"
+    refute beta_html =~ "Echo: alpha only"
+
+    alpha_events = Events.list_for_run(alpha.id)
+    beta_events = Events.list_for_run(beta.id)
+
+    assert Enum.any?(alpha_events, &(&1.payload["text"] == "Echo: alpha only"))
+    refute Enum.any?(alpha_events, &(&1.payload["text"] == "Echo: beta only"))
+    assert Enum.any?(beta_events, &(&1.payload["text"] == "Echo: beta only"))
+    refute Enum.any?(beta_events, &(&1.payload["text"] == "Echo: alpha only"))
+
+    assert Runs.get_run!(alpha.id).status == "idle"
+    assert Runs.get_run!(beta.id).status == "idle"
+  end
+
   test "surfaces and resolves exact permission requests", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Permission run"})
     stop_run_server_on_exit(run.id)
@@ -1675,6 +1737,26 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, pid} = Runs.ensure_started(run_id)
     _ = :sys.get_state(pid)
     :ok
+  end
+
+  defp wait_for_idle_session!(run_id, attempts \\ 40)
+
+  defp wait_for_idle_session!(run_id, 0) do
+    flunk("run #{run_id} did not reach idle session")
+  end
+
+  defp wait_for_idle_session!(run_id, attempts) do
+    sync_run_server!(run_id)
+    run = Runs.get_run!(run_id)
+
+    if run.status == "idle" and is_binary(run.agent_session_id) do
+      :ok
+    else
+      receive do
+      after
+        50 -> wait_for_idle_session!(run_id, attempts - 1)
+      end
+    end
   end
 
   defp stop_run_server_on_exit(run_id) do

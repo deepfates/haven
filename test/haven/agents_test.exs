@@ -18,17 +18,11 @@ defmodule Haven.AgentsTest do
   test "resolves the built-in stub ACP agent" do
     assert {:ok, command} = Agents.command("stub-acp", "/tmp/work")
     assert command.label == "stub-acp"
-    assert command.executable =~ "mix"
+    assert command.executable =~ "elixir"
     assert command.cwd == nil
     assert command.env == []
-
-    assert command.args == [
-             "run",
-             "--no-compile",
-             "--no-start",
-             "priv/agent_stub.exs",
-             "/tmp/work"
-           ]
+    assert ["-pa", _path | _rest] = command.args
+    assert Enum.slice(command.args, -2, 2) == ["priv/agent_stub.exs", "/tmp/work"]
   end
 
   test "resolves configured agents and substitutes workspace" do

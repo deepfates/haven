@@ -65,15 +65,15 @@ defmodule Haven.Agents do
 
   @spec command(String.t(), String.t()) :: {:ok, command()} | {:error, term()}
   def command("stub-acp", workspace) do
-    case System.find_executable("mix") do
+    case System.find_executable("elixir") do
       nil ->
-        {:error, {:missing_executable, "mix"}}
+        {:error, {:missing_executable, "elixir"}}
 
       executable ->
         {:ok,
          %{
            executable: executable,
-           args: ["run", "--no-compile", "--no-start", "priv/agent_stub.exs", workspace],
+           args: stub_args(workspace),
            cwd: nil,
            env: [],
            label: "stub-acp"
@@ -86,6 +86,14 @@ defmodule Haven.Agents do
       nil -> {:error, {:unknown_agent, agent}}
       spec -> command_from_spec(agent, spec, workspace)
     end
+  end
+
+  defp stub_args(workspace) do
+    :code.get_path()
+    |> Enum.map(&List.to_string/1)
+    |> Enum.filter(&String.ends_with?(&1, "/ebin"))
+    |> Enum.flat_map(&["-pa", &1])
+    |> Kernel.++(["priv/agent_stub.exs", workspace])
   end
 
   defp all_configured_agents do

@@ -124,6 +124,9 @@ Evidence:
 - LiveView integration tests verify stale/direct prompt submission while a turn
   is already running is rejected as `{:error, :busy}` instead of starting a
   second concurrent turn.
+- LiveView integration tests run two live runs concurrently, send separate
+  prompts to each, and verify status, visible transcript, and persisted events
+  remain isolated by run id.
 - LiveView integration tests verify that late session updates after user
   cancellation are recorded as ignored protocol updates instead of being
   appended as fresh agent transcript chunks.
@@ -216,8 +219,9 @@ Evidence:
   to run-status broadcasts as well as event broadcasts, so the header does not
   remain `running` after a completed turn.
 - Tests revealed and fixed protocol transport noise from launching the stub via
-  compiling `mix run`; the stub now starts with `mix run --no-compile --no-start`
-  so Mix compiler output cannot corrupt the ACP JSON stream.
+  compiling `mix run`; the built-in stub now starts through `elixir` with the
+  app's current BEAM code paths so Mix compiler/build-lock output cannot
+  corrupt the ACP JSON stream.
 - LiveView integration tests trigger a non-zero stub exit and verify the run
   records `agent_process_exited`, fails the in-flight turn, and renders a
   visible `failed` state.
@@ -265,7 +269,7 @@ Evidence:
 Still missing:
 
 - ACP session resume semantics; current reconnect starts a fresh process/session.
-- Concurrent multi-run behavior under realistic load.
+- Broader concurrent multi-run behavior under realistic external-agent load.
 - Production lifecycle policy for pruning archived run records and old event
   logs.
 
