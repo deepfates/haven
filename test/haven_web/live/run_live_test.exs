@@ -482,6 +482,9 @@ defmodule HavenWeb.RunLiveTest do
                    1_000
 
     assert render(view) =~ "running"
+    assert has_element?(view, "#send-prompt-button[disabled]")
+    assert has_element?(view, "#sample-echo-button[disabled]")
+    assert Runs.send_prompt(run.id, "second prompt") == {:error, :busy}
 
     view
     |> element("#cancel-run-button")

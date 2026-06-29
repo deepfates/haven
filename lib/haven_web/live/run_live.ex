@@ -81,7 +81,7 @@ defmodule HavenWeb.RunLive do
     |> assign(:run, run)
     |> assign(:events, events)
     |> assign(:live?, live?)
-    |> assign(:can_prompt?, live? and run.status not in ["waiting", "failed", "closed"])
+    |> assign(:can_prompt?, live? and run.status == "idle")
     |> assign(:can_cancel?, live? and run.status in ["initializing", "running", "waiting"])
     |> assign(:can_reconnect?, can_reconnect?(run, live?))
     |> assign(:pending_permission, latest_pending_permission(events))

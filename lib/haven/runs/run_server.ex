@@ -236,26 +236,32 @@ defmodule Haven.Runs.RunServer do
 
   @impl true
   def handle_call({:send_prompt, text}, _from, state) do
-    id = state.next_id
+    run = Runs.get_run!(state.run_id)
 
-    Events.append!(state.run_id, "turn_started", %{"prompt" => text})
-    Events.append!(state.run_id, "user_message", %{"text" => text})
-    Runs.update_status!(state.run_id, %{status: "running"})
+    if can_start_prompt?(run, state) do
+      id = state.next_id
 
-    prompt =
-      state.agent_session_id
-      |> ACP.PromptRequest.new([ACP.ContentBlock.from_string(text)])
+      Events.append!(state.run_id, "turn_started", %{"prompt" => text})
+      Events.append!(state.run_id, "user_message", %{"text" => text})
+      Runs.update_status!(state.run_id, %{status: "running"})
 
-    run_server = self()
-    conn = state.conn
+      prompt =
+        state.agent_session_id
+        |> ACP.PromptRequest.new([ACP.ContentBlock.from_string(text)])
 
-    spawn(fn ->
-      result = ACP.ClientSideConnection.prompt(conn, prompt)
-      send(run_server, {:prompt_finished, id, result})
-    end)
+      run_server = self()
+      conn = state.conn
 
-    {:reply, :ok,
-     %{state | next_id: id + 1, pending_prompts: Map.put(state.pending_prompts, id, text)}}
+      spawn(fn ->
+        result = ACP.ClientSideConnection.prompt(conn, prompt)
+        send(run_server, {:prompt_finished, id, result})
+      end)
+
+      {:reply, :ok,
+       %{state | next_id: id + 1, pending_prompts: Map.put(state.pending_prompts, id, text)}}
+    else
+      {:reply, {:error, :busy}, state}
+    end
   end
 
   def handle_call({:resolve_permission, request_id, option_id}, _from, state) do
@@ -786,6 +792,11 @@ defmodule Haven.Runs.RunServer do
 
   defp no_pending_work?(state) do
     state.pending_prompts == %{} and state.pending_permissions == %{}
+  end
+
+  defp can_start_prompt?(run, state) do
+    run.status == "idle" and not is_nil(state.conn) and not is_nil(state.agent_session_id) and
+      no_pending_work?(state)
   end
 
   defp valid_json_rpc_line?(line) do

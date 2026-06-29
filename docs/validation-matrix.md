@@ -14,12 +14,13 @@ runs with explicit human decisions.
   agent process.
 - Browser smoke: create a run, trigger a permission request, approve it, trigger
   and approve an ACP file read, trigger and approve an ACP file write, trigger a
-  deterministic terminal command, create a run with an ACP terminal kill for a
-  direct process, create a run with an explicit workspace, reject a missing
-  workspace at run creation, reload disconnected history, explicitly reconnect
-  that history, restart after an actual agent crash, trigger malformed ACP
-  output after a successful session start, and observe final status plus
-  persisted timeline events in the in-app browser.
+  deterministic terminal command, cancel an open non-permission turn, create a
+  run with an ACP terminal kill for a direct process, create a run with an
+  explicit workspace, reject a missing workspace at run creation, reload
+  disconnected history, explicitly reconnect that history, restart after an
+  actual agent crash, trigger malformed ACP output after a successful session
+  start, and observe final status plus persisted timeline events in the in-app
+  browser.
 
 ## Proven Now
 
@@ -93,14 +94,19 @@ Evidence:
   verify the outstanding permission is durably resolved as cancelled.
 - LiveView integration tests cancel an open non-permission turn and verify the
   run returns to visible `idle`.
+- LiveView integration tests and browser smoke verify prompt controls are
+  disabled while a turn is running, cancel remains available, and controls
+  reopen after the cancellation returns the run to `idle`.
+- LiveView integration tests verify stale/direct prompt submission while a turn
+  is already running is rejected as `{:error, :busy}` instead of starting a
+  second concurrent turn.
 
 Still missing:
 
-- Browser smoke for non-permission cancel; current executable evidence is
-  LiveView-level.
 - Strong suppression/correlation of late chunks from cancelled prompts.
 - Retry or continue after recoverable failure.
-- Disabled controls for all impossible states, not only waiting permissions.
+- Disabled controls for every impossible state and control combination beyond
+  the covered waiting/running/disconnected states.
 
 ### Permissions
 

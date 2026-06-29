@@ -310,6 +310,9 @@ Proven:
 - Runs that lose an agent while permission is pending fail visibly and resolve
   the blocked permission as system-cancelled, avoiding a stale active decision
   card.
+- Running turns are not promptable: the rendered UI disables prompt/sample
+  controls while keeping cancellation available, and the run process rejects
+  stale/direct concurrent prompt submissions as busy.
 - Malformed ACP output during startup is projected as a visible
   `agent_protocol_failed` run failure without an automatic restart loop.
 - Malformed agent output after a successful ACP session has started is projected
