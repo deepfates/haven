@@ -16,8 +16,9 @@ runs with explicit human decisions.
   an ACP file read, trigger a deterministic terminal command, create a run with
   an ACP terminal kill for a direct process, create a run with an explicit
   workspace, reject a missing workspace at run creation, reload disconnected
-  history, explicitly reconnect that history, and observe final `idle` status
-  plus persisted timeline events in the in-app browser.
+  history, explicitly reconnect that history, restart after an actual agent
+  crash, and observe final `idle` status plus persisted timeline events in the
+  in-app browser.
 
 ## Proven Now
 
@@ -144,6 +145,8 @@ Evidence:
 - LiveView integration tests trigger a non-zero stub exit and verify the run
   records `agent_process_exited`, fails the in-flight turn, and renders a
   visible `failed` state.
+- LiveView integration tests crash a live agent, click Restart on that same
+  failed run, and verify a fresh ACP process/session starts.
 - Tests revealed and fixed a run-server restart-loop bug: terminal `failed` and
   `closed` runs are no longer auto-resurrected by LiveView mounts, and normal
   RunServer exits are not restarted by the supervisor.
@@ -153,6 +156,9 @@ Evidence:
 - Tests and browser smoke verify explicit reconnect/restart appends
   `run_reconnect_requested`, starts a fresh ACP process, and reconnects prompt
   controls.
+- Browser smoke verifies a run that actually recorded `agent_process_exited`
+  and `turn_failed` can be restarted from the rendered run detail, then reloads
+  with two process/session starts and final `idle` connected state.
 - LiveView integration tests verify malformed ACP startup output records
   `agent_protocol_failed`, marks the run `failed`, renders visibly, and does not
   restart the malformed agent process.
@@ -162,7 +168,6 @@ Evidence:
 
 Still missing:
 
-- Deliberate restart behavior after agent process crash.
 - ACP session resume semantics; current reconnect starts a fresh process/session.
 - Concurrent multi-run behavior under realistic load.
 - Production lifecycle policy for pruning or archiving failed and closed run
@@ -220,7 +225,6 @@ be counted as complete until there is executable evidence.
 - Authentication flows for agents that require auth.
 - Session load/resume/fork/list support when agents expose it.
 - Malformed ACP frames after a successful session has started.
-- Browser smoke for agent death; current executable evidence is LiveView-level.
 - Browser smoke for malformed ACP startup output; current executable evidence is
   LiveView-level.
 - Browser smoke for non-message session updates; current executable evidence is
@@ -233,11 +237,10 @@ be counted as complete until there is executable evidence.
 1. Add a supervised fake ACP agent test harness that can stream partial chunks,
    request duplicate permissions, emit malformed frames after session startup,
    and simulate restart.
-2. Add LiveView tests for deliberate restart and reload after process exit.
-3. Connect the configurable command path to one real ACP-speaking agent and
+2. Connect the configurable command path to one real ACP-speaking agent and
    document the exact command/env contract.
-4. Connect terminal capability handling to a real ACP-speaking agent and add
+3. Connect terminal capability handling to a real ACP-speaking agent and add
    process-tree kill/interactive-terminal evidence.
-5. Connect file capability handling to a real ACP-speaking agent.
-6. Add browser smoke coverage for reload recovery and attention-lane movement,
+4. Connect file capability handling to a real ACP-speaking agent.
+5. Add browser smoke coverage for reload recovery and attention-lane movement,
    not just a single happy-path permission approval.

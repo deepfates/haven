@@ -360,6 +360,48 @@ defmodule HavenWeb.RunLiveTest do
     assert render(view) =~ "failed"
   end
 
+  test "explicit restart recovers a run after an actual agent crash", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Crash restart run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "die"})
+    |> render_submit()
+
+    assert_receive {:event_appended, %{type: "agent_process_exited"}}, 2_000
+    assert_receive {:event_appended, %{type: "turn_failed"}}, 1_000
+
+    assert render(view) =~ "failed"
+    assert has_element?(view, "#reconnect-run-button", "Restart")
+
+    view
+    |> element("#reconnect-run-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "run_reconnect_requested",
+                      payload: %{"previous_status" => "failed"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+
+    started_events =
+      run.id
+      |> Events.list_for_run()
+      |> Enum.filter(&(&1.type == "agent_process_started"))
+
+    assert length(started_events) == 2
+    assert render(view) =~ "connected"
+    assert render(view) =~ "idle"
+  end
+
   test "cancel returns an open non-permission turn to idle", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Cancel open turn"})
     stop_run_server_on_exit(run.id)

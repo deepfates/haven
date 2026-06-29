@@ -296,6 +296,8 @@ Proven:
   agent process.
 - Disconnected idle history and failed persisted runs can be explicitly
   reconnected/restarted as fresh ACP processes.
+- Runs that fail because the agent process exits during a turn can be restarted
+  explicitly as fresh ACP processes while preserving the failed-turn history.
 - Malformed ACP output during startup is projected as a visible
   `agent_protocol_failed` run failure without an automatic restart loop.
 
