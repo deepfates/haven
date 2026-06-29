@@ -50,6 +50,10 @@ defmodule Haven.Runs do
     end
   end
 
+  def started?(run_id) do
+    match?([{_pid, _}], Registry.lookup(Haven.Runs.Registry, run_id))
+  end
+
   def ensure_started(run_id) do
     case Registry.lookup(Haven.Runs.Registry, run_id) do
       [{pid, _}] ->

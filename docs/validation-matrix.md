@@ -11,8 +11,8 @@ runs with explicit human decisions.
 - Final project gate: `mix precommit`
 - Browser smoke: create a run, trigger a permission request, approve it, trigger
   an ACP file read, trigger a deterministic terminal command, create a run with
-  an explicit workspace, and observe final `idle` status plus persisted timeline
-  events in the in-app browser.
+  an explicit workspace, reload disconnected history, and observe final `idle`
+  status plus persisted timeline events in the in-app browser.
 
 ## Proven Now
 
@@ -49,8 +49,10 @@ Evidence:
   and survive a fresh LiveView mount.
 - LiveView integration tests verify a non-message ACP `tool_call_update`
   notification is preserved as a durable timeline event.
+- LiveView integration tests verify disconnected idle history renders without
+  spawning a new agent process or appending synthetic live events.
 - Browser smoke verifies the timeline renders protocol-shaped events during a
-  real browser session.
+  real browser session and that disconnected history is visibly read-only.
 
 Still missing:
 
@@ -133,6 +135,9 @@ Evidence:
 - Tests revealed and fixed a run-server restart-loop bug: terminal `failed` and
   `closed` runs are no longer auto-resurrected by LiveView mounts, and normal
   RunServer exits are not restarted by the supervisor.
+- Tests and browser smoke verify LiveView mounts no longer auto-start
+  disconnected idle runs; old run history renders with controls disabled and a
+  `not connected` process state.
 - RunServer shutdown now explicitly tears down the ACP connection and port IO
   bridge.
 - Event ordering and persistence are covered by `test/haven/events_test.exs`.
@@ -140,8 +145,7 @@ Evidence:
 Still missing:
 
 - Deliberate restart behavior after agent process crash.
-- Resume from an existing persisted non-terminal run without spawning a
-  duplicate or misleading live session.
+- Explicit resume/restart from disconnected idle history.
 - Concurrent multi-run behavior under realistic load.
 - Production lifecycle policy for pruning or archiving failed and closed run
   servers.

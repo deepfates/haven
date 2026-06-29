@@ -9,7 +9,6 @@ defmodule HavenWeb.RunLive do
     if connected?(socket) do
       Events.subscribe(id)
       Runs.subscribe()
-      Runs.ensure_started(id)
     end
 
     {:ok,
@@ -21,12 +20,19 @@ defmodule HavenWeb.RunLive do
   @impl true
   def handle_event("send_prompt", %{"prompt" => prompt}, socket) do
     prompt = String.trim(prompt)
-    if prompt != "", do: Runs.send_prompt(socket.assigns.run.id, prompt)
+
+    if socket.assigns.can_prompt? and prompt != "" do
+      Runs.send_prompt(socket.assigns.run.id, prompt)
+    end
+
     {:noreply, assign(socket, :prompt, "") |> assign_run(socket.assigns.run.id)}
   end
 
   def handle_event("sample_prompt", %{"text" => text}, socket) do
-    Runs.send_prompt(socket.assigns.run.id, text)
+    if socket.assigns.can_prompt? do
+      Runs.send_prompt(socket.assigns.run.id, text)
+    end
+
     {:noreply, assign_run(socket, socket.assigns.run.id)}
   end
 
@@ -40,7 +46,10 @@ defmodule HavenWeb.RunLive do
   end
 
   def handle_event("cancel", _params, socket) do
-    Runs.cancel(socket.assigns.run.id)
+    if socket.assigns.can_cancel? do
+      Runs.cancel(socket.assigns.run.id)
+    end
+
     {:noreply, assign_run(socket, socket.assigns.run.id)}
   end
 
@@ -58,10 +67,14 @@ defmodule HavenWeb.RunLive do
   defp assign_run(socket, id) do
     run = Runs.get_run!(id)
     events = Events.list_for_run(id)
+    live? = Runs.started?(id)
 
     socket
     |> assign(:run, run)
     |> assign(:events, events)
+    |> assign(:live?, live?)
+    |> assign(:can_prompt?, live? and run.status not in ["waiting", "failed", "closed"])
+    |> assign(:can_cancel?, live? and run.status in ["initializing", "running", "waiting"])
     |> assign(:pending_permission, latest_pending_permission(events))
   end
 
@@ -179,21 +192,22 @@ defmodule HavenWeb.RunLive do
                   name="prompt"
                   class="min-h-28 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
                   placeholder="Prompt this run"
-                  disabled={@run.status == "waiting"}
+                  disabled={!@can_prompt?}
                 >{@prompt}</textarea>
                 <div class="flex gap-2">
                   <button
                     id="send-prompt-button"
                     class="h-10 flex-1 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={@run.status == "waiting"}
+                    disabled={!@can_prompt?}
                   >
                     Send
                   </button>
                   <button
                     id="cancel-run-button"
                     type="button"
-                    class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                     phx-click="cancel"
+                    disabled={!@can_cancel?}
                   >
                     Cancel
                   </button>
@@ -205,7 +219,7 @@ defmodule HavenWeb.RunLive do
                   class="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                   phx-click="sample_prompt"
                   phx-value-text="hello from LiveView"
-                  disabled={@run.status == "waiting"}
+                  disabled={!@can_prompt?}
                 >
                   Echo
                 </button>
@@ -214,7 +228,7 @@ defmodule HavenWeb.RunLive do
                   class="rounded-md bg-amber-500 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
                   phx-click="sample_prompt"
                   phx-value-text="permission"
-                  disabled={@run.status == "waiting"}
+                  disabled={!@can_prompt?}
                 >
                   Ask permission
                 </button>
@@ -223,7 +237,7 @@ defmodule HavenWeb.RunLive do
                   class="rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-800 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
                   phx-click="sample_prompt"
                   phx-value-text="read-file"
-                  disabled={@run.status == "waiting"}
+                  disabled={!@can_prompt?}
                 >
                   Read file
                 </button>
@@ -232,7 +246,7 @@ defmodule HavenWeb.RunLive do
                   class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
                   phx-click="sample_prompt"
                   phx-value-text="write-file"
-                  disabled={@run.status == "waiting"}
+                  disabled={!@can_prompt?}
                 >
                   Write file
                 </button>
@@ -241,7 +255,7 @@ defmodule HavenWeb.RunLive do
                   class="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                   phx-click="sample_prompt"
                   phx-value-text="terminal"
-                  disabled={@run.status == "waiting"}
+                  disabled={!@can_prompt?}
                 >
                   Terminal
                 </button>
@@ -258,6 +272,10 @@ defmodule HavenWeb.RunLive do
                 <div>
                   <dt class="text-zinc-500">Agent session</dt>
                   <dd class="break-all">{@run.agent_session_id || "starting"}</dd>
+                </div>
+                <div>
+                  <dt class="text-zinc-500">Process</dt>
+                  <dd>{if @live?, do: "connected", else: "not connected"}</dd>
                 </div>
               </dl>
             </section>

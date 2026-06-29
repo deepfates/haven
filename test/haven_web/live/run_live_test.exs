@@ -24,6 +24,21 @@ defmodule HavenWeb.RunLiveTest do
     assert reloaded_html =~ "agent_session_started"
   end
 
+  test "viewing disconnected idle history does not spawn a new agent process", %{conn: conn} do
+    run = insert_disconnected_run!("Disconnected history")
+
+    {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert html =~ "Disconnected history"
+    assert html =~ "not connected"
+    assert has_element?(view, "#send-prompt-button[disabled]")
+    refute Runs.started?(run.id)
+
+    events = Events.list_for_run(run.id)
+    refute Enum.any?(events, &(&1.type == "agent_process_started"))
+    refute Enum.any?(events, &(&1.type == "user_message"))
+  end
+
   test "sends a prompt and appends user and agent turn events", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Prompt run"})
     stop_run_server_on_exit(run.id)
@@ -604,6 +619,31 @@ defmodule HavenWeb.RunLiveTest do
       "title" => run.title,
       "workspace" => run.workspace,
       "agent" => run.agent
+    })
+
+    run
+  end
+
+  defp insert_disconnected_run!(title) do
+    run =
+      %Run{}
+      |> Run.changeset(%{
+        title: title,
+        workspace: File.cwd!(),
+        agent: "stub-acp",
+        status: "idle",
+        agent_session_id: "old-session"
+      })
+      |> Repo.insert!()
+
+    Events.append!(run.id, "run_created", %{
+      "title" => run.title,
+      "workspace" => run.workspace,
+      "agent" => run.agent
+    })
+
+    Events.append!(run.id, "agent_session_started", %{
+      "agent_session_id" => run.agent_session_id
     })
 
     run

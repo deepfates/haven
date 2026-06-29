@@ -287,6 +287,8 @@ Proven:
 - Deterministic non-interactive ACP terminal create/wait/output/release requests
   can be handled, logged, scoped to the selected workspace, and projected back
   to the agent.
+- Disconnected idle run history can be viewed without silently spawning a new
+  agent process.
 
 Not yet proven:
 
@@ -294,7 +296,7 @@ Not yet proven:
 - File capability handling against real external agents.
 - Terminal capability handling against real external agents.
 - Interactive terminal sessions and kill behavior.
-- Process restart and resume policy.
+- Explicit process restart and resume policy.
 - Multi-run load behavior.
 - Long-running turn streaming under real output volume.
 - Backpressure, log compaction, and transcript projection performance.
