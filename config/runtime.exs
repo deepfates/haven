@@ -22,6 +22,23 @@ end
 
 config :haven, HavenWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+if agents_json = System.get_env("HAVEN_AGENTS_JSON") do
+  case Jason.decode(agents_json) do
+    {:ok, agents} when is_map(agents) ->
+      config :haven, :agents, agents
+
+    {:ok, _other} ->
+      raise """
+      environment variable HAVEN_AGENTS_JSON must decode to a JSON object.
+      """
+
+    {:error, reason} ->
+      raise """
+      environment variable HAVEN_AGENTS_JSON is invalid JSON: #{inspect(reason)}
+      """
+  end
+end
+
 if config_env() == :prod do
   database_path =
     System.get_env("DATABASE_PATH") ||

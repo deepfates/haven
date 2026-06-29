@@ -48,6 +48,22 @@ mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "summa
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "read README.md" --resolve-permissions allow
 ```
 
+Configured agents can be supplied at runtime with `HAVEN_AGENTS_JSON`:
+
+```bash
+export HAVEN_AGENTS_JSON='{
+  "my-agent": {
+    "executable": "my-acp-agent",
+    "args": ["--stdio", "--workspace", "{workspace}"],
+    "cwd": "{workspace}",
+    "env": {"TOKEN": "..."}
+  }
+}'
+```
+
+`executable` may be an absolute path or a command on `PATH`. `{workspace}` is
+substituted in `args`, `cwd`, and `env` values before Haven starts the agent.
+
 The probe creates a durable run, waits for ACP initialization/session creation,
 sends the prompt through `RunServer`, optionally resolves permission stalls, and
 prints the persisted event timeline. Passing the probe with `stub-acp` proves

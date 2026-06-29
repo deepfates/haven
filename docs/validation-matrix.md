@@ -172,6 +172,11 @@ Evidence:
 - A supervised `RunServer` owns each live run.
 - `Haven.Agents` resolves the built-in `stub-acp` command and configured agent
   keys from application env.
+- Configured agent executables are resolved either as absolute executable paths
+  or via `PATH`, and missing executables fail as explicit
+  `{:missing_executable, command}` errors before the port bridge starts.
+- `HAVEN_AGENTS_JSON` can configure real ACP agent commands at runtime without
+  editing Elixir source/config files.
 - LiveView integration tests verify that an unknown run agent records
   `agent_start_failed`, marks the run `failed`, and renders that failure without
   falling back to the stub.

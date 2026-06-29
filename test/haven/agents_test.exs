@@ -32,9 +32,11 @@ defmodule Haven.AgentsTest do
   end
 
   test "resolves configured agents and substitutes workspace" do
+    executable = System.find_executable("sh")
+
     Application.put_env(:haven, :agents, %{
       "external" => %{
-        executable: "/bin/agent",
+        executable: "sh",
         args: ["--workspace", "{workspace}"],
         cwd: "{workspace}",
         env: %{"WORKSPACE" => "{workspace}", "MODE" => "smoke"}
@@ -43,15 +45,35 @@ defmodule Haven.AgentsTest do
 
     assert {:ok, command} = Agents.command("external", "/repo")
     assert command.label == "external"
-    assert command.executable == "/bin/agent"
+    assert command.executable == executable
     assert command.args == ["--workspace", "/repo"]
     assert command.cwd == "/repo"
     assert command.env == [{"MODE", "smoke"}, {"WORKSPACE", "/repo"}]
   end
 
+  test "resolves configured absolute executable paths" do
+    executable = System.find_executable("sh")
+
+    Application.put_env(:haven, :agents, %{
+      "external" => %{executable: executable}
+    })
+
+    assert {:ok, command} = Agents.command("external", "/repo")
+    assert command.executable == executable
+  end
+
+  test "rejects configured agents with missing executables" do
+    Application.put_env(:haven, :agents, %{
+      "external" => %{executable: "haven-definitely-missing-agent"}
+    })
+
+    assert {:error, {:missing_executable, "haven-definitely-missing-agent"}} =
+             Agents.command("external", "/repo")
+  end
+
   test "rejects invalid configured agent cwd" do
     Application.put_env(:haven, :agents, %{
-      "external" => %{executable: "/bin/agent", cwd: 123}
+      "external" => %{executable: "sh", cwd: 123}
     })
 
     assert {:error, {:invalid_agent_field, :cwd}} = Agents.command("external", "/repo")
@@ -59,7 +81,7 @@ defmodule Haven.AgentsTest do
 
   test "rejects invalid configured agent env" do
     Application.put_env(:haven, :agents, %{
-      "external" => %{executable: "/bin/agent", env: [{"TOKEN", 123}]}
+      "external" => %{executable: "sh", env: [{"TOKEN", 123}]}
     })
 
     assert {:error, {:invalid_agent_field, :env}} = Agents.command("external", "/repo")
@@ -67,9 +89,9 @@ defmodule Haven.AgentsTest do
 
   test "lists the built-in stub and configured agent keys for run creation" do
     Application.put_env(:haven, :agents, %{
-      "zeta" => %{executable: "/bin/zeta"},
-      "alpha" => %{executable: "/bin/alpha"},
-      "stub-acp" => %{executable: "/bin/ignored"}
+      "zeta" => %{executable: "zeta"},
+      "alpha" => %{executable: "alpha"},
+      "stub-acp" => %{executable: "ignored"}
     })
 
     assert Agents.available() == [

@@ -15,6 +15,8 @@ defmodule Haven.Agents do
       }
   """
 
+  import Bitwise
+
   @type command :: %{
           executable: String.t(),
           args: [String.t()],
@@ -65,7 +67,7 @@ defmodule Haven.Agents do
   end
 
   defp command_from_spec(agent, spec, workspace) when is_map(spec) do
-    with {:ok, executable} <- fetch_string(spec, :executable),
+    with {:ok, executable} <- fetch_executable(spec),
          {:ok, args} <- fetch_args(spec, workspace),
          {:ok, cwd} <- fetch_cwd(spec, workspace),
          {:ok, env} <- fetch_env(spec, workspace) do
@@ -80,6 +82,44 @@ defmodule Haven.Agents do
       value when is_binary(value) and value != "" -> {:ok, value}
       _ -> {:error, {:missing_agent_field, key}}
     end
+  end
+
+  defp fetch_executable(spec) do
+    with {:ok, executable} <- fetch_string(spec, :executable) do
+      resolve_executable(executable)
+    end
+  end
+
+  defp resolve_executable(executable) do
+    cond do
+      Path.type(executable) == :absolute and executable?(executable) ->
+        {:ok, executable}
+
+      Path.type(executable) == :absolute ->
+        {:error, {:missing_executable, executable}}
+
+      String.contains?(executable, "/") ->
+        executable
+        |> Path.expand()
+        |> resolve_executable()
+
+      resolved = System.find_executable(executable) ->
+        {:ok, resolved}
+
+      true ->
+        {:error, {:missing_executable, executable}}
+    end
+  end
+
+  defp executable?(path) do
+    with true <- File.regular?(path),
+         {:ok, stat} <- File.stat(path) do
+      (stat.mode &&& 0o111) != 0
+    else
+      _ -> false
+    end
+  rescue
+    _ -> false
   end
 
   defp fetch_args(spec, workspace) do
