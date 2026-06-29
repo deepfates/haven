@@ -311,8 +311,10 @@ Proven:
 - Write permission requests include a bounded proposed-content preview, giving
   the user something concrete to inspect before approving, though this is not
   yet a full diff/artifact review system.
-- Runs can carry per-run file capability policy for reads and writes, allowing
-  explicit ask, allow, or deny behavior with durable policy-decision events.
+- Runs can carry per-run capability policy for file reads, file writes, and
+  terminal creation. File reads/writes support explicit ask, allow, or deny
+  behavior; terminal creation currently supports allow or deny. Each applied
+  policy records a durable policy-decision event.
 - Deterministic non-interactive ACP terminal create/wait/output/release requests
   can be handled, logged, scoped to the selected workspace, and projected back
   to the agent.
@@ -355,6 +357,7 @@ Not yet proven:
 - File capability handling against real external agents.
 - Full file diff/artifact projections for write review.
 - Terminal capability handling against real external agents.
+- Ask/approval workflow for terminal creation policy.
 - Interactive terminal sessions and process-tree kill behavior.
 - ACP-native session resume policy.
 - Multi-run load behavior.

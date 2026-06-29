@@ -155,7 +155,8 @@ defmodule HavenWeb.InboxLive do
       "workspace_id" => "",
       "agent" => "stub-acp",
       "file_read_policy" => "ask",
-      "file_write_policy" => "ask"
+      "file_write_policy" => "ask",
+      "terminal_create_policy" => "allow"
     }
   end
 
@@ -205,6 +206,9 @@ defmodule HavenWeb.InboxLive do
     file_read_policy = capability_policy_value(params, "file_read_policy")
     file_write_policy = capability_policy_value(params, "file_write_policy")
 
+    terminal_create_policy =
+      capability_policy_value(params, "terminal_create_policy", ["allow", "deny"], "allow")
+
     %{
       "title" => if(title == "", do: "Untitled run", else: title),
       "workspace" =>
@@ -216,15 +220,16 @@ defmodule HavenWeb.InboxLive do
       "agent" => if(agent == "", do: defaults["agent"], else: agent),
       "capability_policy" => %{
         "file_read" => file_read_policy,
-        "file_write" => file_write_policy
+        "file_write" => file_write_policy,
+        "terminal_create" => terminal_create_policy
       }
     }
   end
 
-  defp capability_policy_value(params, key) do
-    case Map.get(params, key, "ask") do
-      value when value in ["ask", "allow", "deny"] -> value
-      _value -> "ask"
+  defp capability_policy_value(params, key, allowed \\ ["ask", "allow", "deny"], default \\ "ask") do
+    case Map.get(params, key, default) do
+      value when is_binary(value) -> if(value in allowed, do: value, else: default)
+      _value -> default
     end
   end
 
@@ -490,7 +495,7 @@ defmodule HavenWeb.InboxLive do
                   Start
                 </button>
               </div>
-              <div class="grid gap-3 md:grid-cols-2">
+              <div class="grid gap-3 md:grid-cols-3">
                 <.input
                   field={@form[:file_read_policy]}
                   type="select"
@@ -502,6 +507,12 @@ defmodule HavenWeb.InboxLive do
                   type="select"
                   label="File writes"
                   options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
+                />
+                <.input
+                  field={@form[:terminal_create_policy]}
+                  type="select"
+                  label="Terminals"
+                  options={[{"Allow", "allow"}, {"Deny", "deny"}]}
                 />
               </div>
             </.form>

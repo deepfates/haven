@@ -32,7 +32,8 @@ defmodule HavenWeb.InboxLiveTest do
     |> form("#new-run-form", %{
       "title" => "Review agent changes",
       "file_read_policy" => "allow",
-      "file_write_policy" => "deny"
+      "file_write_policy" => "deny",
+      "terminal_create_policy" => "deny"
     })
     |> render_submit()
 
@@ -40,7 +41,13 @@ defmodule HavenWeb.InboxLiveTest do
     stop_run_server_on_exit(run.id)
 
     assert run.title == "Review agent changes"
-    assert run.capability_policy == %{"file_read" => "allow", "file_write" => "deny"}
+
+    assert run.capability_policy == %{
+             "file_read" => "allow",
+             "file_write" => "deny",
+             "terminal_create" => "deny"
+           }
+
     assert_redirect(view, ~p"/runs/#{run.id}")
   end
 

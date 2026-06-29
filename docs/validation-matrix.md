@@ -24,9 +24,9 @@ runs with explicit human decisions.
   stale permission decision and observe ignored resolution, reload disconnected
   history, explicitly reconnect that history, restart after an actual agent
   crash, trigger malformed ACP startup output, trigger malformed ACP output
-  after a successful session start, create a run with file-read allow and
-  file-write deny policy, and observe final status plus persisted timeline
-  events in the in-app browser.
+  after a successful session start, create a run with file-read allow,
+  file-write deny, and terminal-create deny policy, and observe final status
+  plus persisted timeline events in the in-app browser.
 
 ## Proven Now
 
@@ -319,9 +319,10 @@ Evidence:
   see the proposed write content before approval, and trigger a deterministic
   terminal command, plus an ACP terminal kill for a direct process, with visible
   timeline events and final `idle` state.
-- Per-run file capability policies can be selected when creating a run. LiveView
-  integration tests verify file reads can be auto-allowed and file writes can be
-  auto-denied without opening a permission card, while durable
+- Per-run capability policies can be selected when creating a run. LiveView
+  integration tests verify file reads can be auto-allowed, file writes can be
+  auto-denied, and terminal creation can be auto-denied without opening a
+  permission card or spawning a terminal process, while durable
   `capability_policy_applied` events record the policy decision. Browser smoke
   verifies the same policy controls and rendered run timeline behavior.
 - `mix haven.agent_probe` now exercises a configured ACP agent through Haven's
@@ -341,8 +342,8 @@ Still missing:
 - Full file diff/artifact projections for review; current evidence is only a
   bounded proposed-content preview on write permission requests.
 - PTY-style interactive terminal sessions.
-- Broader per-run capability policy, including terminal grants and scoped path
-  rules.
+- Broader per-run capability policy, including terminal approval prompts and
+  scoped path rules.
 
 ## Not Proven Yet
 

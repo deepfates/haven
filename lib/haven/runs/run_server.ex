@@ -490,29 +490,52 @@ defmodule Haven.Runs.RunServer do
 
     Events.append!(state.run_id, "terminal_create_requested", payload)
 
-    with {:ok, opts} <- Terminals.command_options(run.workspace, request),
-         {:ok, pid} <- Terminals.start(opts) do
-      terminal_id = Keyword.fetch!(opts, :terminal_id)
+    if capability_decision(run, "terminal_create") == "deny" do
+      error = terminal_permission_denied_error()
+
+      Events.append!(state.run_id, "capability_policy_applied", %{
+        "capability" => "terminal_create",
+        "decision" => "deny"
+      })
 
       Events.append!(
         state.run_id,
-        "terminal_created",
-        Map.merge(payload, %{"terminal_id" => terminal_id})
+        "terminal_create_denied",
+        Map.merge(payload, %{"error" => ACP.Error.to_json(error)})
       )
 
-      {:reply, {:ok, ACP.CreateTerminalResponse.new(terminal_id)},
-       %{state | terminals: Map.put(state.terminals, terminal_id, pid)}}
+      {:reply, {:error, error}, state}
     else
-      {:error, reason} ->
-        error = terminal_error("Could not create terminal", reason)
+      Events.append!(
+        state.run_id,
+        "capability_policy_applied",
+        %{"capability" => "terminal_create", "decision" => "allow"}
+      )
+
+      with {:ok, opts} <- Terminals.command_options(run.workspace, request),
+           {:ok, pid} <- Terminals.start(opts) do
+        terminal_id = Keyword.fetch!(opts, :terminal_id)
 
         Events.append!(
           state.run_id,
-          "terminal_create_failed",
-          Map.merge(payload, %{"error" => ACP.Error.to_json(error)})
+          "terminal_created",
+          Map.merge(payload, %{"terminal_id" => terminal_id})
         )
 
-        {:reply, {:error, error}, state}
+        {:reply, {:ok, ACP.CreateTerminalResponse.new(terminal_id)},
+         %{state | terminals: Map.put(state.terminals, terminal_id, pid)}}
+      else
+        {:error, reason} ->
+          error = terminal_error("Could not create terminal", reason)
+
+          Events.append!(
+            state.run_id,
+            "terminal_create_failed",
+            Map.merge(payload, %{"error" => ACP.Error.to_json(error)})
+          )
+
+          {:reply, {:error, error}, state}
+      end
     end
   end
 
@@ -735,7 +758,9 @@ defmodule Haven.Runs.RunServer do
     }
   end
 
-  defp file_capability_decision(run, capability) do
+  defp file_capability_decision(run, capability), do: capability_decision(run, capability)
+
+  defp capability_decision(run, capability) do
     run.capability_policy
     |> Haven.Runs.Run.capability_policy()
     |> Map.fetch!(capability)
@@ -836,6 +861,11 @@ defmodule Haven.Runs.RunServer do
   defp permission_denied_error(path) do
     ACP.Error.new(-32003, "Permission denied")
     |> ACP.Error.with_data(%{"path" => path, "reason" => "permission_denied"})
+  end
+
+  defp terminal_permission_denied_error do
+    ACP.Error.new(-32003, "Permission denied")
+    |> ACP.Error.with_data(%{"target" => "terminal/create", "reason" => "permission_denied"})
   end
 
   defp terminal_request_payload({_type, request}) do

@@ -1255,6 +1255,65 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Terminal output: hello"
   end
 
+  test "auto-denies ACP terminal creation when the run policy rejects it", %{conn: conn} do
+    {:ok, run} =
+      Runs.create_run(%{
+        "title" => "Terminal denied by policy run",
+        "capability_policy" => %{"terminal_create" => "deny"}
+      })
+
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> element("#sample-terminal-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_create_requested",
+                      payload: %{"command" => "echo"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "capability_policy_applied",
+                      payload: %{
+                        "capability" => "terminal_create",
+                        "decision" => "deny"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_create_denied",
+                      payload: %{
+                        "command" => "echo",
+                        "error" => %{"data" => %{"reason" => "permission_denied"}}
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Terminal failed: Permission denied"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+    refute_receive {:event_appended, %{type: "terminal_created"}}, 100
+
+    html = render(view)
+    assert html =~ "terminal_create_denied"
+    assert html =~ "Terminal failed: Permission denied"
+  end
+
   test "handles ACP terminal kill requests visibly", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Terminal kill run"})
     stop_run_server_on_exit(run.id)

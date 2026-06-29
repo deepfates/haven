@@ -52,12 +52,21 @@ defmodule Haven.Runs.Run do
       "file_read" =>
         capability_decision(Map.get(policy, "file_read", Map.get(policy, :file_read))),
       "file_write" =>
-        capability_decision(Map.get(policy, "file_write", Map.get(policy, :file_write)))
+        capability_decision(Map.get(policy, "file_write", Map.get(policy, :file_write))),
+      "terminal_create" =>
+        terminal_capability_decision(
+          Map.get(policy, "terminal_create", Map.get(policy, :terminal_create)),
+          "allow"
+        )
     }
   end
 
   defp normalize_capability_policy(_policy), do: normalize_capability_policy(%{})
 
-  defp capability_decision(value) when value in ["ask", "allow", "deny"], do: value
-  defp capability_decision(_value), do: "ask"
+  defp capability_decision(value, default \\ "ask")
+  defp capability_decision(value, _default) when value in ["ask", "allow", "deny"], do: value
+  defp capability_decision(_value, default), do: default
+
+  defp terminal_capability_decision(value, _default) when value in ["allow", "deny"], do: value
+  defp terminal_capability_decision(_value, default), do: default
 end

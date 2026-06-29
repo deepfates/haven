@@ -220,6 +220,7 @@ defmodule HavenWeb.RunLive do
               "file_write_denied",
               "terminal_create_requested",
               "terminal_created",
+              "terminal_create_denied",
               "terminal_create_failed",
               "terminal_wait_requested",
               "terminal_wait_succeeded",
