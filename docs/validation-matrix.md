@@ -327,13 +327,14 @@ Evidence:
   verifies the same policy controls and rendered run timeline behavior.
 - `mix haven.agent_probe` now exercises a configured ACP agent through Haven's
   real run lifecycle, including run creation, ACP boot/session setup, prompting,
-  optional permission resolution, durable event reporting, and explicit
-  `--expect-event` acceptance checks. The probe can write a pretty JSON report
-  with `--report`, giving real-agent validation a durable artifact format
-  instead of a copied terminal transcript. Current automated coverage runs this
-  probe against `stub-acp`; real-agent proof still requires running the same
-  probe against a non-stub configured ACP command with expectations for the
-  specific story being validated.
+  optional permission resolution, per-run capability policy, durable event
+  reporting, and explicit `--expect-event` acceptance checks. The probe can
+  write a pretty JSON report with `--report`, giving real-agent validation a
+  durable artifact format instead of a copied terminal transcript. Current
+  automated coverage runs this probe against `stub-acp`, including file policy
+  allow and terminal-create policy deny stories; real-agent proof still
+  requires running the same probe against a non-stub configured ACP command with
+  expectations for the specific story being validated.
 
 Still missing:
 

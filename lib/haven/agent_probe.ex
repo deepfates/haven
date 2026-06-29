@@ -34,6 +34,7 @@ defmodule Haven.AgentProbe do
     prompt = Keyword.get(opts, :prompt, "hello from Haven agent probe")
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     permission_resolution = Keyword.get(opts, :resolve_permissions)
+    capability_policy = capability_policy(opts)
 
     expected_events =
       Keyword.get_values(opts, :expect_event) ++ Keyword.get(opts, :expect_events, [])
@@ -42,7 +43,8 @@ defmodule Haven.AgentProbe do
            Runs.create_run(%{
              "title" => Keyword.get(opts, :title, title(agent)),
              "workspace" => workspace,
-             "agent" => agent
+             "agent" => agent,
+             "capability_policy" => capability_policy
            }),
          {:ok, _run} <- wait_for_boot(run.id, timeout),
          :ok <- Runs.send_prompt(run.id, prompt),
@@ -66,6 +68,36 @@ defmodule Haven.AgentProbe do
   end
 
   defp title(agent), do: "Agent probe: #{agent}"
+
+  defp capability_policy(opts) do
+    base_policy =
+      opts
+      |> Keyword.get(:capability_policy, %{})
+      |> policy_map()
+
+    opts
+    |> Enum.reduce(base_policy, fn
+      {:file_read_policy, value}, policy -> Map.put(policy, "file_read", value)
+      {:file_write_policy, value}, policy -> Map.put(policy, "file_write", value)
+      {:terminal_create_policy, value}, policy -> Map.put(policy, "terminal_create", value)
+      _option, policy -> policy
+    end)
+  end
+
+  defp policy_map(policy) when is_map(policy) do
+    Map.new(policy, fn {key, value} -> {to_string(key), value} end)
+  end
+
+  defp policy_map(policy) when is_list(policy) do
+    policy
+    |> Enum.filter(fn
+      {key, _value} when is_atom(key) or is_binary(key) -> true
+      _other -> false
+    end)
+    |> Map.new(fn {key, value} -> {to_string(key), value} end)
+  end
+
+  defp policy_map(_policy), do: %{}
 
   defp wait_for_boot(run_id, timeout) do
     wait_until(run_id, timeout, fn run ->

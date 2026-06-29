@@ -4,10 +4,14 @@ defmodule Mix.Tasks.Haven.AgentProbe do
 
       mix haven.agent_probe --agent stub-acp --workspace . --prompt "hello"
       mix haven.agent_probe --agent my-agent --workspace . --prompt "read README.md" --expect-event file_read_succeeded
+      mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --terminal-create-policy deny --expect-event terminal_create_denied
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --report docs/probes/my-agent.json
 
   Use `--resolve-permissions allow` or `--resolve-permissions deny` when the
   probe prompt is expected to trigger permission-gated file or terminal work.
+  Use `--file-read-policy`, `--file-write-policy`, and
+  `--terminal-create-policy` to create the probed run with explicit capability
+  policy.
   Use repeated `--expect-event` flags to make the probe fail unless the run
   produces the event types required by the acceptance story.
   Use `--report path.json` to write the full probe report as pretty JSON.
@@ -26,7 +30,10 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     resolve_permissions: :string,
     expect_event: :keep,
     report: :string,
-    title: :string
+    title: :string,
+    file_read_policy: :string,
+    file_write_policy: :string,
+    terminal_create_policy: :string
   ]
 
   @aliases [a: :agent, w: :workspace, p: :prompt, t: :timeout]
@@ -59,11 +66,30 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     |> Keyword.update(:workspace, File.cwd!(), &Path.expand/1)
     |> Keyword.update(:report, nil, &Path.expand/1)
     |> Keyword.update(:resolve_permissions, nil, &normalize_permission_resolution/1)
+    |> normalize_capability_policy(:file_read_policy, ["ask", "allow", "deny"])
+    |> normalize_capability_policy(:file_write_policy, ["ask", "allow", "deny"])
+    |> normalize_capability_policy(:terminal_create_policy, ["allow", "deny"])
   end
 
   defp normalize_permission_resolution(nil), do: nil
   defp normalize_permission_resolution("none"), do: nil
   defp normalize_permission_resolution(option_id), do: option_id
+
+  defp normalize_capability_policy(opts, key, allowed) do
+    case Keyword.fetch(opts, key) do
+      {:ok, value} ->
+        if value in allowed do
+          opts
+        else
+          Mix.raise(
+            "Invalid --#{String.replace(to_string(key), "_", "-")} #{inspect(value)}; expected one of #{Enum.join(allowed, ", ")}"
+          )
+        end
+
+      :error ->
+        opts
+    end
+  end
 
   defp print_report(report) do
     Mix.shell().info("Run: #{report.run_id || "(not created)"}")

@@ -44,11 +44,23 @@ mix haven.agent_probe \
   --agent my-agent \
   --workspace /path/to/repo \
   --prompt "run the test command" \
+  --terminal-create-policy allow \
   --expect-event terminal_created \
   --expect-event terminal_output_succeeded \
   --expect-event terminal_released \
   --expect-event turn_finished \
   --report docs/probes/my-agent-terminal.json
+
+mix haven.agent_probe \
+  --agent my-agent \
+  --workspace /path/to/repo \
+  --prompt "try to open a terminal" \
+  --terminal-create-policy deny \
+  --expect-event terminal_create_requested \
+  --expect-event capability_policy_applied \
+  --expect-event terminal_create_denied \
+  --expect-event turn_finished \
+  --report docs/probes/my-agent-terminal-denied.json
 ```
 
 Before committing a report, inspect it for secrets in command arguments,
