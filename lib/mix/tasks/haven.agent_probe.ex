@@ -6,7 +6,11 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       mix haven.agent_probe --agent my-agent --workspace . --prompt "read README.md" --expect-event file_read_succeeded
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --terminal-create-policy deny --expect-event terminal_create_denied
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --report docs/probes/my-agent.json
+      mix haven.agent_probe --list-agents --workspace .
 
+  Use `--list-agents` to inspect configured agent commands, whether they
+  resolve on this machine, and whether they are eligible for
+  `--require-real-agent` evidence.
   Use `--resolve-permissions allow` or `--resolve-permissions deny` when the
   probe prompt is expected to trigger permission-gated file or terminal work.
   Use `--file-read-policy`, `--file-write-policy`, and
@@ -44,7 +48,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     terminal_create_policy: :string,
     redact: :keep,
     redact_env: :keep,
-    require_real_agent: :boolean
+    require_real_agent: :boolean,
+    list_agents: :boolean
   ]
 
   @aliases [a: :agent, w: :workspace, p: :prompt, t: :timeout]
@@ -60,15 +65,19 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     opts = normalize_opts(opts)
     report_path = Keyword.get(opts, :report)
 
-    case Haven.AgentProbe.run(opts) do
-      {:ok, report} ->
-        print_report(report)
-        write_report(report, report_path)
+    if Keyword.get(opts, :list_agents, false) do
+      print_agent_inventory(Keyword.fetch!(opts, :workspace))
+    else
+      case Haven.AgentProbe.run(opts) do
+        {:ok, report} ->
+          print_report(report)
+          write_report(report, report_path)
 
-      {:error, reason, report} ->
-        print_report(report)
-        write_report(report, report_path)
-        Mix.raise("Agent probe failed: #{reason}")
+        {:error, reason, report} ->
+          print_report(report)
+          write_report(report, report_path)
+          Mix.raise("Agent probe failed: #{reason}")
+      end
     end
   end
 
@@ -117,6 +126,62 @@ defmodule Mix.Tasks.Haven.AgentProbe do
         opts
     end
   end
+
+  defp print_agent_inventory(workspace) do
+    inventory = Haven.AgentProbe.agent_inventory(workspace)
+
+    Mix.shell().info("Workspace: #{workspace}")
+    Mix.shell().info("")
+    Mix.shell().info("Configured agents:")
+
+    Enum.each(inventory, fn agent ->
+      Mix.shell().info("- #{agent.agent}: #{agent.status}")
+
+      if agent.status == "ready" do
+        Mix.shell().info("  executable: #{agent.executable}")
+        Mix.shell().info("  args: #{inspect_args(agent.args)}")
+        Mix.shell().info("  cwd: #{agent.cwd || "(inherit)"}")
+        Mix.shell().info("  env keys: #{Enum.join(agent.env_keys, ", ")}")
+      else
+        Mix.shell().info("  error: #{agent.error}")
+      end
+
+      Mix.shell().info("  real-agent evidence candidate: #{agent.real_agent_candidate}")
+
+      if agent.real_agent_rejection_reasons != [] do
+        Mix.shell().info(
+          "  rejection reasons: #{Enum.join(agent.real_agent_rejection_reasons, "; ")}"
+        )
+      end
+
+      if agent.real_agent_candidate do
+        Mix.shell().info(
+          "  example: mix haven.agent_probe --agent #{agent.agent} --workspace #{workspace} --require-real-agent --expect-event agent_initialized --expect-event agent_session_started --expect-event turn_finished --report docs/probes/#{agent.agent}-basic.json"
+        )
+      end
+    end)
+
+    Mix.shell().info("")
+
+    case Enum.filter(inventory, & &1.real_agent_candidate) do
+      [] ->
+        Mix.shell().info(
+          "Real-agent evidence candidates: none. Configure an ACP-speaking non-test agent before generating docs/probes evidence."
+        )
+
+      candidates ->
+        Mix.shell().info(
+          "Real-agent evidence candidates: #{Enum.map_join(candidates, ", ", & &1.agent)}"
+        )
+    end
+  end
+
+  defp inspect_args(args) when length(args) > 12 do
+    shown = Enum.take(args, 12)
+    inspect(shown ++ ["... #{length(args) - length(shown)} more"])
+  end
+
+  defp inspect_args(args), do: inspect(args)
 
   defp print_report(report) do
     Mix.shell().info("Run: #{report.run_id || "(not created)"}")

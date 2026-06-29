@@ -361,6 +361,9 @@ Evidence:
 - Probe reports intended as real-agent evidence can require a real-agent guard;
   the guard rejects the built-in `stub-acp` and the configured local test
   harness scripts before writing a passing acceptance artifact.
+- `mix haven.agent_probe --list-agents` inventories configured agents, command
+  resolution, real-agent evidence eligibility, rejection reasons, and redacted
+  environment key names before a user attempts a real-agent probe.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
   gate rather than only a documentation convention.
@@ -396,10 +399,12 @@ be counted as complete until there is executable evidence.
 ## Next Best Validation Work
 
 1. Connect the configurable command/cwd/env path to one real ACP-speaking agent
-   by running `mix haven.agent_probe` against it with `--expect-event`
-   assertions for initialization, prompting, and any required file/terminal
-   capability events, then commit the `--report` JSON artifact and document any
-   agent-specific auth contract using `docs/probes/README.md`.
+   by first running `mix haven.agent_probe --list-agents --workspace <repo>`,
+   then running `mix haven.agent_probe` against an eligible candidate with
+   `--require-real-agent` and `--expect-event` assertions for initialization,
+   prompting, and any required file/terminal capability events. Commit the
+   `--report` JSON artifact and document any agent-specific auth contract using
+   `docs/probes/README.md`.
 2. Connect terminal capability handling to a real ACP-speaking agent and add
    interactive-terminal evidence.
 3. Connect file capability handling to a real ACP-speaking agent.

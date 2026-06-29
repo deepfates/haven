@@ -22,6 +22,8 @@ Grei/Haven real-agent evidence when all of the following are true:
 Examples:
 
 ```bash
+mix haven.agent_probe --list-agents --workspace /path/to/repo
+
 mix haven.agent_probe \
   --agent my-agent \
   --workspace /path/to/repo \
@@ -80,6 +82,11 @@ mix haven.agent_probe \
   --expect-event turn_finished \
   --report docs/probes/my-agent-terminal-denied.json
 ```
+
+Use `--list-agents` first when preparing real-agent evidence. It prints every
+configured agent, whether its command resolves on this machine, whether it can
+count as a `--require-real-agent` candidate, and an example basic probe command.
+The inventory shows environment variable names but not their values.
 
 Before committing a report, inspect it for secrets in command arguments,
 environment-derived output, prompts, and agent messages.

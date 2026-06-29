@@ -9,6 +9,7 @@ defmodule Haven.AgentProbe do
   """
 
   alias Haven.Events
+  alias Haven.Agents
   alias Haven.Runs
 
   @terminal_statuses ~w(closed failed)
@@ -73,6 +74,39 @@ defmodule Haven.AgentProbe do
          |> invalid_run_report(workspace, prompt, nil, expected_events)
          |> apply_redactions(redactions)}
     end
+  end
+
+  @spec agent_inventory(String.t()) :: [map()]
+  def agent_inventory(workspace \\ File.cwd!()) do
+    workspace = Path.expand(workspace)
+
+    Agents.available()
+    |> Enum.map(fn {agent, _label} ->
+      case Agents.command(agent, workspace) do
+        {:ok, command} ->
+          rejection_reasons = real_agent_rejection_reasons(agent, command.args)
+
+          %{
+            agent: agent,
+            status: "ready",
+            executable: command.executable,
+            args: command.args,
+            cwd: command.cwd,
+            env_keys: Enum.map(command.env, fn {name, _value} -> name end),
+            real_agent_candidate: rejection_reasons == [],
+            real_agent_rejection_reasons: rejection_reasons
+          }
+
+        {:error, reason} ->
+          %{
+            agent: agent,
+            status: "invalid",
+            error: inspect(reason),
+            real_agent_candidate: false,
+            real_agent_rejection_reasons: ["agent command cannot be resolved"]
+          }
+      end
+    end)
   end
 
   defp title(agent), do: "Agent probe: #{agent}"
@@ -282,25 +316,42 @@ defmodule Haven.AgentProbe do
   end
 
   defp real_agent_rejection_reasons(report) do
+    process_reasons =
+      report.events
+      |> Enum.filter(&(&1.type == "agent_process_started"))
+      |> Enum.flat_map(fn event ->
+        real_agent_rejection_reasons(report.agent, event.payload["args"] || [])
+      end)
+      |> Enum.uniq()
+
     []
     |> maybe_reject(report.agent == "stub-acp", "agent is built-in stub-acp")
-    |> maybe_reject(
-      Enum.any?(report.events, &test_harness_process?/1),
-      "agent command uses a local test harness"
-    )
-    |> Enum.reverse()
+    |> Kernel.++(process_reasons)
+    |> Enum.uniq()
   end
 
-  defp maybe_reject(reasons, true, reason), do: [reason | reasons]
+  defp maybe_reject(reasons, true, reason), do: reasons ++ [reason]
   defp maybe_reject(reasons, false, _reason), do: reasons
 
-  defp test_harness_process?(%{type: "agent_process_started", payload: payload}) do
-    payload
-    |> Map.get("args", [])
-    |> Enum.any?(&(&1 in ["priv/agent_stub.exs", "test/support/fake_agent_runner.exs"]))
+  defp real_agent_rejection_reasons(agent, args) when is_list(args) do
+    []
+    |> maybe_reject(agent == "stub-acp", "agent is built-in stub-acp")
+    |> maybe_reject(test_harness_args?(args), "agent command uses a local test harness")
   end
 
-  defp test_harness_process?(_event), do: false
+  defp real_agent_rejection_reasons(agent, _args),
+    do: real_agent_rejection_reasons(agent, [])
+
+  defp test_harness_args?(args) do
+    Enum.any?(
+      args,
+      &(&1 in [
+          "priv/agent_stub.exs",
+          "priv/malformed_agent.exs",
+          "test/support/fake_agent_runner.exs"
+        ])
+    )
+  end
 
   defp event_report(event) do
     %{

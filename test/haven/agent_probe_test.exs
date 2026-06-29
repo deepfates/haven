@@ -143,6 +143,61 @@ defmodule Haven.AgentProbeTest do
     assert report.errors == %{"real_agent" => ["agent command uses a local test harness"]}
   end
 
+  test "lists configured agent readiness for real-agent evidence" do
+    sh = System.find_executable("sh")
+
+    Application.put_env(:haven, :agents, %{
+      "candidate" => %{
+        executable: "sh",
+        args: ["-c", "cat"],
+        cwd: "{workspace}",
+        env: %{"SECRET" => "hidden-value", "WORKSPACE" => "{workspace}"}
+      },
+      "fake-probe-streaming" => fake_agent_spec("streaming"),
+      "malformed-local" => %{executable: "sh", args: ["priv/malformed_agent.exs"]},
+      "missing" => %{executable: "haven-definitely-missing-agent"}
+    })
+
+    inventory =
+      File.cwd!()
+      |> AgentProbe.agent_inventory()
+      |> Map.new(&{&1.agent, &1})
+
+    assert inventory["candidate"] == %{
+             agent: "candidate",
+             status: "ready",
+             executable: sh,
+             args: ["-c", "cat"],
+             cwd: File.cwd!(),
+             env_keys: ["SECRET", "WORKSPACE"],
+             real_agent_candidate: true,
+             real_agent_rejection_reasons: []
+           }
+
+    assert inventory["fake-probe-streaming"].status == "ready"
+    refute inventory["fake-probe-streaming"].real_agent_candidate
+
+    assert inventory["fake-probe-streaming"].real_agent_rejection_reasons == [
+             "agent command uses a local test harness"
+           ]
+
+    assert inventory["malformed-local"].status == "ready"
+    refute inventory["malformed-local"].real_agent_candidate
+
+    assert inventory["malformed-local"].real_agent_rejection_reasons == [
+             "agent command uses a local test harness"
+           ]
+
+    assert inventory["missing"].status == "invalid"
+    refute inventory["missing"].real_agent_candidate
+
+    assert inventory["missing"].real_agent_rejection_reasons == [
+             "agent command cannot be resolved"
+           ]
+
+    refute Jason.encode!(inventory) =~ "hidden-value"
+  end
+
   test "can create probe runs with file capability policy" do
     assert {:ok, report} =
              AgentProbe.run(
