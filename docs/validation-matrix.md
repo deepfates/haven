@@ -9,6 +9,9 @@ runs with explicit human decisions.
 - Unit and integration tests: `mix test`
 - Compile gate: `mix compile --warnings-as-errors`
 - Final project gate: `mix precommit`
+- LiveView integration: malformed ACP startup output records
+  `agent_protocol_failed`, marks the run `failed`, and does not restart the
+  agent process.
 - Browser smoke: create a run, trigger a permission request, approve it, trigger
   an ACP file read, trigger a deterministic terminal command, create a run with
   an explicit workspace, reload disconnected history, explicitly reconnect that
@@ -145,6 +148,9 @@ Evidence:
 - Tests and browser smoke verify explicit reconnect/restart appends
   `run_reconnect_requested`, starts a fresh ACP process, and reconnects prompt
   controls.
+- LiveView integration tests verify malformed ACP startup output records
+  `agent_protocol_failed`, marks the run `failed`, renders visibly, and does not
+  restart the malformed agent process.
 - RunServer shutdown now explicitly tears down the ACP connection and port IO
   bridge.
 - Event ordering and persistence are covered by `test/haven/events_test.exs`.
@@ -205,8 +211,10 @@ be counted as complete until there is executable evidence.
 - Interactive terminal behavior and executable `terminal/kill` evidence.
 - Authentication flows for agents that require auth.
 - Session load/resume/fork/list support when agents expose it.
-- Explicit handling for malformed ACP frames.
+- Malformed ACP frames after a successful session has started.
 - Browser smoke for agent death; current executable evidence is LiveView-level.
+- Browser smoke for malformed ACP startup output; current executable evidence is
+  LiveView-level.
 - Browser smoke for non-message session updates; current executable evidence is
   LiveView-level.
 - Product-grade workspace and agent configuration UI.
@@ -215,7 +223,8 @@ be counted as complete until there is executable evidence.
 ## Next Best Validation Work
 
 1. Add a supervised fake ACP agent test harness that can stream partial chunks,
-   request duplicate permissions, emit malformed frames, and simulate restart.
+   request duplicate permissions, emit malformed frames after session startup,
+   and simulate restart.
 2. Add LiveView tests for deliberate restart and reload after process exit.
 3. Connect the configurable command path to one real ACP-speaking agent and
    document the exact command/env contract.

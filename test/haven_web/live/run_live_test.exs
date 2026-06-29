@@ -604,6 +604,60 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "missing-agent"
   end
 
+  test "malformed ACP startup output fails visibly without restarting", %{conn: conn} do
+    original = Application.get_env(:haven, :agents)
+
+    on_exit(fn ->
+      if original do
+        Application.put_env(:haven, :agents, original)
+      else
+        Application.delete_env(:haven, :agents)
+      end
+    end)
+
+    Application.put_env(:haven, :agents, %{
+      "malformed-agent" => %{
+        executable: System.find_executable("mix"),
+        args: ["run", "--no-compile", "--no-start", "priv/malformed_agent.exs"]
+      }
+    })
+
+    run = insert_run!("Malformed agent run", "malformed-agent")
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+    Runs.subscribe()
+
+    {:ok, _pid} = Runs.start_run(run.id)
+
+    assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_protocol_failed",
+                      payload: %{"reason" => reason}
+                    }},
+                   1_000
+
+    assert reason =~ "protocol_exit"
+
+    assert_receive {:run_updated, %{id: run_id, status: "failed"}}, 1_000
+    assert run_id == run.id
+    assert Runs.get_run!(run.id).status == "failed"
+
+    started_events =
+      run.id
+      |> Events.list_for_run()
+      |> Enum.filter(&(&1.type == "agent_process_started"))
+
+    assert length(started_events) == 1
+
+    {:ok, _view, html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert html =~ "failed"
+    assert html =~ "agent_protocol_failed"
+    assert html =~ "malformed-agent"
+  end
+
   test "configured agent key drives the launched ACP process", %{conn: conn} do
     original = Application.get_env(:haven, :agents)
 

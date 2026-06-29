@@ -130,46 +130,77 @@ defmodule Haven.Runs.RunServer do
   end
 
   defp boot_agent_connection(state, run, command, port_io) do
-    {:ok, conn} =
-      ACP.ClientSideConnection.start_link(
-        input: port_io,
-        output: port_io,
-        handler: ACPClientHandler,
-        handler_state: self()
-      )
+    case ACP.ClientSideConnection.start_link(
+           input: port_io,
+           output: port_io,
+           handler: ACPClientHandler,
+           handler_state: self()
+         ) do
+      {:ok, conn} ->
+        ACP.ClientSideConnection.subscribe(conn)
 
-    ACP.ClientSideConnection.subscribe(conn)
+        Events.append!(state.run_id, "agent_process_started", %{
+          "agent" => run.agent,
+          "command" => command.label,
+          "executable" => command.executable,
+          "args" => command.args
+        })
 
-    Events.append!(state.run_id, "agent_process_started", %{
-      "agent" => run.agent,
-      "command" => command.label,
-      "executable" => command.executable,
-      "args" => command.args
-    })
+        Runs.update_status!(state.run_id, %{status: "initializing"})
+        initialize_agent_connection(%{state | port_io: port_io, conn: conn}, run)
 
-    Runs.update_status!(state.run_id, %{status: "initializing"})
+      {:error, reason} ->
+        fail_agent_boot(%{state | port_io: port_io}, "agent_start_failed", reason)
+    end
+  end
 
-    {:ok, initialize_result} =
-      ACP.ClientSideConnection.initialize(
-        conn,
-        ACP.InitializeRequest.new(ACP.ProtocolVersion.v1())
-      )
+  defp initialize_agent_connection(state, run) do
+    with {:ok, initialize_result} <-
+           safe_protocol_call(fn ->
+             ACP.ClientSideConnection.initialize(
+               state.conn,
+               ACP.InitializeRequest.new(ACP.ProtocolVersion.v1())
+             )
+           end),
+         {:ok, _response} <- ACP.InitializeResponse.from_json(initialize_result) do
+      Events.append!(state.run_id, "agent_initialized", %{})
 
-    {:ok, _response} = ACP.InitializeResponse.from_json(initialize_result)
-    Events.append!(state.run_id, "agent_initialized", %{})
+      with {:ok, session_result} <-
+             safe_protocol_call(fn ->
+               ACP.ClientSideConnection.new_session(
+                 state.conn,
+                 ACP.NewSessionRequest.new(run.workspace)
+               )
+             end),
+           {:ok, session} <- ACP.NewSessionResponse.from_json(session_result) do
+        Events.append!(state.run_id, "agent_session_started", %{
+          "agent_session_id" => session.session_id
+        })
 
-    {:ok, session_result} =
-      ACP.ClientSideConnection.new_session(conn, ACP.NewSessionRequest.new(run.workspace))
+        Runs.update_status!(state.run_id, %{status: "idle", agent_session_id: session.session_id})
 
-    {:ok, session} = ACP.NewSessionResponse.from_json(session_result)
+        {:noreply, %{state | agent_session_id: session.session_id}}
+      else
+        {:error, reason} ->
+          fail_agent_boot(state, "agent_protocol_failed", reason)
+      end
+    else
+      {:error, reason} ->
+        fail_agent_boot(state, "agent_protocol_failed", reason)
+    end
+  end
 
-    Events.append!(state.run_id, "agent_session_started", %{
-      "agent_session_id" => session.session_id
-    })
+  defp safe_protocol_call(fun) do
+    fun.()
+  catch
+    :exit, reason -> {:error, {:protocol_exit, reason}}
+  end
 
-    Runs.update_status!(state.run_id, %{status: "idle", agent_session_id: session.session_id})
-
-    {:noreply, %{state | port_io: port_io, conn: conn, agent_session_id: session.session_id}}
+  defp fail_agent_boot(state, event_type, reason) do
+    Events.append!(state.run_id, event_type, %{"reason" => inspect(reason)})
+    Runs.update_status!(state.run_id, %{status: "failed"})
+    cleanup_agent(state)
+    {:stop, :normal, state}
   end
 
   @impl true

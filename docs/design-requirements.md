@@ -291,6 +291,8 @@ Proven:
   agent process.
 - Disconnected idle history and failed persisted runs can be explicitly
   reconnected/restarted as fresh ACP processes.
+- Malformed ACP output during startup is projected as a visible
+  `agent_protocol_failed` run failure without an automatic restart loop.
 
 Not yet proven:
 
@@ -299,6 +301,7 @@ Not yet proven:
 - Terminal capability handling against real external agents.
 - Interactive terminal sessions and kill behavior.
 - ACP-native session resume policy.
+- Malformed ACP frame handling after a session has successfully started.
 - Multi-run load behavior.
 - Long-running turn streaming under real output volume.
 - Backpressure, log compaction, and transcript projection performance.
