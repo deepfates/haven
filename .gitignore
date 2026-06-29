@@ -1,35 +1,42 @@
-# Dependencies
-node_modules/
+# The directory Mix will write compiled artifacts to.
+/_build/
 
-# Build
-dist/
-.next/
-out/
+# If you run "mix test --cover", coverage assets end up here.
+/cover/
 
-# Env
-.env
-.env.local
-.env*.local
+# The directory Mix downloads your dependencies sources to.
+/deps/
 
-# Logs
-*.log
-npm-debug.log*
+# Where 3rd-party dependencies like ExDoc output generated docs.
+/doc/
 
-# OS
-.DS_Store
-Thumbs.db
+# Ignore .fetch files in case you like to edit your project deps locally.
+/.fetch
 
-# Editor
-.vscode/
-.idea/
-*.swp
-*.swo
+# If the VM crashes, it generates a dump, let's ignore it too.
+erl_crash.dump
 
-# Cache
-.cache/
-.turbo/
-.vercel/
-.tmp/
-test-results/
-playwright-report/
-.tmp/
+# Also ignore archive artifacts (built via "mix archive.build").
+*.ez
+
+# Temporary files, for example, from tests.
+/tmp/
+/.tmp/
+
+# Ignore package tarball (built via "mix hex.build").
+haven-*.tar
+
+# Ignore assets that are produced by build tools.
+/priv/static/assets/
+
+# Ignore digested assets cache.
+/priv/static/cache_manifest.json
+
+# In case you use Node.js/npm, you want to ignore these.
+npm-debug.log
+/node_modules/
+/assets/node_modules/
+
+# Database files
+*.db
+*.db-*

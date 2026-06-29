@@ -1,49 +1,54 @@
-# 🏡 haven
+# Haven
 
-Haven is a mobile-first web client and local bridge for ACP agents. The theory is that you give a whole computer to your agents, whether as a VM or container or whatever, and the computer file system and the software within it becomes their sort of house or shared space. A haven. And you can interact with them from wherever through the mobile web client, spin up and talk to different agents. Like Codex and Claude Code and all the other ones supported by agent client protocol. 
+Haven is a Phoenix/OTP application for running ACP coding agents outside an IDE.
 
-This repo includes:
-- A bridge server that speaks ACP to an agent over stdio and exposes a WebSocket JSON-RPC API to the browser.
-- A web UI with an inbox of sessions, streaming updates, and approval prompts.
+The core shape:
 
-## What works today
+- A durable run is stored in SQLite.
+- Each live run is owned by a supervised `RunServer` process.
+- The run process owns an ACP client connection to an external agent process.
+- Meaningful state transitions are appended as events.
+- LiveView renders an attention inbox and a run timeline from persisted state.
+- Permission requests become explicit decisions.
+- Reload reconstructs the run from the event log.
 
-- Create multiple sessions, each backed by its own agent process.
-- Stream agent messages and tool-call updates in a chat-style feed.
-- Handle ACP permission requests with approval cards.
-- Persist sessions, updates, and pending approvals in SQLite for reloads.
+See [docs/design-requirements.md](docs/design-requirements.md) for the product
+and system requirements guiding the project.
 
-## Protocol boundaries
+## Run
 
-- Browser <-> bridge: JSON-RPC 2.0 over WebSocket on `/ws` (custom methods).
-- Bridge <-> agent: ACP over stdio.
+```bash
+mix ecto.setup
+mix phx.server
+```
 
-## Quickstart
+Open [localhost:4000](http://localhost:4000).
 
-See `docs/quickstart.md`.
+The run page includes sample controls:
 
-## Configuration (bridge)
+- `Echo` sends a complete prompt turn.
+- `Ask permission` triggers a permission request.
+- The approval card resolves the permission and lets the stub finish the turn.
 
-Environment variables:
+In development, there are HTTP controls for deterministic local testing:
 
-- `PORT` (default `8080`)
-- `HOST` (default `0.0.0.0`)
-- `AGENT_COMMAND` (default `npx @zed-industries/claude-code-acp`)
-- `DEFAULT_CWD` (default `/home/sprite`)
-- `STATIC_DIR` (default `client/dist`)
+```bash
+curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/echo
+curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/permission
+curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow
+```
 
-## Data & security
+## Shape
 
-- Sessions and updates are stored in `~/.acp-client/sessions.db`.
-- There is no built-in auth. Run on a trusted network or put a gateway in front.
+- `Haven.Runs.RunServer` owns one live agent run.
+- `Haven.PortIO` bridges spawned agent ports to the IO shape expected
+  by `agent_client_protocol`.
+- `Haven.Runs` is the run lifecycle context.
+- `Haven.Events` is the append-only event log.
+- `InboxLive` is the attention inbox.
+- `RunLive` is the run timeline and control surface.
+- `priv/agent_stub.exs` is an ACP-backed JSON-lines stub agent.
 
-## Current limitations
-
-- No session resume if an agent process exits.
-- Only text prompt content is rendered in the UI.
-- `agentType` is recorded but does not select a different command.
-- Operations for Sprites are manual and intentionally light.
-
-## Reference
-
-- Bridge + ACP notes: `ACP-PROTOCOL.md`
+The default development agent is a self-contained ACP stub. The next milestone
+is to implement file and terminal client capabilities against a real
+ACP-speaking agent while keeping the run/event/LiveView shape.
