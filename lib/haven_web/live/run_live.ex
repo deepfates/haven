@@ -139,7 +139,7 @@ defmodule HavenWeb.RunLive do
   end
 
   defp can_reconnect?(run, live?) do
-    run.status == "failed" or (not live? and run.status not in ["closed", "waiting", "running"])
+    run.status == "failed" or (not live? and run.status != "closed")
   end
 
   defp latest_pending_permission(events) do
@@ -399,6 +399,7 @@ defmodule HavenWeb.RunLive do
                   phx-click="resolve_permission"
                   phx-value-request-id={@pending_permission.payload["request_id"]}
                   phx-value-option-id={option["optionId"]}
+                  disabled={!@live?}
                 >
                   {option["name"]}
                 </button>

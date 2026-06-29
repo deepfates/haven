@@ -86,6 +86,7 @@ defmodule Haven.Runs do
           "previous_status" => run.status
         })
 
+        cancel_unresolved_permissions!(run_id, "run_reconnect_requested")
         update_status!(run_id, %{status: "idle", agent_session_id: nil})
         start_run(run_id)
     end
@@ -166,4 +167,27 @@ defmodule Haven.Runs do
   end
 
   def subscribe, do: Phoenix.PubSub.subscribe(Haven.PubSub, "runs")
+
+  defp cancel_unresolved_permissions!(run_id, reason) do
+    events = Events.list_for_run(run_id)
+
+    resolved =
+      events
+      |> Enum.filter(&(&1.type == "permission_resolved"))
+      |> MapSet.new(&to_string(&1.payload["request_id"]))
+
+    events
+    |> Enum.filter(&(&1.type == "permission_requested"))
+    |> Enum.map(& &1.payload["request_id"])
+    |> Enum.reject(&MapSet.member?(resolved, to_string(&1)))
+    |> Enum.each(fn request_id ->
+      Events.append!(run_id, "permission_resolved", %{
+        "request_id" => request_id,
+        "option_id" => "cancelled",
+        "outcome" => "cancelled",
+        "reason" => reason,
+        "actor" => "system"
+      })
+    end)
+  end
 end

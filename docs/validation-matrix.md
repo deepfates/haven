@@ -252,6 +252,10 @@ Evidence:
 - Tests and browser smoke verify explicit reconnect/restart appends
   `run_reconnect_requested`, starts a fresh ACP process, and reconnects prompt
   controls.
+- LiveView integration tests and browser smoke verify disconnected waiting runs
+  with stale durable permission requests render decision buttons disabled, offer
+  Reconnect, system-cancel the stale permission during reconnect, and start a
+  fresh ACP process without leaving the old permission card active.
 - Tests and browser smoke verify terminal run archival hides old failed/closed
   work from the default inbox while keeping durable run events.
 - Browser smoke verifies a run that actually recorded `agent_process_exited`
@@ -413,4 +417,5 @@ be counted as complete until there is executable evidence.
 2. Connect terminal capability handling to a real ACP-speaking agent and add
    interactive-terminal evidence.
 3. Connect file capability handling to a real ACP-speaking agent.
-4. Add browser smoke coverage for broader reload recovery.
+4. Add browser smoke coverage for broader reload recovery around stale running
+   turns and post-reconnect transcript projection.

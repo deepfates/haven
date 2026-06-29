@@ -95,6 +95,53 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#send-prompt-button:not([disabled])")
   end
 
+  test "reconnect system-cancels stale pending permissions for disconnected waiting runs", %{
+    conn: conn
+  } do
+    run = insert_disconnected_run!("Reconnect waiting history", "waiting")
+    append_permission_requested!(run.id, 42)
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert html =~ "not connected"
+    assert has_element?(view, "#pending-permission-card", "Write file")
+    assert has_element?(view, ~s|#pending-permission-card button[disabled]|)
+    assert has_element?(view, "#reconnect-run-button", "Reconnect")
+    refute Runs.started?(run.id)
+
+    view
+    |> element("#reconnect-run-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "run_reconnect_requested",
+                      payload: %{"previous_status" => "waiting"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_resolved",
+                      payload: %{
+                        "request_id" => 42,
+                        "option_id" => "cancelled",
+                        "outcome" => "cancelled",
+                        "reason" => "run_reconnect_requested",
+                        "actor" => "system"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+
+    refute has_element?(view, "#pending-permission-card")
+    assert render(view) =~ "connected"
+  end
+
   test "explicit restart starts a new process for failed runs", %{conn: conn} do
     run = insert_disconnected_run!("Restart failed history", "failed")
     stop_run_server_on_exit(run.id)
@@ -2311,5 +2358,21 @@ defmodule HavenWeb.RunLiveTest do
     })
 
     run
+  end
+
+  defp append_permission_requested!(run_id, request_id) do
+    Events.append!(run_id, "permission_requested", %{
+      "request_id" => request_id,
+      "toolCall" => %{
+        "id" => "tool-#{request_id}",
+        "title" => "Write file",
+        "rawInput" => %{"path" => "notes.md"},
+        "status" => "pending"
+      },
+      "options" => [
+        %{"optionId" => "allow", "name" => "Allow", "kind" => "allow_once"},
+        %{"optionId" => "deny", "name" => "Deny", "kind" => "reject_once"}
+      ]
+    })
   end
 end
