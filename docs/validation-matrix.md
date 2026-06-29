@@ -387,10 +387,10 @@ Evidence:
   `gemini` instead of relying on local shell placeholders.
 - The inbox Agent Setup panel surfaces the same probe-readiness distinction for
   saved agent configs, showing whether a saved command is a probe candidate or
-  a rejected local harness/invalid command, rendering a basic
-  `--require-real-agent` report command only for eligible probe candidates,
-  explicitly warning that the command is not evidence until the probe passes,
-  and never rendering environment values.
+  a rejected local harness/invalid command, rendering basic boot and
+  field-checked capability-guard `--require-real-agent` report commands only
+  for eligible probe candidates, explicitly warning that the command is not
+  evidence until the probe passes, and never rendering environment values.
 - Browser smoke verifies the Agent Setup panel also surfaces the public
   registry discovery command with `--registry` and warns that registry commands
   download and run third-party code before probing.

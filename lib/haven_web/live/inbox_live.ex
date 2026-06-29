@@ -451,7 +451,54 @@ defmodule HavenWeb.InboxLive do
 
   defp agent_evidence_reason(_inventory), do: "agent readiness unknown"
 
-  defp agent_probe_command(%{real_agent_candidate: true, agent: agent}) do
+  defp agent_probe_commands(%{real_agent_candidate: true, agent: agent}) do
+    [
+      %{
+        id: "basic",
+        label: "Basic boot proof",
+        command:
+          probe_command(agent, [
+            "--expect-event",
+            "agent_initialized",
+            "--expect-event",
+            "agent_session_started",
+            "--expect-event",
+            "turn_finished",
+            "--report",
+            "docs/probes/#{agent}-basic.json"
+          ])
+      },
+      %{
+        id: "terminal-denied",
+        label: "Capability guard proof",
+        command:
+          probe_command(agent, [
+            "--prompt",
+            "try to open a terminal",
+            "--terminal-create-policy",
+            "deny",
+            "--expect-event",
+            "terminal_create_requested",
+            "--expect-event",
+            "capability_policy_applied",
+            "--expect-event",
+            "terminal_create_denied",
+            "--expect-event",
+            "turn_finished",
+            "--expect-event-field",
+            "terminal_create_requested:payload.command=mix",
+            "--expect-event-field",
+            "capability_policy_applied:payload.decision=deny",
+            "--report",
+            "docs/probes/#{agent}-terminal-denied.json"
+          ])
+      }
+    ]
+  end
+
+  defp agent_probe_commands(_inventory), do: []
+
+  defp probe_command(agent, args) do
     [
       "mix",
       "haven.agent_probe",
@@ -459,20 +506,11 @@ defmodule HavenWeb.InboxLive do
       agent,
       "--workspace",
       File.cwd!(),
-      "--require-real-agent",
-      "--expect-event",
-      "agent_initialized",
-      "--expect-event",
-      "agent_session_started",
-      "--expect-event",
-      "turn_finished",
-      "--report",
-      "docs/probes/#{agent}-basic.json"
+      "--require-real-agent"
+      | args
     ]
     |> Enum.map_join(" ", &shell_arg/1)
   end
-
-  defp agent_probe_command(_inventory), do: nil
 
   defp agent_registry_command do
     [
@@ -779,18 +817,31 @@ defmodule HavenWeb.InboxLive do
                   class="border-t border-zinc-100 px-4 py-3 first:border-t-0"
                 >
                   <% readiness = Map.get(@agent_inventory, agent_config.key, %{}) %>
-                  <% probe_command = agent_probe_command(readiness) %>
+                  <% probe_commands = agent_probe_commands(readiness) %>
                   <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
                       <p class="truncate text-sm font-semibold text-zinc-950">{agent_config.key}</p>
                       <p class="mt-1 truncate text-xs text-zinc-500">{agent_config.executable}</p>
-                      <code
-                        :if={probe_command}
-                        id={"agent-config-#{agent_config.key}-probe-command"}
-                        class="mt-2 block overflow-x-auto rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] leading-5 text-zinc-700"
-                      >
-                        {probe_command}
-                      </code>
+                      <div :if={probe_commands != []} class="mt-2 space-y-2">
+                        <div
+                          :for={probe <- probe_commands}
+                          id={"agent-config-#{agent_config.key}-probe-#{probe.id}"}
+                        >
+                          <p class="text-[11px] font-semibold uppercase text-zinc-500">
+                            {probe.label}
+                          </p>
+                          <code
+                            id={
+                              if probe.id == "basic",
+                                do: "agent-config-#{agent_config.key}-probe-command",
+                                else: "agent-config-#{agent_config.key}-probe-#{probe.id}-command"
+                            }
+                            class="mt-1 block overflow-x-auto rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] leading-5 text-zinc-700"
+                          >
+                            {probe.command}
+                          </code>
+                        </div>
+                      </div>
                       <p
                         :if={agent_evidence_reason(readiness)}
                         id={"agent-config-#{agent_config.key}-evidence-reason"}

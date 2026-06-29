@@ -344,6 +344,7 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#agent-config-candidate-agent-evidence", "Probe candidate")
+    assert has_element?(view, "#agent-config-candidate-agent-probe-basic", "Basic boot proof")
 
     assert has_element?(
              view,
@@ -355,6 +356,36 @@ defmodule HavenWeb.InboxLiveTest do
              view,
              "#agent-config-candidate-agent-probe-command",
              "docs/probes/candidate-agent-basic.json"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-terminal-denied",
+             "Capability guard proof"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-terminal-denied-command",
+             "--expect-event-field"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-terminal-denied-command",
+             "terminal_create_requested:payload.command=mix"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-terminal-denied-command",
+             "capability_policy_applied:payload.decision=deny"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-terminal-denied-command",
+             "docs/probes/candidate-agent-terminal-denied.json"
            )
 
     assert has_element?(
