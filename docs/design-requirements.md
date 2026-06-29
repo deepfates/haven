@@ -295,6 +295,9 @@ Proven:
 - ACP file read and write requests are permission-gated before returning file
   content or touching the workspace: approval performs the capability request,
   denial blocks it, and both outcomes are durable timeline events.
+- Write permission requests include a bounded proposed-content preview, giving
+  the user something concrete to inspect before approving, though this is not
+  yet a full diff/artifact review system.
 - Deterministic non-interactive ACP terminal create/wait/output/release requests
   can be handled, logged, scoped to the selected workspace, and projected back
   to the agent.
@@ -326,6 +329,7 @@ Not yet proven:
 
 - Real external agents beyond the local stub.
 - File capability handling against real external agents.
+- Full file diff/artifact projections for write review.
 - Terminal capability handling against real external agents.
 - Interactive terminal sessions and process-tree kill behavior.
 - ACP-native session resume policy.

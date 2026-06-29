@@ -4,7 +4,7 @@ defmodule HavenWeb.RunLiveTest do
   alias Haven.Events
   alias Haven.Repo
   alias Haven.Runs
-  alias Haven.Runs.Run
+  alias Haven.Runs.{Run, RunServer}
 
   test "renders a durable run timeline after startup and reload", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Durable run"})
@@ -391,8 +391,6 @@ defmodule HavenWeb.RunLiveTest do
                     %{type: "permission_requested", payload: %{"request_id" => request_id}}},
                    1_000
 
-    assert has_element?(view, "#pending-permission-card")
-
     assert_receive {:event_appended,
                     %{type: "agent_process_exited", payload: %{"status" => status}}},
                    2_000
@@ -686,11 +684,20 @@ defmodule HavenWeb.RunLiveTest do
     assert_receive {:event_appended,
                     %{
                       type: "permission_requested",
-                      payload: %{"toolCall" => %{"title" => "Write file"}}
+                      payload: %{
+                        "toolCall" => %{
+                          "title" => "Write file",
+                          "rawInput" => %{
+                            "content_preview" => "written by Haven ACP\n",
+                            "content_truncated" => false
+                          }
+                        }
+                      }
                     }},
                    1_000
 
     assert has_element?(view, "#pending-permission-card", "Write file")
+    assert has_element?(view, "#pending-permission-card", "written by Haven ACP")
 
     refute File.exists?(Path.join(tmp_dir, "haven-written.txt"))
 
@@ -730,6 +737,46 @@ defmodule HavenWeb.RunLiveTest do
     html = render(view)
     assert html =~ "file_write_succeeded"
     assert html =~ "Wrote file through Haven."
+  end
+
+  @tag :tmp_dir
+  test "bounds ACP file write previews before approval", %{tmp_dir: tmp_dir} do
+    {:ok, run} = Runs.create_run(%{"title" => "Large file write run", "workspace" => tmp_dir})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    [{pid, _}] = Registry.lookup(Haven.Runs.Registry, run.id)
+    content = String.duplicate("x", 4_010)
+    request = ACP.WriteTextFileRequest.new("session-large", "large.txt", content)
+
+    task =
+      Task.async(fn ->
+        RunServer.agent_write_text_file_requested(pid, request)
+      end)
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_requested",
+                      payload: %{
+                        "request_id" => request_id,
+                        "toolCall" => %{
+                          "rawInput" => %{
+                            "bytes" => 4_010,
+                            "content_preview" => preview,
+                            "content_preview_limit" => 4_000,
+                            "content_truncated" => true
+                          }
+                        }
+                      }
+                    }},
+                   1_000
+
+    assert String.length(preview) == 4_000
+
+    assert :ok = Runs.resolve_permission(run.id, request_id, "deny")
+    assert {:error, %ACP.Error{message: "Permission denied"}} = Task.await(task, 1_000)
+    refute File.exists?(Path.join(tmp_dir, "large.txt"))
   end
 
   @tag :tmp_dir
