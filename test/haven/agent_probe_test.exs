@@ -44,6 +44,34 @@ defmodule Haven.AgentProbeTest do
     assert Enum.any?(report.events, &permission_denied?/1)
   end
 
+  test "passes when expected events are present" do
+    assert {:ok, report} =
+             AgentProbe.run(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               prompt: "hello from probe",
+               expect_events: ["agent_initialized", "turn_finished"],
+               timeout: 5_000
+             )
+
+    assert report.missing_expected_events == []
+  end
+
+  test "fails when expected events are missing" do
+    assert {:error, :missing_expected_events, report} =
+             AgentProbe.run(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               prompt: "hello from probe",
+               expect_events: ["file_read_succeeded", "terminal_created"],
+               timeout: 5_000
+             )
+
+    assert report.status == "idle"
+    assert report.missing_expected_events == ["file_read_succeeded", "terminal_created"]
+    assert "turn_finished" in event_types(report)
+  end
+
   defp event_types(report), do: Enum.map(report.events, & &1.type)
 
   defp permission_denied?(%{type: "permission_resolved", payload: payload}) do

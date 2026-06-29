@@ -52,6 +52,7 @@ To probe any configured ACP agent through Haven's real run lifecycle:
 mix haven.agent_probe --agent stub-acp --workspace . --prompt "hello"
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "summarize this repo"
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "read README.md" --resolve-permissions allow
+mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "run tests" --expect-event terminal_created --expect-event terminal_output_succeeded
 ```
 
 Configured agents can be supplied at runtime with `HAVEN_AGENTS_JSON`:
@@ -76,9 +77,11 @@ picker alongside runtime configuration.
 
 The probe creates a durable run, waits for ACP initialization/session creation,
 sends the prompt through `RunServer`, optionally resolves permission stalls, and
-prints the persisted event timeline. Passing the probe with `stub-acp` proves
-the harness; passing it with a real configured ACP agent is the next integration
-milestone.
+prints the persisted event timeline. Repeated `--expect-event` flags make the
+probe fail unless the run emits the required Haven event types, turning
+real-agent checks into acceptance contracts instead of best-effort smoke.
+Passing the probe with `stub-acp` proves the harness; passing it with a real
+configured ACP agent is the next integration milestone.
 
 ## Shape
 

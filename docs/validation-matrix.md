@@ -316,9 +316,11 @@ Evidence:
   timeline events and final `idle` state.
 - `mix haven.agent_probe` now exercises a configured ACP agent through Haven's
   real run lifecycle, including run creation, ACP boot/session setup, prompting,
-  optional permission resolution, and durable event reporting. Current automated
-  coverage runs this probe against `stub-acp`; real-agent proof still requires
-  running the same probe against a non-stub configured ACP command.
+  optional permission resolution, durable event reporting, and explicit
+  `--expect-event` acceptance checks. Current automated coverage runs this probe
+  against `stub-acp`; real-agent proof still requires running the same probe
+  against a non-stub configured ACP command with expectations for the specific
+  story being validated.
 
 Still missing:
 
@@ -349,8 +351,10 @@ be counted as complete until there is executable evidence.
 ## Next Best Validation Work
 
 1. Connect the configurable command/cwd/env path to one real ACP-speaking agent
-   by running `mix haven.agent_probe` against it, then commit the transcript and
-   document any agent-specific auth contract.
+   by running `mix haven.agent_probe` against it with `--expect-event`
+   assertions for initialization, prompting, and any required file/terminal
+   capability events, then commit the transcript and document any agent-specific
+   auth contract.
 2. Connect terminal capability handling to a real ACP-speaking agent and add
    interactive-terminal evidence.
 3. Connect file capability handling to a real ACP-speaking agent.

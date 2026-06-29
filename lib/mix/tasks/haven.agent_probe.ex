@@ -3,9 +3,12 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   Probes a configured ACP agent through Haven's real run lifecycle.
 
       mix haven.agent_probe --agent stub-acp --workspace . --prompt "hello"
+      mix haven.agent_probe --agent my-agent --workspace . --prompt "read README.md" --expect-event file_read_succeeded
 
   Use `--resolve-permissions allow` or `--resolve-permissions deny` when the
   probe prompt is expected to trigger permission-gated file or terminal work.
+  Use repeated `--expect-event` flags to make the probe fail unless the run
+  produces the event types required by the acceptance story.
   """
 
   use Mix.Task
@@ -19,6 +22,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     prompt: :string,
     timeout: :integer,
     resolve_permissions: :string,
+    expect_event: :keep,
     title: :string
   ]
 
@@ -60,6 +64,13 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     Mix.shell().info("Workspace: #{report.workspace}")
     Mix.shell().info("Status: #{report.status}")
     Mix.shell().info("Prompt: #{report.prompt}")
+
+    if report.missing_expected_events != [] do
+      Mix.shell().info(
+        "Missing expected events: #{Enum.join(report.missing_expected_events, ", ")}"
+      )
+    end
+
     Mix.shell().info("")
     Mix.shell().info("Events:")
 

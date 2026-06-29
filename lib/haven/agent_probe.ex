@@ -22,7 +22,8 @@ defmodule Haven.AgentProbe do
           workspace: String.t(),
           status: String.t(),
           events: [map()],
-          prompt: String.t()
+          prompt: String.t(),
+          missing_expected_events: [String.t()]
         }
 
   @spec run(keyword()) :: {:ok, report()} | {:error, atom(), report()}
@@ -33,6 +34,9 @@ defmodule Haven.AgentProbe do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     permission_resolution = Keyword.get(opts, :resolve_permissions)
 
+    expected_events =
+      Keyword.get_values(opts, :expect_event) ++ Keyword.get(opts, :expect_events, [])
+
     with {:ok, run} <-
            Runs.create_run(%{
              "title" => Keyword.get(opts, :title, title(agent)),
@@ -42,7 +46,9 @@ defmodule Haven.AgentProbe do
          {:ok, _run} <- wait_for_boot(run.id, timeout),
          :ok <- Runs.send_prompt(run.id, prompt),
          {:ok, finished} <- wait_for_finish(run.id, timeout, permission_resolution) do
-      {:ok, report(finished, prompt)}
+      finished
+      |> report(prompt)
+      |> validate_expected_events(expected_events)
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         {:error, :invalid_run, invalid_run_report(agent, workspace, prompt, changeset)}
@@ -146,7 +152,8 @@ defmodule Haven.AgentProbe do
       workspace: run.workspace,
       status: run.status,
       prompt: prompt,
-      events: Enum.map(Events.list_for_run(run.id), &event_report/1)
+      events: Enum.map(Events.list_for_run(run.id), &event_report/1),
+      missing_expected_events: []
     }
   end
 
@@ -158,8 +165,26 @@ defmodule Haven.AgentProbe do
       status: "invalid",
       prompt: prompt,
       errors: changeset_errors(changeset),
-      events: []
+      events: [],
+      missing_expected_events: []
     }
+  end
+
+  defp validate_expected_events(report, []), do: {:ok, report}
+
+  defp validate_expected_events(report, expected_events) do
+    present = report.events |> Enum.map(& &1.type) |> MapSet.new()
+
+    missing =
+      expected_events
+      |> Enum.reject(&MapSet.member?(present, &1))
+      |> Enum.uniq()
+
+    if missing == [] do
+      {:ok, report}
+    else
+      {:error, :missing_expected_events, %{report | missing_expected_events: missing}}
+    end
   end
 
   defp event_report(event) do
