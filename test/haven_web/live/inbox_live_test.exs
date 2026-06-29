@@ -343,7 +343,7 @@ defmodule HavenWeb.InboxLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/")
 
-    assert has_element?(view, "#agent-config-candidate-agent-evidence", "Evidence candidate")
+    assert has_element?(view, "#agent-config-candidate-agent-evidence", "Probe candidate")
 
     assert has_element?(
              view,
@@ -357,7 +357,12 @@ defmodule HavenWeb.InboxLiveTest do
              "docs/probes/candidate-agent-basic.json"
            )
 
-    refute has_element?(view, "#agent-config-candidate-agent-evidence-reason")
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-evidence-reason",
+             "not evidence until the generated probe passes"
+           )
+
     refute render(view) =~ "hidden-value"
   end
 

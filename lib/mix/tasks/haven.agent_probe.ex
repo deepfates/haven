@@ -146,12 +146,14 @@ defmodule Mix.Tasks.Haven.AgentProbe do
         Mix.shell().info("  error: #{agent.error}")
       end
 
-      Mix.shell().info("  real-agent evidence candidate: #{agent.real_agent_candidate}")
+      Mix.shell().info("  real-agent probe candidate: #{agent.real_agent_candidate}")
 
       if agent.real_agent_rejection_reasons != [] do
         Mix.shell().info(
           "  rejection reasons: #{Enum.join(agent.real_agent_rejection_reasons, "; ")}"
         )
+      else
+        Mix.shell().info("  evidence status: not proven until this command passes a probe")
       end
 
       if agent.real_agent_candidate do
@@ -166,12 +168,12 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     case Enum.filter(inventory, & &1.real_agent_candidate) do
       [] ->
         Mix.shell().info(
-          "Real-agent evidence candidates: none. Configure an ACP-speaking non-test agent before generating docs/probes evidence."
+          "Real-agent probe candidates: none. Configure an ACP-speaking non-test agent before generating docs/probes evidence."
         )
 
       candidates ->
         Mix.shell().info(
-          "Real-agent evidence candidates: #{Enum.map_join(candidates, ", ", & &1.agent)}"
+          "Real-agent probe candidates: #{Enum.map_join(candidates, ", ", & &1.agent)}"
         )
     end
   end

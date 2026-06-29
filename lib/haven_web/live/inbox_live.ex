@@ -429,7 +429,7 @@ defmodule HavenWeb.InboxLive do
       tone
   end
 
-  defp agent_evidence_label(%{real_agent_candidate: true}), do: "Evidence candidate"
+  defp agent_evidence_label(%{real_agent_candidate: true}), do: "Probe candidate"
   defp agent_evidence_label(%{status: "invalid"}), do: "Invalid command"
   defp agent_evidence_label(_inventory), do: "Local harness"
 
@@ -442,7 +442,9 @@ defmodule HavenWeb.InboxLive do
   defp agent_evidence_class(_inventory),
     do: badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
 
-  defp agent_evidence_reason(%{real_agent_rejection_reasons: []}), do: nil
+  defp agent_evidence_reason(%{real_agent_rejection_reasons: []}) do
+    "not evidence until the generated probe passes"
+  end
 
   defp agent_evidence_reason(%{real_agent_rejection_reasons: reasons}) when is_list(reasons),
     do: Enum.join(reasons, "; ")

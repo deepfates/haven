@@ -374,13 +374,21 @@ Evidence:
   the guard rejects the built-in `stub-acp` and the configured local test
   harness scripts before writing a passing acceptance artifact.
 - `mix haven.agent_probe --list-agents` inventories configured agents, command
-  resolution, real-agent evidence eligibility, rejection reasons, and redacted
+  resolution, real-agent probe eligibility, rejection reasons, and redacted
   environment key names before a user attempts a real-agent probe.
 - The inbox Agent Setup panel surfaces the same probe-readiness distinction for
-  saved agent configs, showing whether a saved command is an evidence candidate
-  or a rejected local harness/invalid command, rendering a basic
-  `--require-real-agent` report command only for eligible candidates and never
-  rendering environment values.
+  saved agent configs, showing whether a saved command is a probe candidate or
+  a rejected local harness/invalid command, rendering a basic
+  `--require-real-agent` report command only for eligible probe candidates,
+  explicitly warning that the command is not evidence until the probe passes,
+  and never rendering environment values.
+- Local inventory on this machine currently finds saved `/bin/sh -c cat`
+  commands that are runnable non-test probe candidates, but they are not
+  ACP-proven and do not satisfy the real-agent evidence requirement.
+- A short `--require-real-agent` probe against
+  `browser-candidate-1782737117083` starts `/bin/sh -c cat` but fails during
+  ACP initialization with `agent_protocol_failed` / `Method not found`, proving
+  that static probe candidacy is not enough to claim real-agent integration.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
   gate rather than only a documentation convention.
