@@ -406,15 +406,21 @@ Evidence:
   inspection.
 - Local registry discovery succeeds with `npx` installed and surfaces current
   npx-backed ACP adapters from the official registry, but no suggested adapter
-  has been authenticated and committed as a passing `docs/probes/*.json`
-  evidence artifact yet.
+  should be treated as evidence until it has a passing `docs/probes/*.json`
+  report artifact.
 - A registry-configured `codex-acp` command passed Haven preflight locally:
   `agent_initialized` and `agent_session_started` were recorded for a durable
   run through `npx @agentclientprotocol/codex-acp@1.0.1`.
-- A full prompt/report probe against `codex-acp` was not run in this workspace
-  because it would execute a third-party adapter with local Codex auth against
-  the real repository; that requires explicit approval and an approved
-  workspace/auth scope before it can count as evidence.
+- `docs/probes/codex-acp-basic.json` is a committed passing
+  `--require-real-agent` report from `npx @agentclientprotocol/codex-acp@1.0.1`
+  against the disposable workspace `/private/tmp/haven-acp-smoke`. It proves a
+  basic real external ACP turn: initialization, session start, user prompt,
+  streamed agent message chunks, an unknown `usage_update` session update
+  preserved as `agent_update_unknown`, and `turn_finished`.
+- Haven now wraps the upstream Elixir ACP client-side decoder so newer/unknown
+  `session/update` variants are persisted as raw protocol events instead of
+  crashing the connection. This was required by `codex-acp`, which currently
+  emits `usage_update`.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
   gate rather than only a documentation convention.
@@ -434,10 +440,7 @@ Still missing:
 These are not cosmetic gaps. They are core to the full Grei telos and should not
 be counted as complete until there is executable evidence.
 
-- Real external ACP agent integration beyond `priv/agent_stub.exs` and the
-  configured test-only fake ACP harness.
-- A committed `mix haven.agent_probe --report` JSON artifact from a real
-  configured ACP agent under `docs/probes/`.
+- Real external ACP agent integration beyond a basic prompt/response smoke turn.
 - File read/write capability requests from a real non-test external agent.
 - Terminal capability requests from a real non-test external agent.
 - Interactive terminal behavior.
@@ -449,13 +452,11 @@ be counted as complete until there is executable evidence.
 
 ## Next Best Validation Work
 
-1. Connect the configurable command/cwd/env path to one real ACP-speaking agent
-   by first running `mix haven.agent_probe --list-agents --workspace <repo>`,
-   then running `mix haven.agent_probe` against an eligible candidate with
-   `--require-real-agent` and `--expect-event` assertions for initialization,
-   prompting, and any required file/terminal capability events. Commit the
-   `--report` JSON artifact and document any agent-specific auth contract using
-   `docs/probes/README.md`.
+1. Broaden the passing `codex-acp` evidence from a disposable basic prompt to
+   approved repo-workspace stories with `--require-real-agent` and
+   `--expect-event` assertions for file and terminal capability events. Commit
+   each `--report` JSON artifact and document any agent-specific auth contract
+   using `docs/probes/README.md`.
 2. Connect terminal capability handling to a real ACP-speaking agent and add
    interactive-terminal evidence.
 3. Connect file capability handling to a real ACP-speaking agent.

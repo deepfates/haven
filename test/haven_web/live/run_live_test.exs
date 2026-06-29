@@ -877,6 +877,70 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, ~s|[data-event-kind="protocol"]|, "Protocol")
   end
 
+  test "unknown session updates from external ACP agents are preserved without crashing", %{
+    conn: conn
+  } do
+    original = Application.get_env(:haven, :agents)
+
+    on_exit(fn ->
+      if original do
+        Application.put_env(:haven, :agents, original)
+      else
+        Application.delete_env(:haven, :agents)
+      end
+    end)
+
+    Application.put_env(:haven, :agents, %{
+      "fake-usage-update" => %{
+        executable: System.find_executable("mix"),
+        args: [
+          "run",
+          "--no-compile",
+          "--no-start",
+          "test/support/fake_agent_runner.exs",
+          "usage-update",
+          "{workspace}"
+        ],
+        cwd: "{workspace}",
+        env: [{"MIX_ENV", "test"}]
+      }
+    })
+
+    {:ok, run} = Runs.create_run(%{"title" => "Usage update run", "agent" => "fake-usage-update"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "usage-update"})
+    |> render_submit()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_update_unknown",
+                      payload: %{
+                        "update_type" => "usage_update",
+                        "update" => %{"size" => 258_400, "used" => 14_356}
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    html = render(view)
+    assert html =~ "usage_update"
+
+    text =
+      run.id
+      |> Events.list_for_run()
+      |> Enum.filter(&(&1.type == "agent_message_chunk"))
+      |> Enum.map_join("", & &1.payload["text"])
+
+    assert text == "Usage survived."
+  end
+
   @tag :tmp_dir
   test "handles ACP file read requests inside the run workspace", %{conn: conn, tmp_dir: tmp_dir} do
     File.write!(Path.join(tmp_dir, "README.md"), "Haven capability fixture\nsecond line\n")

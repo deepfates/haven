@@ -120,6 +120,20 @@ defmodule Haven.FakeACPAgent do
     state
   end
 
+  defp handle_prompt("usage-update", "usage-update", prompt_id, session_id, state) do
+    send_agent_text(session_id, "Usage ")
+
+    send_raw_session_update(session_id, %{
+      "sessionUpdate" => "usage_update",
+      "size" => 258_400,
+      "used" => 14_356
+    })
+
+    send_agent_text(session_id, "survived.")
+    send_prompt_result(prompt_id)
+    state
+  end
+
   defp handle_prompt("file-read", "read-file", prompt_id, session_id, state) do
     request_id = state.next_request_id
 
@@ -324,6 +338,15 @@ defmodule Haven.FakeACPAgent do
 
     ACPWire.send(
       ACP.RPC.Notification.new("session/update", ACP.SessionNotification.to_json(notification))
+    )
+  end
+
+  defp send_raw_session_update(session_id, update) do
+    ACPWire.send(
+      ACP.RPC.Notification.new("session/update", %{
+        "sessionId" => session_id,
+        "update" => update
+      })
     )
   end
 

@@ -8,6 +8,7 @@ defmodule Haven.Runs.RunServer do
   alias Haven.PortIO
   alias Haven.Runs
   alias Haven.Runs.ACPClientHandler
+  alias Haven.ACPClientSide
   alias Haven.Terminals
   alias Haven.WorkspaceFiles
   alias Haven.Agents
@@ -103,6 +104,16 @@ defmodule Haven.Runs.RunServer do
     {:noreply, state}
   end
 
+  def handle_info(
+        {:acp_stream,
+         {:incoming, :notification, "session/update",
+          {:ext_notification, %ACP.ExtNotification{params: params}}}},
+        state
+      ) do
+    Events.append!(state.run_id, "agent_update_unknown", raw_session_update_payload(params))
+    {:noreply, state}
+  end
+
   def handle_info({:acp_stream, _event}, state), do: {:noreply, state}
 
   def handle_info({:port_io_line, port_io, line}, %{port_io: port_io} = state) do
@@ -176,12 +187,7 @@ defmodule Haven.Runs.RunServer do
   end
 
   defp boot_agent_connection(state, run, command, port_io) do
-    case ACP.ClientSideConnection.start_link(
-           input: port_io,
-           output: port_io,
-           handler: ACPClientHandler,
-           handler_state: self()
-         ) do
+    case start_client_connection(port_io) do
       {:ok, conn} ->
         ACP.ClientSideConnection.subscribe(conn)
 
@@ -199,6 +205,21 @@ defmodule Haven.Runs.RunServer do
 
       {:error, reason} ->
         fail_agent_boot(%{state | port_io: port_io}, "agent_start_failed", reason)
+    end
+  end
+
+  defp start_client_connection(port_io) do
+    opts = [
+      input: port_io,
+      output: port_io,
+      handler: ACPClientHandler,
+      handler_state: self(),
+      side: ACPClientSide
+    ]
+
+    case ACP.Connection.start_link(opts) do
+      {:ok, conn} -> {:ok, %ACP.ClientSideConnection{conn: conn}}
+      error -> error
     end
   end
 
@@ -1055,6 +1076,16 @@ defmodule Haven.Runs.RunServer do
 
   defp session_update_type({type, _payload}), do: Atom.to_string(type)
   defp session_update_type(_update), do: "unknown"
+
+  defp raw_session_update_payload(params) do
+    update = Map.get(params, "update", %{})
+
+    %{
+      "session_id" => Map.get(params, "sessionId"),
+      "update_type" => Map.get(update, "sessionUpdate", "unknown"),
+      "update" => update
+    }
+  end
 
   defp normalize_id(id) when is_integer(id), do: id
 
