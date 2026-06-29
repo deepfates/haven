@@ -871,6 +871,66 @@ defmodule HavenWeb.RunLiveTest do
   end
 
   @tag :tmp_dir
+  test "auto-allows ACP file reads when the run policy grants them", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    File.write!(Path.join(tmp_dir, "README.md"), "policy fixture\n")
+
+    {:ok, run} =
+      Runs.create_run(%{
+        "title" => "Auto allow read run",
+        "workspace" => tmp_dir,
+        "capability_policy" => %{"file_read" => "allow"}
+      })
+
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> element("#sample-read-file-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{type: "file_read_requested", payload: %{"path" => "README.md"}}},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "capability_policy_applied",
+                      payload: %{
+                        "capability" => "file_read",
+                        "decision" => "allow"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "file_read_succeeded",
+                      payload: %{"path" => "README.md", "resolved_path" => resolved_path}
+                    }},
+                   1_000
+
+    assert resolved_path == Path.join(tmp_dir, "README.md")
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Read file: policy fixture"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+    refute_receive {:event_appended, %{type: "permission_requested"}}, 100
+    refute has_element?(view, "#pending-permission-card")
+    assert render(view) =~ "capability_policy_applied"
+  end
+
+  @tag :tmp_dir
   test "handles ACP file write requests inside the run workspace", %{conn: conn, tmp_dir: tmp_dir} do
     {:ok, run} = Runs.create_run(%{"title" => "File write run", "workspace" => tmp_dir})
     stop_run_server_on_exit(run.id)
@@ -1058,6 +1118,69 @@ defmodule HavenWeb.RunLiveTest do
     refute File.exists?(Path.join(tmp_dir, "haven-written.txt"))
     refute has_element?(view, "#pending-permission-card")
     assert render(view) =~ "file_write_denied"
+  end
+
+  @tag :tmp_dir
+  test "auto-denies ACP file writes when the run policy rejects them", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    {:ok, run} =
+      Runs.create_run(%{
+        "title" => "Auto deny write run",
+        "workspace" => tmp_dir,
+        "capability_policy" => %{"file_write" => "deny"}
+      })
+
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> element("#sample-write-file-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "file_write_requested",
+                      payload: %{"path" => "haven-written.txt"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "capability_policy_applied",
+                      payload: %{
+                        "capability" => "file_write",
+                        "decision" => "deny"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "file_write_denied",
+                      payload: %{
+                        "path" => "haven-written.txt",
+                        "error" => %{"data" => %{"reason" => "permission_denied"}}
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "File request failed: Permission denied"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+    refute_receive {:event_appended, %{type: "permission_requested"}}, 100
+    refute File.exists?(Path.join(tmp_dir, "haven-written.txt"))
+    refute has_element?(view, "#pending-permission-card")
+    assert render(view) =~ "capability_policy_applied"
   end
 
   test "handles ACP terminal create, wait, output, and release requests visibly", %{conn: conn} do

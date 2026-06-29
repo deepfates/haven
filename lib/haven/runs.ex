@@ -25,7 +25,8 @@ defmodule Haven.Runs do
             Events.append!(run.id, "run_created", %{
               "title" => run.title,
               "workspace" => run.workspace,
-              "agent" => run.agent
+              "agent" => run.agent,
+              "capability_policy" => Run.capability_policy(run.capability_policy)
             })
 
             run

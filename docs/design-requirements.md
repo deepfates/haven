@@ -311,6 +311,8 @@ Proven:
 - Write permission requests include a bounded proposed-content preview, giving
   the user something concrete to inspect before approving, though this is not
   yet a full diff/artifact review system.
+- Runs can carry per-run file capability policy for reads and writes, allowing
+  explicit ask, allow, or deny behavior with durable policy-decision events.
 - Deterministic non-interactive ACP terminal create/wait/output/release requests
   can be handled, logged, scoped to the selected workspace, and projected back
   to the agent.
@@ -361,8 +363,8 @@ Not yet proven:
   is session-level because ACP session updates do not carry prompt ids in the
   local evidence path.
 - Backpressure, log compaction, and transcript projection performance.
-- Security boundaries around workspace access, especially configurable
-  capability grants.
+- Security boundaries around workspace access, especially richer configurable
+  capability grants for terminal use and scoped file paths.
 - Authentication flows and product-grade agent/workspace configuration,
   including OS-native workspace browse affordances; persisted workspace
   name/path records, persisted agent command definitions, basic inbox

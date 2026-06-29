@@ -209,6 +209,7 @@ defmodule HavenWeb.RunLive do
   defp event_kind(type)
        when type in [
               "permission_requested",
+              "capability_policy_applied",
               "file_read_requested",
               "file_read_succeeded",
               "file_read_failed",

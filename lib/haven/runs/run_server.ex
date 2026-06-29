@@ -383,28 +383,45 @@ defmodule Haven.Runs.RunServer do
 
     Events.append!(state.run_id, "file_read_requested", payload)
 
-    Events.append!(
-      state.run_id,
-      "permission_requested",
-      file_permission_payload(:read, request_id, payload)
-    )
+    pending = file_read_pending(from, request, payload, run.workspace)
 
-    Runs.update_status!(state.run_id, %{status: "waiting"})
+    case file_capability_decision(run, "file_read") do
+      "allow" ->
+        Events.append!(state.run_id, "capability_policy_applied", %{
+          "capability" => "file_read",
+          "decision" => "allow",
+          "request_id" => request_id
+        })
 
-    pending = %{
-      kind: :file_read,
-      from: from,
-      request: request,
-      payload: payload,
-      workspace: run.workspace
-    }
+        resolve_pending_permission(state, pending, "allow")
+        {:noreply, %{state | next_permission_id: request_id + 1}}
 
-    {:noreply,
-     %{
-       state
-       | next_permission_id: request_id + 1,
-         pending_permissions: Map.put(state.pending_permissions, request_id, pending)
-     }}
+      "deny" ->
+        Events.append!(state.run_id, "capability_policy_applied", %{
+          "capability" => "file_read",
+          "decision" => "deny",
+          "request_id" => request_id
+        })
+
+        resolve_pending_permission(state, pending, "deny")
+        {:noreply, %{state | next_permission_id: request_id + 1}}
+
+      _ask ->
+        Events.append!(
+          state.run_id,
+          "permission_requested",
+          file_permission_payload(:read, request_id, payload)
+        )
+
+        Runs.update_status!(state.run_id, %{status: "waiting"})
+
+        {:noreply,
+         %{
+           state
+           | next_permission_id: request_id + 1,
+             pending_permissions: Map.put(state.pending_permissions, request_id, pending)
+         }}
+    end
   end
 
   def handle_call({:agent_write_text_file_requested, request}, from, state) do
@@ -418,32 +435,49 @@ defmodule Haven.Runs.RunServer do
       Map.put(payload, "bytes", byte_size(request.content))
     )
 
-    Events.append!(
-      state.run_id,
-      "permission_requested",
-      file_permission_payload(
-        :write,
-        request_id,
-        file_write_permission_input(payload, request.content)
-      )
-    )
+    pending = file_write_pending(from, request, payload, run.workspace)
 
-    Runs.update_status!(state.run_id, %{status: "waiting"})
+    case file_capability_decision(run, "file_write") do
+      "allow" ->
+        Events.append!(state.run_id, "capability_policy_applied", %{
+          "capability" => "file_write",
+          "decision" => "allow",
+          "request_id" => request_id
+        })
 
-    pending = %{
-      kind: :file_write,
-      from: from,
-      request: request,
-      payload: payload,
-      workspace: run.workspace
-    }
+        resolve_pending_permission(state, pending, "allow")
+        {:noreply, %{state | next_permission_id: request_id + 1}}
 
-    {:noreply,
-     %{
-       state
-       | next_permission_id: request_id + 1,
-         pending_permissions: Map.put(state.pending_permissions, request_id, pending)
-     }}
+      "deny" ->
+        Events.append!(state.run_id, "capability_policy_applied", %{
+          "capability" => "file_write",
+          "decision" => "deny",
+          "request_id" => request_id
+        })
+
+        resolve_pending_permission(state, pending, "deny")
+        {:noreply, %{state | next_permission_id: request_id + 1}}
+
+      _ask ->
+        Events.append!(
+          state.run_id,
+          "permission_requested",
+          file_permission_payload(
+            :write,
+            request_id,
+            file_write_permission_input(payload, request.content)
+          )
+        )
+
+        Runs.update_status!(state.run_id, %{status: "waiting"})
+
+        {:noreply,
+         %{
+           state
+           | next_permission_id: request_id + 1,
+             pending_permissions: Map.put(state.pending_permissions, request_id, pending)
+         }}
+    end
   end
 
   def handle_call(
@@ -679,6 +713,32 @@ defmodule Haven.Runs.RunServer do
         %{"optionId" => "deny", "name" => "Deny", "kind" => "reject_once"}
       ]
     }
+  end
+
+  defp file_read_pending(from, request, payload, workspace) do
+    %{
+      kind: :file_read,
+      from: from,
+      request: request,
+      payload: payload,
+      workspace: workspace
+    }
+  end
+
+  defp file_write_pending(from, request, payload, workspace) do
+    %{
+      kind: :file_write,
+      from: from,
+      request: request,
+      payload: payload,
+      workspace: workspace
+    }
+  end
+
+  defp file_capability_decision(run, capability) do
+    run.capability_policy
+    |> Haven.Runs.Run.capability_policy()
+    |> Map.fetch!(capability)
   end
 
   defp resolve_pending_permission(_state, %{kind: :agent_permission, from: from}, option_id) do

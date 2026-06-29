@@ -153,7 +153,9 @@ defmodule HavenWeb.InboxLive do
       "title" => "",
       "workspace" => File.cwd!(),
       "workspace_id" => "",
-      "agent" => "stub-acp"
+      "agent" => "stub-acp",
+      "file_read_policy" => "ask",
+      "file_write_policy" => "ask"
     }
   end
 
@@ -200,6 +202,8 @@ defmodule HavenWeb.InboxLive do
       |> String.trim()
 
     selected_workspace = selected_workspace_path(workspace_id)
+    file_read_policy = capability_policy_value(params, "file_read_policy")
+    file_write_policy = capability_policy_value(params, "file_write_policy")
 
     %{
       "title" => if(title == "", do: "Untitled run", else: title),
@@ -209,8 +213,19 @@ defmodule HavenWeb.InboxLive do
           workspace == "" -> defaults["workspace"]
           true -> Path.expand(workspace)
         end,
-      "agent" => if(agent == "", do: defaults["agent"], else: agent)
+      "agent" => if(agent == "", do: defaults["agent"], else: agent),
+      "capability_policy" => %{
+        "file_read" => file_read_policy,
+        "file_write" => file_write_policy
+      }
     }
+  end
+
+  defp capability_policy_value(params, key) do
+    case Map.get(params, key, "ask") do
+      value when value in ["ask", "allow", "deny"] -> value
+      _value -> "ask"
+    end
   end
 
   defp selected_workspace_path(""), do: nil
@@ -474,6 +489,20 @@ defmodule HavenWeb.InboxLive do
                 >
                   Start
                 </button>
+              </div>
+              <div class="grid gap-3 md:grid-cols-2">
+                <.input
+                  field={@form[:file_read_policy]}
+                  type="select"
+                  label="File reads"
+                  options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
+                />
+                <.input
+                  field={@form[:file_write_policy]}
+                  type="select"
+                  label="File writes"
+                  options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
+                />
               </div>
             </.form>
           </header>
