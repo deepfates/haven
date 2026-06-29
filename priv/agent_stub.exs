@@ -92,14 +92,14 @@ defmodule StubAgent do
   end
 
   defp handle({:result, permission_id, result}, state) do
-    {:ok, _response} = ACP.RequestPermissionResponse.from_json(result)
+    {:ok, response} = ACP.RequestPermissionResponse.from_json(result)
 
     case Map.pop(state.awaiting_permission, permission_id) do
       {nil, _} ->
         state
 
       {{prompt_id, session_id}, awaiting_permission} ->
-        send_agent_text(session_id, "Permission accepted. I would write notes.md now.")
+        send_agent_text(session_id, permission_message(response.outcome))
         send_prompt_result(prompt_id)
         %{state | awaiting_permission: awaiting_permission}
     end
@@ -110,6 +110,17 @@ defmodule StubAgent do
 
   defp prompt_text([{:text, %ACP.TextContent{text: text}} | _]), do: text
   defp prompt_text(_), do: ""
+
+  defp permission_message({:selected, %ACP.SelectedPermissionOutcome{option_id: "allow"}}) do
+    "Permission accepted. I would write notes.md now."
+  end
+
+  defp permission_message({:selected, %ACP.SelectedPermissionOutcome{option_id: "deny"}}) do
+    "Permission denied. I will not write notes.md."
+  end
+
+  defp permission_message(:cancelled), do: "Permission cancelled."
+  defp permission_message(_outcome), do: "Permission resolved."
 
   defp send_agent_text(session_id, text) do
     notification =

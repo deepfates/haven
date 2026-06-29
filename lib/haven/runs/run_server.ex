@@ -42,7 +42,7 @@ defmodule Haven.Runs.RunServer do
     {:ok, port_io} =
       PortIO.start_link(
         executable: System.find_executable("mix"),
-        args: ["run", "--no-start", "priv/agent_stub.exs", run.workspace]
+        args: ["run", "--no-compile", "--no-start", "priv/agent_stub.exs", run.workspace]
       )
 
     {:ok, conn} =
@@ -55,7 +55,11 @@ defmodule Haven.Runs.RunServer do
 
     ACP.ClientSideConnection.subscribe(conn)
 
-    Events.append!(state.run_id, "agent_process_started", %{"command" => "priv/agent_stub.exs"})
+    Events.append!(state.run_id, "agent_process_started", %{
+      "command" => "priv/agent_stub.exs",
+      "transport" => "mix run --no-compile --no-start"
+    })
+
     Runs.update_status!(state.run_id, %{status: "initializing"})
 
     {:ok, initialize_result} =
@@ -158,34 +162,48 @@ defmodule Haven.Runs.RunServer do
   def handle_call({:resolve_permission, request_id, option_id}, _from, state) do
     request_id = normalize_id(request_id)
 
-    Events.append!(state.run_id, "permission_resolved", %{
-      "request_id" => request_id,
-      "option_id" => option_id
-    })
+    with %{from: from} <- state.pending_permissions[request_id] do
+      Events.append!(state.run_id, "permission_resolved", %{
+        "request_id" => request_id,
+        "option_id" => option_id,
+        "outcome" => "selected"
+      })
 
-    response =
-      {:selected, ACP.SelectedPermissionOutcome.new(option_id)}
-      |> ACP.RequestPermissionResponse.new()
+      response =
+        {:selected, ACP.SelectedPermissionOutcome.new(option_id)}
+        |> ACP.RequestPermissionResponse.new()
 
-    if pending = state.pending_permissions[request_id] do
-      GenServer.reply(pending.from, {:ok, response})
+      GenServer.reply(from, {:ok, response})
+      Runs.update_status!(state.run_id, %{status: "running"})
+
+      {:reply, :ok,
+       %{state | pending_permissions: Map.delete(state.pending_permissions, request_id)}}
+    else
+      _ ->
+        Events.append!(state.run_id, "permission_resolution_ignored", %{
+          "request_id" => request_id,
+          "option_id" => option_id,
+          "reason" => "not_pending"
+        })
+
+        {:reply, {:error, :not_pending}, state}
     end
-
-    Runs.update_status!(state.run_id, %{status: "running"})
-
-    {:reply, :ok,
-     %{state | pending_permissions: Map.delete(state.pending_permissions, request_id)}}
   end
 
   def handle_call(:cancel, _from, state) do
     Events.append!(state.run_id, "turn_cancelled", %{})
 
-    Enum.each(Map.keys(state.pending_permissions), fn request_id ->
+    Enum.each(state.pending_permissions, fn {request_id, pending} ->
+      Events.append!(state.run_id, "permission_resolved", %{
+        "request_id" => request_id,
+        "option_id" => "cancelled",
+        "outcome" => "cancelled"
+      })
+
       response =
         :cancelled
         |> ACP.RequestPermissionResponse.new()
 
-      pending = state.pending_permissions[request_id]
       GenServer.reply(pending.from, {:ok, response})
     end)
 
