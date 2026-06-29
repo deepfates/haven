@@ -109,22 +109,23 @@ defmodule Haven.Runs.RunServer do
   end
 
   def handle_info({:prompt_finished, id, {:error, error}}, state) do
-    Events.append!(state.run_id, "turn_failed", %{
-      "request_id" => id,
-      "error" => inspect(error)
-    })
-
+    state = fail_prompt(state, id, inspect(error))
     Runs.update_status!(state.run_id, %{status: "failed"})
-    {:noreply, %{state | pending_prompts: Map.delete(state.pending_prompts, id)}}
+    {:noreply, state}
   end
 
   def handle_info({:EXIT, pid, :normal}, %{conn: %ACP.ClientSideConnection{conn: pid}} = state) do
     status = if state.port_io, do: PortIO.exit_status(state.port_io), else: nil
     Events.append!(state.run_id, "agent_process_exited", %{"status" => status})
 
-    Runs.update_status!(state.run_id, %{
-      status: if(status in [nil, 0], do: "closed", else: "failed")
-    })
+    {status, state} =
+      if status in [nil, 0] do
+        {"closed", state}
+      else
+        {"failed", fail_pending_work(state, "agent_process_exited")}
+      end
+
+    Runs.update_status!(state.run_id, %{status: status})
 
     {:noreply, %{state | conn: nil}}
   end
@@ -132,7 +133,7 @@ defmodule Haven.Runs.RunServer do
   def handle_info({:EXIT, _pid, reason}, state) do
     Events.append!(state.run_id, "agent_process_down", %{"reason" => inspect(reason)})
     Runs.update_status!(state.run_id, %{status: "failed"})
-    {:noreply, %{state | conn: nil, port_io: nil}}
+    {:noreply, %{fail_pending_work(state, inspect(reason)) | conn: nil, port_io: nil}}
   end
 
   @impl true
@@ -260,5 +261,40 @@ defmodule Haven.Runs.RunServer do
       {int, ""} -> int
       _ -> id
     end
+  end
+
+  defp fail_pending_work(state, reason) do
+    state =
+      Enum.reduce(Map.keys(state.pending_prompts), state, fn id, acc ->
+        fail_prompt(acc, id, reason)
+      end)
+
+    Enum.each(state.pending_permissions, fn {request_id, pending} ->
+      Events.append!(state.run_id, "permission_resolved", %{
+        "request_id" => request_id,
+        "option_id" => "cancelled",
+        "outcome" => "cancelled",
+        "reason" => reason
+      })
+
+      response =
+        :cancelled
+        |> ACP.RequestPermissionResponse.new()
+
+      GenServer.reply(pending.from, {:ok, response})
+    end)
+
+    %{state | pending_permissions: %{}}
+  end
+
+  defp fail_prompt(state, id, reason) do
+    if Map.has_key?(state.pending_prompts, id) do
+      Events.append!(state.run_id, "turn_failed", %{
+        "request_id" => id,
+        "error" => reason
+      })
+    end
+
+    %{state | pending_prompts: Map.delete(state.pending_prompts, id)}
   end
 end

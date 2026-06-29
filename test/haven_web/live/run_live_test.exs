@@ -263,6 +263,31 @@ defmodule HavenWeb.RunLiveTest do
     assert length(resolved) == 1
   end
 
+  test "agent crash fails the in-flight turn and marks the run failed", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Crash run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "die"})
+    |> render_submit()
+
+    assert_receive {:event_appended, %{type: "turn_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "user_message", payload: %{"text" => "die"}}}, 1_000
+
+    assert_receive {:event_appended,
+                    %{type: "agent_process_exited", payload: %{"status" => status}}},
+                   2_000
+
+    assert status != 0
+    assert_receive {:event_appended, %{type: "turn_failed"}}, 1_000
+
+    assert render(view) =~ "failed"
+  end
+
   defp sync_run_server!(run_id) do
     {:ok, pid} = Runs.ensure_started(run_id)
     _ = :sys.get_state(pid)

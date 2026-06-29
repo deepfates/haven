@@ -108,15 +108,18 @@ Evidence:
 - Tests revealed and fixed protocol transport noise from launching the stub via
   compiling `mix run`; the stub now starts with `mix run --no-compile --no-start`
   so Mix compiler output cannot corrupt the ACP JSON stream.
+- LiveView integration tests trigger a non-zero stub exit and verify the run
+  records `agent_process_exited`, fails the in-flight turn, and renders a
+  visible `failed` state.
 - Event ordering and persistence are covered by `test/haven/events_test.exs`.
 
 Still missing:
 
-- Agent process crash/restart behavior.
+- Restart behavior after agent process crash.
 - Resume from an existing persisted run without spawning a duplicate or
   misleading live session.
 - Concurrent multi-run behavior under realistic load.
-- Cleanup and lifecycle policy for closed run servers.
+- Graceful cleanup and lifecycle policy for failed or closed run servers.
 
 ## Not Proven Yet
 
@@ -129,17 +132,17 @@ be counted as complete until there is executable evidence.
 - Authentication flows for agents that require auth.
 - Session load/resume/fork/list support when agents expose it.
 - Explicit handling for unsupported ACP methods and malformed frames.
-- Agent death that fails pending prompts instead of leaving the UI ambiguous.
+- Browser smoke for agent death; current executable evidence is LiveView-level.
 - Product-grade workspace and agent configuration.
 - Audit metadata for who made a permission decision.
 
 ## Next Best Validation Work
 
-1. Add a supervised fake ACP agent test harness that can deterministically crash,
-   hang, stream partial chunks, request duplicate permissions, and emit unknown
-   update types.
-2. Add LiveView tests for crash/death, non-permission cancel, unknown update
-   types, and reload after process exit.
+1. Add a supervised fake ACP agent test harness that can deterministically hang,
+   stream partial chunks, request duplicate permissions, and emit unknown update
+   types.
+2. Add LiveView tests for non-permission cancel, unknown update types, restart,
+   and reload after process exit.
 3. Add a real ACP-agent adapter path configurable per run instead of hard-coding
    the stub in `RunServer`.
 4. Add file and terminal capability handling, first against deterministic fake
