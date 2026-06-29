@@ -9,6 +9,9 @@ inspectable agent runs with explicit human decisions.
 - Unit and integration tests: `mix test`
 - Compile gate: `mix compile --warnings-as-errors`
 - Final project gate: `mix precommit`
+- Runtime migration gate before browser smoke: `MIX_ENV=dev mix
+  haven.pending_migrations` must report no pending migrations for the dev
+  database that backs `http://127.0.0.1:4000/`.
 - Agent probe harness: `mix haven.agent_probe --report` can produce durable JSON
   evidence artifacts with explicit `--expect-event` acceptance checks; see
   `docs/probes/README.md`.
@@ -29,6 +32,28 @@ inspectable agent runs with explicit human decisions.
   and terminal-create deny policy, create a run with file-read/file-write path
   scopes and inspect those effective scopes on run detail, and observe final
   status plus persisted timeline events in the in-app browser.
+
+## Falsification Discipline
+
+Evidence for a user story should try to disprove the story, not only confirm a
+happy path. For every production-grade claim, keep these checks current:
+
+- State the claim narrowly enough that it could fail.
+- Run at least one negative or adversarial case: missing workspace, stale
+  permission decision, denied capability policy, malformed ACP output, crashed
+  agent, reload/reconnect, unsupported real-agent capability, or another case
+  that would falsify the claim.
+- Verify the actual browser/runtime database before browser smoke with
+  `MIX_ENV=dev mix haven.pending_migrations`; test database migrations do not
+  prove the running app at port 4000 can render.
+- Prefer persisted state checks after live UI actions: reload the browser,
+  inspect durable events/projections, and confirm the state still holds.
+- Record useful failures as negative evidence. A failed real-agent probe with
+  `tool_call_only_capability_gap`, an ACP preflight failure, or an ignored stale
+  permission is evidence about the boundary of what Haven does and does not
+  prove.
+- Do not promote a story from "partially proven" to "proven" unless the evidence
+  covers the realistic happy path and the defined failure paths.
 
 ## Proven Now
 
