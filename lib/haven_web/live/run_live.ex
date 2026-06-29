@@ -161,6 +161,7 @@ defmodule HavenWeb.RunLive do
               "file_read_requested",
               "file_read_succeeded",
               "file_read_failed",
+              "file_read_denied",
               "file_write_requested",
               "file_write_succeeded",
               "file_write_failed",

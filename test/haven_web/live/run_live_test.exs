@@ -543,6 +543,29 @@ defmodule HavenWeb.RunLiveTest do
 
     assert_receive {:event_appended,
                     %{
+                      type: "permission_requested",
+                      payload: %{"toolCall" => %{"title" => "Read file"}}
+                    }},
+                   1_000
+
+    assert has_element?(view, "#pending-permission-card", "Read file")
+
+    view
+    |> element(~s|#pending-permission-card button[phx-value-option-id="allow"]|)
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_resolved",
+                      payload: %{
+                        "option_id" => "allow",
+                        "actor" => "local_user"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
                       type: "file_read_succeeded",
                       payload: %{"path" => "README.md", "resolved_path" => resolved_path}
                     }},
@@ -562,6 +585,77 @@ defmodule HavenWeb.RunLiveTest do
     html = render(view)
     assert html =~ "file_read_succeeded"
     assert html =~ "Read file: Haven capability fixture"
+  end
+
+  @tag :tmp_dir
+  test "denies ACP file read requests before returning file content", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    File.write!(Path.join(tmp_dir, "README.md"), "sensitive fixture\nsecond line\n")
+
+    {:ok, run} = Runs.create_run(%{"title" => "Deny file read run", "workspace" => tmp_dir})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> element("#sample-read-file-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{type: "file_read_requested", payload: %{"path" => "README.md"}}},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_requested",
+                      payload: %{"toolCall" => %{"title" => "Read file"}}
+                    }},
+                   1_000
+
+    assert has_element?(view, "#pending-permission-card", "Read file")
+
+    view
+    |> element(~s|#pending-permission-card button[phx-value-option-id="deny"]|)
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_resolved",
+                      payload: %{
+                        "option_id" => "deny",
+                        "actor" => "local_user"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "file_read_denied",
+                      payload: %{
+                        "path" => "README.md",
+                        "error" => %{"data" => %{"reason" => "permission_denied"}}
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "File request failed: Permission denied"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    refute has_element?(view, "#pending-permission-card")
+
+    html = render(view)
+    assert html =~ "file_read_denied"
+    refute html =~ "sensitive fixture"
   end
 
   @tag :tmp_dir
@@ -585,6 +679,14 @@ defmodule HavenWeb.RunLiveTest do
                    1_000
 
     assert bytes > 0
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_requested",
+                      payload: %{"toolCall" => %{"title" => "Write file"}}
+                    }},
+                   1_000
+
     assert has_element?(view, "#pending-permission-card", "Write file")
 
     refute File.exists?(Path.join(tmp_dir, "haven-written.txt"))
@@ -647,6 +749,13 @@ defmodule HavenWeb.RunLiveTest do
                     %{
                       type: "file_write_requested",
                       payload: %{"path" => "haven-written.txt"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_requested",
+                      payload: %{"toolCall" => %{"title" => "Write file"}}
                     }},
                    1_000
 
