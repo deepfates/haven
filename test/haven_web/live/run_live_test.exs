@@ -2,6 +2,7 @@ defmodule HavenWeb.RunLiveTest do
   use HavenWeb.ConnCase
 
   alias Haven.Events
+  alias Haven.FileChanges
   alias Haven.Repo
   alias Haven.Runs
   alias Haven.Runs.{Run, RunServer}
@@ -1437,6 +1438,8 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+    assert has_element?(view, "#run-file-change-count", "0")
+    assert has_element?(view, "#run-file-changes-empty", "No file changes recorded.")
 
     view
     |> element("#sample-write-file-button")
@@ -1476,6 +1479,25 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#pending-permission-card", "written by Haven ACP")
     assert has_element?(view, "#pending-permission-card", "diff_preview")
 
+    assert [pending_change] = FileChanges.list_for_run(run.id)
+    assert pending_change.change_id
+    assert pending_change.path == "haven-written.txt"
+    assert pending_change.status == "pending"
+    assert pending_change.diff_kind == "create"
+    assert pending_change.content_preview == "written by Haven ACP\n"
+    assert pending_change.diff_preview =~ "+written by Haven ACP\n"
+    assert has_element?(view, "#run-file-change-count", "1")
+    assert has_element?(view, "#file-change-#{pending_change.change_id}", "haven-written.txt")
+    assert has_element?(view, "#file-change-#{pending_change.change_id}-status", "pending")
+
+    assert has_element?(
+             view,
+             "#file-change-#{pending_change.change_id}-content",
+             "written by Haven ACP"
+           )
+
+    assert has_element?(view, "#file-change-#{pending_change.change_id}-diff", "--- /dev/null")
+
     refute File.exists?(Path.join(tmp_dir, "haven-written.txt"))
 
     view
@@ -1502,6 +1524,11 @@ defmodule HavenWeb.RunLiveTest do
     assert resolved_path == Path.join(tmp_dir, "haven-written.txt")
     assert File.read!(resolved_path) == "written by Haven ACP\n"
 
+    assert [applied_change] = FileChanges.list_for_run(run.id)
+    assert applied_change.change_id == pending_change.change_id
+    assert applied_change.status == "applied"
+    assert applied_change.resolved_path == resolved_path
+
     assert_receive {:event_appended,
                     %{
                       type: "agent_message_chunk",
@@ -1514,6 +1541,13 @@ defmodule HavenWeb.RunLiveTest do
     html = render(view)
     assert html =~ "file_write_succeeded"
     assert html =~ "Wrote file through Haven."
+    assert has_element?(view, "#file-change-#{applied_change.change_id}-status", "applied")
+
+    assert has_element?(
+             view,
+             "#file-change-#{applied_change.change_id}-resolved-path",
+             resolved_path
+           )
   end
 
   @tag :tmp_dir
@@ -1616,6 +1650,11 @@ defmodule HavenWeb.RunLiveTest do
                     }},
                    1_000
 
+    assert [denied_change] = FileChanges.list_for_run(run.id)
+    assert denied_change.path == "haven-written.txt"
+    assert denied_change.status == "denied"
+    assert denied_change.error["data"]["reason"] == "permission_denied"
+
     assert_receive {:event_appended,
                     %{
                       type: "agent_message_chunk",
@@ -1628,6 +1667,13 @@ defmodule HavenWeb.RunLiveTest do
     refute File.exists?(Path.join(tmp_dir, "haven-written.txt"))
     refute has_element?(view, "#pending-permission-card")
     assert render(view) =~ "file_write_denied"
+    assert has_element?(view, "#file-change-#{denied_change.change_id}-status", "denied")
+
+    assert has_element?(
+             view,
+             "#file-change-#{denied_change.change_id}-error",
+             "Permission denied"
+           )
   end
 
   @tag :tmp_dir

@@ -1,8 +1,8 @@
 # Haven Validation Matrix
 
 This document tracks whether the current Phoenix implementation actually serves
-the Grei/Haven product story: a non-IDE ACP client for durable, inspectable agent
-runs with explicit human decisions.
+the production-grade Haven product story: a non-IDE ACP client for durable,
+inspectable agent runs with explicit human decisions.
 
 ## Current Evidence
 
@@ -315,10 +315,24 @@ Evidence:
 - Per-run file capability policy can include workspace-relative path scopes.
   LiveView integration tests verify out-of-scope reads and writes are denied
   before file content is returned or workspace writes occur, even when the
-  broader file capability decision is `allow`.
+  broader file capability decision is `allow`. Empty path scope lists are
+  treated as unrestricted workspace access, matching the inbox UI's blank scope
+  fields.
 - LiveView integration tests verify write permission requests include bounded
   proposed-content and line-oriented diff previews for human review, including
   independent truncation markers for large writes.
+- ACP file writes now create durable `file_changes` rows at request time with
+  path, local change id, pending/applied/denied/failed/cancelled status, diff
+  kind, byte counts, bounded proposed-content preview, and bounded diff
+  preview. Data-context tests verify applied, denied, failed, and cancelled
+  lifecycle states. LiveView integration tests verify the run detail sidebar
+  starts empty, shows a pending proposed write before approval, updates it to
+  applied with the resolved path after approval, and shows denied writes with
+  their permission error. Browser smoke creates a run from the inbox with blank
+  file-write scopes, triggers the write-file sample, verifies a pending
+  file-change projection plus approval card, approves the write, verifies the
+  projection becomes applied with a resolved path, reloads the page, and
+  verifies the applied projection persists.
 - `Haven.Terminals` runs short-lived non-interactive commands, captures stdout
   and stderr, reports exit status, and rejects terminal working directories
   outside the run workspace.
@@ -396,9 +410,9 @@ Evidence:
   candidate or a rejected local harness/invalid command, rendering basic boot,
   field-checked file-read, file-write approval, terminal approval, and
   terminal-denial `--require-real-agent` report commands only for eligible probe
-  candidates. Those generated commands mirror the missing Grei evidence stories,
-  explicitly warn that they are not ACP evidence until preflight or a generated
-  probe passes, and never render environment values.
+  candidates. Those generated commands mirror the missing production-grade
+  evidence stories, explicitly warn that they are not ACP evidence until
+  preflight or a generated probe passes, and never render environment values.
 - Browser smoke verifies the Agent Setup panel also surfaces the public
   registry discovery command with `--registry` and warns that registry commands
   download and run third-party code before probing.
@@ -498,18 +512,17 @@ Still missing:
 - Real non-test external agent coverage for Haven-mediated terminal requests
   (`terminal/create`, `terminal/output`, `terminal/wait_for_exit`,
   `terminal/release`, and `terminal/kill`).
-- Product-grade file artifact projections for review; current evidence is a
-  bounded proposed-content preview plus a bounded line-oriented diff preview on
-  write permission requests, structured Haven-mediated client capability event
-  projections, and grouped compact `tool_call` projections for real `codex-acp`
-  file/terminal activity.
+- Product-grade file artifact review; current evidence is a durable bounded
+  `file_changes` projection for Haven-mediated writes, structured
+  Haven-mediated client capability event projections, and grouped compact
+  `tool_call` projections for real `codex-acp` file/terminal activity.
 - PTY-style interactive terminal sessions.
 - More expressive scoped-policy UI beyond comma-separated path fields.
 
 ## Not Proven Yet
 
-These are not cosmetic gaps. They are core to the full Grei telos and should not
-be counted as complete until there is executable evidence.
+These are not cosmetic gaps. They are core to the production-grade Haven telos
+and should not be counted as complete until there is executable evidence.
 
 - Haven-mediated file read/write capability requests from a real non-test
   external agent.

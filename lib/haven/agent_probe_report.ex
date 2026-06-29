@@ -3,9 +3,9 @@ defmodule Haven.AgentProbeReport do
   Validates committed `mix haven.agent_probe --report` artifacts.
 
   This is intentionally stricter than the probe runner itself. Stub and local
-  harness reports are useful while developing, but committed Grei evidence
-  should prove a real configured ACP command passed an explicit acceptance
-  contract.
+  harness reports are useful while developing, but committed production-grade
+  evidence should prove a real configured ACP command passed an explicit
+  acceptance contract.
   """
 
   @accepted_statuses ~w(idle closed failed)

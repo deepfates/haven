@@ -40,10 +40,10 @@ defmodule Haven.WorkspaceFilesTest do
     assert WorkspaceFiles.path_in_scopes?(tmp_dir, "README.md", ["README.md"])
     assert WorkspaceFiles.path_in_scopes?(tmp_dir, "docs/guide.md", ["docs"])
     assert WorkspaceFiles.path_in_scopes?(tmp_dir, "anything.txt", ["*"])
+    assert WorkspaceFiles.path_in_scopes?(tmp_dir, "README.md", [])
 
     refute WorkspaceFiles.path_in_scopes?(tmp_dir, "lib/app.ex", ["docs", "README.md"])
     refute WorkspaceFiles.path_in_scopes?(tmp_dir, "../outside.md", ["*"])
-    refute WorkspaceFiles.path_in_scopes?(tmp_dir, "README.md", [])
   end
 
   @tag :tmp_dir

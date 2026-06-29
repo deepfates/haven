@@ -2,6 +2,7 @@ defmodule HavenWeb.RunLive do
   use HavenWeb, :live_view
 
   alias Haven.Events
+  alias Haven.FileChanges
   alias Haven.Runs
   alias Haven.Runs.Run
   alias Haven.TerminalSessions
@@ -102,6 +103,7 @@ defmodule HavenWeb.RunLive do
     socket
     |> assign(:run, run)
     |> assign(:capability_policy, Run.capability_policy(run.capability_policy))
+    |> assign(:file_changes, FileChanges.list_for_run(id))
     |> assign(:terminal_sessions, TerminalSessions.list_for_run(id))
     |> assign(:events, events)
     |> assign_event_projection(events)
@@ -711,6 +713,33 @@ defmodule HavenWeb.RunLive do
   defp terminal_output_preview(nil), do: nil
   defp terminal_output_preview(preview), do: preview
 
+  defp file_change_status_class(status) do
+    [
+      "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase",
+      case status do
+        "pending" -> "border-amber-200 bg-amber-50 text-amber-700"
+        "applied" -> "border-emerald-200 bg-emerald-50 text-emerald-700"
+        "denied" -> "border-rose-200 bg-rose-50 text-rose-700"
+        "failed" -> "border-rose-200 bg-rose-50 text-rose-700"
+        "cancelled" -> "border-zinc-200 bg-zinc-50 text-zinc-600"
+        _ -> "border-zinc-200 bg-zinc-50 text-zinc-600"
+      end
+    ]
+  end
+
+  defp file_change_error(nil), do: nil
+
+  defp file_change_error(%{"message" => message, "data" => %{"reason" => reason}}) do
+    "#{message} (#{reason})"
+  end
+
+  defp file_change_error(%{"message" => message}), do: message
+  defp file_change_error(_error), do: "File change failed"
+
+  defp file_change_preview(""), do: nil
+  defp file_change_preview(nil), do: nil
+  defp file_change_preview(preview), do: preview
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -938,6 +967,99 @@ defmodule HavenWeb.RunLive do
                     </dd>
                   </div>
                 </dl>
+              </div>
+              <div id="run-file-changes" class="mt-4 border-t border-zinc-200 pt-4">
+                <div class="flex items-center justify-between gap-3">
+                  <h3 class="text-xs font-semibold uppercase text-zinc-500">File changes</h3>
+                  <span id="run-file-change-count" class="font-mono text-xs text-zinc-500">
+                    {length(@file_changes)}
+                  </span>
+                </div>
+
+                <div
+                  :if={@file_changes == []}
+                  id="run-file-changes-empty"
+                  class="mt-2 rounded-md border border-dashed border-zinc-300 p-3 text-xs text-zinc-500"
+                >
+                  No file changes recorded.
+                </div>
+
+                <div class="mt-3 space-y-3">
+                  <article
+                    :for={change <- @file_changes}
+                    id={"file-change-#{change.change_id}"}
+                    class="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+                  >
+                    <div class="flex min-w-0 items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <p class="truncate font-mono text-xs font-semibold text-zinc-900">
+                          {change.path}
+                        </p>
+                        <p class="mt-1 font-mono text-[11px] text-zinc-500">
+                          {change.diff_kind}
+                        </p>
+                      </div>
+                      <span
+                        id={"file-change-#{change.change_id}-status"}
+                        class={file_change_status_class(change.status)}
+                      >
+                        {change.status}
+                      </span>
+                    </div>
+
+                    <dl class="mt-3 grid gap-2 text-xs text-zinc-700">
+                      <div
+                        :if={change.resolved_path}
+                        id={"file-change-#{change.change_id}-resolved-path"}
+                      >
+                        <dt class="font-semibold uppercase text-zinc-500">Resolved path</dt>
+                        <dd class="break-all font-mono">{change.resolved_path}</dd>
+                      </div>
+                      <div id={"file-change-#{change.change_id}-bytes"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Bytes</dt>
+                        <dd class="font-mono">{change.bytes}</dd>
+                      </div>
+                      <div id={"file-change-#{change.change_id}-existing-bytes"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Existing bytes</dt>
+                        <dd class="font-mono">{change.existing_bytes || 0}</dd>
+                      </div>
+                    </dl>
+
+                    <p
+                      :if={file_change_error(change.error)}
+                      id={"file-change-#{change.change_id}-error"}
+                      class="mt-3 text-xs font-medium text-rose-700"
+                    >
+                      {file_change_error(change.error)}
+                    </p>
+
+                    <pre
+                      :if={file_change_preview(change.content_preview)}
+                      id={"file-change-#{change.change_id}-content"}
+                      class="mt-3 max-h-32 overflow-auto rounded-md bg-zinc-950 p-3 text-xs text-zinc-50"
+                    ><%= change.content_preview %></pre>
+                    <p
+                      :if={change.content_truncated}
+                      id={"file-change-#{change.change_id}-content-truncated"}
+                      class="mt-2 text-xs font-medium text-amber-700"
+                    >
+                      Content preview truncated.
+                    </p>
+
+                    <pre
+                      :if={file_change_preview(change.diff_preview)}
+                      id={"file-change-#{change.change_id}-diff"}
+                      class="mt-3 max-h-40 overflow-auto rounded-md bg-white p-3 text-xs text-zinc-800 ring-1 ring-zinc-200"
+                    ><%= change.diff_preview %></pre>
+                    <p
+                      :if={change.diff_truncated}
+                      id={"file-change-#{change.change_id}-diff-truncated"}
+                      class="mt-2 text-xs font-medium text-amber-700"
+                    >
+                      Diff preview truncated.
+                    </p>
+                  </article>
+                </div>
               </div>
               <div id="run-terminal-sessions" class="mt-4 border-t border-zinc-200 pt-4">
                 <div class="flex items-center justify-between gap-3">

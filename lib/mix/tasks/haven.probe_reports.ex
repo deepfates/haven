@@ -6,7 +6,8 @@ defmodule Mix.Tasks.Haven.ProbeReports do
       mix haven.probe_reports --path docs/probes/my-agent.json
 
   By default this checks every `docs/probes/*.json` report. The task is meant
-  to guard the Grei real-agent evidence contract in `docs/probes/README.md`.
+  to guard the production-grade real-agent evidence contract in
+  `docs/probes/README.md`.
   """
 
   use Mix.Task

@@ -5,6 +5,7 @@ defmodule Haven.Runs.RunServer do
   @file_write_diff_preview_limit 8_000
 
   alias Haven.Events
+  alias Haven.FileChanges
   alias Haven.PortIO
   alias Haven.Runs
   alias Haven.Runs.ACPClientHandler
@@ -467,8 +468,10 @@ defmodule Haven.Runs.RunServer do
 
   def handle_call({:agent_write_text_file_requested, request}, from, state) do
     run = Runs.get_run!(state.run_id)
-    payload = file_request_payload(request)
     request_id = state.next_permission_id
+    change_id = "file-write-#{System.unique_integer([:positive])}"
+    payload = request |> file_request_payload() |> Map.put("change_id", change_id)
+    write_input = file_write_permission_input(payload, request.content, run.workspace, request)
 
     Events.append!(
       state.run_id,
@@ -476,7 +479,12 @@ defmodule Haven.Runs.RunServer do
       Map.put(payload, "bytes", byte_size(request.content))
     )
 
-    pending = file_write_pending(from, request, payload, run.workspace)
+    FileChanges.create_pending!(
+      state.run_id,
+      file_write_projection_attrs(write_input, request.content)
+    )
+
+    pending = file_write_pending(state.run_id, from, request, payload, run.workspace)
     path_scopes = file_capability_path_scopes(run, "file_write")
 
     cond do
@@ -519,7 +527,7 @@ defmodule Haven.Runs.RunServer do
           file_permission_payload(
             :write,
             request_id,
-            file_write_permission_input(payload, request.content, run.workspace, request)
+            write_input
           )
         )
 
@@ -776,6 +784,23 @@ defmodule Haven.Runs.RunServer do
     |> Map.merge(diff_preview)
   end
 
+  defp file_write_projection_attrs(write_input, content) do
+    %{
+      change_id: write_input["change_id"],
+      path: write_input["path"],
+      status: "pending",
+      diff_kind: write_input["diff_kind"] || "unknown",
+      bytes: byte_size(content),
+      existing_bytes: write_input["existing_bytes"],
+      content_preview: write_input["content_preview"] || "",
+      content_preview_limit: write_input["content_preview_limit"] || @file_write_preview_limit,
+      content_truncated: write_input["content_truncated"] || false,
+      diff_preview: write_input["diff_preview"] || "",
+      diff_preview_limit: write_input["diff_preview_limit"] || @file_write_diff_preview_limit,
+      diff_truncated: write_input["diff_truncated"] || false
+    }
+  end
+
   defp file_permission_payload(kind, request_id, raw_input) do
     {title, allow_name} =
       case kind do
@@ -808,9 +833,10 @@ defmodule Haven.Runs.RunServer do
     }
   end
 
-  defp file_write_pending(from, request, payload, workspace) do
+  defp file_write_pending(run_id, from, request, payload, workspace) do
     %{
       kind: :file_write,
+      run_id: run_id,
       from: from,
       request: request,
       payload: payload,
@@ -935,6 +961,8 @@ defmodule Haven.Runs.RunServer do
   defp resolve_pending_permission(state, %{kind: :file_write} = pending, "allow") do
     case WorkspaceFiles.write_text_file(pending.workspace, pending.request) do
       {:ok, path} ->
+        FileChanges.mark_applied!(state.run_id, pending.payload["change_id"], path)
+
         Events.append!(
           state.run_id,
           "file_write_succeeded",
@@ -944,6 +972,12 @@ defmodule Haven.Runs.RunServer do
         GenServer.reply(pending.from, {:ok, ACP.WriteTextFileResponse.new()})
 
       {:error, error} ->
+        FileChanges.mark_failed!(
+          state.run_id,
+          pending.payload["change_id"],
+          ACP.Error.to_json(error)
+        )
+
         Events.append!(
           state.run_id,
           "file_write_failed",
@@ -956,6 +990,7 @@ defmodule Haven.Runs.RunServer do
 
   defp resolve_pending_permission(state, %{kind: :file_write} = pending, _option_id) do
     error = permission_denied_error(pending.payload["path"])
+    FileChanges.mark_denied!(state.run_id, pending.payload["change_id"], ACP.Error.to_json(error))
 
     Events.append!(
       state.run_id,
@@ -1018,6 +1053,14 @@ defmodule Haven.Runs.RunServer do
     error = path_scope_denied_error(pending.payload["path"])
     event_type = if kind == :file_read, do: "file_read_denied", else: "file_write_denied"
 
+    if kind == :file_write do
+      FileChanges.mark_denied!(
+        state.run_id,
+        pending.payload["change_id"],
+        ACP.Error.to_json(error)
+      )
+    end
+
     Events.append!(
       state.run_id,
       event_type,
@@ -1040,7 +1083,15 @@ defmodule Haven.Runs.RunServer do
   end
 
   defp cancel_pending_permission(%{kind: :file_write} = pending) do
-    GenServer.reply(pending.from, {:error, permission_denied_error(pending.payload["path"])})
+    error = permission_denied_error(pending.payload["path"])
+
+    FileChanges.mark_cancelled!(
+      pending.run_id,
+      pending.payload["change_id"],
+      ACP.Error.to_json(error)
+    )
+
+    GenServer.reply(pending.from, {:error, error})
   end
 
   defp cancel_pending_permission(%{kind: :terminal_create} = pending) do

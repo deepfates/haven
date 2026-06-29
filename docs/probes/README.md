@@ -4,7 +4,7 @@ This directory is for committed `mix haven.agent_probe --report` artifacts from
 real, non-stub ACP agents.
 
 The deterministic `stub-acp` agent proves the harness. A report only counts as
-Grei/Haven real-agent evidence when all of the following are true:
+production-grade Haven real-agent evidence when all of the following are true:
 
 - The `agent` field names a configured agent other than `stub-acp`.
 - The report was generated with `--require-real-agent`, so `real_agent_evidence`
@@ -145,9 +145,9 @@ Use repeated `--redact value` flags for literal strings and repeated
 `--redact-env ENV_VAR` flags for secrets stored in the environment. Redacted
 reports include `redactions` metadata, but never the raw redaction values.
 
-Use `--require-real-agent` on any report intended to count as Grei/Haven
-real-agent evidence. It rejects the built-in stub and the known local test
-harness scripts used by automated coverage.
+Use `--require-real-agent` on any report intended to count as production-grade
+Haven real-agent evidence. It rejects the built-in stub and the known local
+test harness scripts used by automated coverage.
 
 Committed `*.json` reports in this directory are validated by
 `mix haven.probe_reports`, which also runs as part of `mix precommit`.

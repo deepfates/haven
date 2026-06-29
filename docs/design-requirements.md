@@ -218,10 +218,11 @@ Likely additional models:
 - `agents`
 - `permissions`
 - `artifacts`
+- `file_changes` for durable proposed/applied file write projections with
+  bounded content and diff previews.
 - `terminal_sessions` for durable terminal command/session projections; current
   implementation records bounded non-interactive terminal facts, while
   PTY-style interaction remains a later requirement.
-- `files_changed`
 - `run_snapshots` or projections for faster inbox loading
 
 ### Events
@@ -312,7 +313,10 @@ Proven:
   denial blocks it, and both outcomes are durable timeline events.
 - Write permission requests include bounded proposed-content and line-oriented
   diff previews, giving the user something concrete to inspect before
-  approving, though this is not yet a full diff/artifact review system.
+  approving. ACP file writes also create durable file-change projections that
+  move from pending to applied, denied, failed, or cancelled and render on run
+  detail after reload. This is still a bounded preview surface, not a full
+  multi-file artifact workspace.
 - Runs can carry per-run capability policy for file reads, file writes, and
   terminal creation. File reads/writes support explicit ask, allow, or deny
   behavior plus optional workspace-relative path scopes; terminal creation
@@ -367,8 +371,8 @@ Not yet proven:
 - Real external agents beyond the local stub and configured test-only fake
   harness.
 - File capability handling against real non-test external agents.
-- Product-grade file artifact projections for write review beyond the current
-  bounded line-oriented diff preview.
+- Product-grade file artifact review beyond the current bounded file-change
+  projections.
 - Terminal capability handling against real non-test external agents.
 - Interactive terminal sessions and process-tree kill behavior.
 - ACP-native session resume policy.

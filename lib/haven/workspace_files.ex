@@ -58,6 +58,7 @@ defmodule Haven.WorkspaceFiles do
 
   def path_in_scopes?(workspace, path, scopes)
   def path_in_scopes?(_workspace, _path, nil), do: true
+  def path_in_scopes?(_workspace, _path, []), do: true
 
   def path_in_scopes?(workspace, path, scopes) when is_list(scopes) do
     with {:ok, resolved_path} <- resolve_path(workspace, path) do

@@ -32,8 +32,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   produces the event types required by the acceptance story.
   Use repeated `--expect-event-field EVENT:payload.path=value` flags to make
   the probe fail unless at least one matching event has that payload value.
-  Use `--require-real-agent` for evidence intended to satisfy the real-agent
-  Grei validation milestone; it rejects the built-in stub and known test
+  Use `--require-real-agent` for evidence intended to satisfy the production-grade
+  real-agent validation milestone; it rejects the built-in stub and known test
   harnesses.
   Use repeated `--redact value` or `--redact-env ENV_VAR` flags to replace
   sensitive strings in the printed and written report with `[REDACTED]`.
