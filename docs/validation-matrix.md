@@ -185,6 +185,9 @@ Evidence:
   the `system` actor, even when the port exit status is not available yet.
 - LiveView integration tests crash a live agent, click Restart on that same
   failed run, and verify a fresh ACP process/session starts.
+- A configured fake ACP harness can crash on demand; LiveView integration
+  verifies Restart launches a fresh configured ACP process/session and accepts a
+  prompt after restart.
 - Tests revealed and fixed a run-server restart-loop bug: terminal `failed` and
   `closed` runs are no longer auto-resurrected by LiveView mounts, and normal
   RunServer exits are not restarted by the supervisor.
@@ -288,13 +291,10 @@ be counted as complete until there is executable evidence.
 
 ## Next Best Validation Work
 
-1. Extend the fake ACP agent harness beyond partial streaming, duplicate
-   permission pressure, and malformed post-start frames so it can simulate
-   restart.
-2. Connect the configurable command/cwd/env path to one real ACP-speaking agent and
-   document any agent-specific auth contract.
-3. Connect terminal capability handling to a real ACP-speaking agent and add
+1. Connect the configurable command/cwd/env path to one real ACP-speaking agent
+   and document any agent-specific auth contract.
+2. Connect terminal capability handling to a real ACP-speaking agent and add
    process-tree kill/interactive-terminal evidence.
-4. Connect file capability handling to a real ACP-speaking agent.
-5. Add browser smoke coverage for reload recovery and non-happy-path permission
+3. Connect file capability handling to a real ACP-speaking agent.
+4. Add browser smoke coverage for reload recovery and non-happy-path permission
    flows, not just approval.

@@ -317,6 +317,8 @@ Proven:
   reconnected/restarted as fresh ACP processes.
 - Runs that fail because the agent process exits during a turn can be restarted
   explicitly as fresh ACP processes while preserving the failed-turn history.
+- Configured external-agent commands can crash during a turn, restart as fresh
+  ACP processes, and accept prompts after restart.
 - Runs that lose an agent while permission is pending fail visibly and resolve
   the blocked permission as system-cancelled, avoiding a stale active decision
   card.

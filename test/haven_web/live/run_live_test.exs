@@ -457,6 +457,97 @@ defmodule HavenWeb.RunLiveTest do
     assert render(view) =~ "idle"
   end
 
+  test "explicit restart recovers a configured fake ACP harness after crash", %{conn: conn} do
+    original = Application.get_env(:haven, :agents)
+
+    on_exit(fn ->
+      if original do
+        Application.put_env(:haven, :agents, original)
+      else
+        Application.delete_env(:haven, :agents)
+      end
+    end)
+
+    Application.put_env(:haven, :agents, %{
+      "fake-crash" => %{
+        executable: System.find_executable("mix"),
+        args: [
+          "run",
+          "--no-compile",
+          "--no-start",
+          "test/support/fake_agent_runner.exs",
+          "crash",
+          "{workspace}"
+        ],
+        cwd: "{workspace}",
+        env: [{"MIX_ENV", "test"}]
+      }
+    })
+
+    run = insert_run!("Fake crash restart run", "fake-crash")
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+    Runs.subscribe()
+
+    {:ok, _pid} = Runs.start_run(run.id)
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+
+    {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
+    assert html =~ "fake-crash"
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "die"})
+    |> render_submit()
+
+    assert_receive {:event_appended, %{type: "agent_process_exited"}}, 2_000
+    assert_receive {:event_appended, %{type: "turn_failed"}}, 1_000
+
+    assert render(view) =~ "failed"
+    assert has_element?(view, "#reconnect-run-button", "Restart")
+
+    view
+    |> element("#reconnect-run-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "run_reconnect_requested",
+                      payload: %{"previous_status" => "failed"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    assert_receive {:run_updated, %{id: run_id, status: "idle"}}, 1_000
+    assert run_id == run.id
+
+    started_events =
+      run.id
+      |> Events.list_for_run()
+      |> Enum.filter(&(&1.type == "agent_process_started"))
+
+    assert length(started_events) == 2
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "hello after restart"})
+    |> render_submit()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Fake echo: hello after restart"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    {:ok, _reloaded, html} = live(conn, ~p"/runs/#{run.id}")
+    assert html =~ "idle"
+    assert html =~ "Fake echo: hello after restart"
+  end
+
   test "cancel returns an open non-permission turn to idle", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Cancel open turn"})
     stop_run_server_on_exit(run.id)

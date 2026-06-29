@@ -97,6 +97,10 @@ defmodule Haven.FakeACPAgent do
     state
   end
 
+  defp handle_prompt("crash", "die", _prompt_id, _session_id, _state) do
+    System.halt(1)
+  end
+
   defp handle_prompt(_scenario, text, prompt_id, session_id, state) do
     send_agent_text(session_id, "Fake echo: #{text}")
     send_prompt_result(prompt_id)
