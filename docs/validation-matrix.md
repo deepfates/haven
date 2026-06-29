@@ -42,7 +42,8 @@ Evidence:
   run record.
 - Saved workspaces are stored in SQLite with a name and normalized directory
   path; LiveView tests verify the inbox picker can create a run from a saved
-  workspace and that deleting the workspace removes it from the picker.
+  workspace, editing the workspace updates the picker/run path, and deleting
+  the workspace removes it from the picker.
 - Persisted agent configurations are stored in SQLite and appear in the inbox
   agent picker; LiveView tests verify a run can be created with a persisted
   agent key.

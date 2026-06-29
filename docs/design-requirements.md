@@ -276,6 +276,8 @@ Proven:
 - The inbox can create runs with explicit title, workspace, and agent choice.
 - The inbox can save reusable workspace directories and select them when
   creating a run.
+- Saved workspace entries can be edited in place, and the run picker uses the
+  updated path when creating a run.
 - Configured agent specs can provide executable, args, cwd, and env values with
   workspace substitution; launch events record cwd and env key names while
   redacting env values.

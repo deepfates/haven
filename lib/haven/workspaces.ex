@@ -18,6 +18,12 @@ defmodule Haven.Workspaces do
     |> Repo.insert()
   end
 
+  def update_workspace(%Workspace{} = workspace, attrs) do
+    workspace
+    |> Workspace.changeset(attrs)
+    |> Repo.update()
+  end
+
   def delete_workspace(%Workspace{} = workspace) do
     Repo.delete(workspace)
   end

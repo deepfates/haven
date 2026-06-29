@@ -15,6 +15,7 @@ defmodule HavenWeb.InboxLive do
      |> assign(:form, to_form(default_run_params()))
      |> assign(:workspace_form, to_form(default_workspace_params(), as: :workspace_config))
      |> assign(:workspace_error, nil)
+     |> assign(:editing_workspace_id, nil)
      |> refresh_workspace_assigns()
      |> assign(:agent_config_form, to_form(default_agent_config_params(), as: :agent_config))
      |> assign(:agent_config_error, nil)
@@ -43,13 +44,12 @@ defmodule HavenWeb.InboxLive do
   end
 
   def handle_event("save_workspace", %{"workspace_config" => params}, socket) do
-    case Workspaces.create_workspace(workspace_attrs(params)) do
+    case save_workspace(params, workspace_attrs(params)) do
       {:ok, workspace} ->
         {:noreply,
          socket
          |> put_flash(:info, "Workspace #{workspace.name} saved")
-         |> assign(:workspace_form, to_form(default_workspace_params(), as: :workspace_config))
-         |> assign(:workspace_error, nil)
+         |> reset_workspace_form()
          |> refresh_workspace_assigns()}
 
       {:error, changeset} ->
@@ -58,6 +58,20 @@ defmodule HavenWeb.InboxLive do
          |> assign(:workspace_form, to_form(params, as: :workspace_config))
          |> assign(:workspace_error, form_error(changeset))}
     end
+  end
+
+  def handle_event("edit_workspace", %{"id" => id}, socket) do
+    workspace = Workspaces.get_workspace!(id)
+
+    {:noreply,
+     socket
+     |> assign(:workspace_form, to_form(workspace_form_params(workspace), as: :workspace_config))
+     |> assign(:workspace_error, nil)
+     |> assign(:editing_workspace_id, workspace.id)}
+  end
+
+  def handle_event("cancel_workspace_edit", _params, socket) do
+    {:noreply, reset_workspace_form(socket)}
   end
 
   def handle_event("delete_workspace", %{"id" => id}, socket) do
@@ -145,6 +159,7 @@ defmodule HavenWeb.InboxLive do
 
   defp default_workspace_params do
     %{
+      "id" => "",
       "name" => "",
       "path" => File.cwd!()
     }
@@ -209,10 +224,19 @@ defmodule HavenWeb.InboxLive do
 
   defp workspace_attrs(params) do
     %{
+      "id" => Map.get(params, "id", ""),
       "name" => Map.get(params, "name", ""),
       "path" => Map.get(params, "path", "")
     }
   end
+
+  defp save_workspace(%{"id" => id}, attrs) when is_binary(id) and id != "" do
+    id
+    |> Workspaces.get_workspace!()
+    |> Workspaces.update_workspace(attrs)
+  end
+
+  defp save_workspace(_params, attrs), do: Workspaces.create_workspace(attrs)
 
   defp refresh_workspace_assigns(socket) do
     workspaces = Workspaces.list_workspaces()
@@ -226,6 +250,21 @@ defmodule HavenWeb.InboxLive do
     Enum.map(workspaces, fn workspace ->
       {"#{workspace.name} · #{workspace.path}", workspace.id}
     end)
+  end
+
+  defp reset_workspace_form(socket) do
+    socket
+    |> assign(:workspace_form, to_form(default_workspace_params(), as: :workspace_config))
+    |> assign(:workspace_error, nil)
+    |> assign(:editing_workspace_id, nil)
+  end
+
+  defp workspace_form_params(workspace) do
+    %{
+      "id" => workspace.id,
+      "name" => workspace.name,
+      "path" => workspace.path
+    }
   end
 
   defp agent_config_attrs(params) do
@@ -466,16 +505,28 @@ defmodule HavenWeb.InboxLive do
                       <p class="truncate text-sm font-semibold text-zinc-950">{workspace.name}</p>
                       <p class="mt-1 truncate text-xs text-zinc-500">{workspace.path}</p>
                     </div>
-                    <button
-                      id={"delete-workspace-#{workspace.id}"}
-                      type="button"
-                      title="Delete workspace"
-                      class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
-                      phx-click="delete_workspace"
-                      phx-value-id={workspace.id}
-                    >
-                      <.icon name="hero-trash" class="size-4" />
-                    </button>
+                    <div class="flex shrink-0 items-center gap-2">
+                      <button
+                        id={"edit-workspace-#{workspace.id}"}
+                        type="button"
+                        title="Edit workspace"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950"
+                        phx-click="edit_workspace"
+                        phx-value-id={workspace.id}
+                      >
+                        <.icon name="hero-pencil-square" class="size-4" />
+                      </button>
+                      <button
+                        id={"delete-workspace-#{workspace.id}"}
+                        type="button"
+                        title="Delete workspace"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                        phx-click="delete_workspace"
+                        phx-value-id={workspace.id}
+                      >
+                        <.icon name="hero-trash" class="size-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -487,6 +538,7 @@ defmodule HavenWeb.InboxLive do
               phx-submit="save_workspace"
               class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
             >
+              <.input field={@workspace_form[:id]} type="hidden" />
               <p
                 :if={@workspace_error}
                 id="workspace-error"
@@ -510,12 +562,23 @@ defmodule HavenWeb.InboxLive do
                   autocomplete="off"
                 />
               </div>
-              <button
-                id="save-workspace-button"
-                class="h-10 justify-self-end rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
-              >
-                Save Workspace
-              </button>
+              <div class="flex justify-end gap-2">
+                <button
+                  :if={@editing_workspace_id}
+                  id="cancel-workspace-edit-button"
+                  type="button"
+                  class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                  phx-click="cancel_workspace_edit"
+                >
+                  Cancel
+                </button>
+                <button
+                  id="save-workspace-button"
+                  class="h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                >
+                  {if @editing_workspace_id, do: "Update Workspace", else: "Save Workspace"}
+                </button>
+              </div>
             </.form>
           </section>
 

@@ -30,6 +30,29 @@ defmodule Haven.WorkspacesTest do
   end
 
   @tag :tmp_dir
+  test "updates saved workspaces", %{tmp_dir: tmp_dir} do
+    next_dir = Path.join(tmp_dir, "next")
+    File.mkdir_p!(next_dir)
+
+    assert {:ok, workspace} =
+             Workspaces.create_workspace(%{
+               "name" => "Before",
+               "path" => tmp_dir
+             })
+
+    assert {:ok, updated} =
+             Workspaces.update_workspace(workspace, %{
+               "name" => "  After  ",
+               "path" => next_dir
+             })
+
+    assert updated.id == workspace.id
+    assert updated.name == "After"
+    assert updated.path == Path.expand(next_dir)
+    assert Workspaces.list_workspaces() == [updated]
+  end
+
+  @tag :tmp_dir
   test "deletes saved workspaces", %{tmp_dir: tmp_dir} do
     assert {:ok, workspace} =
              Workspaces.create_workspace(%{

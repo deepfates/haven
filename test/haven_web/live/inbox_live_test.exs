@@ -145,6 +145,63 @@ defmodule HavenWeb.InboxLiveTest do
   end
 
   @tag :tmp_dir
+  test "edits a saved workspace from the inbox picker", %{conn: conn, tmp_dir: tmp_dir} do
+    next_dir = Path.join(tmp_dir, "next")
+    File.mkdir_p!(next_dir)
+
+    assert {:ok, workspace} =
+             Workspaces.create_workspace(%{
+               "name" => "Before repo",
+               "path" => tmp_dir
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#workspace-#{workspace.id}", "Before repo")
+    assert has_element?(view, ~s|#workspace_id option[value="#{workspace.id}"]|)
+
+    view
+    |> element("#edit-workspace-#{workspace.id}")
+    |> render_click()
+
+    assert has_element?(view, "#cancel-workspace-edit-button")
+
+    view
+    |> form("#workspace-form", %{
+      "workspace_config" => %{
+        "id" => workspace.id,
+        "name" => "After repo",
+        "path" => next_dir
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#workspace-#{workspace.id}", "After repo")
+    assert has_element?(view, ~s|#workspace_id option[value="#{workspace.id}"]|)
+    refute has_element?(view, "#cancel-workspace-edit-button")
+
+    [updated] = Workspaces.list_workspaces()
+    assert updated.id == workspace.id
+    assert updated.name == "After repo"
+    assert updated.path == Path.expand(next_dir)
+
+    view
+    |> form("#new-run-form", %{
+      "title" => "Edited workspace run",
+      "workspace_id" => workspace.id,
+      "workspace" => "/ignored/manual/path"
+    })
+    |> render_submit()
+
+    [run] = Runs.list_runs()
+    stop_run_server_on_exit(run.id)
+
+    assert run.title == "Edited workspace run"
+    assert run.workspace == Path.expand(next_dir)
+    assert_redirect(view, ~p"/runs/#{run.id}")
+  end
+
+  @tag :tmp_dir
   test "creates a run with the selected workspace and configured agent", %{
     conn: conn,
     tmp_dir: tmp_dir
