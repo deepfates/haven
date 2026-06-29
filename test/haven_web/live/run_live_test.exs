@@ -1271,6 +1271,131 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "answer."
   end
 
+  test "configured fake ACP harness cancels duplicate permission requests", %{conn: conn} do
+    original = Application.get_env(:haven, :agents)
+
+    on_exit(fn ->
+      if original do
+        Application.put_env(:haven, :agents, original)
+      else
+        Application.delete_env(:haven, :agents)
+      end
+    end)
+
+    Application.put_env(:haven, :agents, %{
+      "fake-duplicate-permission" => %{
+        executable: System.find_executable("mix"),
+        args: [
+          "run",
+          "--no-compile",
+          "--no-start",
+          "test/support/fake_agent_runner.exs",
+          "duplicate-permission",
+          "{workspace}"
+        ],
+        cwd: "{workspace}",
+        env: [{"MIX_ENV", "test"}]
+      }
+    })
+
+    run = insert_run!("Fake duplicate permission run", "fake-duplicate-permission")
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+    Runs.subscribe()
+
+    {:ok, _pid} = Runs.start_run(run.id)
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "duplicate-permission"})
+    |> render_submit()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_requested",
+                      payload: %{
+                        "request_id" => first_request_id,
+                        "toolCall" => %{"title" => "First permission"}
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_requested",
+                      payload: %{
+                        "request_id" => second_request_id,
+                        "toolCall" => %{"title" => "Second permission"}
+                      }
+                    }},
+                   1_000
+
+    assert first_request_id != second_request_id
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+    assert has_element?(view, "#pending-permission-card")
+
+    view
+    |> element("#cancel-run-button")
+    |> render_click()
+
+    assert_receive {:event_appended, %{type: "turn_cancelled"}}, 1_000
+
+    resolved_ids =
+      for _ <- 1..2 do
+        assert_receive {:event_appended,
+                        %{
+                          type: "permission_resolved",
+                          payload: %{
+                            "option_id" => "cancelled",
+                            "outcome" => "cancelled",
+                            "actor" => "local_user"
+                          }
+                        } = event},
+                       1_000
+
+        event.payload["request_id"]
+      end
+
+    assert MapSet.new(resolved_ids) == MapSet.new([first_request_id, second_request_id])
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_update_ignored",
+                      payload: %{
+                        "reason" => "turn_cancelled",
+                        "update_type" => "agent_message_chunk"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:run_updated, %{id: run_id, status: "idle"}}, 1_000
+    assert run_id == run.id
+
+    refute has_element?(view, "#pending-permission-card")
+
+    events = Events.list_for_run(run.id)
+
+    assert 2 ==
+             Enum.count(events, fn
+               %{type: "permission_resolved", payload: %{"outcome" => "cancelled"}} -> true
+               _event -> false
+             end)
+
+    refute Enum.any?(events, fn
+             %{
+               type: "agent_message_chunk",
+               payload: %{"text" => "Duplicate permissions resolved."}
+             } ->
+               true
+
+             _event ->
+               false
+           end)
+  end
+
   defp sync_run_server!(run_id) do
     {:ok, pid} = Runs.ensure_started(run_id)
     _ = :sys.get_state(pid)

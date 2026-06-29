@@ -133,6 +133,9 @@ Evidence:
   permission card is reconstructed from durable events.
 - LiveView integration tests cancel a waiting run and verify the pending
   permission is resolved with a cancelled outcome.
+- A configured fake ACP harness can issue two simultaneous permission requests
+  for one prompt; LiveView integration verifies user cancellation resolves both
+  requests and suppresses late cancelled output.
 - LiveView integration tests attempt a stale duplicate permission resolution and
   verify it is ignored without reopening the permission or changing the visible
   idle state.
@@ -282,8 +285,8 @@ be counted as complete until there is executable evidence.
 
 ## Next Best Validation Work
 
-1. Extend the fake ACP agent harness beyond partial streaming so it can request
-   duplicate permissions, emit malformed frames after session startup, and
+1. Extend the fake ACP agent harness beyond partial streaming and duplicate
+   permission pressure so it can emit malformed frames after session startup and
    simulate restart.
 2. Connect the configurable command/cwd/env path to one real ACP-speaking agent and
    document any agent-specific auth contract.

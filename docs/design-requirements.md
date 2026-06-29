@@ -292,6 +292,8 @@ Proven:
 - Permission decisions now carry a coarse actor class (`local_user` or
   `system`), which is enough to distinguish explicit user decisions from runtime
   cleanup but not enough for multi-user audit identity.
+- Multiple simultaneous permission requests from one ACP prompt can be cancelled
+  together without leaving an active decision card behind.
 - Ordered session updates should be projected from the ACP stream subscription.
 - Partial streamed agent chunks from a configured stdio ACP process can be
   projected and persisted in order.
