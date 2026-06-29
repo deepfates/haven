@@ -112,7 +112,7 @@ defmodule Haven.Runs.RunServer do
     Events.append!(state.run_id, "agent_process_exited", %{"status" => status})
 
     {status, state} =
-      if status in [nil, 0] do
+      if status in [nil, 0] and no_pending_work?(state) do
         {"closed", state}
       else
         {"failed", fail_pending_work(state, "agent_process_exited")}
@@ -234,7 +234,8 @@ defmodule Haven.Runs.RunServer do
       Events.append!(state.run_id, "permission_resolved", %{
         "request_id" => request_id,
         "option_id" => option_id,
-        "outcome" => "selected"
+        "outcome" => "selected",
+        "actor" => "local_user"
       })
 
       response =
@@ -251,7 +252,8 @@ defmodule Haven.Runs.RunServer do
         Events.append!(state.run_id, "permission_resolution_ignored", %{
           "request_id" => request_id,
           "option_id" => option_id,
-          "reason" => "not_pending"
+          "reason" => "not_pending",
+          "actor" => "local_user"
         })
 
         {:reply, {:error, :not_pending}, state}
@@ -265,7 +267,8 @@ defmodule Haven.Runs.RunServer do
       Events.append!(state.run_id, "permission_resolved", %{
         "request_id" => request_id,
         "option_id" => "cancelled",
-        "outcome" => "cancelled"
+        "outcome" => "cancelled",
+        "actor" => "local_user"
       })
 
       response =
@@ -619,6 +622,10 @@ defmodule Haven.Runs.RunServer do
     end
   end
 
+  defp no_pending_work?(state) do
+    state.pending_prompts == %{} and state.pending_permissions == %{}
+  end
+
   defp fail_pending_work(state, reason) do
     state =
       Enum.reduce(Map.keys(state.pending_prompts), state, fn id, acc ->
@@ -630,7 +637,8 @@ defmodule Haven.Runs.RunServer do
         "request_id" => request_id,
         "option_id" => "cancelled",
         "outcome" => "cancelled",
-        "reason" => reason
+        "reason" => reason,
+        "actor" => "system"
       })
 
       response =

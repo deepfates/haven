@@ -153,7 +153,11 @@ defmodule HavenWeb.RunLiveTest do
     assert_receive {:event_appended,
                     %{
                       type: "permission_resolved",
-                      payload: %{"request_id" => ^request_id, "option_id" => "allow"}
+                      payload: %{
+                        "request_id" => ^request_id,
+                        "option_id" => "allow",
+                        "actor" => "local_user"
+                      }
                     }},
                    1_000
 
@@ -196,7 +200,8 @@ defmodule HavenWeb.RunLiveTest do
                       payload: %{
                         "request_id" => ^request_id,
                         "option_id" => "deny",
-                        "outcome" => "selected"
+                        "outcome" => "selected",
+                        "actor" => "local_user"
                       }
                     }},
                    1_000
@@ -243,7 +248,11 @@ defmodule HavenWeb.RunLiveTest do
     assert_receive {:event_appended,
                     %{
                       type: "permission_resolved",
-                      payload: %{"request_id" => ^request_id, "option_id" => "allow"}
+                      payload: %{
+                        "request_id" => ^request_id,
+                        "option_id" => "allow",
+                        "actor" => "local_user"
+                      }
                     }},
                    1_000
   end
@@ -276,7 +285,8 @@ defmodule HavenWeb.RunLiveTest do
                       payload: %{
                         "request_id" => ^request_id,
                         "option_id" => "cancelled",
-                        "outcome" => "cancelled"
+                        "outcome" => "cancelled",
+                        "actor" => "local_user"
                       }
                     }},
                    1_000
@@ -319,7 +329,8 @@ defmodule HavenWeb.RunLiveTest do
                       payload: %{
                         "request_id" => ^request_id,
                         "option_id" => "deny",
-                        "reason" => "not_pending"
+                        "reason" => "not_pending",
+                        "actor" => "local_user"
                       }
                     }},
                    1_000
@@ -357,6 +368,48 @@ defmodule HavenWeb.RunLiveTest do
     assert status != 0
     assert_receive {:event_appended, %{type: "turn_failed"}}, 1_000
 
+    assert render(view) =~ "failed"
+  end
+
+  test "agent crash resolves pending permission as system cancelled", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Crash pending permission run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "permission-then-die"})
+    |> render_submit()
+
+    assert_receive {:event_appended,
+                    %{type: "permission_requested", payload: %{"request_id" => request_id}}},
+                   1_000
+
+    assert has_element?(view, "#pending-permission-card")
+
+    assert_receive {:event_appended,
+                    %{type: "agent_process_exited", payload: %{"status" => status}}},
+                   2_000
+
+    assert status != 0
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_resolved",
+                      payload: %{
+                        "request_id" => ^request_id,
+                        "option_id" => "cancelled",
+                        "outcome" => "cancelled",
+                        "reason" => "agent_process_exited",
+                        "actor" => "system"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_failed"}}, 1_000
+    refute has_element?(view, "#pending-permission-card")
     assert render(view) =~ "failed"
   end
 

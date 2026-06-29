@@ -283,6 +283,9 @@ Proven:
   agent process.
 - Permission requests can suspend inside an ACP handler and resume from UI/API
   action.
+- Permission decisions now carry a coarse actor class (`local_user` or
+  `system`), which is enough to distinguish explicit user decisions from runtime
+  cleanup but not enough for multi-user audit identity.
 - Ordered session updates should be projected from the ACP stream subscription.
 - Deterministic ACP file read/write requests can be handled, logged, and scoped
   to the selected workspace.
@@ -298,6 +301,9 @@ Proven:
   reconnected/restarted as fresh ACP processes.
 - Runs that fail because the agent process exits during a turn can be restarted
   explicitly as fresh ACP processes while preserving the failed-turn history.
+- Runs that lose an agent while permission is pending fail visibly and resolve
+  the blocked permission as system-cancelled, avoiding a stale active decision
+  card.
 - Malformed ACP output during startup is projected as a visible
   `agent_protocol_failed` run failure without an automatic restart loop.
 
@@ -315,6 +321,8 @@ Not yet proven:
 - Security boundaries around workspace access.
 - Authentication and product-grade agent/workspace configuration, including
   workspace picker/browse affordances.
+- Authenticated user identity on permission decisions; current actor metadata is
+  local/system classification only.
 
 Known implementation limitations:
 

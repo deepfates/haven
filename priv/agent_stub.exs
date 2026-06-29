@@ -54,7 +54,7 @@ defmodule StubAgent do
     text = prompt_text(request.prompt)
 
     cond do
-      text == "permission" ->
+      text in ["permission", "permission-then-die"] ->
         permission_id = state.next_permission_id
 
         fields = %ACP.ToolCallUpdateFields{
@@ -80,6 +80,10 @@ defmodule StubAgent do
             ACP.RequestPermissionRequest.to_json(permission)
           )
         )
+
+        if text == "permission-then-die" do
+          System.halt(1)
+        end
 
         %{
           state

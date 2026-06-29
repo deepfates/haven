@@ -113,13 +113,20 @@ Evidence:
 - LiveView integration tests attempt a stale duplicate permission resolution and
   verify it is ignored without reopening the permission or changing the visible
   idle state.
-- Browser smoke verifies the same flow through the real rendered UI.
+- LiveView integration tests verify permission decisions record an actor class:
+  explicit allow, deny, reload-then-allow, user cancellation, and stale
+  duplicate attempts record `local_user`; agent crash cleanup of a pending
+  permission records `system`.
+- Browser smoke verifies the same allow flow through the real rendered UI,
+  including a rendered `permission_resolved` payload with
+  `"actor": "local_user"`.
 
 Still missing:
 
-- User identity or actor metadata for audit trails.
+- Authenticated user identity for audit trails; current metadata distinguishes
+  actor class, not a specific person.
 - Browser smoke for deny, cancel, stale, and reload paths; current browser smoke
-  covers allow.
+  covers allow and its actor metadata.
 
 ### Runtime And Persistence
 
@@ -145,6 +152,9 @@ Evidence:
 - LiveView integration tests trigger a non-zero stub exit and verify the run
   records `agent_process_exited`, fails the in-flight turn, and renders a
   visible `failed` state.
+- LiveView integration tests verify an agent disappearance while a permission
+  decision is pending fails the run and resolves the permission as cancelled by
+  the `system` actor, even when the port exit status is not available yet.
 - LiveView integration tests crash a live agent, click Restart on that same
   failed run, and verify a fresh ACP process/session starts.
 - Tests revealed and fixed a run-server restart-loop bug: terminal `failed` and
@@ -230,7 +240,7 @@ be counted as complete until there is executable evidence.
 - Browser smoke for non-message session updates; current executable evidence is
   LiveView-level.
 - Product-grade workspace and agent configuration UI.
-- Audit metadata for who made a permission decision.
+- Authenticated user identity for permission decisions.
 
 ## Next Best Validation Work
 
