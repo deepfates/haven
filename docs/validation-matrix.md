@@ -268,6 +268,11 @@ Evidence:
   see the proposed write content before approval, and trigger a deterministic
   terminal command, plus an ACP terminal kill for a direct process, with visible
   timeline events and final `idle` state.
+- `mix haven.agent_probe` now exercises a configured ACP agent through Haven's
+  real run lifecycle, including run creation, ACP boot/session setup, prompting,
+  optional permission resolution, and durable event reporting. Current automated
+  coverage runs this probe against `stub-acp`; real-agent proof still requires
+  running the same probe against a non-stub configured ACP command.
 
 Still missing:
 
@@ -285,6 +290,8 @@ These are not cosmetic gaps. They are core to the full Grei telos and should not
 be counted as complete until there is executable evidence.
 
 - Real external ACP agent integration beyond `priv/agent_stub.exs`.
+- A committed probe transcript from `mix haven.agent_probe` against a real
+  configured ACP agent.
 - File read/write capability requests from a real external agent.
 - Terminal capability requests from a real external agent.
 - Interactive terminal behavior and process-tree kill semantics.
@@ -301,7 +308,8 @@ be counted as complete until there is executable evidence.
 ## Next Best Validation Work
 
 1. Connect the configurable command/cwd/env path to one real ACP-speaking agent
-   and document any agent-specific auth contract.
+   by running `mix haven.agent_probe` against it, then commit the transcript and
+   document any agent-specific auth contract.
 2. Connect terminal capability handling to a real ACP-speaking agent and add
    process-tree kill/interactive-terminal evidence.
 3. Connect file capability handling to a real ACP-speaking agent.

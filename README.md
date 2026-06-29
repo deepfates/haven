@@ -40,6 +40,20 @@ curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/permission
 curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow
 ```
 
+To probe any configured ACP agent through Haven's real run lifecycle:
+
+```bash
+mix haven.agent_probe --agent stub-acp --workspace . --prompt "hello"
+mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "summarize this repo"
+mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "read README.md" --resolve-permissions allow
+```
+
+The probe creates a durable run, waits for ACP initialization/session creation,
+sends the prompt through `RunServer`, optionally resolves permission stalls, and
+prints the persisted event timeline. Passing the probe with `stub-acp` proves
+the harness; passing it with a real configured ACP agent is the next integration
+milestone.
+
 ## Shape
 
 - `Haven.Runs.RunServer` owns one live agent run.
