@@ -66,11 +66,14 @@ Evidence:
 - Browser smoke verifies the timeline renders protocol-shaped events during a
   real browser session, that disconnected history is visibly read-only, and that
   clicking Reconnect appends recovery and startup events.
+- LiveView integration tests and browser smoke verify timeline events carry
+  explicit provenance labels and `data-event-kind` markers for app, user, agent,
+  client, protocol, and runtime events.
 
 Still missing:
 
 - Rich protocol event normalization.
-- Clear visual distinction between app-level and protocol-level events.
+- Rich filtering or grouping by event provenance.
 
 ### Prompting And Control
 

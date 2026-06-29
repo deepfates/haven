@@ -11,12 +11,14 @@ defmodule HavenWeb.RunLiveTest do
     stop_run_server_on_exit(run.id)
     sync_run_server!(run.id)
 
-    {:ok, _view, html} = live(conn, ~p"/runs/#{run.id}")
+    {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
 
     assert html =~ "run_created"
     assert html =~ "agent_process_started"
     assert html =~ "agent_initialized"
     assert html =~ "agent_session_started"
+    assert has_element?(view, ~s|#event-1[data-event-kind="app"]|, "App")
+    assert has_element?(view, ~s|#event-2[data-event-kind="runtime"]|, "Runtime")
 
     {:ok, _reloaded, reloaded_html} = live(conn, ~p"/runs/#{run.id}")
 
@@ -122,6 +124,8 @@ defmodule HavenWeb.RunLiveTest do
     assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
 
     assert render(view) =~ "Echo: hello from LiveView"
+    assert has_element?(view, ~s|[data-event-kind="user"]|, "User")
+    assert has_element?(view, ~s|[data-event-kind="agent"]|, "Agent")
     assert render(view) =~ "idle"
   end
 
@@ -515,6 +519,7 @@ defmodule HavenWeb.RunLiveTest do
     html = render(view)
     assert html =~ "tool_call_update"
     assert html =~ "Inspect workspace"
+    assert has_element?(view, ~s|[data-event-kind="protocol"]|, "Protocol")
   end
 
   @tag :tmp_dir

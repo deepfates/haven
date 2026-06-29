@@ -104,12 +104,26 @@ defmodule HavenWeb.RunLive do
   end
 
   defp event(assigns) do
+    assigns =
+      assigns
+      |> assign(:event_kind, event_kind(assigns.event.type))
+      |> assign(:event_kind_label, event_kind_label(assigns.event.type))
+
     ~H"""
-    <article class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+    <article
+      id={"event-#{@event.seq}"}
+      data-event-kind={@event_kind}
+      class={event_card_class(@event_kind)}
+    >
       <div class="flex items-center justify-between gap-3">
-        <span class="font-mono text-xs uppercase text-zinc-500">
-          #{@event.seq} · {@event.type}
-        </span>
+        <div class="flex min-w-0 flex-wrap items-center gap-2">
+          <span class="font-mono text-xs uppercase text-zinc-500">
+            #{@event.seq} · {@event.type}
+          </span>
+          <span class={event_kind_class(@event_kind)}>
+            {@event_kind_label}
+          </span>
+        </div>
         <span class="text-xs text-zinc-400">
           {Calendar.strftime(@event.inserted_at, "%H:%M:%S")}
         </span>
@@ -132,6 +146,97 @@ defmodule HavenWeb.RunLive do
       </div>
     </article>
     """
+  end
+
+  defp event_kind("user_message"), do: "user"
+  defp event_kind("agent_message_chunk"), do: "agent"
+
+  defp event_kind(type) when type in ["tool_call_update", "plan_update"] do
+    "protocol"
+  end
+
+  defp event_kind(type)
+       when type in [
+              "permission_requested",
+              "file_read_requested",
+              "file_read_succeeded",
+              "file_read_failed",
+              "file_write_requested",
+              "file_write_succeeded",
+              "file_write_failed",
+              "terminal_create_requested",
+              "terminal_created",
+              "terminal_create_failed",
+              "terminal_wait_requested",
+              "terminal_wait_succeeded",
+              "terminal_wait_failed",
+              "terminal_output_requested",
+              "terminal_output_succeeded",
+              "terminal_output_failed",
+              "terminal_release_requested",
+              "terminal_released",
+              "terminal_release_failed",
+              "terminal_kill_requested",
+              "terminal_kill_succeeded",
+              "terminal_kill_failed"
+            ] do
+    "client"
+  end
+
+  defp event_kind(type)
+       when type in [
+              "agent_process_started",
+              "agent_process_exited",
+              "agent_process_down",
+              "agent_initialized",
+              "agent_session_started",
+              "agent_start_failed",
+              "agent_protocol_failed"
+            ] do
+    "runtime"
+  end
+
+  defp event_kind(_type), do: "app"
+
+  defp event_kind_label("user_message"), do: "User"
+  defp event_kind_label("agent_message_chunk"), do: "Agent"
+
+  defp event_kind_label(type) do
+    case event_kind(type) do
+      "app" -> "App"
+      "client" -> "Client request"
+      "protocol" -> "Protocol"
+      "runtime" -> "Runtime"
+      kind -> String.capitalize(kind)
+    end
+  end
+
+  defp event_card_class(kind) do
+    [
+      "rounded-lg border bg-white p-4 shadow-sm",
+      case kind do
+        "user" -> "border-indigo-200"
+        "agent" -> "border-sky-200"
+        "client" -> "border-amber-200"
+        "protocol" -> "border-violet-200"
+        "runtime" -> "border-rose-200"
+        _ -> "border-zinc-200"
+      end
+    ]
+  end
+
+  defp event_kind_class(kind) do
+    [
+      "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase",
+      case kind do
+        "user" -> "border-indigo-200 bg-indigo-50 text-indigo-700"
+        "agent" -> "border-sky-200 bg-sky-50 text-sky-700"
+        "client" -> "border-amber-200 bg-amber-50 text-amber-700"
+        "protocol" -> "border-violet-200 bg-violet-50 text-violet-700"
+        "runtime" -> "border-rose-200 bg-rose-50 text-rose-700"
+        _ -> "border-zinc-200 bg-zinc-50 text-zinc-600"
+      end
+    ]
   end
 
   @impl true
