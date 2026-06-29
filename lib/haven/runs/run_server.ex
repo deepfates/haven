@@ -298,7 +298,7 @@ defmodule Haven.Runs.RunServer do
         "actor" => "local_user"
       })
 
-      resolve_pending_permission(state, pending, option_id)
+      state = apply_permission_resolution(state, pending, option_id)
       Runs.update_status!(state.run_id, %{status: "running"})
 
       {:reply, :ok,
@@ -483,60 +483,52 @@ defmodule Haven.Runs.RunServer do
 
   def handle_call(
         {:agent_terminal_requested, {:create_terminal, request} = agent_request},
-        _from,
+        from,
         state
       ) do
     run = Runs.get_run!(state.run_id)
     payload = terminal_request_payload(agent_request)
+    request_id = state.next_permission_id
 
     Events.append!(state.run_id, "terminal_create_requested", payload)
 
-    if capability_decision(run, "terminal_create") == "deny" do
-      error = terminal_permission_denied_error()
+    pending = terminal_create_pending(from, request, payload, run.workspace)
 
-      Events.append!(state.run_id, "capability_policy_applied", %{
-        "capability" => "terminal_create",
-        "decision" => "deny"
-      })
+    case capability_decision(run, "terminal_create") do
+      "deny" ->
+        Events.append!(state.run_id, "capability_policy_applied", %{
+          "capability" => "terminal_create",
+          "decision" => "deny"
+        })
 
-      Events.append!(
-        state.run_id,
-        "terminal_create_denied",
-        Map.merge(payload, %{"error" => ACP.Error.to_json(error)})
-      )
+        resolve_pending_permission(state, pending, "deny")
+        {:noreply, %{state | next_permission_id: request_id + 1}}
 
-      {:reply, {:error, error}, state}
-    else
-      Events.append!(
-        state.run_id,
-        "capability_policy_applied",
-        %{"capability" => "terminal_create", "decision" => "allow"}
-      )
-
-      with {:ok, opts} <- Terminals.command_options(run.workspace, request),
-           {:ok, pid} <- Terminals.start(opts) do
-        terminal_id = Keyword.fetch!(opts, :terminal_id)
-
+      "ask" ->
         Events.append!(
           state.run_id,
-          "terminal_created",
-          Map.merge(payload, %{"terminal_id" => terminal_id})
+          "permission_requested",
+          terminal_permission_payload(request_id, payload)
         )
 
-        {:reply, {:ok, ACP.CreateTerminalResponse.new(terminal_id)},
-         %{state | terminals: Map.put(state.terminals, terminal_id, pid)}}
-      else
-        {:error, reason} ->
-          error = terminal_error("Could not create terminal", reason)
+        Runs.update_status!(state.run_id, %{status: "waiting"})
 
-          Events.append!(
-            state.run_id,
-            "terminal_create_failed",
-            Map.merge(payload, %{"error" => ACP.Error.to_json(error)})
-          )
+        {:noreply,
+         %{
+           state
+           | next_permission_id: request_id + 1,
+             pending_permissions: Map.put(state.pending_permissions, request_id, pending)
+         }}
 
-          {:reply, {:error, error}, state}
-      end
+      _allow ->
+        Events.append!(
+          state.run_id,
+          "capability_policy_applied",
+          %{"capability" => "terminal_create", "decision" => "allow"}
+        )
+
+        state = resolve_pending_permission(state, pending, "allow")
+        {:noreply, %{state | next_permission_id: request_id + 1}}
     end
   end
 
@@ -767,12 +759,45 @@ defmodule Haven.Runs.RunServer do
     }
   end
 
+  defp terminal_permission_payload(request_id, raw_input) do
+    %{
+      "request_id" => request_id,
+      "toolCall" => %{
+        "toolCallId" => "terminal_create_#{request_id}",
+        "title" => "Create terminal",
+        "status" => "pending",
+        "rawInput" => raw_input
+      },
+      "options" => [
+        %{"optionId" => "allow", "name" => "Allow terminal", "kind" => "allow_once"},
+        %{"optionId" => "deny", "name" => "Deny", "kind" => "reject_once"}
+      ]
+    }
+  end
+
+  defp terminal_create_pending(from, request, payload, workspace) do
+    %{
+      kind: :terminal_create,
+      from: from,
+      request: request,
+      payload: payload,
+      workspace: workspace
+    }
+  end
+
   defp file_capability_decision(run, capability), do: capability_decision(run, capability)
 
   defp capability_decision(run, capability) do
     run.capability_policy
     |> Haven.Runs.Run.capability_policy()
     |> Map.fetch!(capability)
+  end
+
+  defp apply_permission_resolution(state, pending, option_id) do
+    case resolve_pending_permission(state, pending, option_id) do
+      %{run_id: _run_id} = state -> state
+      _result -> state
+    end
   end
 
   defp resolve_pending_permission(_state, %{kind: :agent_permission, from: from}, option_id) do
@@ -851,6 +876,47 @@ defmodule Haven.Runs.RunServer do
     GenServer.reply(pending.from, {:error, error})
   end
 
+  defp resolve_pending_permission(state, %{kind: :terminal_create} = pending, "allow") do
+    with {:ok, opts} <- Terminals.command_options(pending.workspace, pending.request),
+         {:ok, pid} <- Terminals.start(opts) do
+      terminal_id = Keyword.fetch!(opts, :terminal_id)
+
+      Events.append!(
+        state.run_id,
+        "terminal_created",
+        Map.merge(pending.payload, %{"terminal_id" => terminal_id})
+      )
+
+      GenServer.reply(pending.from, {:ok, ACP.CreateTerminalResponse.new(terminal_id)})
+      %{state | terminals: Map.put(state.terminals, terminal_id, pid)}
+    else
+      {:error, reason} ->
+        error = terminal_error("Could not create terminal", reason)
+
+        Events.append!(
+          state.run_id,
+          "terminal_create_failed",
+          Map.merge(pending.payload, %{"error" => ACP.Error.to_json(error)})
+        )
+
+        GenServer.reply(pending.from, {:error, error})
+        state
+    end
+  end
+
+  defp resolve_pending_permission(state, %{kind: :terminal_create} = pending, _option_id) do
+    error = terminal_permission_denied_error()
+
+    Events.append!(
+      state.run_id,
+      "terminal_create_denied",
+      Map.merge(pending.payload, %{"error" => ACP.Error.to_json(error)})
+    )
+
+    GenServer.reply(pending.from, {:error, error})
+    state
+  end
+
   defp cancel_pending_permission(%{kind: :agent_permission, from: from}) do
     response =
       :cancelled
@@ -865,6 +931,10 @@ defmodule Haven.Runs.RunServer do
 
   defp cancel_pending_permission(%{kind: :file_write} = pending) do
     GenServer.reply(pending.from, {:error, permission_denied_error(pending.payload["path"])})
+  end
+
+  defp cancel_pending_permission(%{kind: :terminal_create} = pending) do
+    GenServer.reply(pending.from, {:error, terminal_permission_denied_error()})
   end
 
   defp permission_denied_error(path) do

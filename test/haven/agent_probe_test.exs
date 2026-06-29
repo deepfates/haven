@@ -267,6 +267,44 @@ defmodule Haven.AgentProbeTest do
            end)
   end
 
+  test "probes approval-gated terminal commands through a configured external ACP command" do
+    Application.put_env(:haven, :agents, %{
+      "fake-probe-terminal-ask" => fake_agent_spec("terminal")
+    })
+
+    assert {:ok, report} =
+             AgentProbe.run(
+               agent: "fake-probe-terminal-ask",
+               workspace: File.cwd!(),
+               prompt: "terminal",
+               terminal_create_policy: "ask",
+               resolve_permissions: "allow",
+               timeout: 5_000,
+               expect_events: [
+                 "agent_initialized",
+                 "agent_session_started",
+                 "terminal_create_requested",
+                 "permission_requested",
+                 "permission_resolved",
+                 "terminal_created",
+                 "terminal_output_succeeded",
+                 "turn_finished"
+               ]
+             )
+
+    assert report.status == "idle"
+    assert report.missing_expected_events == []
+    assert report.agent == "fake-probe-terminal-ask"
+
+    assert Enum.any?(report.events, fn
+             %{type: "permission_requested", payload: %{"toolCall" => %{"title" => title}}} ->
+               title == "Create terminal"
+
+             _event ->
+               false
+           end)
+  end
+
   test "passes when expected events are present" do
     assert {:ok, report} =
              AgentProbe.run(

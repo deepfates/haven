@@ -313,13 +313,16 @@ Proven:
   approving, though this is not yet a full diff/artifact review system.
 - Runs can carry per-run capability policy for file reads, file writes, and
   terminal creation. File reads/writes support explicit ask, allow, or deny
-  behavior; terminal creation currently supports allow or deny. Each applied
-  policy records a durable policy-decision event, and the run detail view
-  exposes the effective policy after creation so users can inspect a run's
+  behavior; terminal creation supports ask, allow, or deny. Each applied
+  automatic policy records a durable policy-decision event, and the run detail
+  view exposes the effective policy after creation so users can inspect a run's
   current authority without reconstructing it from the creation form.
 - Deterministic non-interactive ACP terminal create/wait/output/release requests
   can be handled, logged, scoped to the selected workspace, and projected back
   to the agent.
+- Terminal creation can be approval-gated by per-run policy: the rendered
+  permission card can approve the request and continue terminal execution, or
+  deny it before a terminal process is spawned.
 - Deterministic ACP terminal kill requests for direct child processes and
   shell-launched child processes can be handled, logged, followed by
   wait/output/release, and projected back to the agent.
@@ -364,7 +367,6 @@ Not yet proven:
 - Product-grade file artifact projections for write review beyond the current
   bounded line-oriented diff preview.
 - Terminal capability handling against real non-test external agents.
-- Ask/approval workflow for terminal creation policy.
 - Interactive terminal sessions and process-tree kill behavior.
 - ACP-native session resume policy.
 - Multi-run load behavior.

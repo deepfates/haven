@@ -207,7 +207,7 @@ defmodule HavenWeb.InboxLive do
     file_write_policy = capability_policy_value(params, "file_write_policy")
 
     terminal_create_policy =
-      capability_policy_value(params, "terminal_create_policy", ["allow", "deny"], "allow")
+      capability_policy_value(params, "terminal_create_policy", ["ask", "allow", "deny"], "allow")
 
     %{
       "title" => if(title == "", do: "Untitled run", else: title),
@@ -512,7 +512,7 @@ defmodule HavenWeb.InboxLive do
                   field={@form[:terminal_create_policy]}
                   type="select"
                   label="Terminals"
-                  options={[{"Allow", "allow"}, {"Deny", "deny"}]}
+                  options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
                 />
               </div>
             </.form>

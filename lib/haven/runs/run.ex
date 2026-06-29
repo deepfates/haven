@@ -67,6 +67,8 @@ defmodule Haven.Runs.Run do
   defp capability_decision(value, _default) when value in ["ask", "allow", "deny"], do: value
   defp capability_decision(_value, default), do: default
 
-  defp terminal_capability_decision(value, _default) when value in ["allow", "deny"], do: value
+  defp terminal_capability_decision(value, _default) when value in ["ask", "allow", "deny"],
+    do: value
+
   defp terminal_capability_decision(_value, default), do: default
 end

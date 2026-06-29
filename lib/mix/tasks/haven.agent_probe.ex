@@ -76,7 +76,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     |> Keyword.update(:resolve_permissions, nil, &normalize_permission_resolution/1)
     |> normalize_capability_policy(:file_read_policy, ["ask", "allow", "deny"])
     |> normalize_capability_policy(:file_write_policy, ["ask", "allow", "deny"])
-    |> normalize_capability_policy(:terminal_create_policy, ["allow", "deny"])
+    |> normalize_capability_policy(:terminal_create_policy, ["ask", "allow", "deny"])
   end
 
   defp normalize_permission_resolution(nil), do: nil

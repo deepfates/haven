@@ -309,6 +309,9 @@ Evidence:
   `terminal/release` requests, verify durable `terminal_*` events, verify the
   agent receives output and exit status, and verify the final turn returns to
   visible `idle`.
+- LiveView integration tests verify terminal creation can be approval-gated by
+  per-run policy: approval continues terminal create/wait/output/release, while
+  denial returns a permission error without emitting `terminal_created`.
 - LiveView integration tests drive the stub agent through real ACP
   `terminal/kill` for a direct `sleep` process, then verify durable kill, wait,
   output, release, and final turn events.
@@ -324,12 +327,13 @@ Evidence:
   timeline events and final `idle` state.
 - Per-run capability policies can be selected when creating a run. LiveView
   integration tests verify file reads can be auto-allowed, file writes can be
-  auto-denied, and terminal creation can be auto-denied without opening a
-  permission card or spawning a terminal process, while durable
-  `capability_policy_applied` events record the policy decision. Browser smoke
-  verifies the same policy controls and rendered run timeline behavior. The run
-  detail facts panel also renders the effective policy, with LiveView and
-  browser coverage verifying the post-creation inspection path.
+  auto-denied, terminal creation can be approval-gated, and terminal creation
+  can be auto-denied without opening a permission card or spawning a terminal
+  process, while durable `capability_policy_applied` events record automatic
+  policy decisions. Browser smoke verifies the same policy controls and
+  rendered run timeline behavior. The run detail facts panel also renders the
+  effective policy, with LiveView and browser coverage verifying the
+  post-creation inspection path.
 - `mix haven.agent_probe` now exercises a configured ACP agent through Haven's
   real run lifecycle, including run creation, ACP boot/session setup, prompting,
   optional permission resolution, per-run capability policy, durable event
@@ -338,7 +342,8 @@ Evidence:
   durable artifact format instead of a copied terminal transcript. Current
   automated coverage runs this probe against `stub-acp`, including file policy
   allow and terminal-create policy deny stories, and against the configured
-  test-only fake ACP harness for file-read and terminal-command stories.
+  test-only fake ACP harness for file-read, terminal-command, and
+  approval-gated terminal-command stories.
   Real-agent proof still requires running the same probe against a non-test
   configured ACP command with expectations for the specific story being
   validated.
@@ -360,8 +365,7 @@ Still missing:
   bounded proposed-content preview plus a bounded line-oriented diff preview on
   write permission requests.
 - PTY-style interactive terminal sessions.
-- Broader per-run capability policy, including terminal approval prompts and
-  scoped path rules.
+- Broader per-run capability policy, including scoped path rules.
 
 ## Not Proven Yet
 

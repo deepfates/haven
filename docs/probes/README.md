@@ -48,6 +48,19 @@ mix haven.agent_probe \
   --agent my-agent \
   --workspace /path/to/repo \
   --prompt "run the test command" \
+  --terminal-create-policy ask \
+  --resolve-permissions allow \
+  --expect-event permission_requested \
+  --expect-event permission_resolved \
+  --expect-event terminal_created \
+  --expect-event terminal_output_succeeded \
+  --expect-event turn_finished \
+  --report docs/probes/my-agent-terminal-approval.json
+
+mix haven.agent_probe \
+  --agent my-agent \
+  --workspace /path/to/repo \
+  --prompt "run the test command" \
   --terminal-create-policy allow \
   --expect-event terminal_created \
   --expect-event terminal_output_succeeded \

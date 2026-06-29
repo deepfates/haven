@@ -1347,6 +1347,150 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Terminal failed: Permission denied"
   end
 
+  test "asks before creating an ACP terminal when the run policy requires approval", %{
+    conn: conn
+  } do
+    {:ok, run} =
+      Runs.create_run(%{
+        "title" => "Terminal ask run",
+        "capability_policy" => %{"terminal_create" => "ask"}
+      })
+
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> element("#sample-terminal-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_create_requested",
+                      payload: %{"command" => "echo"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_requested",
+                      payload: %{
+                        "request_id" => request_id,
+                        "toolCall" => %{
+                          "title" => "Create terminal",
+                          "rawInput" => %{"command" => "echo"}
+                        }
+                      }
+                    }},
+                   1_000
+
+    assert has_element?(view, "#pending-permission-card", "Create terminal")
+    assert has_element?(view, "#pending-permission-card", "Allow terminal")
+    refute_receive {:event_appended, %{type: "terminal_created"}}, 100
+
+    view
+    |> element(~s|#pending-permission-card button[phx-value-option-id="allow"]|)
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_resolved",
+                      payload: %{
+                        "request_id" => ^request_id,
+                        "option_id" => "allow",
+                        "actor" => "local_user"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{type: "terminal_created", payload: %{"terminal_id" => terminal_id}}},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_output_succeeded",
+                      payload: %{"terminal_id" => ^terminal_id, "exit_status" => 0}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Terminal output: hello (exit 0)"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+    refute has_element?(view, "#pending-permission-card")
+  end
+
+  test "denies an approval-gated ACP terminal before spawning it", %{conn: conn} do
+    {:ok, run} =
+      Runs.create_run(%{
+        "title" => "Terminal ask denied run",
+        "capability_policy" => %{"terminal_create" => "ask"}
+      })
+
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> element("#sample-terminal-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_requested",
+                      payload: %{
+                        "request_id" => request_id,
+                        "toolCall" => %{"title" => "Create terminal"}
+                      }
+                    }},
+                   1_000
+
+    view
+    |> element(~s|#pending-permission-card button[phx-value-option-id="deny"]|)
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_resolved",
+                      payload: %{
+                        "request_id" => ^request_id,
+                        "option_id" => "deny",
+                        "actor" => "local_user"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_create_denied",
+                      payload: %{
+                        "command" => "echo",
+                        "error" => %{"data" => %{"reason" => "permission_denied"}}
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Terminal failed: Permission denied"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+    refute_receive {:event_appended, %{type: "terminal_created"}}, 100
+    refute has_element?(view, "#pending-permission-card")
+  end
+
   test "handles ACP terminal kill requests visibly", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Terminal kill run"})
     stop_run_server_on_exit(run.id)
