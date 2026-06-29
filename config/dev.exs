@@ -67,6 +67,13 @@ config :haven, HavenWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :haven, dev_routes: true
 
+config :haven, :agents, %{
+  "malformed-agent" => %{
+    executable: "mix",
+    args: ["run", "--no-compile", "--no-start", "priv/malformed_agent.exs"]
+  }
+}
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 

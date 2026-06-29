@@ -38,6 +38,9 @@ In development, there are HTTP controls for deterministic local testing:
 curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/echo
 curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/permission
 curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow
+curl -X POST http://127.0.0.1:4000/dev/runs \
+  -H 'content-type: application/json' \
+  -d '{"title":"Malformed smoke","agent":"malformed-agent","workspace":"'"$PWD"'"}'
 ```
 
 To probe any configured ACP agent through Haven's real run lifecycle:

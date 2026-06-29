@@ -20,8 +20,9 @@ runs with explicit human decisions.
   pending permission and deny it, cancel a waiting permission turn, submit a
   stale permission decision and observe ignored resolution, reload disconnected
   history, explicitly reconnect that history, restart after an actual agent
-  crash, trigger malformed ACP output after a successful session start, and
-  observe final status plus persisted timeline events in the in-app browser.
+  crash, trigger malformed ACP startup output, trigger malformed ACP output
+  after a successful session start, and observe final status plus persisted
+  timeline events in the in-app browser.
 
 ## Proven Now
 
@@ -219,6 +220,11 @@ Evidence:
 - LiveView integration tests verify malformed ACP startup output records
   `agent_protocol_failed`, marks the run `failed`, renders visibly, and does not
   restart the malformed agent process.
+- Browser smoke verifies malformed ACP startup output through the rendered run
+  detail: status remains `failed`, controls are disabled, process state is
+  `not connected`, runtime `agent_protocol_failed` is visible, and clicking
+  Restart appends `run_reconnect_requested` plus a second runtime failure
+  instead of hiding the error.
 - LiveView integration tests and browser smoke verify malformed agent output
   after a successful ACP session has started records `agent_protocol_failed`,
   fails the active turn with `malformed_agent_output`, marks the run `failed`,
@@ -303,8 +309,6 @@ be counted as complete until there is executable evidence.
 - Authentication flows for agents that require auth; configured env can pass
   secrets to launched agents, but no interactive auth flow is proven.
 - Session load/resume/fork/list support when agents expose it.
-- Browser smoke for malformed ACP startup output; current executable evidence is
-  LiveView-level.
 - Browser smoke for non-message session updates; current executable evidence is
   LiveView-level.
 - Product-grade workspace and agent configuration UI.

@@ -47,6 +47,7 @@ defmodule HavenWeb.Router do
 
       post "/runs/:id/sample/:sample", DevController, :sample
       post "/runs/:id/permissions/:request_id/:option_id", DevController, :permission
+      post "/runs", DevController, :create_run
     end
   end
 end
