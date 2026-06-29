@@ -288,6 +288,68 @@ defmodule HavenWeb.RunLiveTest do
     assert render(view) =~ "failed"
   end
 
+  test "cancel returns an open non-permission turn to idle", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Cancel open turn"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "wait"})
+    |> render_submit()
+
+    assert_receive {:event_appended, %{type: "turn_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "user_message", payload: %{"text" => "wait"}}}, 1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Waiting for cancellation."}
+                    }},
+                   1_000
+
+    assert render(view) =~ "running"
+
+    view
+    |> element("#cancel-run-button")
+    |> render_click()
+
+    assert_receive {:event_appended, %{type: "turn_cancelled"}}, 1_000
+    assert render(view) =~ "idle"
+  end
+
+  test "non-message session updates are preserved in the timeline", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Tool update run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "unknown-update"})
+    |> render_submit()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "tool_call_update",
+                      payload: %{
+                        "sessionUpdate" => "tool_call_update",
+                        "toolCallId" => "tool_unknown_1",
+                        "title" => "Inspect workspace"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    html = render(view)
+    assert html =~ "tool_call_update"
+    assert html =~ "Inspect workspace"
+  end
+
   defp sync_run_server!(run_id) do
     {:ok, pid} = Runs.ensure_started(run_id)
     _ = :sys.get_state(pid)

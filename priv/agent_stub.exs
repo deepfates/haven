@@ -2,7 +2,12 @@ defmodule StubAgent do
   alias Haven.ACPWire
 
   def run(workspace) do
-    loop(%{workspace: workspace, next_permission_id: 1, awaiting_permission: %{}})
+    loop(%{
+      workspace: workspace,
+      next_permission_id: 1,
+      awaiting_permission: %{},
+      awaiting_prompt: %{}
+    })
   end
 
   defp loop(state) do
@@ -81,6 +86,29 @@ defmodule StubAgent do
               Map.put(state.awaiting_permission, permission_id, {prompt_id, request.session_id})
         }
 
+      text == "wait" ->
+        send_agent_text(request.session_id, "Waiting for cancellation.")
+
+        %{
+          state
+          | awaiting_prompt:
+              Map.update(state.awaiting_prompt, request.session_id, [prompt_id], &[prompt_id | &1])
+        }
+
+      text == "unknown-update" ->
+        fields = %ACP.ToolCallUpdateFields{
+          title: "Inspect workspace",
+          status: :in_progress,
+          raw_input: %{"workspace" => state.workspace}
+        }
+
+        update =
+          ACP.ToolCallUpdate.new("tool_unknown_1", fields)
+
+        send_session_update(request.session_id, {:tool_call_update, update})
+        send_prompt_result(prompt_id)
+        state
+
       text == "die" ->
         System.halt(1)
 
@@ -105,7 +133,18 @@ defmodule StubAgent do
     end
   end
 
-  defp handle(%ACP.RPC.Notification{method: "session/cancel"}, state), do: state
+  defp handle(%ACP.RPC.Notification{method: "session/cancel", params: params}, state) do
+    {:ok, cancel} = ACP.CancelNotification.from_json(params)
+
+    {prompt_ids, awaiting_prompt} = Map.pop(state.awaiting_prompt, cancel.session_id, [])
+
+    Enum.each(prompt_ids, fn prompt_id ->
+      send_agent_text(cancel.session_id, "Turn cancelled.")
+      send_prompt_result(prompt_id)
+    end)
+
+    %{state | awaiting_prompt: awaiting_prompt}
+  end
   defp handle(_message, state), do: state
 
   defp prompt_text([{:text, %ACP.TextContent{text: text}} | _]), do: text
@@ -123,11 +162,15 @@ defmodule StubAgent do
   defp permission_message(_outcome), do: "Permission resolved."
 
   defp send_agent_text(session_id, text) do
+    send_session_update(
+      session_id,
+      {:agent_message_chunk, ACP.ContentChunk.new(ACP.ContentBlock.from_string(text))}
+    )
+  end
+
+  defp send_session_update(session_id, update) do
     notification =
-      ACP.SessionNotification.new(
-        session_id,
-        {:agent_message_chunk, ACP.ContentChunk.new(ACP.ContentBlock.from_string(text))}
-      )
+      ACP.SessionNotification.new(session_id, update)
 
     ACPWire.send(
       ACP.RPC.Notification.new("session/update", ACP.SessionNotification.to_json(notification))

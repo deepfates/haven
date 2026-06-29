@@ -41,13 +41,14 @@ Evidence:
 
 - `test/haven_web/live/run_live_test.exs` verifies startup events are persisted
   and survive a fresh LiveView mount.
+- LiveView integration tests verify a non-message ACP `tool_call_update`
+  notification is preserved as a durable timeline event.
 - Browser smoke verifies the timeline renders protocol-shaped events during a
   real browser session.
 
 Still missing:
 
 - Rich protocol event normalization.
-- Tool activity beyond permission requests.
 - Clear visual distinction between app-level and protocol-level events.
 
 ### Prompting And Control
@@ -61,10 +62,14 @@ Evidence:
 - Tests assert the run detail returns to visible `idle` after completion.
 - LiveView integration tests cancel a run while it is blocked on permission and
   verify the outstanding permission is durably resolved as cancelled.
+- LiveView integration tests cancel an open non-permission turn and verify the
+  run returns to visible `idle`.
 
 Still missing:
 
-- Strong cancel semantics for a non-permission in-flight prompt.
+- Browser smoke for non-permission cancel; current executable evidence is
+  LiveView-level.
+- Strong suppression/correlation of late chunks from cancelled prompts.
 - Retry or continue after recoverable failure.
 - Disabled controls for all impossible states, not only waiting permissions.
 
@@ -131,18 +136,18 @@ be counted as complete until there is executable evidence.
 - Terminal create/output/release/kill/wait requests.
 - Authentication flows for agents that require auth.
 - Session load/resume/fork/list support when agents expose it.
-- Explicit handling for unsupported ACP methods and malformed frames.
+- Explicit handling for malformed ACP frames.
 - Browser smoke for agent death; current executable evidence is LiveView-level.
+- Browser smoke for non-message session updates; current executable evidence is
+  LiveView-level.
 - Product-grade workspace and agent configuration.
 - Audit metadata for who made a permission decision.
 
 ## Next Best Validation Work
 
-1. Add a supervised fake ACP agent test harness that can deterministically hang,
-   stream partial chunks, request duplicate permissions, and emit unknown update
-   types.
-2. Add LiveView tests for non-permission cancel, unknown update types, restart,
-   and reload after process exit.
+1. Add a supervised fake ACP agent test harness that can stream partial chunks,
+   request duplicate permissions, emit malformed frames, and simulate restart.
+2. Add LiveView tests for restart and reload after process exit.
 3. Add a real ACP-agent adapter path configurable per run instead of hard-coding
    the stub in `RunServer`.
 4. Add file and terminal capability handling, first against deterministic fake
