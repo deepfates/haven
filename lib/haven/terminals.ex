@@ -10,6 +10,7 @@ defmodule Haven.Terminals do
   def start(opts), do: GenServer.start(__MODULE__, opts)
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
 
+  def info(pid), do: GenServer.call(pid, :info, :infinity)
   def output(pid), do: GenServer.call(pid, :output, :infinity)
   def wait_for_exit(pid), do: GenServer.call(pid, :wait_for_exit, :infinity)
   def kill(pid), do: GenServer.call(pid, :kill, :infinity)
@@ -54,6 +55,16 @@ defmodule Haven.Terminals do
   end
 
   @impl true
+  def handle_call(:info, _from, state) do
+    {:reply,
+     %{
+       terminal_id: state.terminal_id,
+       os_pid: state.os_pid,
+       exit_status: state.exit_status,
+       output_bytes: byte_size(state.output)
+     }, state}
+  end
+
   def handle_call(:output, _from, state) do
     {:reply, {:ok, state.output, state.exit_status}, state}
   end

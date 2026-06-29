@@ -5,6 +5,7 @@ defmodule HavenWeb.RunLiveTest do
   alias Haven.Repo
   alias Haven.Runs
   alias Haven.Runs.{Run, RunServer}
+  alias Haven.TerminalSessions
 
   test "renders a durable run timeline after startup and reload", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Durable run"})
@@ -1829,6 +1830,17 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "terminal_created"
     assert html =~ "terminal_output_succeeded"
     assert html =~ "Terminal output: hello"
+
+    assert [session] = TerminalSessions.list_for_run(run.id)
+    assert session.terminal_id == terminal_id
+    assert session.command == "echo"
+    assert session.args == %{"items" => ["hello"]}
+    assert session.cwd == run.workspace
+    assert session.status == "exited"
+    assert session.exit_status == 0
+    assert session.output_bytes == byte_size("hello\n")
+    assert session.output_preview == "hello\n"
+    assert session.released_at
   end
 
   test "auto-denies ACP terminal creation when the run policy rejects it", %{conn: conn} do
@@ -1884,6 +1896,8 @@ defmodule HavenWeb.RunLiveTest do
 
     assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
     refute_receive {:event_appended, %{type: "terminal_created"}}, 100
+
+    assert TerminalSessions.list_for_run(run.id) == []
 
     html = render(view)
     assert html =~ "terminal_create_denied"
@@ -1968,6 +1982,11 @@ defmodule HavenWeb.RunLiveTest do
 
     assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
     refute has_element?(view, "#pending-permission-card")
+
+    assert [session] = TerminalSessions.list_for_run(run.id)
+    assert session.terminal_id == terminal_id
+    assert session.status == "exited"
+    assert session.released_at
   end
 
   test "denies an approval-gated ACP terminal before spawning it", %{conn: conn} do
@@ -2032,6 +2051,7 @@ defmodule HavenWeb.RunLiveTest do
     assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
     refute_receive {:event_appended, %{type: "terminal_created"}}, 100
     refute has_element?(view, "#pending-permission-card")
+    assert TerminalSessions.list_for_run(run.id) == []
   end
 
   test "handles ACP terminal kill requests visibly", %{conn: conn} do
@@ -2095,6 +2115,13 @@ defmodule HavenWeb.RunLiveTest do
                    1_000
 
     assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    assert [session] = TerminalSessions.list_for_run(run.id)
+    assert session.terminal_id == terminal_id
+    assert session.command == "sleep"
+    assert session.status == "killed"
+    assert session.exit_status == -1
+    assert session.released_at
 
     {:ok, _reloaded, html} = live(conn, ~p"/runs/#{run.id}")
 

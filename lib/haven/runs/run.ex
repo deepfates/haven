@@ -15,6 +15,7 @@ defmodule Haven.Runs.Run do
     field :capability_policy, :map, default: %{}
 
     has_many :events, Haven.Events.Event
+    has_many :terminal_sessions, Haven.TerminalSessions.TerminalSession
 
     timestamps(type: :utc_datetime)
   end

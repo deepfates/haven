@@ -9,6 +9,7 @@ defmodule Haven.Runs.RunServer do
   alias Haven.Runs
   alias Haven.Runs.ACPClientHandler
   alias Haven.ACPClientSide
+  alias Haven.TerminalSessions
   alias Haven.Terminals
   alias Haven.WorkspaceFiles
   alias Haven.Agents
@@ -594,6 +595,8 @@ defmodule Haven.Runs.RunServer do
 
     with {:ok, pid} <- fetch_terminal(state, request.terminal_id),
          {:ok, output, exit_status} <- Terminals.output(pid) do
+      TerminalSessions.record_output!(state.run_id, request.terminal_id, output, exit_status)
+
       Events.append!(
         state.run_id,
         "terminal_output_succeeded",
@@ -628,6 +631,8 @@ defmodule Haven.Runs.RunServer do
 
     with {:ok, pid} <- fetch_terminal(state, request.terminal_id),
          {:ok, exit_status} <- Terminals.wait_for_exit(pid) do
+      TerminalSessions.mark_exited!(state.run_id, request.terminal_id, exit_status)
+
       Events.append!(
         state.run_id,
         "terminal_wait_succeeded",
@@ -658,6 +663,7 @@ defmodule Haven.Runs.RunServer do
 
     with {:ok, pid} <- fetch_terminal(state, request.terminal_id),
          :ok <- Terminals.kill(pid) do
+      TerminalSessions.mark_killed!(state.run_id, request.terminal_id)
       Events.append!(state.run_id, "terminal_kill_succeeded", payload)
       {:reply, {:ok, ACP.KillTerminalCommandResponse.new()}, state}
     else
@@ -694,6 +700,7 @@ defmodule Haven.Runs.RunServer do
 
       {pid, terminals} ->
         Terminals.release(pid)
+        TerminalSessions.mark_released!(state.run_id, request.terminal_id)
         Events.append!(state.run_id, "terminal_released", payload)
         {:reply, {:ok, ACP.ReleaseTerminalResponse.new()}, %{state | terminals: terminals}}
     end
@@ -837,6 +844,31 @@ defmodule Haven.Runs.RunServer do
     }
   end
 
+  defp terminal_session_attrs(request, opts, terminal_info) do
+    %{
+      terminal_id: terminal_info.terminal_id,
+      command: request.command,
+      args: %{"items" => request.args || []},
+      cwd: Keyword.fetch!(opts, :cwd),
+      executable: Keyword.get(opts, :executable),
+      env_keys: %{"items" => terminal_env_keys(request.env || [])},
+      os_pid: terminal_info.os_pid,
+      status: "running",
+      output_bytes: terminal_info.output_bytes || 0
+    }
+  end
+
+  defp terminal_env_keys(env) do
+    env
+    |> Enum.map(fn
+      %ACP.EnvVariable{name: name} -> name
+      %{"name" => name} -> name
+      %{name: name} -> name
+      _other -> nil
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
   defp file_capability_decision(run, capability), do: capability_decision(run, capability)
 
   defp file_capability_path_scopes(run, capability) do
@@ -938,11 +970,17 @@ defmodule Haven.Runs.RunServer do
     with {:ok, opts} <- Terminals.command_options(pending.workspace, pending.request),
          {:ok, pid} <- Terminals.start(opts) do
       terminal_id = Keyword.fetch!(opts, :terminal_id)
+      terminal_info = Terminals.info(pid)
 
       Events.append!(
         state.run_id,
         "terminal_created",
         Map.merge(pending.payload, %{"terminal_id" => terminal_id})
+      )
+
+      TerminalSessions.create_session!(
+        state.run_id,
+        terminal_session_attrs(pending.request, opts, terminal_info)
       )
 
       GenServer.reply(pending.from, {:ok, ACP.CreateTerminalResponse.new(terminal_id)})

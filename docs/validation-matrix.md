@@ -468,6 +468,13 @@ Evidence:
   structured timeline evidence instead of raw JSON: file paths, resolved paths,
   command arguments, terminal ids, byte counts, exit statuses, and permission
   errors are projected as labeled fields.
+- ACP terminal commands now also create durable `terminal_sessions` rows with
+  terminal id, command, args, cwd, executable, environment key names, OS pid,
+  lifecycle status, exit status, output byte count, bounded output preview, and
+  cleanup timestamps. Data-context tests verify bounded output storage and
+  killed/exited/released lifecycle semantics; LiveView integration tests verify
+  these rows are created and updated through real stub ACP terminal
+  create/wait/output/kill/release flows.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
   gate rather than only a documentation convention. Committed reports can now

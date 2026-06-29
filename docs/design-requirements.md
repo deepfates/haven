@@ -218,7 +218,9 @@ Likely additional models:
 - `agents`
 - `permissions`
 - `artifacts`
-- `terminal_sessions`
+- `terminal_sessions` for durable terminal command/session projections; current
+  implementation records bounded non-interactive terminal facts, while
+  PTY-style interaction remains a later requirement.
 - `files_changed`
 - `run_snapshots` or projections for faster inbox loading
 
