@@ -442,6 +442,10 @@ Evidence:
   review card in the timeline, so long real-agent runs show an action and its
   result together while orphan updates remain visible as standalone protocol
   evidence.
+- Haven-mediated `fs/*` and `terminal/*` client capability events now render as
+  structured timeline evidence instead of raw JSON: file paths, resolved paths,
+  command arguments, terminal ids, byte counts, exit statuses, and permission
+  errors are projected as labeled fields.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
   gate rather than only a documentation convention.
@@ -455,8 +459,9 @@ Still missing:
   `terminal/release`, and `terminal/kill`).
 - Product-grade file artifact projections for review; current evidence is a
   bounded proposed-content preview plus a bounded line-oriented diff preview on
-  write permission requests, and grouped compact `tool_call` projections for
-  real `codex-acp` file/terminal activity.
+  write permission requests, structured Haven-mediated client capability event
+  projections, and grouped compact `tool_call` projections for real `codex-acp`
+  file/terminal activity.
 - PTY-style interactive terminal sessions.
 - More expressive scoped-policy UI beyond comma-separated path fields.
 

@@ -248,6 +248,34 @@ defmodule HavenWeb.RunLive do
               {get_in(@event.payload, ["toolCall", "title"]) || "Permission requested"}
             </p>
             <pre class="mt-2 overflow-x-auto rounded-md bg-zinc-100 p-3 text-xs text-zinc-700"><%= Jason.encode!(get_in(@event.payload, ["toolCall", "rawInput"]) || %{}, pretty: true) %></pre>
+          <% type
+             when type in [
+                    "file_read_requested",
+                    "file_read_succeeded",
+                    "file_read_failed",
+                    "file_read_denied",
+                    "file_write_requested",
+                    "file_write_succeeded",
+                    "file_write_failed",
+                    "file_write_denied",
+                    "terminal_create_requested",
+                    "terminal_created",
+                    "terminal_create_denied",
+                    "terminal_create_failed",
+                    "terminal_wait_requested",
+                    "terminal_wait_succeeded",
+                    "terminal_wait_failed",
+                    "terminal_output_requested",
+                    "terminal_output_succeeded",
+                    "terminal_output_failed",
+                    "terminal_release_requested",
+                    "terminal_released",
+                    "terminal_release_failed",
+                    "terminal_kill_requested",
+                    "terminal_kill_succeeded",
+                    "terminal_kill_failed"
+                  ] -> %>
+            <.client_capability_event seq={@event.seq} type={@event.type} payload={@event.payload} />
           <% "run_reconnect_requested" -> %>
             <p class="font-semibold text-zinc-900">Reconnect requested</p>
             <p class="mt-1 text-sm text-zinc-600">
@@ -269,6 +297,41 @@ defmodule HavenWeb.RunLive do
         <% end %>
       </div>
     </article>
+    """
+  end
+
+  defp client_capability_event(assigns) do
+    assigns =
+      assigns
+      |> assign(:title, client_event_title(assigns.type))
+      |> assign(:status, client_event_status(assigns.type))
+      |> assign(:tag, client_event_tag(assigns.type))
+      |> assign(:fields, client_event_fields(assigns.type, assigns.payload))
+      |> assign(:error, client_event_error(assigns.payload))
+
+    ~H"""
+    <div class="space-y-2">
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
+        <span class="rounded-md bg-amber-600 px-2 py-1 text-xs font-semibold uppercase text-white">
+          {@tag}
+        </span>
+        <p class="min-w-0 font-semibold text-zinc-900">{@title}</p>
+        <span class={client_event_status_class(@status)}>
+          {@status}
+        </span>
+      </div>
+
+      <dl class="grid gap-2 text-sm text-zinc-700 sm:grid-cols-2">
+        <div :for={field <- @fields} id={"client-event-#{@seq}-#{field.id}"} class="min-w-0">
+          <dt class="text-xs font-semibold uppercase text-zinc-500">{field.label}</dt>
+          <dd class="truncate font-mono text-xs">{field.value}</dd>
+        </div>
+      </dl>
+
+      <p :if={@error} id={"client-event-#{@seq}-error"} class="text-sm font-medium text-rose-700">
+        {@error}
+      </p>
+    </div>
     """
   end
 
@@ -424,6 +487,105 @@ defmodule HavenWeb.RunLive do
       "protocol" -> "Protocol"
       "runtime" -> "Runtime"
       kind -> String.capitalize(kind)
+    end
+  end
+
+  defp client_event_title(type) do
+    cond do
+      String.starts_with?(type, "file_read_") -> "Read file"
+      String.starts_with?(type, "file_write_") -> "Write file"
+      type == "terminal_created" -> "Create terminal"
+      type == "terminal_released" -> "Release terminal"
+      String.starts_with?(type, "terminal_create_") -> "Create terminal"
+      String.starts_with?(type, "terminal_wait_") -> "Wait for terminal"
+      String.starts_with?(type, "terminal_output_") -> "Read terminal output"
+      String.starts_with?(type, "terminal_release_") -> "Release terminal"
+      String.starts_with?(type, "terminal_kill_") -> "Kill terminal"
+      true -> String.replace(type, "_", " ")
+    end
+  end
+
+  defp client_event_tag(type) do
+    cond do
+      String.starts_with?(type, "file_") -> "File"
+      String.starts_with?(type, "terminal_") -> "Terminal"
+      true -> "Client"
+    end
+  end
+
+  defp client_event_status(type) do
+    cond do
+      String.ends_with?(type, "_requested") -> "Requested"
+      String.ends_with?(type, "_succeeded") -> "Succeeded"
+      String.ends_with?(type, "_failed") -> "Failed"
+      String.ends_with?(type, "_denied") -> "Denied"
+      String.ends_with?(type, "_created") -> "Created"
+      String.ends_with?(type, "_released") -> "Released"
+      true -> "Recorded"
+    end
+  end
+
+  defp client_event_status_class(status) do
+    [
+      "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase",
+      case status do
+        status when status in ["Succeeded", "Created", "Released"] ->
+          "border-emerald-200 bg-emerald-50 text-emerald-700"
+
+        status when status in ["Failed", "Denied"] ->
+          "border-rose-200 bg-rose-50 text-rose-700"
+
+        "Requested" ->
+          "border-amber-200 bg-amber-50 text-amber-700"
+
+        _ ->
+          "border-zinc-200 bg-zinc-50 text-zinc-600"
+      end
+    ]
+  end
+
+  defp client_event_fields(type, payload) do
+    [
+      client_field("path", "Path", payload["path"]),
+      client_field("resolved-path", "Resolved path", payload["resolved_path"]),
+      client_field("command", "Command", payload["command"]),
+      client_field("args", "Arguments", payload["args"]),
+      client_field("cwd", "Working directory", payload["cwd"]),
+      client_field("terminal-id", "Terminal id", payload["terminal_id"]),
+      client_field("bytes", "Bytes", payload["bytes"]),
+      client_field("exit-status", "Exit status", payload["exit_status"]),
+      client_field("line", "Line", payload["line"]),
+      client_field("limit", "Limit", payload["limit"])
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> then(fn fields ->
+      if fields == [] and client_event_error(payload) == nil do
+        [client_field("type", "Event", type)]
+      else
+        fields
+      end
+    end)
+  end
+
+  defp client_field(_id, _label, nil), do: nil
+  defp client_field(_id, _label, ""), do: nil
+
+  defp client_field(id, label, value),
+    do: %{id: id, label: label, value: format_client_value(value)}
+
+  defp format_client_value(value) when is_list(value), do: Enum.join(value, " ")
+  defp format_client_value(value), do: to_string(value)
+
+  defp client_event_error(payload) do
+    case payload["error"] do
+      %{"message" => message, "data" => %{"reason" => reason}} ->
+        "#{message} (#{reason})"
+
+      %{"message" => message} ->
+        message
+
+      _ ->
+        nil
     end
   end
 

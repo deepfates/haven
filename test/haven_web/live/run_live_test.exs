@@ -396,6 +396,77 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#tool-result-output", "Grei terminal sentinel: amber-harbor-314")
   end
 
+  test "renders Haven-mediated file capability events as structured timeline evidence", %{
+    conn: conn
+  } do
+    {:ok, run} = Runs.create_run(%{"title" => "File client event projection"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+
+    Events.append!(run.id, "file_write_requested", %{
+      "bytes" => 21,
+      "path" => "notes/handoff.md",
+      "session_id" => "session_file"
+    })
+
+    Events.append!(run.id, "file_write_succeeded", %{
+      "path" => "notes/handoff.md",
+      "resolved_path" => "/workspace/notes/handoff.md",
+      "session_id" => "session_file"
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, ~s|#event-5[data-event-kind="client"]|, "Client request")
+    assert has_element?(view, "#event-5", "Write file")
+    assert has_element?(view, "#event-5", "Requested")
+    assert has_element?(view, "#client-event-5-path", "notes/handoff.md")
+    assert has_element?(view, "#client-event-5-bytes", "21")
+    assert has_element?(view, "#event-6", "Succeeded")
+    assert has_element?(view, "#client-event-6-resolved-path", "/workspace/notes/handoff.md")
+  end
+
+  test "renders Haven-mediated terminal capability events as structured timeline evidence", %{
+    conn: conn
+  } do
+    {:ok, run} = Runs.create_run(%{"title" => "Terminal client event projection"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+
+    Events.append!(run.id, "terminal_create_requested", %{
+      "args" => ["hello"],
+      "command" => "echo",
+      "cwd" => "/workspace",
+      "session_id" => "session_terminal"
+    })
+
+    Events.append!(run.id, "terminal_output_succeeded", %{
+      "bytes" => 6,
+      "exit_status" => 0,
+      "session_id" => "session_terminal",
+      "terminal_id" => "term-123"
+    })
+
+    Events.append!(run.id, "terminal_released", %{
+      "session_id" => "session_terminal",
+      "terminal_id" => "term-123"
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, ~s|#event-5[data-event-kind="client"]|, "Client request")
+    assert has_element?(view, "#event-5", "Create terminal")
+    assert has_element?(view, "#client-event-5-command", "echo")
+    assert has_element?(view, "#client-event-5-args", "hello")
+    assert has_element?(view, "#client-event-5-cwd", "/workspace")
+    assert has_element?(view, "#event-6", "Read terminal output")
+    assert has_element?(view, "#client-event-6-terminal-id", "term-123")
+    assert has_element?(view, "#client-event-6-exit-status", "0")
+    assert has_element?(view, "#client-event-6-bytes", "6")
+    assert has_element?(view, "#event-7", "Release terminal")
+    assert has_element?(view, "#event-7", "Released")
+  end
+
   test "keeps concurrent live runs isolated", %{conn: conn} do
     {:ok, alpha} = Runs.create_run(%{"title" => "Alpha run"})
     {:ok, beta} = Runs.create_run(%{"title" => "Beta run"})
