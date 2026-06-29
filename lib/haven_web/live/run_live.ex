@@ -112,11 +112,12 @@ defmodule HavenWeb.RunLive do
 
   defp assign_event_projection(socket, events) do
     filter = socket.assigns[:event_filter] || "all"
+    timeline_entries = timeline_entries(events, filter)
 
     socket
     |> assign(:event_filters, @event_filters)
     |> assign(:event_counts, event_counts(events))
-    |> assign(:filtered_events, filter_events(events, filter))
+    |> assign(:timeline_entries, timeline_entries)
   end
 
   defp valid_event_filter?(kind) do
@@ -136,6 +137,45 @@ defmodule HavenWeb.RunLive do
       |> Enum.frequencies()
 
     Map.put(counts, "all", length(events))
+  end
+
+  defp timeline_entries(events, filter) do
+    paired_results = paired_tool_results(events)
+    paired_result_seqs = MapSet.new(Map.values(paired_results), & &1.seq)
+
+    events
+    |> filter_events(filter)
+    |> Enum.flat_map(fn event ->
+      cond do
+        event.type == "tool_call" ->
+          [%{event: event, result_event: Map.get(paired_results, tool_call_id(event.payload))}]
+
+        event.type == "tool_call_update" and MapSet.member?(paired_result_seqs, event.seq) ->
+          []
+
+        true ->
+          [%{event: event, result_event: nil}]
+      end
+    end)
+  end
+
+  defp paired_tool_results(events) do
+    started_ids =
+      events
+      |> Enum.filter(&(&1.type == "tool_call"))
+      |> MapSet.new(&tool_call_id(&1.payload))
+
+    events
+    |> Enum.filter(&(&1.type == "tool_call_update"))
+    |> Enum.reduce(%{}, fn event, acc ->
+      id = tool_call_id(event.payload)
+
+      if id && MapSet.member?(started_ids, id) do
+        Map.put_new(acc, id, event)
+      else
+        acc
+      end
+    end)
   end
 
   defp can_reconnect?(run, live?) do
@@ -159,6 +199,7 @@ defmodule HavenWeb.RunLive do
       assigns
       |> assign(:event_kind, event_kind(assigns.event.type))
       |> assign(:event_kind_label, event_kind_label(assigns.event.type))
+      |> assign_new(:result_event, fn -> nil end)
 
     ~H"""
     <article
@@ -169,7 +210,7 @@ defmodule HavenWeb.RunLive do
       <div class="flex items-center justify-between gap-3">
         <div class="flex min-w-0 flex-wrap items-center gap-2">
           <span class="font-mono text-xs uppercase text-zinc-500">
-            #{@event.seq} · {@event.type}
+            {event_sequence_label(@event, @result_event)} · {event_type_label(@event, @result_event)}
           </span>
           <span class={event_kind_class(@event_kind)}>
             {@event_kind_label}
@@ -188,6 +229,13 @@ defmodule HavenWeb.RunLive do
             <p class="whitespace-pre-wrap text-sky-700">{@event.payload["text"]}</p>
           <% "tool_call" -> %>
             <.tool_call_event payload={@event.payload} />
+            <div
+              :if={@result_event}
+              id={"tool-call-result-#{@event.seq}"}
+              class="mt-4 border-t border-zinc-200 pt-4"
+            >
+              <.tool_call_update_event payload={@result_event.payload} />
+            </div>
           <% "tool_call_update" -> %>
             <.tool_call_update_event payload={@event.payload} />
           <% "agent_thought_redacted" -> %>
@@ -411,6 +459,18 @@ defmodule HavenWeb.RunLive do
     end
   end
 
+  defp tool_call_id(payload) do
+    payload["toolCallId"] || payload["tool_call_id"] || payload["id"]
+  end
+
+  defp event_sequence_label(event, %{seq: result_seq}), do: "##{event.seq}-#{result_seq}"
+  defp event_sequence_label(event, _result_event), do: "##{event.seq}"
+
+  defp event_type_label(%{type: "tool_call"}, %{type: "tool_call_update"}),
+    do: "tool_call + tool_call_update"
+
+  defp event_type_label(event, _result_event), do: event.type
+
   defp event_card_class(kind) do
     [
       "rounded-lg border bg-white p-4 shadow-sm",
@@ -510,13 +570,17 @@ defmodule HavenWeb.RunLive do
                 </button>
               </div>
               <div
-                :if={@filtered_events == []}
+                :if={@timeline_entries == []}
                 id="timeline-empty-filter"
                 class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
               >
                 No events match this filter.
               </div>
-              <.event :for={event <- @filtered_events} event={event} />
+              <.event
+                :for={entry <- @timeline_entries}
+                event={entry.event}
+                result_event={entry.result_event}
+              />
             </section>
           </div>
 

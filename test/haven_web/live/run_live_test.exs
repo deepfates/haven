@@ -339,8 +339,11 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
 
     assert has_element?(view, ~s|#event-5[data-event-kind="protocol"]|, "Protocol")
+    assert has_element?(view, "#event-5", "#5-6 · tool_call + tool_call_update")
+    refute has_element?(view, "#event-6")
     assert has_element?(view, "#tool-call-path", "/workspace/README.md")
     assert has_element?(view, "#tool-call-status", "in_progress")
+    assert has_element?(view, "#tool-call-result-5")
     assert render(view) =~ "File read"
     assert render(view) =~ "Completed successfully"
     assert has_element?(view, "#tool-result-output", "Grei file sentinel: quartz-lantern-729")
@@ -383,9 +386,12 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
 
     assert has_element?(view, ~s|#event-5[data-event-kind="protocol"]|, "Protocol")
+    assert has_element?(view, "#event-5", "#5-6 · tool_call + tool_call_update")
+    refute has_element?(view, "#event-6")
     assert render(view) =~ "Terminal"
     assert has_element?(view, "#tool-call-command", "printf")
     assert has_element?(view, "#tool-call-cwd", "/workspace")
+    assert has_element?(view, "#tool-call-result-5")
     assert has_element?(view, "#tool-result-exit-code", "0")
     assert has_element?(view, "#tool-result-output", "Grei terminal sentinel: amber-harbor-314")
   end

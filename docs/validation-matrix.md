@@ -438,6 +438,10 @@ Evidence:
   terminal activity as first-class reviewable evidence: file path, command,
   working directory, status, exit code, and bounded output preview are projected
   without requiring users to inspect raw JSON.
+- Matching `tool_call` starts and `tool_call_update` results are paired into one
+  review card in the timeline, so long real-agent runs show an action and its
+  result together while orphan updates remain visible as standalone protocol
+  evidence.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
   gate rather than only a documentation convention.
@@ -451,8 +455,8 @@ Still missing:
   `terminal/release`, and `terminal/kill`).
 - Product-grade file artifact projections for review; current evidence is a
   bounded proposed-content preview plus a bounded line-oriented diff preview on
-  write permission requests, and compact `tool_call` projections for real
-  `codex-acp` file/terminal activity.
+  write permission requests, and grouped compact `tool_call` projections for
+  real `codex-acp` file/terminal activity.
 - PTY-style interactive terminal sessions.
 - More expressive scoped-policy UI beyond comma-separated path fields.
 
@@ -477,7 +481,5 @@ be counted as complete until there is executable evidence.
 1. Find or build a non-test ACP-speaking adapter that exercises Haven-mediated
    `fs/*` and `terminal/*` client requests, then commit passing
    `--require-real-agent` reports for those stories.
-2. Add richer grouped projections that pair `tool_call` starts with their
-   corresponding `tool_call_update` results across long timelines.
-3. Add interactive-terminal evidence once the terminal model moves beyond
+2. Add interactive-terminal evidence once the terminal model moves beyond
    bounded non-interactive command execution.
