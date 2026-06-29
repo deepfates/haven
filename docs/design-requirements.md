@@ -281,11 +281,16 @@ Proven:
 - Permission requests can suspend inside an ACP handler and resume from UI/API
   action.
 - Ordered session updates should be projected from the ACP stream subscription.
+- Deterministic ACP file read/write requests can be handled, logged, and scoped
+  to the selected workspace.
+- Unsupported terminal requests can be rejected visibly instead of failing
+  opaquely.
 
 Not yet proven:
 
 - Real external agents beyond the local stub.
-- File and terminal capability handling.
+- File capability handling against real external agents.
+- Terminal capability implementation.
 - Process restart and resume policy.
 - Multi-run load behavior.
 - Long-running turn streaming under real output volume.

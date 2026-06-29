@@ -5,6 +5,7 @@ defmodule Haven.Runs.RunServer do
   alias Haven.PortIO
   alias Haven.Runs
   alias Haven.Runs.ACPClientHandler
+  alias Haven.WorkspaceFiles
   alias Haven.Agents
 
   def start_link(opts) do
@@ -22,6 +23,18 @@ defmodule Haven.Runs.RunServer do
 
   def agent_permission_requested(server, request) do
     GenServer.call(server, {:agent_permission_requested, request}, :infinity)
+  end
+
+  def agent_read_text_file_requested(server, request) do
+    GenServer.call(server, {:agent_read_text_file_requested, request}, :infinity)
+  end
+
+  def agent_write_text_file_requested(server, request) do
+    GenServer.call(server, {:agent_write_text_file_requested, request}, :infinity)
+  end
+
+  def agent_terminal_requested(server, request) do
+    GenServer.call(server, {:agent_terminal_requested, request}, :infinity)
   end
 
   defp via(run_id), do: {:via, Registry, {Haven.Runs.Registry, run_id}}
@@ -261,6 +274,76 @@ defmodule Haven.Runs.RunServer do
      }}
   end
 
+  def handle_call({:agent_read_text_file_requested, request}, _from, state) do
+    run = Runs.get_run!(state.run_id)
+    payload = file_request_payload(request)
+
+    Events.append!(state.run_id, "file_read_requested", payload)
+
+    case WorkspaceFiles.read_text_file(run.workspace, request) do
+      {:ok, content, path} ->
+        Events.append!(
+          state.run_id,
+          "file_read_succeeded",
+          Map.put(payload, "resolved_path", path)
+        )
+
+        {:reply, {:ok, ACP.ReadTextFileResponse.new(content)}, state}
+
+      {:error, error} ->
+        Events.append!(
+          state.run_id,
+          "file_read_failed",
+          Map.merge(payload, %{"error" => ACP.Error.to_json(error)})
+        )
+
+        {:reply, {:error, error}, state}
+    end
+  end
+
+  def handle_call({:agent_write_text_file_requested, request}, _from, state) do
+    run = Runs.get_run!(state.run_id)
+    payload = file_request_payload(request)
+
+    Events.append!(
+      state.run_id,
+      "file_write_requested",
+      Map.put(payload, "bytes", byte_size(request.content))
+    )
+
+    case WorkspaceFiles.write_text_file(run.workspace, request) do
+      {:ok, path} ->
+        Events.append!(
+          state.run_id,
+          "file_write_succeeded",
+          Map.put(payload, "resolved_path", path)
+        )
+
+        {:reply, {:ok, ACP.WriteTextFileResponse.new()}, state}
+
+      {:error, error} ->
+        Events.append!(
+          state.run_id,
+          "file_write_failed",
+          Map.merge(payload, %{"error" => ACP.Error.to_json(error)})
+        )
+
+        {:reply, {:error, error}, state}
+    end
+  end
+
+  def handle_call({:agent_terminal_requested, request}, _from, state) do
+    error = %{ACP.Error.method_not_found() | message: "Terminal capabilities are not implemented"}
+
+    Events.append!(state.run_id, "terminal_request_rejected", %{
+      "method" => ACP.AgentRequest.method(request),
+      "request" => terminal_request_payload(request),
+      "error" => ACP.Error.to_json(error)
+    })
+
+    {:reply, {:error, error}, state}
+  end
+
   def handle_call(:shutdown, _from, state) do
     cleanup_agent(state)
     {:stop, :normal, :ok, state}
@@ -289,6 +372,35 @@ defmodule Haven.Runs.RunServer do
     end
   catch
     :exit, _ -> :ok
+  end
+
+  defp file_request_payload(%ACP.ReadTextFileRequest{} = request) do
+    %{
+      "session_id" => request.session_id,
+      "path" => request.path,
+      "line" => request.line,
+      "limit" => request.limit
+    }
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Map.new()
+  end
+
+  defp file_request_payload(%ACP.WriteTextFileRequest{} = request) do
+    %{
+      "session_id" => request.session_id,
+      "path" => request.path
+    }
+  end
+
+  defp terminal_request_payload({_type, request}) do
+    request
+    |> Map.from_struct()
+    |> Map.drop([:meta])
+    |> stringify_keys()
+  end
+
+  defp stringify_keys(map) do
+    Map.new(map, fn {key, value} -> {to_string(key), value} end)
   end
 
   defp append_session_update(run_id, notification) do

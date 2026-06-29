@@ -178,7 +178,7 @@ defmodule HavenWeb.RunLive do
                   id="run-prompt"
                   name="prompt"
                   class="min-h-28 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
-                  placeholder="Prompt this run. Try: permission"
+                  placeholder="Prompt this run"
                   disabled={@run.status == "waiting"}
                 >{@prompt}</textarea>
                 <div class="flex gap-2">
@@ -217,6 +217,33 @@ defmodule HavenWeb.RunLive do
                   disabled={@run.status == "waiting"}
                 >
                   Ask permission
+                </button>
+                <button
+                  id="sample-read-file-button"
+                  class="rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-800 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  phx-click="sample_prompt"
+                  phx-value-text="read-file"
+                  disabled={@run.status == "waiting"}
+                >
+                  Read file
+                </button>
+                <button
+                  id="sample-write-file-button"
+                  class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  phx-click="sample_prompt"
+                  phx-value-text="write-file"
+                  disabled={@run.status == "waiting"}
+                >
+                  Write file
+                </button>
+                <button
+                  id="sample-terminal-button"
+                  class="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  phx-click="sample_prompt"
+                  phx-value-text="terminal"
+                  disabled={@run.status == "waiting"}
+                >
+                  Terminal
                 </button>
               </div>
             </section>

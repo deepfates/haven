@@ -9,8 +9,9 @@ runs with explicit human decisions.
 - Unit and integration tests: `mix test`
 - Compile gate: `mix compile --warnings-as-errors`
 - Final project gate: `mix precommit`
-- Browser smoke: create a run, trigger a permission request, approve it, observe
-  final `idle` status and persisted timeline in the in-app browser.
+- Browser smoke: create a run, trigger a permission request, approve it, trigger
+  an ACP file read, trigger an unsupported terminal request, and observe final
+  `idle` status plus persisted timeline events in the in-app browser.
 
 ## Proven Now
 
@@ -140,14 +141,45 @@ Still missing:
 - Production lifecycle policy for pruning or archiving failed and closed run
   servers.
 
+### Workspace Capabilities
+
+Status: partially proven for deterministic ACP requests.
+
+Evidence:
+
+- `Haven.WorkspaceFiles` handles `fs/read_text_file` and `fs/write_text_file`
+  requests inside the run workspace and rejects path escapes before touching the
+  filesystem.
+- `test/haven/workspace_files_test.exs` verifies read slicing, write behavior,
+  and outside-workspace rejection.
+- LiveView integration tests drive the stub agent through real ACP
+  `fs/read_text_file` and `fs/write_text_file` requests, verify durable
+  `file_read_*` and `file_write_*` events, verify the agent receives responses,
+  and verify writes land in the selected temporary workspace.
+- LiveView integration tests drive a real ACP `terminal/create` request and
+  verify Haven records `terminal_request_rejected`, returns an ACP error, and
+  lets the agent finish with a visible message.
+- Browser smoke verifies the rendered UI can trigger an ACP file read and an
+  unsupported terminal request, with visible timeline events and final `idle`
+  state.
+
+Still missing:
+
+- Real external agent coverage for file requests.
+- Permission policy around file reads and writes.
+- File diff/artifact projections for review.
+- Terminal create/output/release/kill/wait implementation.
+- Configurable per-run capability grants.
+
 ## Not Proven Yet
 
 These are not cosmetic gaps. They are core to the full Grei telos and should not
 be counted as complete until there is executable evidence.
 
 - Real external ACP agent integration beyond `priv/agent_stub.exs`.
-- File read/write client capability requests.
-- Terminal create/output/release/kill/wait requests.
+- File read/write capability requests from a real external agent.
+- Terminal create/output/release/kill/wait implementation. Current evidence only
+  proves visible rejection for `terminal/create`.
 - Authentication flows for agents that require auth.
 - Session load/resume/fork/list support when agents expose it.
 - Explicit handling for malformed ACP frames.
@@ -164,7 +196,8 @@ be counted as complete until there is executable evidence.
 2. Add LiveView tests for deliberate restart and reload after process exit.
 3. Connect the configurable command path to one real ACP-speaking agent and
    document the exact command/env contract.
-4. Add file and terminal capability handling, first against deterministic fake
-   requests, then against a real ACP-speaking agent.
-5. Add browser smoke coverage for reload recovery and attention-lane movement,
+4. Add terminal capability handling, first against deterministic fake requests,
+   then against a real ACP-speaking agent.
+5. Connect file capability handling to a real ACP-speaking agent.
+6. Add browser smoke coverage for reload recovery and attention-lane movement,
    not just a single happy-path permission approval.

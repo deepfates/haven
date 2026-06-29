@@ -6,6 +6,8 @@ defmodule StubAgent do
       workspace: workspace,
       next_permission_id: 1,
       awaiting_permission: %{},
+      awaiting_file: %{},
+      awaiting_terminal: %{},
       awaiting_prompt: %{}
     })
   end
@@ -109,6 +111,58 @@ defmodule StubAgent do
         send_prompt_result(prompt_id)
         state
 
+      text == "read-file" ->
+        request_id = state.next_permission_id
+        session_id = request.session_id
+
+        file_request =
+          session_id
+          |> ACP.ReadTextFileRequest.new("README.md")
+          |> ACP.ReadTextFileRequest.to_json()
+
+        ACPWire.send(ACP.RPC.Request.new(request_id, "fs/read_text_file", file_request))
+
+        %{
+          state
+          | next_permission_id: request_id + 1,
+            awaiting_file: Map.put(state.awaiting_file, request_id, {prompt_id, session_id, :read})
+        }
+
+      text == "write-file" ->
+        request_id = state.next_permission_id
+        session_id = request.session_id
+
+        file_request =
+          session_id
+          |> ACP.WriteTextFileRequest.new("haven-written.txt", "written by Haven ACP\n")
+          |> ACP.WriteTextFileRequest.to_json()
+
+        ACPWire.send(ACP.RPC.Request.new(request_id, "fs/write_text_file", file_request))
+
+        %{
+          state
+          | next_permission_id: request_id + 1,
+            awaiting_file: Map.put(state.awaiting_file, request_id, {prompt_id, session_id, :write})
+        }
+
+      text == "terminal" ->
+        request_id = state.next_permission_id
+        session_id = request.session_id
+
+        terminal_request =
+          session_id
+          |> ACP.CreateTerminalRequest.new("echo")
+          |> Map.put(:args, ["hello"])
+          |> ACP.CreateTerminalRequest.to_json()
+
+        ACPWire.send(ACP.RPC.Request.new(request_id, "terminal/create", terminal_request))
+
+        %{
+          state
+          | next_permission_id: request_id + 1,
+            awaiting_terminal: Map.put(state.awaiting_terminal, request_id, {prompt_id, session_id})
+        }
+
       text == "die" ->
         System.halt(1)
 
@@ -119,17 +173,32 @@ defmodule StubAgent do
     end
   end
 
-  defp handle({:result, permission_id, result}, state) do
-    {:ok, response} = ACP.RequestPermissionResponse.from_json(result)
+  defp handle({:result, request_id, result}, state) do
+    cond do
+      Map.has_key?(state.awaiting_permission, request_id) ->
+        handle_permission_result(request_id, result, state)
 
-    case Map.pop(state.awaiting_permission, permission_id) do
-      {nil, _} ->
+      Map.has_key?(state.awaiting_file, request_id) ->
+        handle_file_result(request_id, result, state)
+
+      Map.has_key?(state.awaiting_terminal, request_id) ->
+        handle_terminal_result(request_id, {:ok, result}, state)
+
+      true ->
         state
+    end
+  end
 
-      {{prompt_id, session_id}, awaiting_permission} ->
-        send_agent_text(session_id, permission_message(response.outcome))
-        send_prompt_result(prompt_id)
-        %{state | awaiting_permission: awaiting_permission}
+  defp handle({:error, request_id, error}, state) do
+    cond do
+      Map.has_key?(state.awaiting_file, request_id) ->
+        handle_file_result(request_id, {:error, error}, state)
+
+      Map.has_key?(state.awaiting_terminal, request_id) ->
+        handle_terminal_result(request_id, {:error, error}, state)
+
+      true ->
+        state
     end
   end
 
@@ -145,7 +214,79 @@ defmodule StubAgent do
 
     %{state | awaiting_prompt: awaiting_prompt}
   end
+
   defp handle(_message, state), do: state
+
+  defp handle_permission_result(permission_id, result, state) do
+    {:ok, response} = ACP.RequestPermissionResponse.from_json(result)
+
+    case Map.pop(state.awaiting_permission, permission_id) do
+      {nil, _} ->
+        state
+
+      {{prompt_id, session_id}, awaiting_permission} ->
+        send_agent_text(session_id, permission_message(response.outcome))
+        send_prompt_result(prompt_id)
+        %{state | awaiting_permission: awaiting_permission}
+    end
+  end
+
+  defp handle_file_result(request_id, {:error, error}, state) do
+    case Map.pop(state.awaiting_file, request_id) do
+      {nil, _} ->
+        state
+
+      {{prompt_id, session_id, _kind}, awaiting_file} ->
+        send_agent_text(session_id, "File request failed: #{error.message}")
+        send_prompt_result(prompt_id)
+        %{state | awaiting_file: awaiting_file}
+    end
+  end
+
+  defp handle_file_result(request_id, result, state) do
+    case Map.pop(state.awaiting_file, request_id) do
+      {nil, _} ->
+        state
+
+      {{prompt_id, session_id, :read}, awaiting_file} ->
+        {:ok, response} = ACP.ReadTextFileResponse.from_json(result)
+        first_line = response.content |> String.split("\n") |> List.first()
+        send_agent_text(session_id, "Read file: #{first_line}")
+        send_prompt_result(prompt_id)
+        %{state | awaiting_file: awaiting_file}
+
+      {{prompt_id, session_id, :write}, awaiting_file} ->
+        {:ok, _response} = ACP.WriteTextFileResponse.from_json(result)
+        send_agent_text(session_id, "Wrote file through Haven.")
+        send_prompt_result(prompt_id)
+        %{state | awaiting_file: awaiting_file}
+    end
+  end
+
+  defp handle_terminal_result(request_id, {:error, error}, state) do
+    case Map.pop(state.awaiting_terminal, request_id) do
+      {nil, _} ->
+        state
+
+      {{prompt_id, session_id}, awaiting_terminal} ->
+        send_agent_text(session_id, "Terminal rejected: #{error.message}")
+        send_prompt_result(prompt_id)
+        %{state | awaiting_terminal: awaiting_terminal}
+    end
+  end
+
+  defp handle_terminal_result(request_id, {:ok, result}, state) do
+    case Map.pop(state.awaiting_terminal, request_id) do
+      {nil, _} ->
+        state
+
+      {{prompt_id, session_id}, awaiting_terminal} ->
+        {:ok, response} = ACP.CreateTerminalResponse.from_json(result)
+        send_agent_text(session_id, "Created terminal: #{response.terminal_id}")
+        send_prompt_result(prompt_id)
+        %{state | awaiting_terminal: awaiting_terminal}
+    end
+  end
 
   defp prompt_text([{:text, %ACP.TextContent{text: text}} | _]), do: text
   defp prompt_text(_), do: ""

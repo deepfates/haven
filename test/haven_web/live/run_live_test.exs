@@ -352,6 +352,132 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Inspect workspace"
   end
 
+  @tag :tmp_dir
+  test "handles ACP file read requests inside the run workspace", %{conn: conn, tmp_dir: tmp_dir} do
+    File.write!(Path.join(tmp_dir, "README.md"), "Haven capability fixture\nsecond line\n")
+
+    {:ok, run} = Runs.create_run(%{"title" => "File read run", "workspace" => tmp_dir})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> element("#sample-read-file-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{type: "file_read_requested", payload: %{"path" => "README.md"}}},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "file_read_succeeded",
+                      payload: %{"path" => "README.md", "resolved_path" => resolved_path}
+                    }},
+                   1_000
+
+    assert resolved_path == Path.join(tmp_dir, "README.md")
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Read file: Haven capability fixture"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    html = render(view)
+    assert html =~ "file_read_succeeded"
+    assert html =~ "Read file: Haven capability fixture"
+  end
+
+  @tag :tmp_dir
+  test "handles ACP file write requests inside the run workspace", %{conn: conn, tmp_dir: tmp_dir} do
+    {:ok, run} = Runs.create_run(%{"title" => "File write run", "workspace" => tmp_dir})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> element("#sample-write-file-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "file_write_requested",
+                      payload: %{"path" => "haven-written.txt", "bytes" => bytes}
+                    }},
+                   1_000
+
+    assert bytes > 0
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "file_write_succeeded",
+                      payload: %{"path" => "haven-written.txt", "resolved_path" => resolved_path}
+                    }},
+                   1_000
+
+    assert resolved_path == Path.join(tmp_dir, "haven-written.txt")
+    assert File.read!(resolved_path) == "written by Haven ACP\n"
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Wrote file through Haven."}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    html = render(view)
+    assert html =~ "file_write_succeeded"
+    assert html =~ "Wrote file through Haven."
+  end
+
+  test "rejects unsupported ACP terminal requests visibly", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Terminal request run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> element("#sample-terminal-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_request_rejected",
+                      payload: %{
+                        "method" => "terminal/create",
+                        "error" => %{"message" => "Terminal capabilities are not implemented"}
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{
+                        "text" => "Terminal rejected: Terminal capabilities are not implemented"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    html = render(view)
+    assert html =~ "terminal_request_rejected"
+    assert html =~ "Terminal rejected"
+  end
+
   test "unknown agent fails visibly instead of launching the stub", %{conn: conn} do
     run = insert_run!("Unknown agent run", "missing-agent")
     Events.subscribe(run.id)

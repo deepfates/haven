@@ -46,6 +46,7 @@ curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow
 - `Haven.Agents` resolves built-in and configured ACP agent commands.
 - `Haven.PortIO` bridges spawned agent ports to the IO shape expected
   by `agent_client_protocol`.
+- `Haven.WorkspaceFiles` handles workspace-scoped file capability requests.
 - `Haven.Runs` is the run lifecycle context.
 - `Haven.Events` is the append-only event log.
 - `InboxLive` is the attention inbox.
@@ -53,6 +54,7 @@ curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow
 - `priv/agent_stub.exs` is an ACP-backed JSON-lines stub agent.
 
 The default development agent is a self-contained ACP stub. Configured agent
-keys can point at another ACP command, but the next milestone is to validate one
-real external agent and implement file and terminal client capabilities while
-keeping the run/event/LiveView shape.
+keys can point at another ACP command. File capability callbacks are proven
+against deterministic ACP requests; the next milestone is to validate one real
+external agent and implement terminal client capabilities while keeping the
+run/event/LiveView shape.
