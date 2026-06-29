@@ -40,6 +40,9 @@ Evidence:
 - Persisted agent configurations are stored in SQLite and appear in the inbox
   agent picker; LiveView tests verify a run can be created with a persisted
   agent key.
+- The inbox has a basic Agent Setup form for saving a persisted ACP command
+  with key, executable, args, cwd, and env values; LiveView tests and browser
+  smoke verify the saved key appears in the run picker and can create a run.
 - Data-layer and LiveView tests verify run creation rejects missing workspace
   directories before any run process starts.
 - The same test verifies waiting, running, and idle runs render in separate
@@ -58,7 +61,8 @@ Evidence:
 
 Still missing:
 
-- Workspace persistence models and richer configuration management UI.
+- Workspace persistence models and richer edit/delete configuration management
+  UI.
 - Workspace browse/picker affordances.
 - Filtering beyond the fixed lanes.
 
@@ -187,6 +191,8 @@ Evidence:
 - `Haven.Agents.create_agent_config/1` persists ACP agent command definitions
   in SQLite, and `Haven.Agents.available/0` merges persisted configs with
   runtime config for run creation.
+- The inbox can create persisted agent command definitions through the rendered
+  UI, including args and env text entry.
 - LiveView integration tests verify that an unknown run agent records
   `agent_start_failed`, marks the run `failed`, and renders that failure without
   falling back to the stub.

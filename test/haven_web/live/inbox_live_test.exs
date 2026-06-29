@@ -122,6 +122,69 @@ defmodule HavenWeb.InboxLiveTest do
     assert_redirect(view, ~p"/runs/#{run.id}")
   end
 
+  @tag :tmp_dir
+  test "saves an agent config from the inbox and uses it for a run", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    refute has_element?(view, ~s|#agent option[value="inbox-stub"]|)
+    assert has_element?(view, "#agent-config-form")
+
+    view
+    |> form("#agent-config-form", %{
+      "agent_config" => %{
+        "key" => "inbox-stub",
+        "executable" => "mix",
+        "args_text" => "run\n--no-compile\n--no-start\npriv/agent_stub.exs\n{workspace}",
+        "cwd" => "",
+        "env_text" => "WORKSPACE={workspace}"
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#agent-config-inbox-stub")
+    assert has_element?(view, ~s|#agent option[value="inbox-stub"]|)
+
+    view
+    |> form("#new-run-form", %{
+      "title" => "Inbox configured agent run",
+      "workspace" => tmp_dir,
+      "agent" => "inbox-stub"
+    })
+    |> render_submit()
+
+    [run] = Runs.list_runs()
+    stop_run_server_on_exit(run.id)
+
+    assert run.title == "Inbox configured agent run"
+    assert run.workspace == Path.expand(tmp_dir)
+    assert run.agent == "inbox-stub"
+    assert_redirect(view, ~p"/runs/#{run.id}")
+  end
+
+  test "shows validation errors when saving an invalid inbox agent config", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    html =
+      view
+      |> form("#agent-config-form", %{
+        "agent_config" => %{
+          "key" => "bad key",
+          "executable" => "",
+          "args_text" => "",
+          "cwd" => "",
+          "env_text" => "BROKEN"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Environment lines must use KEY=value"
+    assert has_element?(view, "#agent-config-error")
+    assert Agents.list_agent_configs() == []
+  end
+
   test "groups runs into operational attention lanes", %{conn: conn} do
     insert_run!("Needs approval", "waiting")
     insert_run!("Still working", "running")

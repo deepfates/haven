@@ -12,7 +12,10 @@ defmodule HavenWeb.InboxLive do
      socket
      |> assign(:page_title, "Haven")
      |> assign(:form, to_form(default_run_params()))
+     |> assign(:agent_config_form, to_form(default_agent_config_params(), as: :agent_config))
+     |> assign(:agent_config_error, nil)
      |> assign(:agent_options, Agents.available())
+     |> assign(:agent_configs, Agents.list_agent_configs())
      |> assign_runs()}
   end
 
@@ -34,6 +37,31 @@ defmodule HavenWeb.InboxLive do
     {:noreply, assign_runs(socket)}
   end
 
+  def handle_event("create_agent_config", %{"agent_config" => params}, socket) do
+    with {:ok, attrs} <- agent_config_attrs(params),
+         {:ok, agent_config} <- Agents.create_agent_config(attrs) do
+      {:noreply,
+       socket
+       |> put_flash(:info, "Agent #{agent_config.key} saved")
+       |> assign(:agent_config_form, to_form(default_agent_config_params(), as: :agent_config))
+       |> assign(:agent_config_error, nil)
+       |> assign(:agent_options, Agents.available())
+       |> assign(:agent_configs, Agents.list_agent_configs())}
+    else
+      {:error, message} when is_binary(message) ->
+        {:noreply,
+         socket
+         |> assign(:agent_config_form, to_form(params, as: :agent_config))
+         |> assign(:agent_config_error, message)}
+
+      {:error, changeset} ->
+        {:noreply,
+         socket
+         |> assign(:agent_config_form, to_form(params, as: :agent_config))
+         |> assign(:agent_config_error, agent_config_error(changeset))}
+    end
+  end
+
   @impl true
   def handle_info({:run_updated, _run}, socket), do: {:noreply, assign_runs(socket)}
 
@@ -52,6 +80,16 @@ defmodule HavenWeb.InboxLive do
       "title" => "",
       "workspace" => File.cwd!(),
       "agent" => "stub-acp"
+    }
+  end
+
+  defp default_agent_config_params do
+    %{
+      "key" => "",
+      "executable" => "",
+      "args_text" => "",
+      "cwd" => "",
+      "env_text" => ""
     }
   end
 
@@ -78,6 +116,55 @@ defmodule HavenWeb.InboxLive do
       "workspace" => if(workspace == "", do: defaults["workspace"], else: Path.expand(workspace)),
       "agent" => if(agent == "", do: defaults["agent"], else: agent)
     }
+  end
+
+  defp agent_config_attrs(params) do
+    with {:ok, env} <- parse_env(Map.get(params, "env_text", "")) do
+      {:ok,
+       %{
+         "key" => Map.get(params, "key", ""),
+         "executable" => Map.get(params, "executable", ""),
+         "args" => parse_args(Map.get(params, "args_text", "")),
+         "cwd" => Map.get(params, "cwd", ""),
+         "env" => env
+       }}
+    end
+  end
+
+  defp parse_args(text) do
+    text
+    |> String.split("\n")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp parse_env(text) do
+    text
+    |> String.split("\n")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.reduce_while({:ok, %{}}, fn line, {:ok, env} ->
+      case String.split(line, "=", parts: 2) do
+        [key, value] ->
+          key = String.trim(key)
+
+          if key == "" do
+            {:halt, {:error, "Environment lines must use KEY=value"}}
+          else
+            {:cont, {:ok, Map.put(env, key, String.trim(value))}}
+          end
+
+        _ ->
+          {:halt, {:error, "Environment lines must use KEY=value"}}
+      end
+    end)
+  end
+
+  defp agent_config_error(changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {message, _opts} -> message end)
+    |> Enum.map(fn {field, messages} -> "#{field} #{Enum.join(messages, ", ")}" end)
+    |> Enum.join("; ")
   end
 
   defp status_class("waiting"), do: badge_class("border-amber-200 bg-amber-50 text-amber-700")
@@ -183,6 +270,102 @@ defmodule HavenWeb.InboxLive do
               </div>
             </.form>
           </header>
+
+          <section
+            id="agent-configs-panel"
+            class="grid gap-4 border-b border-zinc-200 pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]"
+          >
+            <div>
+              <h2 class="text-sm font-semibold uppercase text-zinc-500">Agent Setup</h2>
+              <div
+                id="agent-config-list"
+                class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white"
+              >
+                <div
+                  :if={@agent_configs == []}
+                  id="agent-config-empty"
+                  class="px-4 py-5 text-sm text-zinc-500"
+                >
+                  No saved agent commands yet.
+                </div>
+                <div
+                  :for={agent_config <- @agent_configs}
+                  id={"agent-config-#{agent_config.key}"}
+                  class="border-t border-zinc-100 px-4 py-3 first:border-t-0"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-semibold text-zinc-950">{agent_config.key}</p>
+                      <p class="mt-1 truncate text-xs text-zinc-500">{agent_config.executable}</p>
+                    </div>
+                    <span class="shrink-0 rounded-full border border-zinc-200 px-2 py-1 text-xs text-zinc-500">
+                      {length(Map.get(agent_config.args || %{}, "items", []))} args
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <.form
+              id="agent-config-form"
+              for={@agent_config_form}
+              phx-submit="create_agent_config"
+              class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
+            >
+              <p
+                :if={@agent_config_error}
+                id="agent-config-error"
+                class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+              >
+                {@agent_config_error}
+              </p>
+              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <.input
+                  field={@agent_config_form[:key]}
+                  type="text"
+                  label="Agent key"
+                  placeholder="claude-local"
+                  autocomplete="off"
+                />
+                <.input
+                  field={@agent_config_form[:executable]}
+                  type="text"
+                  label="Executable"
+                  placeholder="agent-command"
+                  autocomplete="off"
+                />
+              </div>
+              <.input
+                field={@agent_config_form[:args_text]}
+                type="textarea"
+                label="Arguments"
+                placeholder="--workspace\n{workspace}"
+                rows="3"
+              />
+              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <.input
+                  field={@agent_config_form[:cwd]}
+                  type="text"
+                  label="Working directory"
+                  placeholder="{workspace}"
+                  autocomplete="off"
+                />
+                <.input
+                  field={@agent_config_form[:env_text]}
+                  type="textarea"
+                  label="Environment"
+                  placeholder="TOKEN=..."
+                  rows="3"
+                />
+              </div>
+              <button
+                id="save-agent-config-button"
+                class="h-10 justify-self-end rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              >
+                Save Agent
+              </button>
+            </.form>
+          </section>
 
           <section :if={@needs_you != []} class="space-y-3">
             <h2 class="text-sm font-semibold uppercase text-zinc-500">Needs You</h2>

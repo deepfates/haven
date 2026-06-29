@@ -66,9 +66,9 @@ export HAVEN_AGENTS_JSON='{
 
 `executable` may be an absolute path or a command on `PATH`. `{workspace}` is
 substituted in `args`, `cwd`, and `env` values before Haven starts the agent.
-Agents can also be stored in SQLite through `Haven.Agents.create_agent_config/1`;
-persisted agent keys appear in the inbox agent picker alongside runtime
-configuration.
+Agents can also be stored in SQLite through the inbox Agent Setup form or
+`Haven.Agents.create_agent_config/1`; persisted agent keys appear in the inbox
+agent picker alongside runtime configuration.
 
 The probe creates a durable run, waits for ACP initialization/session creation,
 sends the prompt through `RunServer`, optionally resolves permission stalls, and
