@@ -449,6 +449,39 @@ defmodule HavenWeb.InboxLive do
 
   defp agent_evidence_reason(_inventory), do: "agent readiness unknown"
 
+  defp agent_probe_command(%{real_agent_candidate: true, agent: agent}) do
+    [
+      "mix",
+      "haven.agent_probe",
+      "--agent",
+      agent,
+      "--workspace",
+      File.cwd!(),
+      "--require-real-agent",
+      "--expect-event",
+      "agent_initialized",
+      "--expect-event",
+      "agent_session_started",
+      "--expect-event",
+      "turn_finished",
+      "--report",
+      "docs/probes/#{agent}-basic.json"
+    ]
+    |> Enum.map_join(" ", &shell_arg/1)
+  end
+
+  defp agent_probe_command(_inventory), do: nil
+
+  defp shell_arg(value) do
+    value = to_string(value)
+
+    if String.match?(value, ~r/^[A-Za-z0-9_.,:\/=@+-]+$/) do
+      value
+    else
+      "'#{String.replace(value, "'", "'\"'\"'")}'"
+    end
+  end
+
   defp run_card(assigns) do
     assigns = assign_new(assigns, :show_archive, fn -> false end)
 
@@ -712,10 +745,18 @@ defmodule HavenWeb.InboxLive do
                   class="border-t border-zinc-100 px-4 py-3 first:border-t-0"
                 >
                   <% readiness = Map.get(@agent_inventory, agent_config.key, %{}) %>
+                  <% probe_command = agent_probe_command(readiness) %>
                   <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
                       <p class="truncate text-sm font-semibold text-zinc-950">{agent_config.key}</p>
                       <p class="mt-1 truncate text-xs text-zinc-500">{agent_config.executable}</p>
+                      <code
+                        :if={probe_command}
+                        id={"agent-config-#{agent_config.key}-probe-command"}
+                        class="mt-2 block overflow-x-auto rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] leading-5 text-zinc-700"
+                      >
+                        {probe_command}
+                      </code>
                       <p
                         :if={agent_evidence_reason(readiness)}
                         id={"agent-config-#{agent_config.key}-evidence-reason"}

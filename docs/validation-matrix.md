@@ -366,8 +366,9 @@ Evidence:
   environment key names before a user attempts a real-agent probe.
 - The inbox Agent Setup panel surfaces the same probe-readiness distinction for
   saved agent configs, showing whether a saved command is an evidence candidate
-  or a rejected local harness/invalid command without rendering environment
-  values.
+  or a rejected local harness/invalid command, rendering a basic
+  `--require-real-agent` report command only for eligible candidates and never
+  rendering environment values.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
   gate rather than only a documentation convention.

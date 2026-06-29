@@ -305,6 +305,7 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(view, "#agent-config-inbox-stub")
     assert has_element?(view, "#agent-config-inbox-stub-evidence", "Local harness")
+    refute has_element?(view, "#agent-config-inbox-stub-probe-command")
 
     assert has_element?(
              view,
@@ -343,6 +344,19 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#agent-config-candidate-agent-evidence", "Evidence candidate")
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-command",
+             "--require-real-agent"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-command",
+             "docs/probes/candidate-agent-basic.json"
+           )
+
     refute has_element?(view, "#agent-config-candidate-agent-evidence-reason")
     refute render(view) =~ "hidden-value"
   end
