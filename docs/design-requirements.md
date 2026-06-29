@@ -274,6 +274,9 @@ Proven:
 
 - Phoenix/LiveView can present an inbox and run timeline.
 - The inbox can create runs with explicit title, workspace, and agent choice.
+- Configured agent specs can provide executable, args, and env values with
+  workspace substitution; launch events record env key names while redacting
+  env values.
 - Run creation rejects missing workspace directories before starting an agent
   process, and the inbox renders that validation failure in place.
 - Terminal failed and closed runs can be archived from the inbox, hiding them
@@ -338,8 +341,9 @@ Not yet proven:
 - Backpressure, log compaction, and transcript projection performance.
 - Security boundaries around workspace access, especially configurable
   capability grants.
-- Authentication and product-grade agent/workspace configuration, including
-  workspace picker/browse affordances.
+- Authentication flows and product-grade agent/workspace configuration,
+  including workspace picker/browse affordances; env injection exists for
+  launched agents, but interactive auth is not proven.
 - Authenticated user identity on permission decisions; current actor metadata is
   local/system classification only.
 

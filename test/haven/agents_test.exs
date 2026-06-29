@@ -19,6 +19,7 @@ defmodule Haven.AgentsTest do
     assert {:ok, command} = Agents.command("stub-acp", "/tmp/work")
     assert command.label == "stub-acp"
     assert command.executable =~ "mix"
+    assert command.env == []
 
     assert command.args == [
              "run",
@@ -31,13 +32,26 @@ defmodule Haven.AgentsTest do
 
   test "resolves configured agents and substitutes workspace" do
     Application.put_env(:haven, :agents, %{
-      "external" => %{executable: "/bin/agent", args: ["--workspace", "{workspace}"]}
+      "external" => %{
+        executable: "/bin/agent",
+        args: ["--workspace", "{workspace}"],
+        env: %{"WORKSPACE" => "{workspace}", "MODE" => "smoke"}
+      }
     })
 
     assert {:ok, command} = Agents.command("external", "/repo")
     assert command.label == "external"
     assert command.executable == "/bin/agent"
     assert command.args == ["--workspace", "/repo"]
+    assert command.env == [{"MODE", "smoke"}, {"WORKSPACE", "/repo"}]
+  end
+
+  test "rejects invalid configured agent env" do
+    Application.put_env(:haven, :agents, %{
+      "external" => %{executable: "/bin/agent", env: [{"TOKEN", 123}]}
+    })
+
+    assert {:error, {:invalid_agent_field, :env}} = Agents.command("external", "/repo")
   end
 
   test "lists the built-in stub and configured agent keys for run creation" do

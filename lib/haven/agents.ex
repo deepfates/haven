@@ -6,13 +6,18 @@ defmodule Haven.Agents do
   can be configured with:
 
       config :haven, :agents, %{
-        "my-agent" => %{executable: "/path/to/agent", args: ["--workspace", "{workspace}"]}
+        "my-agent" => %{
+          executable: "/path/to/agent",
+          args: ["--workspace", "{workspace}"],
+          env: %{"TOKEN" => "...", "WORKSPACE" => "{workspace}"}
+        }
       }
   """
 
   @type command :: %{
           executable: String.t(),
           args: [String.t()],
+          env: [{String.t(), String.t()}],
           label: String.t()
         }
 
@@ -39,6 +44,7 @@ defmodule Haven.Agents do
          %{
            executable: executable,
            args: ["run", "--no-compile", "--no-start", "priv/agent_stub.exs", workspace],
+           env: [],
            label: "stub-acp"
          }}
     end
@@ -57,8 +63,9 @@ defmodule Haven.Agents do
 
   defp command_from_spec(agent, spec, workspace) when is_map(spec) do
     with {:ok, executable} <- fetch_string(spec, :executable),
-         {:ok, args} <- fetch_args(spec, workspace) do
-      {:ok, %{executable: executable, args: args, label: agent}}
+         {:ok, args} <- fetch_args(spec, workspace),
+         {:ok, env} <- fetch_env(spec, workspace) do
+      {:ok, %{executable: executable, args: args, env: env, label: agent}}
     end
   end
 
@@ -80,4 +87,39 @@ defmodule Haven.Agents do
       {:error, {:invalid_agent_field, :args}}
     end
   end
+
+  defp fetch_env(spec, workspace) do
+    env = Map.get(spec, :env) || Map.get(spec, "env") || []
+
+    cond do
+      is_map(env) ->
+        env
+        |> Map.to_list()
+        |> normalize_env(workspace)
+
+      is_list(env) ->
+        normalize_env(env, workspace)
+
+      true ->
+        {:error, {:invalid_agent_field, :env}}
+    end
+  end
+
+  defp normalize_env(env, workspace) do
+    if Enum.all?(env, &valid_env_pair?/1) do
+      {:ok,
+       Enum.map(env, fn {name, value} ->
+         {to_string(name), String.replace(value, "{workspace}", workspace)}
+       end)
+       |> Enum.sort_by(fn {name, _value} -> name end)}
+    else
+      {:error, {:invalid_agent_field, :env}}
+    end
+  end
+
+  defp valid_env_pair?({name, value}) when is_binary(value) do
+    (is_atom(name) or is_binary(name)) and to_string(name) != ""
+  end
+
+  defp valid_env_pair?(_pair), do: false
 end

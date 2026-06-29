@@ -1132,7 +1132,8 @@ defmodule HavenWeb.RunLiveTest do
     Application.put_env(:haven, :agents, %{
       "configured-stub" => %{
         executable: System.find_executable("mix"),
-        args: ["run", "--no-compile", "--no-start", "priv/agent_stub.exs", "{workspace}"]
+        args: ["run", "--no-compile", "--no-start", "priv/agent_stub.exs", "{workspace}"],
+        env: [{"HAVEN_AGENT_ENV_SMOKE", "configured-secret"}]
       }
     })
 
@@ -1148,17 +1149,36 @@ defmodule HavenWeb.RunLiveTest do
                       payload: %{
                         "agent" => "configured-stub",
                         "command" => "configured-stub",
-                        "args" => args
+                        "args" => args,
+                        "env" => env
                       }
                     }},
                    1_000
 
     assert List.last(args) == run.workspace
+    assert env == ["HAVEN_AGENT_ENV_SMOKE"]
+    refute inspect(Events.list_for_run(run.id)) =~ "configured-secret"
     assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
 
-    {:ok, _view, html} = live(conn, ~p"/runs/#{run.id}")
+    {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
     assert html =~ "configured-stub"
     assert html =~ "agent_session_started"
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "env"})
+    |> render_submit()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Env: configured-secret"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    [{pid, _}] = Registry.lookup(Haven.Runs.Registry, run.id)
+    _ = :sys.get_state(pid)
   end
 
   defp sync_run_server!(run_id) do

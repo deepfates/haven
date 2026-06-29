@@ -29,12 +29,13 @@ defmodule Haven.PortIO do
   def init(opts) do
     executable = Keyword.fetch!(opts, :executable)
     args = Keyword.get(opts, :args, [])
+    env = Keyword.get(opts, :env, []) |> port_env()
     observer = Keyword.get(opts, :observer)
 
     port =
       Port.open(
         {:spawn_executable, executable},
-        [:binary, :exit_status, :use_stdio, :stderr_to_stdout, args: args]
+        [:binary, :exit_status, :use_stdio, :stderr_to_stdout, args: args, env: env]
       )
 
     {:ok, %__MODULE__{port: port, observer: observer}}
@@ -139,5 +140,11 @@ defmodule Haven.PortIO do
   defp notify_observer(observer, line) when is_pid(observer) do
     send(observer, {:port_io_line, self(), line})
     :ok
+  end
+
+  defp port_env(env) do
+    Enum.map(env, fn {name, value} ->
+      {String.to_charlist(name), String.to_charlist(value)}
+    end)
   end
 end

@@ -70,6 +70,7 @@ defmodule Haven.Runs.RunServer do
            PortIO.start_link(
              executable: command.executable,
              args: command.args,
+             env: command.env,
              observer: self()
            ) do
       boot_agent_connection(state, run, command, port_io)
@@ -176,7 +177,8 @@ defmodule Haven.Runs.RunServer do
           "agent" => run.agent,
           "command" => command.label,
           "executable" => command.executable,
-          "args" => command.args
+          "args" => command.args,
+          "env" => Enum.map(command.env, fn {name, _value} -> name end)
         })
 
         Runs.update_status!(state.run_id, %{status: "initializing"})

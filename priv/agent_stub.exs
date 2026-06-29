@@ -101,6 +101,12 @@ defmodule StubAgent do
               Map.update(state.awaiting_prompt, request.session_id, [prompt_id], &[prompt_id | &1])
         }
 
+      text == "env" ->
+        value = System.get_env("HAVEN_AGENT_ENV_SMOKE", "missing")
+        send_agent_text(request.session_id, "Env: #{value}")
+        send_prompt_result(prompt_id)
+        state
+
       text == "unknown-update" ->
         fields = %ACP.ToolCallUpdateFields{
           title: "Inspect workspace",

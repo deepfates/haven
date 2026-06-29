@@ -155,8 +155,9 @@ Evidence:
   `agent_start_failed`, marks the run `failed`, and renders that failure without
   falling back to the stub.
 - LiveView integration tests verify a configured agent key launches the ACP
-  process and records the selected agent, executable, and substituted workspace
-  args in the timeline.
+  process, substitutes the selected workspace in args/env, passes configured
+  env to the spawned process, and records the selected agent, executable, args,
+  and env key names in the timeline without recording env values.
 - Tests revealed and fixed a real status projection bug: `RunLive` now subscribes
   to run-status broadcasts as well as event broadcasts, so the header does not
   remain `running` after a completed turn.
@@ -259,7 +260,8 @@ be counted as complete until there is executable evidence.
 - File read/write capability requests from a real external agent.
 - Terminal capability requests from a real external agent.
 - Interactive terminal behavior and process-tree kill semantics.
-- Authentication flows for agents that require auth.
+- Authentication flows for agents that require auth; configured env can pass
+  secrets to launched agents, but no interactive auth flow is proven.
 - Session load/resume/fork/list support when agents expose it.
 - Browser smoke for malformed ACP startup output; current executable evidence is
   LiveView-level.
@@ -273,8 +275,8 @@ be counted as complete until there is executable evidence.
 1. Add a supervised fake ACP agent test harness that can stream partial chunks,
    request duplicate permissions, emit malformed frames after session startup,
    and simulate restart.
-2. Connect the configurable command path to one real ACP-speaking agent and
-   document the exact command/env contract.
+2. Connect the configurable command/env path to one real ACP-speaking agent and
+   document any agent-specific auth contract.
 3. Connect terminal capability handling to a real ACP-speaking agent and add
    process-tree kill/interactive-terminal evidence.
 4. Connect file capability handling to a real ACP-speaking agent.
