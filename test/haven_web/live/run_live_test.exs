@@ -1200,6 +1200,77 @@ defmodule HavenWeb.RunLiveTest do
     _ = :sys.get_state(pid)
   end
 
+  test "configured fake ACP harness streams partial chunks durably", %{conn: conn} do
+    original = Application.get_env(:haven, :agents)
+
+    on_exit(fn ->
+      if original do
+        Application.put_env(:haven, :agents, original)
+      else
+        Application.delete_env(:haven, :agents)
+      end
+    end)
+
+    Application.put_env(:haven, :agents, %{
+      "fake-streaming" => %{
+        executable: System.find_executable("mix"),
+        args: [
+          "run",
+          "--no-compile",
+          "--no-start",
+          "test/support/fake_agent_runner.exs",
+          "streaming",
+          "{workspace}"
+        ],
+        cwd: "{workspace}",
+        env: [{"MIX_ENV", "test"}]
+      }
+    })
+
+    run = insert_run!("Fake streaming run", "fake-streaming")
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+    Runs.subscribe()
+
+    {:ok, _pid} = Runs.start_run(run.id)
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+
+    {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
+    assert html =~ "fake-streaming"
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "partial-stream"})
+    |> render_submit()
+
+    assert_receive {:event_appended,
+                    %{type: "agent_message_chunk", payload: %{"text" => "Partial "}}},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{type: "agent_message_chunk", payload: %{"text" => "streamed "}}},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{type: "agent_message_chunk", payload: %{"text" => "answer."}}},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+    assert_receive {:run_updated, %{id: run_id, status: "idle"}}, 1_000
+    assert run_id == run.id
+
+    streamed_text =
+      run.id
+      |> Events.list_for_run()
+      |> Enum.filter(&(&1.type == "agent_message_chunk"))
+      |> Enum.map(& &1.payload["text"])
+
+    assert streamed_text == ["Partial ", "streamed ", "answer."]
+
+    {:ok, _reloaded, html} = live(conn, ~p"/runs/#{run.id}")
+    assert html =~ "idle"
+    assert html =~ "answer."
+  end
+
   defp sync_run_server!(run_id) do
     {:ok, pid} = Runs.ensure_started(run_id)
     _ = :sys.get_state(pid)

@@ -91,6 +91,9 @@ Evidence:
 
 - LiveView integration tests submit the prompt form and verify `turn_started`,
   `user_message`, `agent_message_chunk`, and `turn_finished` events.
+- A test-only fake ACP harness is launched through the configured external-agent
+  command path and verifies partial streamed chunks are appended durably in
+  order.
 - Tests assert the run detail returns to visible `idle` after completion.
 - LiveView integration tests cancel a run while it is blocked on permission and
   verify the outstanding permission is durably resolved as cancelled.
@@ -279,9 +282,9 @@ be counted as complete until there is executable evidence.
 
 ## Next Best Validation Work
 
-1. Add a supervised fake ACP agent test harness that can stream partial chunks,
-   request duplicate permissions, emit malformed frames after session startup,
-   and simulate restart.
+1. Extend the fake ACP agent harness beyond partial streaming so it can request
+   duplicate permissions, emit malformed frames after session startup, and
+   simulate restart.
 2. Connect the configurable command/cwd/env path to one real ACP-speaking agent and
    document any agent-specific auth contract.
 3. Connect terminal capability handling to a real ACP-speaking agent and add
