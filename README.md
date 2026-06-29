@@ -13,7 +13,9 @@ The core shape:
 - Reload reconstructs the run from the event log.
 
 See [docs/design-requirements.md](docs/design-requirements.md) for the product
-and system requirements guiding the project.
+and system requirements guiding the project. See
+[docs/validation-matrix.md](docs/validation-matrix.md) for what is currently
+proved by tests and browser smoke, and what remains unproven.
 
 ## Run
 
