@@ -32,6 +32,32 @@ defmodule Haven.AgentProbeReportTest do
     assert "expected events are absent from events: terminal_created" in errors
   end
 
+  test "accepts reports with matching expected event fields" do
+    report =
+      valid_report()
+      |> Map.put("expected_event_fields", [
+        %{"event" => "turn_finished", "field" => "stopReason", "value" => "end_turn"}
+      ])
+
+    assert :ok = AgentProbeReport.validate(report)
+  end
+
+  test "rejects reports with missing expected event fields" do
+    report =
+      valid_report()
+      |> Map.put("expected_event_fields", [
+        %{"event" => "turn_finished", "field" => "stopReason", "value" => "interrupted"}
+      ])
+      |> Map.put("missing_expected_event_fields", [
+        %{"event" => "turn_finished", "field" => "stopReason", "value" => "interrupted"}
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+    assert "missing_expected_event_fields must be empty" in errors
+
+    assert "expected event fields are absent from events: turn_finished:stopReason=interrupted" in errors
+  end
+
   test "rejects structurally invalid events" do
     report = Map.put(valid_report(), "events", [%{"seq" => 2, "type" => "run_created"}])
 
@@ -64,7 +90,7 @@ defmodule Haven.AgentProbeReportTest do
       "events" => [
         %{"seq" => 1, "type" => "run_created", "payload" => %{}},
         %{"seq" => 2, "type" => "agent_initialized", "payload" => %{}},
-        %{"seq" => 3, "type" => "turn_finished", "payload" => %{}}
+        %{"seq" => 3, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
       ]
     }
   end

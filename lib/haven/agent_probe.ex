@@ -42,6 +42,8 @@ defmodule Haven.AgentProbe do
     expected_events =
       Keyword.get_values(opts, :expect_event) ++ Keyword.get(opts, :expect_events, [])
 
+    expected_event_fields = expected_event_fields(opts)
+
     with {:ok, run} <-
            Runs.create_run(%{
              "title" => Keyword.get(opts, :title, title(agent)),
@@ -55,23 +57,33 @@ defmodule Haven.AgentProbe do
       expected_events = Enum.uniq(expected_events)
 
       finished
-      |> redacted_report(prompt, expected_events, redactions)
+      |> redacted_report(prompt, expected_events, expected_event_fields, redactions)
       |> validate_expected_events(expected_events)
+      |> validate_expected_event_fields(expected_event_fields)
       |> validate_real_agent(require_real_agent?)
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         {:error, :invalid_run,
-         invalid_run_report(agent, workspace, prompt, changeset, expected_events)
+         invalid_run_report(
+           agent,
+           workspace,
+           prompt,
+           changeset,
+           expected_events,
+           expected_event_fields
+         )
          |> apply_redactions(redactions)}
 
       {:error, reason, run_id} ->
         {:error, reason,
-         run_id |> Runs.get_run!() |> redacted_report(prompt, expected_events, redactions)}
+         run_id
+         |> Runs.get_run!()
+         |> redacted_report(prompt, expected_events, expected_event_fields, redactions)}
 
       {:error, reason} ->
         {:error, reason,
          agent
-         |> invalid_run_report(workspace, prompt, nil, expected_events)
+         |> invalid_run_report(workspace, prompt, nil, expected_events, expected_event_fields)
          |> apply_redactions(redactions)}
     end
   end
@@ -85,6 +97,7 @@ defmodule Haven.AgentProbe do
     require_real_agent? = Keyword.get(opts, :require_real_agent, false)
     prompt = "(preflight only)"
     expected_events = ["agent_initialized", "agent_session_started"]
+    expected_event_fields = []
 
     result =
       with {:ok, run} <-
@@ -98,25 +111,34 @@ defmodule Haven.AgentProbe do
         _ = Runs.stop_run(booted.id)
 
         booted
-        |> redacted_report(prompt, expected_events, redactions)
+        |> redacted_report(prompt, expected_events, expected_event_fields, redactions)
         |> validate_expected_events(expected_events)
         |> validate_real_agent(require_real_agent?)
       else
         {:error, %Ecto.Changeset{} = changeset} ->
           {:error, :invalid_run,
-           invalid_run_report(agent, workspace, prompt, changeset, expected_events)
+           invalid_run_report(
+             agent,
+             workspace,
+             prompt,
+             changeset,
+             expected_events,
+             expected_event_fields
+           )
            |> apply_redactions(redactions)}
 
         {:error, reason, run_id} ->
           _ = Runs.stop_run(run_id)
 
           {:error, reason,
-           run_id |> Runs.get_run!() |> redacted_report(prompt, expected_events, redactions)}
+           run_id
+           |> Runs.get_run!()
+           |> redacted_report(prompt, expected_events, expected_event_fields, redactions)}
 
         {:error, reason} ->
           {:error, reason,
            agent
-           |> invalid_run_report(workspace, prompt, nil, expected_events)
+           |> invalid_run_report(workspace, prompt, nil, expected_events, expected_event_fields)
            |> apply_redactions(redactions)}
       end
 
@@ -211,6 +233,46 @@ defmodule Haven.AgentProbe do
     end)
   end
 
+  defp expected_event_fields(opts) do
+    opts
+    |> Keyword.get_values(:expect_event_field)
+    |> Kernel.++(Keyword.get(opts, :expect_event_fields, []))
+    |> Enum.map(&normalize_event_field_expectation!/1)
+    |> Enum.uniq()
+  end
+
+  defp normalize_event_field_expectation!(%{event: event, field: field, value: value}) do
+    %{event: to_string(event), field: field_path(field), value: to_string(value)}
+  end
+
+  defp normalize_event_field_expectation!(%{"event" => event, "field" => field, "value" => value}) do
+    %{event: to_string(event), field: field_path(field), value: to_string(value)}
+  end
+
+  defp normalize_event_field_expectation!(spec) when is_binary(spec) do
+    with [event, rest] <- String.split(spec, ":", parts: 2),
+         [field, value] <- String.split(rest, "=", parts: 2),
+         event <- String.trim(event),
+         field <- String.trim(field),
+         value <- String.trim(value),
+         true <- event != "" and field != "" do
+      %{event: event, field: field_path(field), value: value}
+    else
+      _ ->
+        raise ArgumentError,
+              "expected event field expectation as EVENT:payload.path=value, got: #{inspect(spec)}"
+    end
+  end
+
+  defp field_path(field) when is_binary(field) do
+    field
+    |> String.split(".", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp field_path(field) when is_list(field), do: Enum.map(field, &to_string/1)
+
   defp wait_for_boot(run_id, timeout) do
     wait_until(run_id, timeout, fn run ->
       cond do
@@ -293,7 +355,7 @@ defmodule Haven.AgentProbe do
     |> Enum.reject(&MapSet.member?(resolved, &1))
   end
 
-  defp report(run, prompt, expected_events) do
+  defp report(run, prompt, expected_events, expected_event_fields) do
     %{
       run_id: run.id,
       agent: run.agent,
@@ -302,17 +364,26 @@ defmodule Haven.AgentProbe do
       prompt: prompt,
       events: Enum.map(Events.list_for_run(run.id), &event_report/1),
       expected_events: expected_events,
-      missing_expected_events: []
+      missing_expected_events: [],
+      expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1),
+      missing_expected_event_fields: []
     }
   end
 
-  defp redacted_report(run, prompt, expected_events, redactions) do
+  defp redacted_report(run, prompt, expected_events, expected_event_fields, redactions) do
     run
-    |> report(prompt, expected_events)
+    |> report(prompt, expected_events, expected_event_fields)
     |> apply_redactions(redactions)
   end
 
-  defp invalid_run_report(agent, workspace, prompt, changeset, expected_events) do
+  defp invalid_run_report(
+         agent,
+         workspace,
+         prompt,
+         changeset,
+         expected_events,
+         expected_event_fields
+       ) do
     %{
       run_id: nil,
       agent: agent,
@@ -322,7 +393,9 @@ defmodule Haven.AgentProbe do
       errors: changeset_errors(changeset),
       events: [],
       expected_events: expected_events,
-      missing_expected_events: []
+      missing_expected_events: [],
+      expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1),
+      missing_expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1)
     }
   end
 
@@ -341,6 +414,30 @@ defmodule Haven.AgentProbe do
     else
       {:error, :missing_expected_events, %{report | missing_expected_events: missing}}
     end
+  end
+
+  defp validate_expected_event_fields({:error, reason, report}, _expected_event_fields),
+    do: {:error, reason, report}
+
+  defp validate_expected_event_fields({:ok, report}, []), do: {:ok, report}
+
+  defp validate_expected_event_fields({:ok, report}, expected_event_fields) do
+    missing =
+      expected_event_fields
+      |> Enum.reject(&event_field_present?(report.events, &1))
+      |> Enum.map(&event_field_report/1)
+
+    if missing == [] do
+      {:ok, report}
+    else
+      {:error, :missing_expected_event_fields, %{report | missing_expected_event_fields: missing}}
+    end
+  end
+
+  defp event_field_present?(events, %{event: event_type, field: field, value: expected}) do
+    Enum.any?(events, fn event ->
+      event.type == event_type and to_string(get_in(event.payload, field) || "") == expected
+    end)
   end
 
   defp validate_real_agent({:error, reason, report}, _require_real_agent?),
@@ -406,6 +503,14 @@ defmodule Haven.AgentProbe do
       seq: event.seq,
       type: event.type,
       payload: event.payload
+    }
+  end
+
+  defp event_field_report(%{event: event, field: field, value: value}) do
+    %{
+      event: event,
+      field: Enum.join(field, "."),
+      value: value
     }
   end
 

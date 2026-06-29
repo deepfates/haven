@@ -4,6 +4,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
 
       mix haven.agent_probe --agent stub-acp --workspace . --prompt "hello"
       mix haven.agent_probe --agent my-agent --workspace . --prompt "read README.md" --expect-event file_read_succeeded
+      mix haven.agent_probe --agent my-agent --workspace . --prompt "read README.md" --expect-event-field file_read_succeeded:path=README.md
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --terminal-create-policy deny --expect-event terminal_create_denied
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --report docs/probes/my-agent.json
       mix haven.agent_probe --list-agents --workspace .
@@ -25,6 +26,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   narrow file capability policy to specific workspace-relative paths.
   Use repeated `--expect-event` flags to make the probe fail unless the run
   produces the event types required by the acceptance story.
+  Use repeated `--expect-event-field EVENT:payload.path=value` flags to make
+  the probe fail unless at least one matching event has that payload value.
   Use `--require-real-agent` for evidence intended to satisfy the real-agent
   Grei validation milestone; it rejects the built-in stub and known test
   harnesses.
@@ -45,6 +48,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     timeout: :integer,
     resolve_permissions: :string,
     expect_event: :keep,
+    expect_event_field: :keep,
     report: :string,
     title: :string,
     file_read_policy: :string,
@@ -313,9 +317,21 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       Mix.shell().info("Expected events: #{Enum.join(report.expected_events, ", ")}")
     end
 
+    if Map.get(report, :expected_event_fields, []) != [] do
+      Mix.shell().info(
+        "Expected event fields: #{Enum.map_join(report.expected_event_fields, ", ", &event_field_label/1)}"
+      )
+    end
+
     if report.missing_expected_events != [] do
       Mix.shell().info(
         "Missing expected events: #{Enum.join(report.missing_expected_events, ", ")}"
+      )
+    end
+
+    if Map.get(report, :missing_expected_event_fields, []) != [] do
+      Mix.shell().info(
+        "Missing expected event fields: #{Enum.map_join(report.missing_expected_event_fields, ", ", &event_field_label/1)}"
       )
     end
 
@@ -342,5 +358,13 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     File.write!(path, Jason.encode!(report, pretty: true))
     Mix.shell().info("")
     Mix.shell().info("Report written: #{path}")
+  end
+
+  defp event_field_label(%{event: event, field: field, value: value}) do
+    "#{event}:#{field}=#{value}"
+  end
+
+  defp event_field_label(%{"event" => event, "field" => field, "value" => value}) do
+    "#{event}:#{field}=#{value}"
   end
 end

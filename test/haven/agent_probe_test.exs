@@ -480,6 +480,47 @@ defmodule Haven.AgentProbeTest do
     assert "turn_finished" in event_types(report)
   end
 
+  test "passes when expected event payload fields are present" do
+    assert {:ok, report} =
+             AgentProbe.run(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               prompt: "terminal",
+               terminal_create_policy: "deny",
+               expect_events: ["terminal_create_denied"],
+               expect_event_field: "terminal_create_denied:command=echo",
+               expect_event_fields: [
+                 %{event: "capability_policy_applied", field: "decision", value: "deny"}
+               ],
+               timeout: 5_000
+             )
+
+    assert report.missing_expected_event_fields == []
+
+    assert report.expected_event_fields == [
+             %{event: "terminal_create_denied", field: "command", value: "echo"},
+             %{event: "capability_policy_applied", field: "decision", value: "deny"}
+           ]
+  end
+
+  test "fails when expected event payload fields are absent" do
+    assert {:error, :missing_expected_event_fields, report} =
+             AgentProbe.run(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               prompt: "terminal",
+               terminal_create_policy: "deny",
+               expect_event_field: "terminal_create_denied:command=not-echo",
+               timeout: 5_000
+             )
+
+    assert report.status == "idle"
+
+    assert report.missing_expected_event_fields == [
+             %{event: "terminal_create_denied", field: "command", value: "not-echo"}
+           ]
+  end
+
   defp event_types(report), do: Enum.map(report.events, & &1.type)
 
   defp fake_agent_spec(scenario) do

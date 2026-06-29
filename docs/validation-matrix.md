@@ -357,13 +357,14 @@ Evidence:
 - `mix haven.agent_probe` now exercises a configured ACP agent through Haven's
   real run lifecycle, including run creation, ACP boot/session setup, prompting,
   optional permission resolution, per-run capability policy, durable event
-  reporting, and explicit `--expect-event` acceptance checks. The probe can
-  write a pretty JSON report with `--report`, giving real-agent validation a
-  durable artifact format instead of a copied terminal transcript. Current
-  automated coverage runs this probe against `stub-acp`, including file policy
-  allow, scoped file policy deny, and terminal-create policy deny stories, and
-  against the configured test-only fake ACP harness for file-read,
-  terminal-command, and approval-gated terminal-command stories.
+  reporting, explicit `--expect-event` acceptance checks, and field-level
+  `--expect-event-field EVENT:payload.path=value` checks. The probe can write a
+  pretty JSON report with `--report`, giving real-agent validation a durable
+  artifact format instead of a copied terminal transcript. Current automated
+  coverage runs this probe against `stub-acp`, including file policy allow,
+  scoped file policy deny, and terminal-create policy deny stories, and against
+  the configured test-only fake ACP harness for file-read, terminal-command,
+  and approval-gated terminal-command stories.
   Real-agent proof still requires running the same probe against a non-test
   configured ACP command with expectations for the specific story being
   validated.
@@ -448,7 +449,10 @@ Evidence:
   errors are projected as labeled fields.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
-  gate rather than only a documentation convention.
+  gate rather than only a documentation convention. Committed reports can now
+  require payload-field facts as well as event types, so future Haven-mediated
+  `fs/*` / `terminal/*` evidence can assert details like requested path,
+  terminal command, and exit status.
 
 Still missing:
 

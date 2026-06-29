@@ -35,10 +35,13 @@ defmodule Haven.AgentProbeReport do
       |> require_accepted_status(report)
       |> require_real_agent_evidence(report)
       |> require_expected_events(report)
+      |> require_expected_event_fields(report)
       |> require_no_missing_events(report)
+      |> require_no_missing_event_fields(report)
       |> require_no_errors(report)
       |> require_events(report)
       |> require_expected_events_present(report)
+      |> require_expected_event_fields_present(report)
       |> Enum.reverse()
 
     if errors == [], do: :ok, else: {:error, errors}
@@ -94,6 +97,42 @@ defmodule Haven.AgentProbeReport do
     end
   end
 
+  defp require_expected_event_fields(errors, report) do
+    case Map.get(report, "expected_event_fields", []) do
+      fields when is_list(fields) ->
+        Enum.reduce(Enum.with_index(fields, 1), errors, fn {field, index}, acc ->
+          validate_event_field_expectation(acc, field, index)
+        end)
+
+      _fields ->
+        ["expected_event_fields must be a list when present" | errors]
+    end
+  end
+
+  defp validate_event_field_expectation(
+         errors,
+         %{"event" => event, "field" => field, "value" => value},
+         _index
+       )
+       when is_binary(event) and event != "" and is_binary(field) and field != "" and
+              is_binary(value) do
+    errors
+  end
+
+  defp validate_event_field_expectation(errors, _field, index) do
+    [
+      "expected_event_fields entry #{index} must include string event, field, and value"
+      | errors
+    ]
+  end
+
+  defp require_no_missing_event_fields(errors, report) do
+    case Map.get(report, "missing_expected_event_fields", []) do
+      [] -> errors
+      _fields -> ["missing_expected_event_fields must be empty" | errors]
+    end
+  end
+
   defp require_no_errors(errors, report) do
     case Map.get(report, "errors", %{}) do
       errors_map when errors_map in [%{}, nil] -> errors
@@ -146,5 +185,40 @@ defmodule Haven.AgentProbeReport do
     else
       ["expected events are absent from events: #{Enum.join(missing, ", ")}" | errors]
     end
+  end
+
+  defp require_expected_event_fields_present(errors, report) do
+    expected_event_fields = Map.get(report, "expected_event_fields", [])
+    events = Map.get(report, "events", [])
+
+    missing =
+      expected_event_fields
+      |> Enum.filter(&is_map/1)
+      |> Enum.reject(&event_field_present?(events, &1))
+
+    if missing == [] do
+      errors
+    else
+      [
+        "expected event fields are absent from events: #{Enum.map_join(missing, ", ", &event_field_label/1)}"
+        | errors
+      ]
+    end
+  end
+
+  defp event_field_present?(events, %{"event" => event_type, "field" => field, "value" => value}) do
+    path = String.split(field, ".", trim: true)
+
+    Enum.any?(events, fn
+      %{"type" => ^event_type, "payload" => payload} when is_map(payload) ->
+        to_string(get_in(payload, path) || "") == value
+
+      _event ->
+        false
+    end)
+  end
+
+  defp event_field_label(%{"event" => event, "field" => field, "value" => value}) do
+    "#{event}:#{field}=#{value}"
   end
 end
