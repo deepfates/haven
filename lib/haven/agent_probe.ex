@@ -86,7 +86,9 @@ defmodule Haven.AgentProbe do
     opts
     |> Enum.reduce(base_policy, fn
       {:file_read_policy, value}, policy -> Map.put(policy, "file_read", value)
+      {:file_read_paths, value}, policy -> Map.put(policy, "file_read_paths", value)
       {:file_write_policy, value}, policy -> Map.put(policy, "file_write", value)
+      {:file_write_paths, value}, policy -> Map.put(policy, "file_write_paths", value)
       {:terminal_create_policy, value}, policy -> Map.put(policy, "terminal_create", value)
       _option, policy -> policy
     end)

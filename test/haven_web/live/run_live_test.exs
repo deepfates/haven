@@ -953,6 +953,76 @@ defmodule HavenWeb.RunLiveTest do
   end
 
   @tag :tmp_dir
+  test "denies auto-allowed file reads outside configured path scopes", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    File.write!(Path.join(tmp_dir, "README.md"), "scoped secret\n")
+    File.mkdir_p!(Path.join(tmp_dir, "docs"))
+
+    {:ok, run} =
+      Runs.create_run(%{
+        "title" => "Scoped read run",
+        "workspace" => tmp_dir,
+        "capability_policy" => %{
+          "file_read" => "allow",
+          "file_read_paths" => ["docs"]
+        }
+      })
+
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> element("#sample-read-file-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{type: "file_read_requested", payload: %{"path" => "README.md"}}},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "capability_policy_applied",
+                      payload: %{
+                        "capability" => "file_read",
+                        "decision" => "deny",
+                        "reason" => "path_scope",
+                        "path_scopes" => ["docs"]
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "file_read_denied",
+                      payload: %{
+                        "path" => "README.md",
+                        "error" => %{"data" => %{"reason" => "path_scope_denied"}}
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "File request failed: Permission denied"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+    refute_receive {:event_appended, %{type: "permission_requested"}}, 100
+    refute has_element?(view, "#pending-permission-card")
+
+    html = render(view)
+    assert html =~ "path_scope_denied"
+    refute html =~ "scoped secret"
+  end
+
+  @tag :tmp_dir
   test "handles ACP file write requests inside the run workspace", %{conn: conn, tmp_dir: tmp_dir} do
     {:ok, run} = Runs.create_run(%{"title" => "File write run", "workspace" => tmp_dir})
     stop_run_server_on_exit(run.id)
@@ -1214,6 +1284,76 @@ defmodule HavenWeb.RunLiveTest do
     refute File.exists?(Path.join(tmp_dir, "haven-written.txt"))
     refute has_element?(view, "#pending-permission-card")
     assert render(view) =~ "capability_policy_applied"
+  end
+
+  @tag :tmp_dir
+  test "denies auto-allowed file writes outside configured path scopes", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    File.mkdir_p!(Path.join(tmp_dir, "notes"))
+
+    {:ok, run} =
+      Runs.create_run(%{
+        "title" => "Scoped write run",
+        "workspace" => tmp_dir,
+        "capability_policy" => %{
+          "file_write" => "allow",
+          "file_write_paths" => ["notes"]
+        }
+      })
+
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> element("#sample-write-file-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "file_write_requested",
+                      payload: %{"path" => "haven-written.txt"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "capability_policy_applied",
+                      payload: %{
+                        "capability" => "file_write",
+                        "decision" => "deny",
+                        "reason" => "path_scope",
+                        "path_scopes" => ["notes"]
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "file_write_denied",
+                      payload: %{
+                        "path" => "haven-written.txt",
+                        "error" => %{"data" => %{"reason" => "path_scope_denied"}}
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "File request failed: Permission denied"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+    refute_receive {:event_appended, %{type: "permission_requested"}}, 100
+    refute File.exists?(Path.join(tmp_dir, "haven-written.txt"))
+    refute has_element?(view, "#pending-permission-card")
+    assert render(view) =~ "path_scope_denied"
   end
 
   test "handles ACP terminal create, wait, output, and release requests visibly", %{conn: conn} do

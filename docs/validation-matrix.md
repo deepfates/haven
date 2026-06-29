@@ -298,6 +298,10 @@ Evidence:
   verify reads pause on a local permission decision before file content is
   returned, verify write denial leaves the selected temporary workspace
   unchanged, and verify approved writes land in that workspace.
+- Per-run file capability policy can include workspace-relative path scopes.
+  LiveView integration tests verify out-of-scope reads and writes are denied
+  before file content is returned or workspace writes occur, even when the
+  broader file capability decision is `allow`.
 - LiveView integration tests verify write permission requests include bounded
   proposed-content and line-oriented diff previews for human review, including
   independent truncation markers for large writes.
@@ -341,9 +345,9 @@ Evidence:
   write a pretty JSON report with `--report`, giving real-agent validation a
   durable artifact format instead of a copied terminal transcript. Current
   automated coverage runs this probe against `stub-acp`, including file policy
-  allow and terminal-create policy deny stories, and against the configured
-  test-only fake ACP harness for file-read, terminal-command, and
-  approval-gated terminal-command stories.
+  allow, scoped file policy deny, and terminal-create policy deny stories, and
+  against the configured test-only fake ACP harness for file-read,
+  terminal-command, and approval-gated terminal-command stories.
   Real-agent proof still requires running the same probe against a non-test
   configured ACP command with expectations for the specific story being
   validated.
@@ -365,7 +369,7 @@ Still missing:
   bounded proposed-content preview plus a bounded line-oriented diff preview on
   write permission requests.
 - PTY-style interactive terminal sessions.
-- Broader per-run capability policy, including scoped path rules.
+- Product-grade UI for configuring scoped path rules.
 
 ## Not Proven Yet
 

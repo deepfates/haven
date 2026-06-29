@@ -385,9 +385,22 @@ defmodule Haven.Runs.RunServer do
     Events.append!(state.run_id, "file_read_requested", payload)
 
     pending = file_read_pending(from, request, payload, run.workspace)
+    path_scopes = file_capability_path_scopes(run, "file_read")
 
-    case file_capability_decision(run, "file_read") do
-      "allow" ->
+    cond do
+      not WorkspaceFiles.path_in_scopes?(run.workspace, request.path, path_scopes) ->
+        Events.append!(state.run_id, "capability_policy_applied", %{
+          "capability" => "file_read",
+          "decision" => "deny",
+          "reason" => "path_scope",
+          "request_id" => request_id,
+          "path_scopes" => path_scopes || []
+        })
+
+        deny_pending_file_scope(state, pending)
+        {:noreply, %{state | next_permission_id: request_id + 1}}
+
+      file_capability_decision(run, "file_read") == "allow" ->
         Events.append!(state.run_id, "capability_policy_applied", %{
           "capability" => "file_read",
           "decision" => "allow",
@@ -397,7 +410,7 @@ defmodule Haven.Runs.RunServer do
         resolve_pending_permission(state, pending, "allow")
         {:noreply, %{state | next_permission_id: request_id + 1}}
 
-      "deny" ->
+      file_capability_decision(run, "file_read") == "deny" ->
         Events.append!(state.run_id, "capability_policy_applied", %{
           "capability" => "file_read",
           "decision" => "deny",
@@ -407,7 +420,7 @@ defmodule Haven.Runs.RunServer do
         resolve_pending_permission(state, pending, "deny")
         {:noreply, %{state | next_permission_id: request_id + 1}}
 
-      _ask ->
+      true ->
         Events.append!(
           state.run_id,
           "permission_requested",
@@ -437,9 +450,22 @@ defmodule Haven.Runs.RunServer do
     )
 
     pending = file_write_pending(from, request, payload, run.workspace)
+    path_scopes = file_capability_path_scopes(run, "file_write")
 
-    case file_capability_decision(run, "file_write") do
-      "allow" ->
+    cond do
+      not WorkspaceFiles.path_in_scopes?(run.workspace, request.path, path_scopes) ->
+        Events.append!(state.run_id, "capability_policy_applied", %{
+          "capability" => "file_write",
+          "decision" => "deny",
+          "reason" => "path_scope",
+          "request_id" => request_id,
+          "path_scopes" => path_scopes || []
+        })
+
+        deny_pending_file_scope(state, pending)
+        {:noreply, %{state | next_permission_id: request_id + 1}}
+
+      file_capability_decision(run, "file_write") == "allow" ->
         Events.append!(state.run_id, "capability_policy_applied", %{
           "capability" => "file_write",
           "decision" => "allow",
@@ -449,7 +475,7 @@ defmodule Haven.Runs.RunServer do
         resolve_pending_permission(state, pending, "allow")
         {:noreply, %{state | next_permission_id: request_id + 1}}
 
-      "deny" ->
+      file_capability_decision(run, "file_write") == "deny" ->
         Events.append!(state.run_id, "capability_policy_applied", %{
           "capability" => "file_write",
           "decision" => "deny",
@@ -459,7 +485,7 @@ defmodule Haven.Runs.RunServer do
         resolve_pending_permission(state, pending, "deny")
         {:noreply, %{state | next_permission_id: request_id + 1}}
 
-      _ask ->
+      true ->
         Events.append!(
           state.run_id,
           "permission_requested",
@@ -787,6 +813,12 @@ defmodule Haven.Runs.RunServer do
 
   defp file_capability_decision(run, capability), do: capability_decision(run, capability)
 
+  defp file_capability_path_scopes(run, capability) do
+    run.capability_policy
+    |> Haven.Runs.Run.capability_policy()
+    |> Map.get("#{capability}_paths")
+  end
+
   defp capability_decision(run, capability) do
     run.capability_policy
     |> Haven.Runs.Run.capability_policy()
@@ -917,6 +949,20 @@ defmodule Haven.Runs.RunServer do
     state
   end
 
+  defp deny_pending_file_scope(state, %{kind: kind} = pending)
+       when kind in [:file_read, :file_write] do
+    error = path_scope_denied_error(pending.payload["path"])
+    event_type = if kind == :file_read, do: "file_read_denied", else: "file_write_denied"
+
+    Events.append!(
+      state.run_id,
+      event_type,
+      Map.merge(pending.payload, %{"error" => ACP.Error.to_json(error)})
+    )
+
+    GenServer.reply(pending.from, {:error, error})
+  end
+
   defp cancel_pending_permission(%{kind: :agent_permission, from: from}) do
     response =
       :cancelled
@@ -940,6 +986,11 @@ defmodule Haven.Runs.RunServer do
   defp permission_denied_error(path) do
     ACP.Error.new(-32003, "Permission denied")
     |> ACP.Error.with_data(%{"path" => path, "reason" => "permission_denied"})
+  end
+
+  defp path_scope_denied_error(path) do
+    ACP.Error.new(-32003, "Permission denied")
+    |> ACP.Error.with_data(%{"path" => path, "reason" => "path_scope_denied"})
   end
 
   defp terminal_permission_denied_error do

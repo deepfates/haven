@@ -56,6 +56,19 @@ defmodule Haven.WorkspaceFiles do
     end
   end
 
+  def path_in_scopes?(workspace, path, scopes)
+  def path_in_scopes?(_workspace, _path, nil), do: true
+
+  def path_in_scopes?(workspace, path, scopes) when is_list(scopes) do
+    with {:ok, resolved_path} <- resolve_path(workspace, path) do
+      Enum.any?(scopes, &path_in_scope?(workspace, resolved_path, &1))
+    else
+      {:error, :outside_workspace} -> false
+    end
+  end
+
+  def path_in_scopes?(_workspace, _path, _scopes), do: false
+
   defp resolve_path(workspace, path) when is_binary(path) do
     workspace = Path.expand(workspace)
 
@@ -73,6 +86,20 @@ defmodule Haven.WorkspaceFiles do
   end
 
   defp resolve_path(_workspace, _path), do: {:error, :outside_workspace}
+
+  defp path_in_scope?(_workspace, _resolved_path, scope) when scope in ["*", "**"], do: true
+
+  defp path_in_scope?(workspace, resolved_path, scope) when is_binary(scope) do
+    case resolve_path(workspace, scope) do
+      {:ok, scope_path} ->
+        resolved_path == scope_path or String.starts_with?(resolved_path, scope_path <> "/")
+
+      {:error, :outside_workspace} ->
+        false
+    end
+  end
+
+  defp path_in_scope?(_workspace, _resolved_path, _scope), do: false
 
   defp slice_content(content, nil, nil), do: content
 

@@ -34,6 +34,32 @@ defmodule Haven.RunsTest do
     refute Runs.get_run!(running.id).archived_at
   end
 
+  test "normalizes optional file capability path scopes" do
+    changeset =
+      Run.changeset(%Run{}, %{
+        title: "Scoped run",
+        workspace: File.cwd!(),
+        agent: "stub-acp",
+        status: "idle",
+        capability_policy: %{
+          "file_read" => "allow",
+          "file_read_paths" => [" README.md ", "", "docs", "docs"],
+          file_write: "ask",
+          file_write_paths: "tmp"
+        }
+      })
+
+    assert changeset.valid?
+
+    assert Ecto.Changeset.get_change(changeset, :capability_policy) == %{
+             "file_read" => "allow",
+             "file_read_paths" => ["README.md", "docs"],
+             "file_write" => "ask",
+             "file_write_paths" => ["tmp"],
+             "terminal_create" => "allow"
+           }
+  end
+
   defp insert_run!(title, status) do
     run =
       %Run{}

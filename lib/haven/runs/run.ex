@@ -59,6 +59,8 @@ defmodule Haven.Runs.Run do
           "allow"
         )
     }
+    |> put_path_scope(policy, "file_read_paths")
+    |> put_path_scope(policy, "file_write_paths")
   end
 
   defp normalize_capability_policy(_policy), do: normalize_capability_policy(%{})
@@ -71,4 +73,33 @@ defmodule Haven.Runs.Run do
     do: value
 
   defp terminal_capability_decision(_value, default), do: default
+
+  defp put_path_scope(normalized, policy, key) do
+    atom_key = path_scope_atom_key(key)
+
+    cond do
+      Map.has_key?(policy, key) ->
+        Map.put(normalized, key, normalize_path_scope(Map.get(policy, key)))
+
+      Map.has_key?(policy, atom_key) ->
+        Map.put(normalized, key, normalize_path_scope(Map.get(policy, atom_key)))
+
+      true ->
+        normalized
+    end
+  end
+
+  defp path_scope_atom_key("file_read_paths"), do: :file_read_paths
+  defp path_scope_atom_key("file_write_paths"), do: :file_write_paths
+
+  defp normalize_path_scope(paths) when is_list(paths) do
+    paths
+    |> Enum.filter(&is_binary/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+  end
+
+  defp normalize_path_scope(path) when is_binary(path), do: normalize_path_scope([path])
+  defp normalize_path_scope(_paths), do: []
 end

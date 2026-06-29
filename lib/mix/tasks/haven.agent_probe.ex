@@ -11,7 +11,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   probe prompt is expected to trigger permission-gated file or terminal work.
   Use `--file-read-policy`, `--file-write-policy`, and
   `--terminal-create-policy` to create the probed run with explicit capability
-  policy.
+  policy. Use comma-separated `--file-read-paths` or `--file-write-paths` to
+  narrow file capability policy to specific workspace-relative paths.
   Use repeated `--expect-event` flags to make the probe fail unless the run
   produces the event types required by the acceptance story.
   Use `--require-real-agent` for evidence intended to satisfy the real-agent
@@ -37,7 +38,9 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     report: :string,
     title: :string,
     file_read_policy: :string,
+    file_read_paths: :string,
     file_write_policy: :string,
+    file_write_paths: :string,
     terminal_create_policy: :string,
     redact: :keep,
     redact_env: :keep,
@@ -74,6 +77,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     |> Keyword.update(:workspace, File.cwd!(), &Path.expand/1)
     |> Keyword.update(:report, nil, &Path.expand/1)
     |> Keyword.update(:resolve_permissions, nil, &normalize_permission_resolution/1)
+    |> normalize_path_scope(:file_read_paths)
+    |> normalize_path_scope(:file_write_paths)
     |> normalize_capability_policy(:file_read_policy, ["ask", "allow", "deny"])
     |> normalize_capability_policy(:file_write_policy, ["ask", "allow", "deny"])
     |> normalize_capability_policy(:terminal_create_policy, ["ask", "allow", "deny"])
@@ -82,6 +87,20 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   defp normalize_permission_resolution(nil), do: nil
   defp normalize_permission_resolution("none"), do: nil
   defp normalize_permission_resolution(option_id), do: option_id
+
+  defp normalize_path_scope(opts, key) do
+    case Keyword.fetch(opts, key) do
+      {:ok, value} -> Keyword.put(opts, key, parse_path_scope(value))
+      :error -> opts
+    end
+  end
+
+  defp parse_path_scope(value) do
+    value
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
 
   defp normalize_capability_policy(opts, key, allowed) do
     case Keyword.fetch(opts, key) do

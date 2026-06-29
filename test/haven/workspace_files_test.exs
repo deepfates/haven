@@ -36,6 +36,17 @@ defmodule Haven.WorkspaceFilesTest do
   end
 
   @tag :tmp_dir
+  test "matches requested paths against workspace-relative scopes", %{tmp_dir: tmp_dir} do
+    assert WorkspaceFiles.path_in_scopes?(tmp_dir, "README.md", ["README.md"])
+    assert WorkspaceFiles.path_in_scopes?(tmp_dir, "docs/guide.md", ["docs"])
+    assert WorkspaceFiles.path_in_scopes?(tmp_dir, "anything.txt", ["*"])
+
+    refute WorkspaceFiles.path_in_scopes?(tmp_dir, "lib/app.ex", ["docs", "README.md"])
+    refute WorkspaceFiles.path_in_scopes?(tmp_dir, "../outside.md", ["*"])
+    refute WorkspaceFiles.path_in_scopes?(tmp_dir, "README.md", [])
+  end
+
+  @tag :tmp_dir
   test "builds a write diff preview for a new file", %{tmp_dir: tmp_dir} do
     request = ACP.WriteTextFileRequest.new("session", "notes.md", "hello\nworld\n")
 

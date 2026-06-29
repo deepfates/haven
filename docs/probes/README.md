@@ -37,6 +37,7 @@ mix haven.agent_probe \
   --agent my-agent \
   --workspace /path/to/repo \
   --prompt "read README.md" \
+  --file-read-paths README.md,docs \
   --resolve-permissions allow \
   --expect-event permission_requested \
   --expect-event permission_resolved \

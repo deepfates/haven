@@ -313,10 +313,11 @@ Proven:
   approving, though this is not yet a full diff/artifact review system.
 - Runs can carry per-run capability policy for file reads, file writes, and
   terminal creation. File reads/writes support explicit ask, allow, or deny
-  behavior; terminal creation supports ask, allow, or deny. Each applied
-  automatic policy records a durable policy-decision event, and the run detail
-  view exposes the effective policy after creation so users can inspect a run's
-  current authority without reconstructing it from the creation form.
+  behavior plus optional workspace-relative path scopes; terminal creation
+  supports ask, allow, or deny. Each applied automatic policy records a durable
+  policy-decision event, and the run detail view exposes the effective policy
+  after creation so users can inspect a run's current authority without
+  reconstructing it from the creation form.
 - Deterministic non-interactive ACP terminal create/wait/output/release requests
   can be handled, logged, scoped to the selected workspace, and projected back
   to the agent.
@@ -375,8 +376,8 @@ Not yet proven:
   is session-level because ACP session updates do not carry prompt ids in the
   local evidence path.
 - Backpressure, log compaction, and transcript projection performance.
-- Security boundaries around workspace access, especially richer configurable
-  capability grants for terminal use and scoped file paths.
+- Security boundaries around workspace access, especially product-grade UI for
+  richer configurable capability grants.
 - Authentication flows and product-grade agent/workspace configuration,
   including OS-native workspace browse affordances; persisted workspace
   name/path records, persisted agent command definitions, basic inbox
