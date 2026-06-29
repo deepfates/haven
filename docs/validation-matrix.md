@@ -41,6 +41,8 @@ Evidence:
   attention lanes.
 - Browser smoke verifies the rendered inbox can start a real run with an
   explicit workspace and that the run detail/ACP launch args reflect it.
+- Browser smoke verifies a run waiting on permission moves into the rendered
+  `Needs You` lane, then returns to `History` after approval.
 - Browser smoke verifies a missing workspace path stays on the inbox, renders
   `must be an existing directory`, and does not add the run to history.
 - Data-layer and LiveView integration tests verify terminal `failed`/`closed`
@@ -285,5 +287,5 @@ be counted as complete until there is executable evidence.
 3. Connect terminal capability handling to a real ACP-speaking agent and add
    process-tree kill/interactive-terminal evidence.
 4. Connect file capability handling to a real ACP-speaking agent.
-5. Add browser smoke coverage for reload recovery and attention-lane movement,
-   not just a single happy-path permission approval.
+5. Add browser smoke coverage for reload recovery and non-happy-path permission
+   flows, not just approval.

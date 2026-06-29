@@ -106,6 +106,40 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "article", "Quiet")
   end
 
+  test "moves live runs between attention lanes as their status changes", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Lane movement run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+    Runs.subscribe()
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "section", "History")
+    assert has_element?(view, "article", "Lane movement run")
+
+    assert :ok = Runs.send_prompt(run.id, "permission")
+
+    assert_receive {:event_appended, %{type: "permission_requested"}}, 1_000
+    assert_receive {:run_updated, %{id: id, status: "waiting"}}, 1_000
+    assert id == run.id
+
+    assert has_element?(view, "section", "Needs You")
+    assert has_element?(view, "article", "Lane movement run")
+
+    assert :ok = Runs.resolve_permission(run.id, 1, "allow")
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+    assert_receive {:run_updated, %{id: id, status: "idle"}}, 1_000
+    assert id == run.id
+
+    [{pid, _}] = Registry.lookup(Haven.Runs.Registry, run.id)
+    _ = :sys.get_state(pid)
+
+    refute has_element?(view, "section", "Needs You")
+    assert has_element?(view, "section", "History")
+    assert has_element?(view, "article", "Lane movement run")
+  end
+
   test "archives terminal runs from history without deleting their events", %{conn: conn} do
     run = insert_run!("Old failure", "failed")
 
@@ -157,5 +191,11 @@ defmodule HavenWeb.InboxLiveTest do
         DynamicSupervisor.terminate_child(Haven.Runs.Supervisor, pid)
       end
     end)
+  end
+
+  defp sync_run_server!(run_id) do
+    {:ok, pid} = Runs.ensure_started(run_id)
+    _ = :sys.get_state(pid)
+    pid
   end
 end
