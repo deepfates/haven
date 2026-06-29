@@ -289,6 +289,8 @@ Proven:
   to the agent.
 - Disconnected idle run history can be viewed without silently spawning a new
   agent process.
+- Disconnected idle history and failed persisted runs can be explicitly
+  reconnected/restarted as fresh ACP processes.
 
 Not yet proven:
 
@@ -296,7 +298,7 @@ Not yet proven:
 - File capability handling against real external agents.
 - Terminal capability handling against real external agents.
 - Interactive terminal sessions and kill behavior.
-- Explicit process restart and resume policy.
+- ACP-native session resume policy.
 - Multi-run load behavior.
 - Long-running turn streaming under real output volume.
 - Backpressure, log compaction, and transcript projection performance.

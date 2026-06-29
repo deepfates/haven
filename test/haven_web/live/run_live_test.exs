@@ -39,6 +39,61 @@ defmodule HavenWeb.RunLiveTest do
     refute Enum.any?(events, &(&1.type == "user_message"))
   end
 
+  test "explicit reconnect starts a new process for disconnected idle history", %{conn: conn} do
+    run = insert_disconnected_run!("Reconnect history")
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#reconnect-run-button", "Reconnect")
+
+    view
+    |> element("#reconnect-run-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "run_reconnect_requested",
+                      payload: %{"previous_status" => "idle"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+
+    html = render(view)
+    assert html =~ "connected"
+    assert has_element?(view, "#send-prompt-button:not([disabled])")
+  end
+
+  test "explicit restart starts a new process for failed runs", %{conn: conn} do
+    run = insert_disconnected_run!("Restart failed history", "failed")
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert html =~ "failed"
+    assert has_element?(view, "#reconnect-run-button", "Restart")
+
+    view
+    |> element("#reconnect-run-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "run_reconnect_requested",
+                      payload: %{"previous_status" => "failed"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+
+    assert render(view) =~ "connected"
+  end
+
   test "sends a prompt and appends user and agent turn events", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Prompt run"})
     stop_run_server_on_exit(run.id)
@@ -624,14 +679,14 @@ defmodule HavenWeb.RunLiveTest do
     run
   end
 
-  defp insert_disconnected_run!(title) do
+  defp insert_disconnected_run!(title, status \\ "idle") do
     run =
       %Run{}
       |> Run.changeset(%{
         title: title,
         workspace: File.cwd!(),
         agent: "stub-acp",
-        status: "idle",
+        status: status,
         agent_session_id: "old-session"
       })
       |> Repo.insert!()

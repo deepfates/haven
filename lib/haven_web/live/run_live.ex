@@ -53,6 +53,14 @@ defmodule HavenWeb.RunLive do
     {:noreply, assign_run(socket, socket.assigns.run.id)}
   end
 
+  def handle_event("reconnect", _params, socket) do
+    if socket.assigns.can_reconnect? do
+      Runs.reconnect_run(socket.assigns.run.id)
+    end
+
+    {:noreply, assign_run(socket, socket.assigns.run.id)}
+  end
+
   @impl true
   def handle_info({:event_appended, _event}, socket) do
     {:noreply, assign_run(socket, socket.assigns.run.id)}
@@ -75,7 +83,12 @@ defmodule HavenWeb.RunLive do
     |> assign(:live?, live?)
     |> assign(:can_prompt?, live? and run.status not in ["waiting", "failed", "closed"])
     |> assign(:can_cancel?, live? and run.status in ["initializing", "running", "waiting"])
+    |> assign(:can_reconnect?, can_reconnect?(run, live?))
     |> assign(:pending_permission, latest_pending_permission(events))
+  end
+
+  defp can_reconnect?(run, live?) do
+    run.status == "failed" or (not live? and run.status not in ["closed", "waiting", "running"])
   end
 
   defp latest_pending_permission(events) do
@@ -278,6 +291,15 @@ defmodule HavenWeb.RunLive do
                   <dd>{if @live?, do: "connected", else: "not connected"}</dd>
                 </div>
               </dl>
+              <button
+                :if={@can_reconnect?}
+                id="reconnect-run-button"
+                type="button"
+                class="mt-4 h-10 w-full rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                phx-click="reconnect"
+              >
+                {if @run.status == "failed", do: "Restart", else: "Reconnect"}
+              </button>
             </section>
           </aside>
         </section>

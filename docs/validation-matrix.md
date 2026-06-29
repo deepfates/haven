@@ -11,8 +11,9 @@ runs with explicit human decisions.
 - Final project gate: `mix precommit`
 - Browser smoke: create a run, trigger a permission request, approve it, trigger
   an ACP file read, trigger a deterministic terminal command, create a run with
-  an explicit workspace, reload disconnected history, and observe final `idle`
-  status plus persisted timeline events in the in-app browser.
+  an explicit workspace, reload disconnected history, explicitly reconnect that
+  history, and observe final `idle` status plus persisted timeline events in the
+  in-app browser.
 
 ## Proven Now
 
@@ -51,8 +52,11 @@ Evidence:
   notification is preserved as a durable timeline event.
 - LiveView integration tests verify disconnected idle history renders without
   spawning a new agent process or appending synthetic live events.
+- LiveView integration tests verify an explicit reconnect/restart request starts
+  a fresh ACP process for disconnected idle history and failed persisted runs.
 - Browser smoke verifies the timeline renders protocol-shaped events during a
-  real browser session and that disconnected history is visibly read-only.
+  real browser session, that disconnected history is visibly read-only, and that
+  clicking Reconnect appends recovery and startup events.
 
 Still missing:
 
@@ -138,6 +142,9 @@ Evidence:
 - Tests and browser smoke verify LiveView mounts no longer auto-start
   disconnected idle runs; old run history renders with controls disabled and a
   `not connected` process state.
+- Tests and browser smoke verify explicit reconnect/restart appends
+  `run_reconnect_requested`, starts a fresh ACP process, and reconnects prompt
+  controls.
 - RunServer shutdown now explicitly tears down the ACP connection and port IO
   bridge.
 - Event ordering and persistence are covered by `test/haven/events_test.exs`.
@@ -145,7 +152,7 @@ Evidence:
 Still missing:
 
 - Deliberate restart behavior after agent process crash.
-- Explicit resume/restart from disconnected idle history.
+- ACP session resume semantics; current reconnect starts a fresh process/session.
 - Concurrent multi-run behavior under realistic load.
 - Production lifecycle policy for pruning or archiving failed and closed run
   servers.

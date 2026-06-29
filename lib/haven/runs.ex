@@ -67,6 +67,28 @@ defmodule Haven.Runs do
     end
   end
 
+  def reconnect_run(run_id) do
+    run = get_run!(run_id)
+
+    cond do
+      run.status == "closed" ->
+        {:error, :closed_run}
+
+      started?(run_id) and run.status != "failed" ->
+        {:error, :live_run}
+
+      true ->
+        if started?(run_id), do: stop_run(run_id)
+
+        Events.append!(run_id, "run_reconnect_requested", %{
+          "previous_status" => run.status
+        })
+
+        update_status!(run_id, %{status: "idle", agent_session_id: nil})
+        start_run(run_id)
+    end
+  end
+
   def stop_run(run_id) do
     case Registry.lookup(Haven.Runs.Registry, run_id) do
       [{pid, _}] -> GenServer.call(pid, :shutdown, :infinity)
