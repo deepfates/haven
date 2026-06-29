@@ -76,6 +76,9 @@ Evidence:
 - Browser smoke verifies the timeline renders protocol-shaped events during a
   real browser session, that disconnected history is visibly read-only, and that
   clicking Reconnect appends recovery and startup events.
+- Browser smoke verifies a prompt-triggered non-message ACP `tool_call_update`
+  renders as a `Protocol` timeline event with the expected tool id and title,
+  then returns the run to `idle` with prompt controls enabled.
 - LiveView integration tests and browser smoke verify timeline events carry
   explicit provenance labels and `data-event-kind` markers for app, user, agent,
   client, protocol, and runtime events.
@@ -309,8 +312,6 @@ be counted as complete until there is executable evidence.
 - Authentication flows for agents that require auth; configured env can pass
   secrets to launched agents, but no interactive auth flow is proven.
 - Session load/resume/fork/list support when agents expose it.
-- Browser smoke for non-message session updates; current executable evidence is
-  LiveView-level.
 - Product-grade workspace and agent configuration UI.
 - Authenticated user identity for permission decisions.
 
