@@ -306,6 +306,9 @@ Proven:
   card.
 - Malformed ACP output during startup is projected as a visible
   `agent_protocol_failed` run failure without an automatic restart loop.
+- Malformed agent output after a successful ACP session has started is projected
+  as a visible `agent_protocol_failed` run failure, and the active turn is
+  failed instead of hanging indefinitely.
 
 Not yet proven:
 
@@ -314,7 +317,6 @@ Not yet proven:
 - Terminal capability handling against real external agents.
 - Interactive terminal sessions and process-tree kill behavior.
 - ACP-native session resume policy.
-- Malformed ACP frame handling after a session has successfully started.
 - Multi-run load behavior.
 - Long-running turn streaming under real output volume.
 - Backpressure, log compaction, and transcript projection performance.

@@ -17,8 +17,8 @@ runs with explicit human decisions.
   an ACP terminal kill for a direct process, create a run with an explicit
   workspace, reject a missing workspace at run creation, reload disconnected
   history, explicitly reconnect that history, restart after an actual agent
-  crash, and observe final `idle` status plus persisted timeline events in the
-  in-app browser.
+  crash, trigger malformed ACP output after a successful session start, and
+  observe final status plus persisted timeline events in the in-app browser.
 
 ## Proven Now
 
@@ -172,6 +172,10 @@ Evidence:
 - LiveView integration tests verify malformed ACP startup output records
   `agent_protocol_failed`, marks the run `failed`, renders visibly, and does not
   restart the malformed agent process.
+- LiveView integration tests and browser smoke verify malformed agent output
+  after a successful ACP session has started records `agent_protocol_failed`,
+  fails the active turn with `malformed_agent_output`, marks the run `failed`,
+  and renders the failure in the timeline.
 - RunServer shutdown now explicitly tears down the ACP connection and port IO
   bridge.
 - Event ordering and persistence are covered by `test/haven/events_test.exs`.
@@ -234,7 +238,6 @@ be counted as complete until there is executable evidence.
 - Interactive terminal behavior and process-tree kill semantics.
 - Authentication flows for agents that require auth.
 - Session load/resume/fork/list support when agents expose it.
-- Malformed ACP frames after a successful session has started.
 - Browser smoke for malformed ACP startup output; current executable evidence is
   LiveView-level.
 - Browser smoke for non-message session updates; current executable evidence is

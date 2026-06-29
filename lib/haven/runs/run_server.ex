@@ -67,7 +67,8 @@ defmodule Haven.Runs.RunServer do
          {:ok, port_io} <-
            PortIO.start_link(
              executable: command.executable,
-             args: command.args
+             args: command.args,
+             observer: self()
            ) do
       boot_agent_connection(state, run, command, port_io)
     else
@@ -88,6 +89,32 @@ defmodule Haven.Runs.RunServer do
   end
 
   def handle_info({:acp_stream, _event}, state), do: {:noreply, state}
+
+  def handle_info({:port_io_line, port_io, line}, %{port_io: port_io} = state) do
+    cond do
+      is_nil(state.agent_session_id) ->
+        {:noreply, state}
+
+      valid_json_rpc_line?(line) ->
+        {:noreply, state}
+
+      true ->
+        reason = "malformed_agent_output"
+
+        Events.append!(state.run_id, "agent_protocol_failed", %{
+          "reason" => reason,
+          "line" => String.trim_trailing(line)
+        })
+
+        state = fail_pending_work(state, reason)
+        Runs.update_status!(state.run_id, %{status: "failed"})
+        cleanup_agent(state)
+
+        {:noreply, %{state | conn: nil, port_io: nil}}
+    end
+  end
+
+  def handle_info({:port_io_line, _port_io, _line}, state), do: {:noreply, state}
 
   def handle_info({:prompt_finished, id, {:ok, result}}, state) do
     if Map.has_key?(state.pending_prompts, id) do
@@ -121,6 +148,10 @@ defmodule Haven.Runs.RunServer do
     Runs.update_status!(state.run_id, %{status: status})
 
     {:noreply, %{state | conn: nil}}
+  end
+
+  def handle_info({:EXIT, _pid, :normal}, %{conn: nil, port_io: nil} = state) do
+    {:noreply, state}
   end
 
   def handle_info({:EXIT, _pid, reason}, state) do
@@ -625,6 +656,22 @@ defmodule Haven.Runs.RunServer do
   defp no_pending_work?(state) do
     state.pending_prompts == %{} and state.pending_permissions == %{}
   end
+
+  defp valid_json_rpc_line?(line) do
+    case Jason.decode(line) do
+      {:ok, %{} = message} ->
+        json_rpc_message?(message)
+
+      _ ->
+        false
+    end
+  end
+
+  defp json_rpc_message?(%{"id" => _id, "method" => method}) when is_binary(method), do: true
+  defp json_rpc_message?(%{"id" => _id, "result" => _result}), do: true
+  defp json_rpc_message?(%{"id" => _id, "error" => _error}), do: true
+  defp json_rpc_message?(%{"method" => method}) when is_binary(method), do: true
+  defp json_rpc_message?(_message), do: false
 
   defp fail_pending_work(state, reason) do
     state =

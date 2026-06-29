@@ -179,6 +179,10 @@ defmodule StubAgent do
           step: :kill_create
         })
 
+      text == "malformed-after-start" ->
+        IO.puts("this is not json")
+        state
+
       text == "die" ->
         System.halt(1)
 

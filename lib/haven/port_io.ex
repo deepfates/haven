@@ -11,6 +11,7 @@ defmodule Haven.PortIO do
 
   defstruct [
     :port,
+    :observer,
     buffer: "",
     lines: :queue.new(),
     readers: :queue.new(),
@@ -28,6 +29,7 @@ defmodule Haven.PortIO do
   def init(opts) do
     executable = Keyword.fetch!(opts, :executable)
     args = Keyword.get(opts, :args, [])
+    observer = Keyword.get(opts, :observer)
 
     port =
       Port.open(
@@ -35,7 +37,7 @@ defmodule Haven.PortIO do
         [:binary, :exit_status, :use_stdio, :stderr_to_stdout, args: args]
       )
 
-    {:ok, %__MODULE__{port: port}}
+    {:ok, %__MODULE__{port: port, observer: observer}}
   end
 
   @impl true
@@ -109,6 +111,8 @@ defmodule Haven.PortIO do
   end
 
   defp deliver_line(line, state) do
+    notify_observer(state.observer, line)
+
     case :queue.out(state.readers) do
       {{:value, {from, reply_as}}, readers} ->
         send(from, {:io_reply, reply_as, line})
@@ -128,5 +132,12 @@ defmodule Haven.PortIO do
       {:empty, _readers} ->
         state
     end
+  end
+
+  defp notify_observer(nil, _line), do: :ok
+
+  defp notify_observer(observer, line) when is_pid(observer) do
+    send(observer, {:port_io_line, self(), line})
+    :ok
   end
 end
