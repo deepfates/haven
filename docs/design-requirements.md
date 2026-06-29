@@ -314,7 +314,9 @@ Proven:
 - Runs can carry per-run capability policy for file reads, file writes, and
   terminal creation. File reads/writes support explicit ask, allow, or deny
   behavior; terminal creation currently supports allow or deny. Each applied
-  policy records a durable policy-decision event.
+  policy records a durable policy-decision event, and the run detail view
+  exposes the effective policy after creation so users can inspect a run's
+  current authority without reconstructing it from the creation form.
 - Deterministic non-interactive ACP terminal create/wait/output/release requests
   can be handled, logged, scoped to the selected workspace, and projected back
   to the agent.

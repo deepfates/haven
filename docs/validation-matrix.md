@@ -327,7 +327,9 @@ Evidence:
   auto-denied, and terminal creation can be auto-denied without opening a
   permission card or spawning a terminal process, while durable
   `capability_policy_applied` events record the policy decision. Browser smoke
-  verifies the same policy controls and rendered run timeline behavior.
+  verifies the same policy controls and rendered run timeline behavior. The run
+  detail facts panel also renders the effective policy, with LiveView and
+  browser coverage verifying the post-creation inspection path.
 - `mix haven.agent_probe` now exercises a configured ACP agent through Haven's
   real run lifecycle, including run creation, ACP boot/session setup, prompting,
   optional permission resolution, per-run capability policy, durable event

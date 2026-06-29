@@ -3,6 +3,7 @@ defmodule HavenWeb.RunLive do
 
   alias Haven.Events
   alias Haven.Runs
+  alias Haven.Runs.Run
 
   @event_filters [
     {"all", "All"},
@@ -99,6 +100,7 @@ defmodule HavenWeb.RunLive do
 
     socket
     |> assign(:run, run)
+    |> assign(:capability_policy, Run.capability_policy(run.capability_policy))
     |> assign(:events, events)
     |> assign_event_projection(events)
     |> assign(:live?, live?)
@@ -294,6 +296,21 @@ defmodule HavenWeb.RunLive do
     ]
   end
 
+  defp policy_label("allow"), do: "Allow"
+  defp policy_label("deny"), do: "Deny"
+  defp policy_label(_ask), do: "Ask"
+
+  defp policy_badge_class(decision) do
+    [
+      "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase",
+      case decision do
+        "allow" -> "border-emerald-200 bg-emerald-50 text-emerald-700"
+        "deny" -> "border-rose-200 bg-rose-50 text-rose-700"
+        _ask -> "border-amber-200 bg-amber-50 text-amber-700"
+      end
+    ]
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -482,6 +499,29 @@ defmodule HavenWeb.RunLive do
                   <dd>{if @live?, do: "connected", else: "not connected"}</dd>
                 </div>
               </dl>
+              <div id="run-capability-policy" class="mt-4 border-t border-zinc-200 pt-4">
+                <h3 class="text-xs font-semibold uppercase text-zinc-500">Capability policy</h3>
+                <dl class="mt-2 grid gap-2">
+                  <div id="run-policy-file-read" class="flex items-center justify-between gap-3">
+                    <dt class="text-zinc-500">File reads</dt>
+                    <dd class={policy_badge_class(@capability_policy["file_read"])}>
+                      {policy_label(@capability_policy["file_read"])}
+                    </dd>
+                  </div>
+                  <div id="run-policy-file-write" class="flex items-center justify-between gap-3">
+                    <dt class="text-zinc-500">File writes</dt>
+                    <dd class={policy_badge_class(@capability_policy["file_write"])}>
+                      {policy_label(@capability_policy["file_write"])}
+                    </dd>
+                  </div>
+                  <div id="run-policy-terminal-create" class="flex items-center justify-between gap-3">
+                    <dt class="text-zinc-500">Terminals</dt>
+                    <dd class={policy_badge_class(@capability_policy["terminal_create"])}>
+                      {policy_label(@capability_policy["terminal_create"])}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
               <button
                 :if={@can_reconnect?}
                 id="reconnect-run-button"

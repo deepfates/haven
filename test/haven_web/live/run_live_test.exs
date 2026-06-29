@@ -26,6 +26,28 @@ defmodule HavenWeb.RunLiveTest do
     assert reloaded_html =~ "agent_session_started"
   end
 
+  test "renders the run capability policy in the facts panel", %{conn: conn} do
+    {:ok, run} =
+      Runs.create_run(%{
+        "title" => "Policy facts run",
+        "capability_policy" => %{
+          "file_read" => "allow",
+          "file_write" => "ask",
+          "terminal_create" => "deny"
+        }
+      })
+
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-capability-policy")
+    assert has_element?(view, "#run-policy-file-read", "Allow")
+    assert has_element?(view, "#run-policy-file-write", "Ask")
+    assert has_element?(view, "#run-policy-terminal-create", "Deny")
+  end
+
   test "viewing disconnected idle history does not spawn a new agent process", %{conn: conn} do
     run = insert_disconnected_run!("Disconnected history")
 
