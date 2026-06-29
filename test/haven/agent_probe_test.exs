@@ -56,6 +56,46 @@ defmodule Haven.AgentProbeTest do
     assert Enum.any?(report.events, &permission_denied?/1)
   end
 
+  test "redacts literal sensitive values from probe reports" do
+    secret = "literal-secret-#{System.unique_integer([:positive])}"
+
+    assert {:ok, report} =
+             AgentProbe.run(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               prompt: "echo #{secret}",
+               redact: secret,
+               timeout: 5_000
+             )
+
+    encoded = Jason.encode!(report)
+    refute encoded =~ secret
+    assert encoded =~ "[REDACTED]"
+    assert report.prompt == "echo [REDACTED]"
+    assert report.redactions == [%{source: "literal"}]
+  end
+
+  test "redacts values read from environment variables" do
+    name = "HAVEN_AGENT_PROBE_SECRET"
+    secret = "env-secret-#{System.unique_integer([:positive])}"
+    System.put_env(name, secret)
+    on_exit(fn -> System.delete_env(name) end)
+
+    assert {:ok, report} =
+             AgentProbe.run(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               prompt: "echo #{secret}",
+               redact_env: name,
+               timeout: 5_000
+             )
+
+    encoded = Jason.encode!(report)
+    refute encoded =~ secret
+    assert encoded =~ "[REDACTED]"
+    assert report.redactions == [%{source: "env", name: name}]
+  end
+
   test "can create probe runs with file capability policy" do
     assert {:ok, report} =
              AgentProbe.run(

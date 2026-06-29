@@ -24,6 +24,7 @@ mix haven.agent_probe \
   --agent my-agent \
   --workspace /path/to/repo \
   --prompt "summarize this workspace" \
+  --redact-env ANTHROPIC_API_KEY \
   --expect-event agent_initialized \
   --expect-event agent_session_started \
   --expect-event turn_finished \
@@ -65,3 +66,7 @@ mix haven.agent_probe \
 
 Before committing a report, inspect it for secrets in command arguments,
 environment-derived output, prompts, and agent messages.
+
+Use repeated `--redact value` flags for literal strings and repeated
+`--redact-env ENV_VAR` flags for secrets stored in the environment. Redacted
+reports include `redactions` metadata, but never the raw redaction values.

@@ -340,6 +340,9 @@ Evidence:
   Real-agent proof still requires running the same probe against a non-test
   configured ACP command with expectations for the specific story being
   validated.
+- Probe reports support literal and environment-derived redaction before
+  printing or writing JSON, which lowers the risk of committing real-agent
+  evidence artifacts that contain secrets echoed by agents or tools.
 
 Still missing:
 

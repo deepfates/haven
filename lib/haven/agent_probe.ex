@@ -35,6 +35,7 @@ defmodule Haven.AgentProbe do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     permission_resolution = Keyword.get(opts, :resolve_permissions)
     capability_policy = capability_policy(opts)
+    redactions = redactions(opts)
 
     expected_events =
       Keyword.get_values(opts, :expect_event) ++ Keyword.get(opts, :expect_events, [])
@@ -52,18 +53,23 @@ defmodule Haven.AgentProbe do
       expected_events = Enum.uniq(expected_events)
 
       finished
-      |> report(prompt, expected_events)
+      |> redacted_report(prompt, expected_events, redactions)
       |> validate_expected_events(expected_events)
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         {:error, :invalid_run,
-         invalid_run_report(agent, workspace, prompt, changeset, expected_events)}
+         invalid_run_report(agent, workspace, prompt, changeset, expected_events)
+         |> apply_redactions(redactions)}
 
       {:error, reason, run_id} ->
-        {:error, reason, report(Runs.get_run!(run_id), prompt, expected_events)}
+        {:error, reason,
+         run_id |> Runs.get_run!() |> redacted_report(prompt, expected_events, redactions)}
 
       {:error, reason} ->
-        {:error, reason, invalid_run_report(agent, workspace, prompt, nil, expected_events)}
+        {:error, reason,
+         agent
+         |> invalid_run_report(workspace, prompt, nil, expected_events)
+         |> apply_redactions(redactions)}
     end
   end
 
@@ -98,6 +104,26 @@ defmodule Haven.AgentProbe do
   end
 
   defp policy_map(_policy), do: %{}
+
+  defp redactions(opts) do
+    literal_redactions =
+      opts
+      |> Keyword.get_values(:redact)
+      |> Enum.map(&%{source: :literal, value: &1})
+
+    env_redactions =
+      opts
+      |> Keyword.get_values(:redact_env)
+      |> Enum.map(fn name ->
+        %{source: :env, name: name, value: System.get_env(name)}
+      end)
+
+    (literal_redactions ++ env_redactions)
+    |> Enum.filter(fn
+      %{value: value} when is_binary(value) -> value != ""
+      _redaction -> false
+    end)
+  end
 
   defp wait_for_boot(run_id, timeout) do
     wait_until(run_id, timeout, fn run ->
@@ -194,6 +220,12 @@ defmodule Haven.AgentProbe do
     }
   end
 
+  defp redacted_report(run, prompt, expected_events, redactions) do
+    run
+    |> report(prompt, expected_events)
+    |> apply_redactions(redactions)
+  end
+
   defp invalid_run_report(agent, workspace, prompt, changeset, expected_events) do
     %{
       run_id: nil,
@@ -232,6 +264,37 @@ defmodule Haven.AgentProbe do
       payload: event.payload
     }
   end
+
+  defp apply_redactions(report, []), do: Map.put(report, :redactions, [])
+
+  defp apply_redactions(report, redactions) do
+    redaction_values = Enum.map(redactions, & &1.value)
+
+    report
+    |> redact_value(redaction_values)
+    |> Map.put(:redactions, Enum.map(redactions, &redaction_report/1))
+  end
+
+  defp redact_value(value, redactions) when is_binary(value) do
+    Enum.reduce(redactions, value, fn redaction, text ->
+      String.replace(text, redaction, "[REDACTED]")
+    end)
+  end
+
+  defp redact_value(value, redactions) when is_map(value) do
+    value
+    |> Enum.map(fn {key, item} -> {key, redact_value(item, redactions)} end)
+    |> Map.new()
+  end
+
+  defp redact_value(value, redactions) when is_list(value) do
+    Enum.map(value, &redact_value(&1, redactions))
+  end
+
+  defp redact_value(value, _redactions), do: value
+
+  defp redaction_report(%{source: :literal}), do: %{source: "literal"}
+  defp redaction_report(%{source: :env, name: name}), do: %{source: "env", name: name}
 
   defp changeset_errors(nil), do: %{}
 
