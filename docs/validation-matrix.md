@@ -43,6 +43,9 @@ Evidence:
 - The inbox has a basic Agent Setup form for saving a persisted ACP command
   with key, executable, args, cwd, and env values; LiveView tests and browser
   smoke verify the saved key appears in the run picker and can create a run.
+- The inbox can edit and delete persisted agent command definitions; LiveView
+  tests verify updated keys replace old picker options and deleted keys
+  disappear from run creation.
 - Data-layer and LiveView tests verify run creation rejects missing workspace
   directories before any run process starts.
 - The same test verifies waiting, running, and idle runs render in separate
@@ -61,8 +64,7 @@ Evidence:
 
 Still missing:
 
-- Workspace persistence models and richer edit/delete configuration management
-  UI.
+- Workspace persistence models and richer configuration management UI.
 - Workspace browse/picker affordances.
 - Filtering beyond the fixed lanes.
 
@@ -193,6 +195,8 @@ Evidence:
   runtime config for run creation.
 - The inbox can create persisted agent command definitions through the rendered
   UI, including args and env text entry.
+- The `Haven.Agents` context can update and delete persisted agent command
+  definitions, and the inbox exposes those operations.
 - LiveView integration tests verify that an unknown run agent records
   `agent_start_failed`, marks the run `failed`, and renders that failure without
   falling back to the stub.

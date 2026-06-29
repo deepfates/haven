@@ -139,6 +139,45 @@ defmodule Haven.AgentsTest do
     assert command.args == ["runtime"]
   end
 
+  test "updates persisted agent configs" do
+    assert {:ok, agent_config} =
+             Agents.create_agent_config(%{
+               key: "before",
+               executable: "sh",
+               args: ["before"]
+             })
+
+    assert {:ok, agent_config} =
+             Agents.update_agent_config(agent_config, %{
+               key: "after",
+               executable: "sh",
+               args: ["after", "{workspace}"],
+               env: %{"WORKSPACE" => "{workspace}"}
+             })
+
+    assert agent_config.key == "after"
+    assert Agents.available() == [{"stub-acp", "stub-acp"}, {"after", "after"}]
+
+    assert {:error, {:unknown_agent, "before"}} = Agents.command("before", "/repo")
+    assert {:ok, command} = Agents.command("after", "/repo")
+    assert command.args == ["after", "/repo"]
+    assert command.env == [{"WORKSPACE", "/repo"}]
+  end
+
+  test "deletes persisted agent configs" do
+    assert {:ok, agent_config} =
+             Agents.create_agent_config(%{
+               key: "temporary",
+               executable: "sh"
+             })
+
+    assert Agents.available() == [{"stub-acp", "stub-acp"}, {"temporary", "temporary"}]
+    assert {:ok, _agent_config} = Agents.delete_agent_config(agent_config)
+
+    assert Agents.available() == [{"stub-acp", "stub-acp"}]
+    assert {:error, {:unknown_agent, "temporary"}} = Agents.command("temporary", "/repo")
+  end
+
   test "unknown agents are explicit errors" do
     assert {:error, {:unknown_agent, "missing"}} = Agents.command("missing", "/repo")
   end

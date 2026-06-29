@@ -185,6 +185,57 @@ defmodule HavenWeb.InboxLiveTest do
     assert Agents.list_agent_configs() == []
   end
 
+  test "edits and deletes an agent config from the inbox", %{conn: conn} do
+    assert {:ok, agent_config} =
+             Agents.create_agent_config(%{
+               key: "editable-stub",
+               executable: "mix",
+               args: ["before"]
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#agent-config-editable-stub")
+    assert has_element?(view, ~s|#agent option[value="editable-stub"]|)
+
+    view
+    |> element("#edit-agent-config-editable-stub")
+    |> render_click()
+
+    assert has_element?(view, "#cancel-agent-config-edit-button")
+
+    view
+    |> form("#agent-config-form", %{
+      "agent_config" => %{
+        "id" => agent_config.id,
+        "key" => "edited-stub",
+        "executable" => "mix",
+        "args_text" => "after\n{workspace}",
+        "cwd" => "{workspace}",
+        "env_text" => "WORKSPACE={workspace}"
+      }
+    })
+    |> render_submit()
+
+    refute has_element?(view, "#agent-config-editable-stub")
+    refute has_element?(view, ~s|#agent option[value="editable-stub"]|)
+    assert has_element?(view, "#agent-config-edited-stub")
+    assert has_element?(view, ~s|#agent option[value="edited-stub"]|)
+
+    assert {:ok, command} = Agents.command("edited-stub", "/repo")
+    assert command.args == ["after", "/repo"]
+    assert command.cwd == "/repo"
+    assert command.env == [{"WORKSPACE", "/repo"}]
+
+    view
+    |> element("#delete-agent-config-edited-stub")
+    |> render_click()
+
+    refute has_element?(view, "#agent-config-edited-stub")
+    refute has_element?(view, ~s|#agent option[value="edited-stub"]|)
+    assert Agents.list_agent_configs() == []
+  end
+
   test "groups runs into operational attention lanes", %{conn: conn} do
     insert_run!("Needs approval", "waiting")
     insert_run!("Still working", "running")

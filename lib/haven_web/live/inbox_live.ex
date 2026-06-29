@@ -14,6 +14,7 @@ defmodule HavenWeb.InboxLive do
      |> assign(:form, to_form(default_run_params()))
      |> assign(:agent_config_form, to_form(default_agent_config_params(), as: :agent_config))
      |> assign(:agent_config_error, nil)
+     |> assign(:editing_agent_config_id, nil)
      |> assign(:agent_options, Agents.available())
      |> assign(:agent_configs, Agents.list_agent_configs())
      |> assign_runs()}
@@ -37,16 +38,14 @@ defmodule HavenWeb.InboxLive do
     {:noreply, assign_runs(socket)}
   end
 
-  def handle_event("create_agent_config", %{"agent_config" => params}, socket) do
+  def handle_event("save_agent_config", %{"agent_config" => params}, socket) do
     with {:ok, attrs} <- agent_config_attrs(params),
-         {:ok, agent_config} <- Agents.create_agent_config(attrs) do
+         {:ok, agent_config} <- save_agent_config(params, attrs) do
       {:noreply,
        socket
        |> put_flash(:info, "Agent #{agent_config.key} saved")
-       |> assign(:agent_config_form, to_form(default_agent_config_params(), as: :agent_config))
-       |> assign(:agent_config_error, nil)
-       |> assign(:agent_options, Agents.available())
-       |> assign(:agent_configs, Agents.list_agent_configs())}
+       |> reset_agent_config_form()
+       |> refresh_agent_config_assigns()}
     else
       {:error, message} when is_binary(message) ->
         {:noreply,
@@ -60,6 +59,34 @@ defmodule HavenWeb.InboxLive do
          |> assign(:agent_config_form, to_form(params, as: :agent_config))
          |> assign(:agent_config_error, agent_config_error(changeset))}
     end
+  end
+
+  def handle_event("edit_agent_config", %{"id" => id}, socket) do
+    agent_config = Agents.get_agent_config!(id)
+
+    {:noreply,
+     socket
+     |> assign(
+       :agent_config_form,
+       to_form(agent_config_form_params(agent_config), as: :agent_config)
+     )
+     |> assign(:agent_config_error, nil)
+     |> assign(:editing_agent_config_id, agent_config.id)}
+  end
+
+  def handle_event("cancel_agent_config_edit", _params, socket) do
+    {:noreply, reset_agent_config_form(socket)}
+  end
+
+  def handle_event("delete_agent_config", %{"id" => id}, socket) do
+    agent_config = Agents.get_agent_config!(id)
+    {:ok, _agent_config} = Agents.delete_agent_config(agent_config)
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "Agent #{agent_config.key} deleted")
+     |> reset_agent_config_form()
+     |> refresh_agent_config_assigns()}
   end
 
   @impl true
@@ -85,6 +112,7 @@ defmodule HavenWeb.InboxLive do
 
   defp default_agent_config_params do
     %{
+      "id" => "",
       "key" => "",
       "executable" => "",
       "args_text" => "",
@@ -129,6 +157,57 @@ defmodule HavenWeb.InboxLive do
          "env" => env
        }}
     end
+  end
+
+  defp save_agent_config(%{"id" => id}, attrs) when is_binary(id) and id != "" do
+    id
+    |> Agents.get_agent_config!()
+    |> Agents.update_agent_config(attrs)
+  end
+
+  defp save_agent_config(_params, attrs), do: Agents.create_agent_config(attrs)
+
+  defp refresh_agent_config_assigns(socket) do
+    socket
+    |> assign(:agent_options, Agents.available())
+    |> assign(:agent_configs, Agents.list_agent_configs())
+  end
+
+  defp reset_agent_config_form(socket) do
+    socket
+    |> assign(:agent_config_form, to_form(default_agent_config_params(), as: :agent_config))
+    |> assign(:agent_config_error, nil)
+    |> assign(:editing_agent_config_id, nil)
+  end
+
+  defp agent_config_form_params(agent_config) do
+    %{
+      "id" => agent_config.id,
+      "key" => agent_config.key,
+      "executable" => agent_config.executable,
+      "args_text" => agent_config_args_text(agent_config),
+      "cwd" => agent_config.cwd || "",
+      "env_text" => agent_config_env_text(agent_config)
+    }
+  end
+
+  defp agent_config_args_text(agent_config) do
+    agent_config.args
+    |> case do
+      %{"items" => items} when is_list(items) -> items
+      _ -> []
+    end
+    |> Enum.join("\n")
+  end
+
+  defp agent_config_env_text(agent_config) do
+    agent_config.env
+    |> case do
+      env when is_map(env) -> env
+      _ -> %{}
+    end
+    |> Enum.sort_by(fn {key, _value} -> key end)
+    |> Enum.map_join("\n", fn {key, value} -> "#{key}=#{value}" end)
   end
 
   defp parse_args(text) do
@@ -298,9 +377,31 @@ defmodule HavenWeb.InboxLive do
                       <p class="truncate text-sm font-semibold text-zinc-950">{agent_config.key}</p>
                       <p class="mt-1 truncate text-xs text-zinc-500">{agent_config.executable}</p>
                     </div>
-                    <span class="shrink-0 rounded-full border border-zinc-200 px-2 py-1 text-xs text-zinc-500">
-                      {length(Map.get(agent_config.args || %{}, "items", []))} args
-                    </span>
+                    <div class="flex shrink-0 items-center gap-2">
+                      <span class="rounded-full border border-zinc-200 px-2 py-1 text-xs text-zinc-500">
+                        {length(Map.get(agent_config.args || %{}, "items", []))} args
+                      </span>
+                      <button
+                        id={"edit-agent-config-#{agent_config.key}"}
+                        type="button"
+                        title="Edit agent"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950"
+                        phx-click="edit_agent_config"
+                        phx-value-id={agent_config.id}
+                      >
+                        <.icon name="hero-pencil-square" class="size-4" />
+                      </button>
+                      <button
+                        id={"delete-agent-config-#{agent_config.key}"}
+                        type="button"
+                        title="Delete agent"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                        phx-click="delete_agent_config"
+                        phx-value-id={agent_config.id}
+                      >
+                        <.icon name="hero-trash" class="size-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -309,9 +410,10 @@ defmodule HavenWeb.InboxLive do
             <.form
               id="agent-config-form"
               for={@agent_config_form}
-              phx-submit="create_agent_config"
+              phx-submit="save_agent_config"
               class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
             >
+              <.input field={@agent_config_form[:id]} type="hidden" />
               <p
                 :if={@agent_config_error}
                 id="agent-config-error"
@@ -358,12 +460,23 @@ defmodule HavenWeb.InboxLive do
                   rows="3"
                 />
               </div>
-              <button
-                id="save-agent-config-button"
-                class="h-10 justify-self-end rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
-              >
-                Save Agent
-              </button>
+              <div class="flex justify-end gap-2">
+                <button
+                  :if={@editing_agent_config_id}
+                  id="cancel-agent-config-edit-button"
+                  type="button"
+                  class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                  phx-click="cancel_agent_config_edit"
+                >
+                  Cancel
+                </button>
+                <button
+                  id="save-agent-config-button"
+                  class="h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                >
+                  {if @editing_agent_config_id, do: "Update Agent", else: "Save Agent"}
+                </button>
+              </div>
             </.form>
           </section>
 

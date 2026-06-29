@@ -51,6 +51,18 @@ defmodule Haven.Agents do
     |> Repo.insert()
   end
 
+  def get_agent_config!(id), do: Repo.get!(AgentConfig, id)
+
+  def update_agent_config(%AgentConfig{} = agent_config, attrs) do
+    agent_config
+    |> AgentConfig.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_agent_config(%AgentConfig{} = agent_config) do
+    Repo.delete(agent_config)
+  end
+
   @spec command(String.t(), String.t()) :: {:ok, command()} | {:error, term()}
   def command("stub-acp", workspace) do
     case System.find_executable("mix") do
