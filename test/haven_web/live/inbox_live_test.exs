@@ -390,6 +390,60 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(
              view,
+             "#agent-config-candidate-agent-probe-file-read",
+             "File read proof"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-file-read-command",
+             "--file-read-policy allow"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-file-read-command",
+             "file_read_succeeded:payload.path=README.md"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-file-write-approval",
+             "File write approval proof"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-file-write-approval-command",
+             "--resolve-permissions allow"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-file-write-approval-command",
+             "file_write_requested:payload.path=notes/haven-probe.txt"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-terminal-approval",
+             "Terminal approval proof"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-terminal-approval-command",
+             "--terminal-create-policy ask"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-terminal-approval-command",
+             "terminal_output_succeeded:payload.exit_status=0"
+           )
+
+    assert has_element?(
+             view,
              "#agent-config-candidate-agent-evidence-reason",
              "not evidence until the generated probe passes"
            )

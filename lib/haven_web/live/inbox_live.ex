@@ -492,6 +492,97 @@ defmodule HavenWeb.InboxLive do
             "--report",
             "docs/probes/#{agent}-terminal-denied.json"
           ])
+      },
+      %{
+        id: "file-read",
+        label: "File read proof",
+        command:
+          probe_command(agent, [
+            "--prompt",
+            "read README.md through the client file-read capability",
+            "--file-read-policy",
+            "allow",
+            "--file-read-paths",
+            "README.md,docs",
+            "--expect-event",
+            "file_read_requested",
+            "--expect-event",
+            "capability_policy_applied",
+            "--expect-event",
+            "file_read_succeeded",
+            "--expect-event",
+            "turn_finished",
+            "--expect-event-field",
+            "file_read_requested:payload.path=README.md",
+            "--expect-event-field",
+            "file_read_succeeded:payload.path=README.md",
+            "--report",
+            "docs/probes/#{agent}-file-read.json"
+          ])
+      },
+      %{
+        id: "file-write-approval",
+        label: "File write approval proof",
+        command:
+          probe_command(agent, [
+            "--prompt",
+            "write Grei probe sentinel to notes/haven-probe.txt through the client file-write capability",
+            "--file-write-policy",
+            "ask",
+            "--file-write-paths",
+            "notes",
+            "--resolve-permissions",
+            "allow",
+            "--expect-event",
+            "file_write_requested",
+            "--expect-event",
+            "permission_requested",
+            "--expect-event",
+            "permission_resolved",
+            "--expect-event",
+            "file_write_succeeded",
+            "--expect-event",
+            "turn_finished",
+            "--expect-event-field",
+            "file_write_requested:payload.path=notes/haven-probe.txt",
+            "--expect-event-field",
+            "file_write_succeeded:payload.path=notes/haven-probe.txt",
+            "--report",
+            "docs/probes/#{agent}-file-write-approval.json"
+          ])
+      },
+      %{
+        id: "terminal-approval",
+        label: "Terminal approval proof",
+        command:
+          probe_command(agent, [
+            "--prompt",
+            "run mix --version through the client terminal capability",
+            "--terminal-create-policy",
+            "ask",
+            "--resolve-permissions",
+            "allow",
+            "--expect-event",
+            "terminal_create_requested",
+            "--expect-event",
+            "permission_requested",
+            "--expect-event",
+            "permission_resolved",
+            "--expect-event",
+            "terminal_created",
+            "--expect-event",
+            "terminal_output_succeeded",
+            "--expect-event",
+            "terminal_released",
+            "--expect-event",
+            "turn_finished",
+            "--expect-event-field",
+            "terminal_create_requested:payload.command=mix",
+            "--expect-event-field",
+            "terminal_output_succeeded:payload.exit_status=0",
+            "--report",
+            "docs/probes/#{agent}-terminal-approval.json"
+          ])
       }
     ]
   end
