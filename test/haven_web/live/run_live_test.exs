@@ -142,6 +142,48 @@ defmodule HavenWeb.RunLiveTest do
     assert render(view) =~ "connected"
   end
 
+  test "reconnect fails stale in-flight turns for disconnected running runs", %{conn: conn} do
+    run = insert_disconnected_run!("Reconnect running history", "running")
+    Events.append!(run.id, "turn_started", %{"prompt" => "still running"})
+    Events.append!(run.id, "user_message", %{"text" => "still running"})
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert html =~ "not connected"
+    assert has_element?(view, "#reconnect-run-button", "Reconnect")
+    assert has_element?(view, "#send-prompt-button[disabled]")
+    refute Runs.started?(run.id)
+
+    view
+    |> element("#reconnect-run-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "run_reconnect_requested",
+                      payload: %{"previous_status" => "running"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "turn_failed",
+                      payload: %{
+                        "error" => "run_reconnect_requested",
+                        "actor" => "system"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+
+    assert render(view) =~ "connected"
+    assert has_element?(view, "#send-prompt-button:not([disabled])")
+  end
+
   test "explicit restart starts a new process for failed runs", %{conn: conn} do
     run = insert_disconnected_run!("Restart failed history", "failed")
     stop_run_server_on_exit(run.id)

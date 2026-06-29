@@ -86,6 +86,7 @@ defmodule Haven.Runs do
           "previous_status" => run.status
         })
 
+        fail_unresolved_turn!(run_id, "run_reconnect_requested")
         cancel_unresolved_permissions!(run_id, "run_reconnect_requested")
         update_status!(run_id, %{status: "idle", agent_session_id: nil})
         start_run(run_id)
@@ -167,6 +168,26 @@ defmodule Haven.Runs do
   end
 
   def subscribe, do: Phoenix.PubSub.subscribe(Haven.PubSub, "runs")
+
+  defp fail_unresolved_turn!(run_id, reason) do
+    events = Events.list_for_run(run_id)
+    last_started_seq = last_event_seq(events, ["turn_started"])
+    last_terminal_seq = last_event_seq(events, ["turn_finished", "turn_failed", "turn_cancelled"])
+
+    if last_started_seq && last_started_seq > last_terminal_seq do
+      Events.append!(run_id, "turn_failed", %{
+        "error" => reason,
+        "actor" => "system"
+      })
+    end
+  end
+
+  defp last_event_seq(events, types) do
+    events
+    |> Enum.filter(&(&1.type in types))
+    |> Enum.map(& &1.seq)
+    |> Enum.max(fn -> 0 end)
+  end
 
   defp cancel_unresolved_permissions!(run_id, reason) do
     events = Events.list_for_run(run_id)
