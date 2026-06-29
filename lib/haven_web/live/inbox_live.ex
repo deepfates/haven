@@ -474,6 +474,18 @@ defmodule HavenWeb.InboxLive do
 
   defp agent_probe_command(_inventory), do: nil
 
+  defp agent_registry_command do
+    [
+      "mix",
+      "haven.agent_probe",
+      "--list-agents",
+      "--registry",
+      "--workspace",
+      File.cwd!()
+    ]
+    |> Enum.map_join(" ", &shell_arg/1)
+  end
+
   defp shell_arg(value) do
     value = to_string(value)
 
@@ -730,6 +742,26 @@ defmodule HavenWeb.InboxLive do
           >
             <div>
               <h2 class="text-sm font-semibold uppercase text-zinc-500">Agent Setup</h2>
+              <div
+                id="agent-registry-hint"
+                class="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900"
+              >
+                <div class="flex items-start gap-3">
+                  <.icon name="hero-sparkles" class="mt-0.5 size-4 shrink-0 text-sky-600" />
+                  <div class="min-w-0">
+                    <p class="font-semibold">Find real ACP agents from the public registry</p>
+                    <code
+                      id="agent-registry-command"
+                      class="mt-2 block overflow-x-auto rounded-md border border-sky-200 bg-white/80 px-2 py-1 text-[11px] leading-5 text-sky-950"
+                    >
+                      {agent_registry_command()}
+                    </code>
+                    <p class="mt-2 text-xs text-sky-800">
+                      Registry commands download and run third-party code; use an approved workspace and auth scope before probing.
+                    </p>
+                  </div>
+                </div>
+              </div>
               <div
                 id="agent-config-list"
                 class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white"

@@ -366,6 +366,24 @@ defmodule HavenWeb.InboxLiveTest do
     refute render(view) =~ "hidden-value"
   end
 
+  test "shows public registry discovery command in agent setup", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#agent-registry-hint", "Find real ACP agents")
+
+    assert has_element?(
+             view,
+             "#agent-registry-command",
+             "mix haven.agent_probe --list-agents --registry"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-registry-hint",
+             "download and run third-party code"
+           )
+  end
+
   test "shows validation errors when saving an invalid inbox agent config", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 

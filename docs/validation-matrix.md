@@ -390,6 +390,9 @@ Evidence:
   `--require-real-agent` report command only for eligible probe candidates,
   explicitly warning that the command is not evidence until the probe passes,
   and never rendering environment values.
+- Browser smoke verifies the Agent Setup panel also surfaces the public
+  registry discovery command with `--registry` and warns that registry commands
+  download and run third-party code before probing.
 - Local inventory on this machine currently finds saved `/bin/sh -c cat`
   commands that are runnable non-test probe candidates, but they are not
   ACP-proven and do not satisfy the real-agent evidence requirement.
