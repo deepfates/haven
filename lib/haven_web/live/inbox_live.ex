@@ -1,6 +1,7 @@
 defmodule HavenWeb.InboxLive do
   use HavenWeb, :live_view
 
+  alias Haven.AgentProbe
   alias Haven.Agents
   alias Haven.Runs
   alias Haven.Workspaces
@@ -20,8 +21,7 @@ defmodule HavenWeb.InboxLive do
      |> assign(:agent_config_form, to_form(default_agent_config_params(), as: :agent_config))
      |> assign(:agent_config_error, nil)
      |> assign(:editing_agent_config_id, nil)
-     |> assign(:agent_options, Agents.available())
-     |> assign(:agent_configs, Agents.list_agent_configs())
+     |> refresh_agent_config_assigns()
      |> assign_runs()}
   end
 
@@ -91,7 +91,8 @@ defmodule HavenWeb.InboxLive do
        socket
        |> put_flash(:info, "Agent #{agent_config.key} saved")
        |> reset_agent_config_form()
-       |> refresh_agent_config_assigns()}
+       |> refresh_agent_config_assigns()
+       |> push_event("clear_agent_config_form", %{id: "agent-config-form"})}
     else
       {:error, message} when is_binary(message) ->
         {:noreply,
@@ -333,6 +334,13 @@ defmodule HavenWeb.InboxLive do
     socket
     |> assign(:agent_options, Agents.available())
     |> assign(:agent_configs, Agents.list_agent_configs())
+    |> assign(:agent_inventory, agent_inventory_by_key())
+  end
+
+  defp agent_inventory_by_key do
+    File.cwd!()
+    |> AgentProbe.agent_inventory()
+    |> Map.new(&{&1.agent, &1})
   end
 
   defp reset_agent_config_form(socket) do
@@ -420,6 +428,26 @@ defmodule HavenWeb.InboxLive do
     "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium " <>
       tone
   end
+
+  defp agent_evidence_label(%{real_agent_candidate: true}), do: "Evidence candidate"
+  defp agent_evidence_label(%{status: "invalid"}), do: "Invalid command"
+  defp agent_evidence_label(_inventory), do: "Local harness"
+
+  defp agent_evidence_class(%{real_agent_candidate: true}),
+    do: badge_class("border-emerald-200 bg-emerald-50 text-emerald-700")
+
+  defp agent_evidence_class(%{status: "invalid"}),
+    do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
+
+  defp agent_evidence_class(_inventory),
+    do: badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+
+  defp agent_evidence_reason(%{real_agent_rejection_reasons: []}), do: nil
+
+  defp agent_evidence_reason(%{real_agent_rejection_reasons: reasons}) when is_list(reasons),
+    do: Enum.join(reasons, "; ")
+
+  defp agent_evidence_reason(_inventory), do: "agent readiness unknown"
 
   defp run_card(assigns) do
     assigns = assign_new(assigns, :show_archive, fn -> false end)
@@ -683,12 +711,26 @@ defmodule HavenWeb.InboxLive do
                   id={"agent-config-#{agent_config.key}"}
                   class="border-t border-zinc-100 px-4 py-3 first:border-t-0"
                 >
+                  <% readiness = Map.get(@agent_inventory, agent_config.key, %{}) %>
                   <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
                       <p class="truncate text-sm font-semibold text-zinc-950">{agent_config.key}</p>
                       <p class="mt-1 truncate text-xs text-zinc-500">{agent_config.executable}</p>
+                      <p
+                        :if={agent_evidence_reason(readiness)}
+                        id={"agent-config-#{agent_config.key}-evidence-reason"}
+                        class="mt-2 truncate text-xs text-zinc-500"
+                      >
+                        {agent_evidence_reason(readiness)}
+                      </p>
                     </div>
                     <div class="flex shrink-0 items-center gap-2">
+                      <span
+                        id={"agent-config-#{agent_config.key}-evidence"}
+                        class={agent_evidence_class(readiness)}
+                      >
+                        {agent_evidence_label(readiness)}
+                      </span>
                       <span class="rounded-full border border-zinc-200 px-2 py-1 text-xs text-zinc-500">
                         {length(Map.get(agent_config.args || %{}, "items", []))} args
                       </span>
@@ -722,6 +764,7 @@ defmodule HavenWeb.InboxLive do
               id="agent-config-form"
               for={@agent_config_form}
               phx-submit="save_agent_config"
+              phx-update="replace"
               class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
             >
               <.input field={@agent_config_form[:id]} type="hidden" />

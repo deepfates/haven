@@ -36,6 +36,14 @@ const liveSocket = new LiveSocket("/live", Socket, {
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
+window.addEventListener("phx:clear_agent_config_form", ({detail}) => {
+  const form = document.getElementById(detail.id)
+  if (!form) return
+
+  for (const field of form.querySelectorAll("input, textarea")) {
+    field.value = ""
+  }
+})
 
 // connect if there are any LiveViews on the page
 liveSocket.connect()
@@ -80,4 +88,3 @@ if (process.env.NODE_ENV === "development") {
     window.liveReloader = reloader
   })
 }
-

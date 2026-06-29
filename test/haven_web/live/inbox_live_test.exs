@@ -304,6 +304,14 @@ defmodule HavenWeb.InboxLiveTest do
     |> render_submit()
 
     assert has_element?(view, "#agent-config-inbox-stub")
+    assert has_element?(view, "#agent-config-inbox-stub-evidence", "Local harness")
+
+    assert has_element?(
+             view,
+             "#agent-config-inbox-stub-evidence-reason",
+             "agent command uses a local test harness"
+           )
+
     assert has_element?(view, ~s|#agent option[value="inbox-stub"]|)
 
     view
@@ -321,6 +329,22 @@ defmodule HavenWeb.InboxLiveTest do
     assert run.workspace == Path.expand(tmp_dir)
     assert run.agent == "inbox-stub"
     assert_redirect(view, ~p"/runs/#{run.id}")
+  end
+
+  test "shows probe evidence readiness for saved agent configs", %{conn: conn} do
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "candidate-agent",
+               executable: "sh",
+               args: ["-c", "cat"],
+               env: %{"SECRET" => "hidden-value"}
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#agent-config-candidate-agent-evidence", "Evidence candidate")
+    refute has_element?(view, "#agent-config-candidate-agent-evidence-reason")
+    refute render(view) =~ "hidden-value"
   end
 
   test "shows validation errors when saving an invalid inbox agent config", %{conn: conn} do
