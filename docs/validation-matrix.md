@@ -14,9 +14,10 @@ runs with explicit human decisions.
   agent process.
 - Browser smoke: create a run, trigger a permission request, approve it, trigger
   an ACP file read, trigger a deterministic terminal command, create a run with
-  an explicit workspace, reload disconnected history, explicitly reconnect that
-  history, and observe final `idle` status plus persisted timeline events in the
-  in-app browser.
+  an ACP terminal kill for a direct process, create a run with an explicit
+  workspace, reload disconnected history, explicitly reconnect that history, and
+  observe final `idle` status plus persisted timeline events in the in-app
+  browser.
 
 ## Proven Now
 
@@ -186,9 +187,12 @@ Evidence:
   `terminal/release` requests, verify durable `terminal_*` events, verify the
   agent receives output and exit status, and verify the final turn returns to
   visible `idle`.
+- LiveView integration tests drive the stub agent through real ACP
+  `terminal/kill` for a direct `sleep` process, then verify durable kill, wait,
+  output, release, and final turn events.
 - Browser smoke verifies the rendered UI can trigger an ACP file read and a
-  deterministic terminal command, with visible timeline events and final `idle`
-  state.
+  deterministic terminal command, plus an ACP terminal kill for a direct
+  process, with visible timeline events and final `idle` state.
 
 Still missing:
 
@@ -197,7 +201,7 @@ Still missing:
 - Permission policy around file reads and writes.
 - File diff/artifact projections for review.
 - PTY-style interactive terminal sessions.
-- Executable evidence for `terminal/kill`.
+- Process-tree kill semantics for shell-launched children.
 - Configurable per-run capability grants.
 
 ## Not Proven Yet
@@ -208,7 +212,7 @@ be counted as complete until there is executable evidence.
 - Real external ACP agent integration beyond `priv/agent_stub.exs`.
 - File read/write capability requests from a real external agent.
 - Terminal capability requests from a real external agent.
-- Interactive terminal behavior and executable `terminal/kill` evidence.
+- Interactive terminal behavior and process-tree kill semantics.
 - Authentication flows for agents that require auth.
 - Session load/resume/fork/list support when agents expose it.
 - Malformed ACP frames after a successful session has started.
@@ -229,7 +233,7 @@ be counted as complete until there is executable evidence.
 3. Connect the configurable command path to one real ACP-speaking agent and
    document the exact command/env contract.
 4. Connect terminal capability handling to a real ACP-speaking agent and add
-   explicit kill/interactive-terminal evidence.
+   process-tree kill/interactive-terminal evidence.
 5. Connect file capability handling to a real ACP-speaking agent.
 6. Add browser smoke coverage for reload recovery and attention-lane movement,
    not just a single happy-path permission approval.

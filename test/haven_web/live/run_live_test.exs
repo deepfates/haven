@@ -582,6 +582,75 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Terminal output: hello"
   end
 
+  test "handles ACP terminal kill requests visibly", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Terminal kill run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "kill-terminal"})
+    |> render_submit()
+
+    assert_receive {:event_appended, %{type: "terminal_create_requested"}}, 1_000
+
+    assert_receive {:event_appended,
+                    %{type: "terminal_created", payload: %{"terminal_id" => terminal_id}}},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_kill_requested",
+                      payload: %{"terminal_id" => ^terminal_id}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_kill_succeeded",
+                      payload: %{"terminal_id" => ^terminal_id}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_wait_succeeded",
+                      payload: %{"terminal_id" => ^terminal_id, "exit_status" => -1}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_output_succeeded",
+                      payload: %{"terminal_id" => ^terminal_id, "exit_status" => -1}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Terminal killed (exit -1)."}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_released",
+                      payload: %{"terminal_id" => ^terminal_id}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    {:ok, _reloaded, html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert html =~ "terminal_kill_succeeded"
+    assert html =~ "Terminal killed (exit -1)."
+    assert html =~ "idle"
+  end
+
   test "unknown agent fails visibly instead of launching the stub", %{conn: conn} do
     run = insert_run!("Unknown agent run", "missing-agent")
     Events.subscribe(run.id)

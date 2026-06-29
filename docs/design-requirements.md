@@ -287,6 +287,9 @@ Proven:
 - Deterministic non-interactive ACP terminal create/wait/output/release requests
   can be handled, logged, scoped to the selected workspace, and projected back
   to the agent.
+- Deterministic ACP terminal kill requests for direct child processes can be
+  handled, logged, followed by wait/output/release, and projected back to the
+  agent.
 - Disconnected idle run history can be viewed without silently spawning a new
   agent process.
 - Disconnected idle history and failed persisted runs can be explicitly
@@ -299,7 +302,7 @@ Not yet proven:
 - Real external agents beyond the local stub.
 - File capability handling against real external agents.
 - Terminal capability handling against real external agents.
-- Interactive terminal sessions and kill behavior.
+- Interactive terminal sessions and process-tree kill behavior.
 - ACP-native session resume policy.
 - Malformed ACP frame handling after a session has successfully started.
 - Multi-run load behavior.

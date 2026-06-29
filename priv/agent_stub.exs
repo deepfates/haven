@@ -160,6 +160,21 @@ defmodule StubAgent do
           step: :create
         })
 
+      text == "kill-terminal" ->
+        session_id = request.session_id
+
+        terminal_request =
+          session_id
+          |> ACP.CreateTerminalRequest.new("sleep")
+          |> Map.put(:args, ["30"])
+          |> ACP.CreateTerminalRequest.to_json()
+
+        request_terminal(state, "terminal/create", terminal_request, %{
+          prompt_id: prompt_id,
+          session_id: session_id,
+          step: :kill_create
+        })
+
       text == "die" ->
         System.halt(1)
 
@@ -293,6 +308,22 @@ defmodule StubAgent do
           Map.merge(pending, %{step: :wait, terminal_id: response.terminal_id})
         )
 
+      {%{step: :kill_create} = pending, awaiting_terminal} ->
+        {:ok, response} = ACP.CreateTerminalResponse.from_json(result)
+        state = %{state | awaiting_terminal: awaiting_terminal}
+
+        terminal_request =
+          pending.session_id
+          |> ACP.KillTerminalCommandRequest.new(response.terminal_id)
+          |> ACP.KillTerminalCommandRequest.to_json()
+
+        request_terminal(
+          state,
+          "terminal/kill",
+          terminal_request,
+          Map.merge(pending, %{step: :kill, terminal_id: response.terminal_id})
+        )
+
       {%{step: :wait} = pending, awaiting_terminal} ->
         {:ok, response} = ACP.WaitForTerminalExitResponse.from_json(result)
         state = %{state | awaiting_terminal: awaiting_terminal}
@@ -326,6 +357,59 @@ defmodule StubAgent do
         request_terminal(state, "terminal/release", terminal_request, %{pending | step: :release})
 
       {%{step: :release} = pending, awaiting_terminal} ->
+        {:ok, _response} = ACP.ReleaseTerminalResponse.from_json(result)
+        send_prompt_result(pending.prompt_id)
+        %{state | awaiting_terminal: awaiting_terminal}
+
+      {%{step: :kill} = pending, awaiting_terminal} ->
+        {:ok, _response} = ACP.KillTerminalCommandResponse.from_json(result)
+        state = %{state | awaiting_terminal: awaiting_terminal}
+
+        terminal_request =
+          pending.session_id
+          |> ACP.WaitForTerminalExitRequest.new(pending.terminal_id)
+          |> ACP.WaitForTerminalExitRequest.to_json()
+
+        request_terminal(state, "terminal/wait_for_exit", terminal_request, %{
+          pending
+          | step: :kill_wait
+        })
+
+      {%{step: :kill_wait} = pending, awaiting_terminal} ->
+        {:ok, response} = ACP.WaitForTerminalExitResponse.from_json(result)
+        state = %{state | awaiting_terminal: awaiting_terminal}
+
+        terminal_request =
+          pending.session_id
+          |> ACP.TerminalOutputRequest.new(pending.terminal_id)
+          |> ACP.TerminalOutputRequest.to_json()
+
+        request_terminal(
+          state,
+          "terminal/output",
+          terminal_request,
+          Map.merge(pending, %{step: :kill_output, exit_code: response.exit_status.exit_code})
+        )
+
+      {%{step: :kill_output} = pending, awaiting_terminal} ->
+        {:ok, response} = ACP.TerminalOutputResponse.from_json(result)
+        exit_code = terminal_exit_code(response.exit_status) || pending.exit_code
+
+        send_agent_text(pending.session_id, "Terminal killed (exit #{exit_code}).")
+
+        state = %{state | awaiting_terminal: awaiting_terminal}
+
+        terminal_request =
+          pending.session_id
+          |> ACP.ReleaseTerminalRequest.new(pending.terminal_id)
+          |> ACP.ReleaseTerminalRequest.to_json()
+
+        request_terminal(state, "terminal/release", terminal_request, %{
+          pending
+          | step: :kill_release
+        })
+
+      {%{step: :kill_release} = pending, awaiting_terminal} ->
         {:ok, _response} = ACP.ReleaseTerminalResponse.from_json(result)
         send_prompt_result(pending.prompt_id)
         %{state | awaiting_terminal: awaiting_terminal}
