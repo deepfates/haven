@@ -15,9 +15,9 @@ runs with explicit human decisions.
 - Browser smoke: create a run, trigger a permission request, approve it, trigger
   an ACP file read, trigger a deterministic terminal command, create a run with
   an ACP terminal kill for a direct process, create a run with an explicit
-  workspace, reload disconnected history, explicitly reconnect that history, and
-  observe final `idle` status plus persisted timeline events in the in-app
-  browser.
+  workspace, reject a missing workspace at run creation, reload disconnected
+  history, explicitly reconnect that history, and observe final `idle` status
+  plus persisted timeline events in the in-app browser.
 
 ## Proven Now
 
@@ -32,15 +32,19 @@ Evidence:
 - The inbox create form captures title, workspace, and agent choice; LiveView
   tests verify selected workspace and configured agent are persisted into the
   run record.
+- Data-layer and LiveView tests verify run creation rejects missing workspace
+  directories before any run process starts.
 - The same test verifies waiting, running, and idle runs render in separate
   attention lanes.
 - Browser smoke verifies the rendered inbox can start a real run with an
   explicit workspace and that the run detail/ACP launch args reflect it.
+- Browser smoke verifies a missing workspace path stays on the inbox, renders
+  `must be an existing directory`, and does not add the run to history.
 
 Still missing:
 
 - Agent/workspace persistence models and richer configuration management.
-- Workspace path validation and browse/picker affordances.
+- Workspace browse/picker affordances.
 - Archive/hide closed runs.
 - Filtering beyond the fixed lanes.
 

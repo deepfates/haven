@@ -39,6 +39,25 @@ defmodule HavenWeb.InboxLiveTest do
     assert_redirect(view, ~p"/runs/#{run.id}")
   end
 
+  test "rejects a run with a missing workspace", %{conn: conn} do
+    missing_workspace = Path.join(System.tmp_dir!(), "haven-missing-workspace")
+    File.rm_rf!(missing_workspace)
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    html =
+      view
+      |> form("#new-run-form", %{
+        "title" => "Invalid workspace run",
+        "workspace" => missing_workspace
+      })
+      |> render_submit()
+
+    assert html =~ "must be an existing directory"
+    assert Runs.list_runs() == []
+    refute_redirected(view)
+  end
+
   @tag :tmp_dir
   test "creates a run with the selected workspace and configured agent", %{
     conn: conn,

@@ -274,6 +274,8 @@ Proven:
 
 - Phoenix/LiveView can present an inbox and run timeline.
 - The inbox can create runs with explicit title, workspace, and agent choice.
+- Run creation rejects missing workspace directories before starting an agent
+  process, and the inbox renders that validation failure in place.
 - SQLite persistence is enough for narrow run/event proof.
 - One `RunServer` per live run is a good fit.
 - `agent_client_protocol` can own JSON-RPC request ids and response correlation.
@@ -309,7 +311,8 @@ Not yet proven:
 - Long-running turn streaming under real output volume.
 - Backpressure, log compaction, and transcript projection performance.
 - Security boundaries around workspace access.
-- Authentication and product-grade agent/workspace configuration.
+- Authentication and product-grade agent/workspace configuration, including
+  workspace picker/browse affordances.
 
 Known implementation limitations:
 

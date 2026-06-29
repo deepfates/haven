@@ -20,18 +20,19 @@ defmodule Haven.Runs do
 
     result =
       Repo.transaction(fn ->
-        run =
-          %Run{}
-          |> Run.changeset(attrs)
-          |> Repo.insert!()
+        case %Run{} |> Run.changeset(attrs) |> Repo.insert() do
+          {:ok, run} ->
+            Events.append!(run.id, "run_created", %{
+              "title" => run.title,
+              "workspace" => run.workspace,
+              "agent" => run.agent
+            })
 
-        Events.append!(run.id, "run_created", %{
-          "title" => run.title,
-          "workspace" => run.workspace,
-          "agent" => run.agent
-        })
+            run
 
-        run
+          {:error, changeset} ->
+            Repo.rollback(changeset)
+        end
       end)
 
     with {:ok, run} <- result do

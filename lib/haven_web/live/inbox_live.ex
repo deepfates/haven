@@ -19,8 +19,14 @@ defmodule HavenWeb.InboxLive do
   @impl true
   def handle_event("create_run", params, socket) do
     attrs = run_attrs(params)
-    {:ok, run} = Runs.create_run(attrs)
-    {:noreply, push_navigate(socket, to: ~p"/runs/#{run.id}")}
+
+    case Runs.create_run(attrs) do
+      {:ok, run} ->
+        {:noreply, push_navigate(socket, to: ~p"/runs/#{run.id}")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :form, to_form(changeset)) |> assign_runs()}
+    end
   end
 
   @impl true

@@ -20,6 +20,25 @@ defmodule Haven.Runs.Run do
   def changeset(run, attrs) do
     run
     |> cast(attrs, [:title, :workspace, :agent, :status, :agent_session_id])
+    |> update_change(:workspace, &normalize_workspace/1)
     |> validate_required([:title, :workspace, :agent, :status])
+    |> validate_workspace()
+  end
+
+  defp normalize_workspace(workspace) when is_binary(workspace) do
+    case String.trim(workspace) do
+      "" -> ""
+      path -> Path.expand(path)
+    end
+  end
+
+  defp validate_workspace(changeset) do
+    validate_change(changeset, :workspace, fn :workspace, workspace ->
+      if File.dir?(workspace) do
+        []
+      else
+        [workspace: "must be an existing directory"]
+      end
+    end)
   end
 end
