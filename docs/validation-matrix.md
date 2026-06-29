@@ -37,6 +37,9 @@ Evidence:
 - The inbox create form captures title, workspace, and agent choice; LiveView
   tests verify selected workspace and configured agent are persisted into the
   run record.
+- Saved workspaces are stored in SQLite with a name and normalized directory
+  path; LiveView tests verify the inbox picker can create a run from a saved
+  workspace and that deleting the workspace removes it from the picker.
 - Persisted agent configurations are stored in SQLite and appear in the inbox
   agent picker; LiveView tests verify a run can be created with a persisted
   agent key.
@@ -64,8 +67,8 @@ Evidence:
 
 Still missing:
 
-- Workspace persistence models and richer configuration management UI.
-- Workspace browse/picker affordances.
+- Richer workspace configuration UI and metadata beyond name/path.
+- OS-native workspace browse affordances.
 - Filtering beyond the fixed lanes.
 
 ### Run Timeline
@@ -193,6 +196,8 @@ Evidence:
 - `Haven.Agents.create_agent_config/1` persists ACP agent command definitions
   in SQLite, and `Haven.Agents.available/0` merges persisted configs with
   runtime config for run creation.
+- `Haven.Workspaces.create_workspace/1` persists reusable workspace entries in
+  SQLite and validates that saved paths are existing directories.
 - The inbox can create persisted agent command definitions through the rendered
   UI, including args and env text entry.
 - The `Haven.Agents` context can update and delete persisted agent command

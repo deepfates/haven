@@ -6,6 +6,7 @@ defmodule HavenWeb.InboxLiveTest do
   alias Haven.Repo
   alias Haven.Runs
   alias Haven.Runs.Run
+  alias Haven.Workspaces
 
   setup do
     original = Application.get_env(:haven, :agents)
@@ -57,6 +58,90 @@ defmodule HavenWeb.InboxLiveTest do
     assert html =~ "must be an existing directory"
     assert Runs.list_runs() == []
     refute_redirected(view)
+  end
+
+  @tag :tmp_dir
+  test "saves a workspace from the inbox and uses it for a run", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#workspace-form")
+    assert has_element?(view, "#workspace-empty")
+
+    view
+    |> form("#workspace-form", %{
+      "workspace_config" => %{
+        "name" => "Scratch repo",
+        "path" => tmp_dir
+      }
+    })
+    |> render_submit()
+
+    [workspace] = Workspaces.list_workspaces()
+    assert workspace.name == "Scratch repo"
+    assert workspace.path == Path.expand(tmp_dir)
+    assert has_element?(view, "#workspace-#{workspace.id}")
+    assert has_element?(view, ~s|#workspace_id option[value="#{workspace.id}"]|)
+
+    view
+    |> form("#new-run-form", %{
+      "title" => "Saved workspace run",
+      "workspace_id" => workspace.id,
+      "workspace" => "/ignored/manual/path"
+    })
+    |> render_submit()
+
+    [run] = Runs.list_runs()
+    stop_run_server_on_exit(run.id)
+
+    assert run.title == "Saved workspace run"
+    assert run.workspace == Path.expand(tmp_dir)
+    assert_redirect(view, ~p"/runs/#{run.id}")
+  end
+
+  test "shows validation errors for invalid saved workspaces", %{conn: conn} do
+    missing_workspace = Path.join(System.tmp_dir!(), "haven-missing-saved-workspace")
+    File.rm_rf!(missing_workspace)
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    html =
+      view
+      |> form("#workspace-form", %{
+        "workspace_config" => %{
+          "name" => "Missing",
+          "path" => missing_workspace
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "must be an existing directory"
+    assert has_element?(view, "#workspace-error")
+    assert Workspaces.list_workspaces() == []
+  end
+
+  @tag :tmp_dir
+  test "deletes a saved workspace from the inbox picker", %{conn: conn, tmp_dir: tmp_dir} do
+    assert {:ok, workspace} =
+             Workspaces.create_workspace(%{
+               "name" => "Delete me",
+               "path" => tmp_dir
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#workspace-#{workspace.id}")
+    assert has_element?(view, ~s|#workspace_id option[value="#{workspace.id}"]|)
+
+    view
+    |> element("#delete-workspace-#{workspace.id}")
+    |> render_click()
+
+    refute has_element?(view, "#workspace-#{workspace.id}")
+    refute has_element?(view, ~s|#workspace_id option[value="#{workspace.id}"]|)
+    assert Workspaces.list_workspaces() == []
   end
 
   @tag :tmp_dir

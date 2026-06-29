@@ -3,6 +3,7 @@ defmodule HavenWeb.InboxLive do
 
   alias Haven.Agents
   alias Haven.Runs
+  alias Haven.Workspaces
 
   @impl true
   def mount(_params, _session, socket) do
@@ -12,6 +13,9 @@ defmodule HavenWeb.InboxLive do
      socket
      |> assign(:page_title, "Haven")
      |> assign(:form, to_form(default_run_params()))
+     |> assign(:workspace_form, to_form(default_workspace_params(), as: :workspace_config))
+     |> assign(:workspace_error, nil)
+     |> refresh_workspace_assigns()
      |> assign(:agent_config_form, to_form(default_agent_config_params(), as: :agent_config))
      |> assign(:agent_config_error, nil)
      |> assign(:editing_agent_config_id, nil)
@@ -38,6 +42,34 @@ defmodule HavenWeb.InboxLive do
     {:noreply, assign_runs(socket)}
   end
 
+  def handle_event("save_workspace", %{"workspace_config" => params}, socket) do
+    case Workspaces.create_workspace(workspace_attrs(params)) do
+      {:ok, workspace} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Workspace #{workspace.name} saved")
+         |> assign(:workspace_form, to_form(default_workspace_params(), as: :workspace_config))
+         |> assign(:workspace_error, nil)
+         |> refresh_workspace_assigns()}
+
+      {:error, changeset} ->
+        {:noreply,
+         socket
+         |> assign(:workspace_form, to_form(params, as: :workspace_config))
+         |> assign(:workspace_error, form_error(changeset))}
+    end
+  end
+
+  def handle_event("delete_workspace", %{"id" => id}, socket) do
+    workspace = Workspaces.get_workspace!(id)
+    {:ok, _workspace} = Workspaces.delete_workspace(workspace)
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "Workspace #{workspace.name} deleted")
+     |> refresh_workspace_assigns()}
+  end
+
   def handle_event("save_agent_config", %{"agent_config" => params}, socket) do
     with {:ok, attrs} <- agent_config_attrs(params),
          {:ok, agent_config} <- save_agent_config(params, attrs) do
@@ -57,7 +89,7 @@ defmodule HavenWeb.InboxLive do
         {:noreply,
          socket
          |> assign(:agent_config_form, to_form(params, as: :agent_config))
-         |> assign(:agent_config_error, agent_config_error(changeset))}
+         |> assign(:agent_config_error, form_error(changeset))}
     end
   end
 
@@ -106,7 +138,15 @@ defmodule HavenWeb.InboxLive do
     %{
       "title" => "",
       "workspace" => File.cwd!(),
+      "workspace_id" => "",
       "agent" => "stub-acp"
+    }
+  end
+
+  defp default_workspace_params do
+    %{
+      "name" => "",
+      "path" => File.cwd!()
     }
   end
 
@@ -134,16 +174,58 @@ defmodule HavenWeb.InboxLive do
       |> Map.get("workspace", defaults["workspace"])
       |> String.trim()
 
+    workspace_id =
+      params
+      |> Map.get("workspace_id", defaults["workspace_id"])
+      |> String.trim()
+
     agent =
       params
       |> Map.get("agent", defaults["agent"])
       |> String.trim()
 
+    selected_workspace = selected_workspace_path(workspace_id)
+
     %{
       "title" => if(title == "", do: "Untitled run", else: title),
-      "workspace" => if(workspace == "", do: defaults["workspace"], else: Path.expand(workspace)),
+      "workspace" =>
+        cond do
+          selected_workspace -> selected_workspace
+          workspace == "" -> defaults["workspace"]
+          true -> Path.expand(workspace)
+        end,
       "agent" => if(agent == "", do: defaults["agent"], else: agent)
     }
+  end
+
+  defp selected_workspace_path(""), do: nil
+
+  defp selected_workspace_path(id) do
+    case Workspaces.get_workspace(id) do
+      nil -> nil
+      workspace -> workspace.path
+    end
+  end
+
+  defp workspace_attrs(params) do
+    %{
+      "name" => Map.get(params, "name", ""),
+      "path" => Map.get(params, "path", "")
+    }
+  end
+
+  defp refresh_workspace_assigns(socket) do
+    workspaces = Workspaces.list_workspaces()
+
+    socket
+    |> assign(:workspaces, workspaces)
+    |> assign(:workspace_options, workspace_options(workspaces))
+  end
+
+  defp workspace_options(workspaces) do
+    Enum.map(workspaces, fn workspace ->
+      {"#{workspace.name} · #{workspace.path}", workspace.id}
+    end)
   end
 
   defp agent_config_attrs(params) do
@@ -239,7 +321,7 @@ defmodule HavenWeb.InboxLive do
     end)
   end
 
-  defp agent_config_error(changeset) do
+  defp form_error(changeset) do
     changeset
     |> Ecto.Changeset.traverse_errors(fn {message, _opts} -> message end)
     |> Enum.map(fn {field, messages} -> "#{field} #{Enum.join(messages, ", ")}" end)
@@ -332,7 +414,14 @@ defmodule HavenWeb.InboxLive do
                   options={@agent_options}
                 />
               </div>
-              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+                <.input
+                  field={@form[:workspace_id]}
+                  type="select"
+                  label="Saved workspace"
+                  prompt="Manual path"
+                  options={@workspace_options}
+                />
                 <.input
                   field={@form[:workspace]}
                   type="text"
@@ -349,6 +438,86 @@ defmodule HavenWeb.InboxLive do
               </div>
             </.form>
           </header>
+
+          <section
+            id="workspaces-panel"
+            class="grid gap-4 border-b border-zinc-200 pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]"
+          >
+            <div>
+              <h2 class="text-sm font-semibold uppercase text-zinc-500">Workspaces</h2>
+              <div
+                id="workspace-list"
+                class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white"
+              >
+                <div
+                  :if={@workspaces == []}
+                  id="workspace-empty"
+                  class="px-4 py-5 text-sm text-zinc-500"
+                >
+                  No saved workspaces yet.
+                </div>
+                <div
+                  :for={workspace <- @workspaces}
+                  id={"workspace-#{workspace.id}"}
+                  class="border-t border-zinc-100 px-4 py-3 first:border-t-0"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-semibold text-zinc-950">{workspace.name}</p>
+                      <p class="mt-1 truncate text-xs text-zinc-500">{workspace.path}</p>
+                    </div>
+                    <button
+                      id={"delete-workspace-#{workspace.id}"}
+                      type="button"
+                      title="Delete workspace"
+                      class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                      phx-click="delete_workspace"
+                      phx-value-id={workspace.id}
+                    >
+                      <.icon name="hero-trash" class="size-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <.form
+              id="workspace-form"
+              for={@workspace_form}
+              phx-submit="save_workspace"
+              class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
+            >
+              <p
+                :if={@workspace_error}
+                id="workspace-error"
+                class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+              >
+                {@workspace_error}
+              </p>
+              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <.input
+                  field={@workspace_form[:name]}
+                  type="text"
+                  label="Name"
+                  placeholder="Haven"
+                  autocomplete="off"
+                />
+                <.input
+                  field={@workspace_form[:path]}
+                  type="text"
+                  label="Path"
+                  placeholder="/path/to/repo"
+                  autocomplete="off"
+                />
+              </div>
+              <button
+                id="save-workspace-button"
+                class="h-10 justify-self-end rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              >
+                Save Workspace
+              </button>
+            </.form>
+          </section>
 
           <section
             id="agent-configs-panel"

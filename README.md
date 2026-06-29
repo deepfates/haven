@@ -26,6 +26,9 @@ mix phx.server
 
 Open [localhost:4000](http://localhost:4000).
 
+The inbox can save frequently used workspace directories and reuse them from
+the run form's saved-workspace picker. Manual workspace paths still work.
+
 The run page includes sample controls:
 
 - `Echo` sends a complete prompt turn.
