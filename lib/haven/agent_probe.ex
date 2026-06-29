@@ -25,7 +25,8 @@ defmodule Haven.AgentProbe do
           events: [map()],
           prompt: String.t(),
           expected_events: [String.t()],
-          missing_expected_events: [String.t()]
+          missing_expected_events: [String.t()],
+          diagnostics: [map()]
         }
 
   @spec run(keyword()) :: {:ok, report()} | {:error, atom(), report()}
@@ -373,6 +374,7 @@ defmodule Haven.AgentProbe do
       events: Enum.map(Events.list_for_run(run.id), &event_report/1),
       expected_events: expected_events,
       missing_expected_events: [],
+      diagnostics: [],
       expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1),
       missing_expected_event_fields: []
     }
@@ -402,6 +404,7 @@ defmodule Haven.AgentProbe do
       events: [],
       expected_events: expected_events,
       missing_expected_events: [],
+      diagnostics: [],
       expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1),
       missing_expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1)
     }
@@ -420,8 +423,49 @@ defmodule Haven.AgentProbe do
     if missing == [] do
       {:ok, report}
     else
-      {:error, :missing_expected_events, %{report | missing_expected_events: missing}}
+      report =
+        report
+        |> Map.put(:missing_expected_events, missing)
+        |> Map.update(
+          :diagnostics,
+          event_gap_diagnostics(missing, report.events),
+          fn diagnostics ->
+            diagnostics ++ event_gap_diagnostics(missing, report.events)
+          end
+        )
+
+      {:error, :missing_expected_events, report}
     end
+  end
+
+  defp event_gap_diagnostics(missing, events) do
+    missing_capability_events = Enum.filter(missing, &client_capability_event?/1)
+    observed_tool_events = observed_tool_events(events)
+
+    if missing_capability_events != [] and observed_tool_events != [] do
+      [
+        %{
+          type: "tool_call_only_capability_gap",
+          message:
+            "Expected Haven-mediated client capability events were missing, but generic ACP tool_call activity was observed. This is useful agent evidence, not proof of Haven-mediated fs/* or terminal/* handling.",
+          missing_events: missing_capability_events,
+          observed_events: observed_tool_events
+        }
+      ]
+    else
+      []
+    end
+  end
+
+  defp observed_tool_events(events) do
+    events
+    |> Enum.map(& &1.type)
+    |> Enum.filter(&(&1 in ["tool_call", "tool_call_update"]))
+    |> Enum.uniq()
+  end
+
+  defp client_capability_event?(type) do
+    String.starts_with?(type, "file_") or String.starts_with?(type, "terminal_")
   end
 
   defp validate_expected_event_fields({:error, reason, report}, _expected_event_fields),

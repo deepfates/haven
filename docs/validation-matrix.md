@@ -439,6 +439,11 @@ Evidence:
   `codex-acp` fails with `missing_expected_events`: the agent still reads the
   file via a generic terminal `tool_call`, so it does not satisfy the
   Haven-mediated `fs/*` proof requirement.
+- Failed probe reports now include diagnostics when missing Haven-mediated
+  client capability events coincide with observed ACP `tool_call` /
+  `tool_call_update` activity. The current saved `codex-acp` file-read attempt
+  records this as `tool_call_only_capability_gap`, making the boundary explicit
+  in both CLI output and JSON reports.
 - `docs/probes/codex-acp-terminal-tool-call.json` is a committed passing
   `--require-real-agent` report showing `codex-acp` can execute a terminal
   command and return a sentinel, but it does so through ACP

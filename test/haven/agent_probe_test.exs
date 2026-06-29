@@ -480,6 +480,27 @@ defmodule Haven.AgentProbeTest do
     assert "turn_finished" in event_types(report)
   end
 
+  test "diagnoses tool-call-only activity when Haven-mediated capability events are missing" do
+    assert {:error, :missing_expected_events, report} =
+             AgentProbe.run(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               prompt: "unknown-update",
+               expect_events: ["file_read_succeeded"],
+               timeout: 5_000
+             )
+
+    assert report.missing_expected_events == ["file_read_succeeded"]
+
+    assert [
+             %{
+               type: "tool_call_only_capability_gap",
+               missing_events: ["file_read_succeeded"],
+               observed_events: ["tool_call_update"]
+             }
+           ] = report.diagnostics
+  end
+
   test "passes when expected event payload fields are present" do
     assert {:ok, report} =
              AgentProbe.run(

@@ -377,6 +377,15 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       )
     end
 
+    if Map.get(report, :diagnostics, []) != [] do
+      Mix.shell().info("")
+      Mix.shell().info("Diagnostics:")
+
+      Enum.each(report.diagnostics, fn diagnostic ->
+        Mix.shell().info("- #{diagnostic.message}")
+      end)
+    end
+
     Mix.shell().info("")
     Mix.shell().info("Events:")
 
