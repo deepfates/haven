@@ -452,7 +452,10 @@ Evidence:
   gate rather than only a documentation convention. Committed reports can now
   require payload-field facts as well as event types, so future Haven-mediated
   `fs/*` / `terminal/*` evidence can assert details like requested path,
-  terminal command, and exit status.
+  terminal command, and exit status. Reports that claim Haven-mediated
+  `file_*` or `terminal_*` expected events now require matching field-level
+  expectations for those event types, so type-only capability evidence is not
+  accepted.
 
 Still missing:
 

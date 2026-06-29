@@ -58,6 +58,55 @@ defmodule Haven.AgentProbeReportTest do
     assert "expected event fields are absent from events: turn_finished:stopReason=interrupted" in errors
   end
 
+  test "accepts client capability reports with matching expected event fields" do
+    report =
+      valid_report()
+      |> Map.put("expected_events", [
+        "agent_initialized",
+        "terminal_output_succeeded",
+        "turn_finished"
+      ])
+      |> Map.put("expected_event_fields", [
+        %{"event" => "terminal_output_succeeded", "field" => "exit_status", "value" => "0"}
+      ])
+      |> Map.put("events", [
+        %{"seq" => 1, "type" => "run_created", "payload" => %{}},
+        %{"seq" => 2, "type" => "agent_initialized", "payload" => %{}},
+        %{
+          "seq" => 3,
+          "type" => "terminal_output_succeeded",
+          "payload" => %{"exit_status" => 0}
+        },
+        %{"seq" => 4, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
+      ])
+
+    assert :ok = AgentProbeReport.validate(report)
+  end
+
+  test "rejects client capability reports without field-level expectations" do
+    report =
+      valid_report()
+      |> Map.put("expected_events", [
+        "agent_initialized",
+        "terminal_output_succeeded",
+        "turn_finished"
+      ])
+      |> Map.put("events", [
+        %{"seq" => 1, "type" => "run_created", "payload" => %{}},
+        %{"seq" => 2, "type" => "agent_initialized", "payload" => %{}},
+        %{
+          "seq" => 3,
+          "type" => "terminal_output_succeeded",
+          "payload" => %{"exit_status" => 0}
+        },
+        %{"seq" => 4, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+
+    assert "client capability expected events require matching expected_event_fields: terminal_output_succeeded" in errors
+  end
+
   test "rejects structurally invalid events" do
     report = Map.put(valid_report(), "events", [%{"seq" => 2, "type" => "run_created"}])
 

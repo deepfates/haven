@@ -36,6 +36,7 @@ defmodule Haven.AgentProbeReport do
       |> require_real_agent_evidence(report)
       |> require_expected_events(report)
       |> require_expected_event_fields(report)
+      |> require_capability_event_field_expectations(report)
       |> require_no_missing_events(report)
       |> require_no_missing_event_fields(report)
       |> require_no_errors(report)
@@ -107,6 +108,38 @@ defmodule Haven.AgentProbeReport do
       _fields ->
         ["expected_event_fields must be a list when present" | errors]
     end
+  end
+
+  defp require_capability_event_field_expectations(errors, report) do
+    expected_events =
+      report
+      |> Map.get("expected_events", [])
+      |> Enum.filter(&is_binary/1)
+
+    expected_event_field_types =
+      report
+      |> Map.get("expected_event_fields", [])
+      |> Enum.filter(&is_map/1)
+      |> Enum.map(&Map.get(&1, "event"))
+      |> MapSet.new()
+
+    missing =
+      expected_events
+      |> Enum.filter(&client_capability_event?/1)
+      |> Enum.reject(&MapSet.member?(expected_event_field_types, &1))
+
+    if missing == [] do
+      errors
+    else
+      [
+        "client capability expected events require matching expected_event_fields: #{Enum.join(missing, ", ")}"
+        | errors
+      ]
+    end
+  end
+
+  defp client_capability_event?(type) do
+    String.starts_with?(type, "file_") or String.starts_with?(type, "terminal_")
   end
 
   defp validate_event_field_expectation(

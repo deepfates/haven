@@ -18,6 +18,9 @@ Grei/Haven real-agent evidence when all of the following are true:
   story being validated, such as requested paths, terminal commands, exit
   statuses, and permission decisions.
 - `missing_expected_event_fields` is empty.
+- Reports that claim Haven-mediated `file_*` or `terminal_*` capability events
+  in `expected_events` must include matching `expected_event_fields` entries
+  for those event types; type-only capability evidence is not accepted.
 - `status` is `idle` or another explicitly expected terminal state for the
   story.
 - The ordered `events` list shows the relevant ACP lifecycle, prompt, permission,
