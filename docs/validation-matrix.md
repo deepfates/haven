@@ -9,6 +9,9 @@ runs with explicit human decisions.
 - Unit and integration tests: `mix test`
 - Compile gate: `mix compile --warnings-as-errors`
 - Final project gate: `mix precommit`
+- Agent probe harness: `mix haven.agent_probe --report` can produce durable JSON
+  evidence artifacts with explicit `--expect-event` acceptance checks; see
+  `docs/probes/README.md`.
 - LiveView integration: malformed ACP startup output records
   `agent_protocol_failed`, marks the run `failed`, and does not restart the
   agent process.
@@ -339,8 +342,8 @@ These are not cosmetic gaps. They are core to the full Grei telos and should not
 be counted as complete until there is executable evidence.
 
 - Real external ACP agent integration beyond `priv/agent_stub.exs`.
-- A committed probe transcript from `mix haven.agent_probe` against a real
-  configured ACP agent.
+- A committed `mix haven.agent_probe --report` JSON artifact from a real
+  configured ACP agent under `docs/probes/`.
 - File read/write capability requests from a real external agent.
 - Terminal capability requests from a real external agent.
 - Interactive terminal behavior.
@@ -356,7 +359,7 @@ be counted as complete until there is executable evidence.
    by running `mix haven.agent_probe` against it with `--expect-event`
    assertions for initialization, prompting, and any required file/terminal
    capability events, then commit the `--report` JSON artifact and document any
-   agent-specific auth contract.
+   agent-specific auth contract using `docs/probes/README.md`.
 2. Connect terminal capability handling to a real ACP-speaking agent and add
    interactive-terminal evidence.
 3. Connect file capability handling to a real ACP-speaking agent.

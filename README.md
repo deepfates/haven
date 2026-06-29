@@ -83,7 +83,9 @@ probe fail unless the run emits the required Haven event types, turning
 real-agent checks into acceptance contracts instead of best-effort smoke.
 `--report path.json` writes the full report as pretty JSON for committed proof
 artifacts. Passing the probe with `stub-acp` proves the harness; passing it with
-a real configured ACP agent is the next integration milestone.
+a real configured ACP agent is the next integration milestone. See
+`docs/probes/README.md` for the report requirements that make a probe count as
+real-agent evidence.
 
 ## Shape
 
