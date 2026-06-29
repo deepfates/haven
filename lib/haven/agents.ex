@@ -9,6 +9,7 @@ defmodule Haven.Agents do
         "my-agent" => %{
           executable: "/path/to/agent",
           args: ["--workspace", "{workspace}"],
+          cwd: "{workspace}",
           env: %{"TOKEN" => "...", "WORKSPACE" => "{workspace}"}
         }
       }
@@ -17,6 +18,7 @@ defmodule Haven.Agents do
   @type command :: %{
           executable: String.t(),
           args: [String.t()],
+          cwd: String.t() | nil,
           env: [{String.t(), String.t()}],
           label: String.t()
         }
@@ -44,6 +46,7 @@ defmodule Haven.Agents do
          %{
            executable: executable,
            args: ["run", "--no-compile", "--no-start", "priv/agent_stub.exs", workspace],
+           cwd: nil,
            env: [],
            label: "stub-acp"
          }}
@@ -64,8 +67,9 @@ defmodule Haven.Agents do
   defp command_from_spec(agent, spec, workspace) when is_map(spec) do
     with {:ok, executable} <- fetch_string(spec, :executable),
          {:ok, args} <- fetch_args(spec, workspace),
+         {:ok, cwd} <- fetch_cwd(spec, workspace),
          {:ok, env} <- fetch_env(spec, workspace) do
-      {:ok, %{executable: executable, args: args, env: env, label: agent}}
+      {:ok, %{executable: executable, args: args, cwd: cwd, env: env, label: agent}}
     end
   end
 
@@ -85,6 +89,19 @@ defmodule Haven.Agents do
       {:ok, Enum.map(args, &String.replace(&1, "{workspace}", workspace))}
     else
       {:error, {:invalid_agent_field, :args}}
+    end
+  end
+
+  defp fetch_cwd(spec, workspace) do
+    case Map.get(spec, :cwd) || Map.get(spec, "cwd") do
+      nil ->
+        {:ok, nil}
+
+      cwd when is_binary(cwd) and cwd != "" ->
+        {:ok, String.replace(cwd, "{workspace}", workspace)}
+
+      _ ->
+        {:error, {:invalid_agent_field, :cwd}}
     end
   end
 

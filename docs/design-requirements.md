@@ -274,9 +274,9 @@ Proven:
 
 - Phoenix/LiveView can present an inbox and run timeline.
 - The inbox can create runs with explicit title, workspace, and agent choice.
-- Configured agent specs can provide executable, args, and env values with
-  workspace substitution; launch events record env key names while redacting
-  env values.
+- Configured agent specs can provide executable, args, cwd, and env values with
+  workspace substitution; launch events record cwd and env key names while
+  redacting env values.
 - Run creation rejects missing workspace directories before starting an agent
   process, and the inbox renders that validation failure in place.
 - Terminal failed and closed runs can be archived from the inbox, hiding them
@@ -363,7 +363,7 @@ Known implementation limitations:
 3. How should app-level events relate to raw ACP stream events?
 4. What workspace permissions are granted by default?
 5. Does Haven launch agents, connect to existing agents, or both?
-6. How should a user choose an agent and configure its command/env?
+6. How should a user choose an agent and configure its command/cwd/env?
 7. What is the correct recovery behavior after a process crash?
 8. What does "resume" mean when ACP support is absent?
 9. Which controls belong in the inbox versus the run detail view?

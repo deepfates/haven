@@ -70,6 +70,7 @@ defmodule Haven.Runs.RunServer do
            PortIO.start_link(
              executable: command.executable,
              args: command.args,
+             cd: command.cwd,
              env: command.env,
              observer: self()
            ) do
@@ -178,6 +179,7 @@ defmodule Haven.Runs.RunServer do
           "command" => command.label,
           "executable" => command.executable,
           "args" => command.args,
+          "cwd" => command.cwd,
           "env" => Enum.map(command.env, fn {name, _value} -> name end)
         })
 

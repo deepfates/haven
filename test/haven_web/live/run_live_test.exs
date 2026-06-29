@@ -1133,6 +1133,7 @@ defmodule HavenWeb.RunLiveTest do
       "configured-stub" => %{
         executable: System.find_executable("mix"),
         args: ["run", "--no-compile", "--no-start", "priv/agent_stub.exs", "{workspace}"],
+        cwd: "{workspace}",
         env: [{"HAVEN_AGENT_ENV_SMOKE", "configured-secret"}]
       }
     })
@@ -1150,12 +1151,14 @@ defmodule HavenWeb.RunLiveTest do
                         "agent" => "configured-stub",
                         "command" => "configured-stub",
                         "args" => args,
+                        "cwd" => cwd,
                         "env" => env
                       }
                     }},
                    1_000
 
     assert List.last(args) == run.workspace
+    assert cwd == run.workspace
     assert env == ["HAVEN_AGENT_ENV_SMOKE"]
     refute inspect(Events.list_for_run(run.id)) =~ "configured-secret"
     assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000

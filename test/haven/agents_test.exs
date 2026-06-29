@@ -19,6 +19,7 @@ defmodule Haven.AgentsTest do
     assert {:ok, command} = Agents.command("stub-acp", "/tmp/work")
     assert command.label == "stub-acp"
     assert command.executable =~ "mix"
+    assert command.cwd == nil
     assert command.env == []
 
     assert command.args == [
@@ -35,6 +36,7 @@ defmodule Haven.AgentsTest do
       "external" => %{
         executable: "/bin/agent",
         args: ["--workspace", "{workspace}"],
+        cwd: "{workspace}",
         env: %{"WORKSPACE" => "{workspace}", "MODE" => "smoke"}
       }
     })
@@ -43,7 +45,16 @@ defmodule Haven.AgentsTest do
     assert command.label == "external"
     assert command.executable == "/bin/agent"
     assert command.args == ["--workspace", "/repo"]
+    assert command.cwd == "/repo"
     assert command.env == [{"MODE", "smoke"}, {"WORKSPACE", "/repo"}]
+  end
+
+  test "rejects invalid configured agent cwd" do
+    Application.put_env(:haven, :agents, %{
+      "external" => %{executable: "/bin/agent", cwd: 123}
+    })
+
+    assert {:error, {:invalid_agent_field, :cwd}} = Agents.command("external", "/repo")
   end
 
   test "rejects invalid configured agent env" do

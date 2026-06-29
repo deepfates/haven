@@ -29,13 +29,15 @@ defmodule Haven.PortIO do
   def init(opts) do
     executable = Keyword.fetch!(opts, :executable)
     args = Keyword.get(opts, :args, [])
+    cd = Keyword.get(opts, :cd)
     env = Keyword.get(opts, :env, []) |> port_env()
     observer = Keyword.get(opts, :observer)
 
     port =
       Port.open(
         {:spawn_executable, executable},
-        [:binary, :exit_status, :use_stdio, :stderr_to_stdout, args: args, env: env]
+        [:binary, :exit_status, :use_stdio, :stderr_to_stdout, args: args, env: env] ++
+          cd_option(cd)
       )
 
     {:ok, %__MODULE__{port: port, observer: observer}}
@@ -147,4 +149,7 @@ defmodule Haven.PortIO do
       {String.to_charlist(name), String.to_charlist(value)}
     end)
   end
+
+  defp cd_option(nil), do: []
+  defp cd_option(cd), do: [cd: cd]
 end

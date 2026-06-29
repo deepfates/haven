@@ -37,4 +37,20 @@ defmodule Haven.PortIOTest do
 
     assert "visible\n" = IO.read(io, :line)
   end
+
+  test "starts the spawned process in the configured working directory" do
+    tmp_dir =
+      Path.join("/private/tmp", "haven-port-io-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(tmp_dir)
+    on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+    {:ok, io} =
+      PortIO.start_link(
+        executable: System.find_executable("pwd"),
+        cd: tmp_dir
+      )
+
+    assert Path.expand(String.trim(IO.read(io, :line))) == Path.expand(tmp_dir)
+  end
 end
