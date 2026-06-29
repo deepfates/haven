@@ -7,6 +7,8 @@ The deterministic `stub-acp` agent proves the harness. A report only counts as
 Grei/Haven real-agent evidence when all of the following are true:
 
 - The `agent` field names a configured agent other than `stub-acp`.
+- The report was generated with `--require-real-agent`, so `real_agent_evidence`
+  is present with `accepted: true`.
 - The report was produced through Haven's run lifecycle, not by talking directly
   to the agent process.
 - `expected_events` names the lifecycle or capability events required by the
@@ -24,6 +26,7 @@ mix haven.agent_probe \
   --agent my-agent \
   --workspace /path/to/repo \
   --prompt "summarize this workspace" \
+  --require-real-agent \
   --redact-env ANTHROPIC_API_KEY \
   --expect-event agent_initialized \
   --expect-event agent_session_started \
@@ -70,3 +73,7 @@ environment-derived output, prompts, and agent messages.
 Use repeated `--redact value` flags for literal strings and repeated
 `--redact-env ENV_VAR` flags for secrets stored in the environment. Redacted
 reports include `redactions` metadata, but never the raw redaction values.
+
+Use `--require-real-agent` on any report intended to count as Grei/Haven
+real-agent evidence. It rejects the built-in stub and the known local test
+harness scripts used by automated coverage.

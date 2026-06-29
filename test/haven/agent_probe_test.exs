@@ -96,6 +96,53 @@ defmodule Haven.AgentProbeTest do
     assert report.redactions == [%{source: "env", name: name}]
   end
 
+  test "can require real-agent evidence and reject the built-in stub" do
+    assert {:error, :real_agent_required, report} =
+             AgentProbe.run(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               prompt: "hello from probe",
+               timeout: 5_000,
+               require_real_agent: true
+             )
+
+    assert report.real_agent_evidence == %{
+             accepted: false,
+             reasons: ["agent is built-in stub-acp", "agent command uses a local test harness"],
+             required: true
+           }
+
+    assert report.errors == %{
+             "real_agent" => [
+               "agent is built-in stub-acp",
+               "agent command uses a local test harness"
+             ]
+           }
+  end
+
+  test "can require real-agent evidence and reject the configured test harness" do
+    Application.put_env(:haven, :agents, %{
+      "fake-probe-streaming" => fake_agent_spec("streaming")
+    })
+
+    assert {:error, :real_agent_required, report} =
+             AgentProbe.run(
+               agent: "fake-probe-streaming",
+               workspace: File.cwd!(),
+               prompt: "partial-stream",
+               timeout: 5_000,
+               require_real_agent: true
+             )
+
+    assert report.real_agent_evidence == %{
+             accepted: false,
+             reasons: ["agent command uses a local test harness"],
+             required: true
+           }
+
+    assert report.errors == %{"real_agent" => ["agent command uses a local test harness"]}
+  end
+
   test "can create probe runs with file capability policy" do
     assert {:ok, report} =
              AgentProbe.run(

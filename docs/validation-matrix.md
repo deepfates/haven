@@ -343,6 +343,9 @@ Evidence:
 - Probe reports support literal and environment-derived redaction before
   printing or writing JSON, which lowers the risk of committing real-agent
   evidence artifacts that contain secrets echoed by agents or tools.
+- Probe reports intended as real-agent evidence can require a real-agent guard;
+  the guard rejects the built-in `stub-acp` and the configured local test
+  harness scripts before writing a passing acceptance artifact.
 
 Still missing:
 

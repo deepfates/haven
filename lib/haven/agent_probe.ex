@@ -36,6 +36,7 @@ defmodule Haven.AgentProbe do
     permission_resolution = Keyword.get(opts, :resolve_permissions)
     capability_policy = capability_policy(opts)
     redactions = redactions(opts)
+    require_real_agent? = Keyword.get(opts, :require_real_agent, false)
 
     expected_events =
       Keyword.get_values(opts, :expect_event) ++ Keyword.get(opts, :expect_events, [])
@@ -55,6 +56,7 @@ defmodule Haven.AgentProbe do
       finished
       |> redacted_report(prompt, expected_events, redactions)
       |> validate_expected_events(expected_events)
+      |> validate_real_agent(require_real_agent?)
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         {:error, :invalid_run,
@@ -256,6 +258,47 @@ defmodule Haven.AgentProbe do
       {:error, :missing_expected_events, %{report | missing_expected_events: missing}}
     end
   end
+
+  defp validate_real_agent({:error, reason, report}, _require_real_agent?),
+    do: {:error, reason, report}
+
+  defp validate_real_agent({:ok, report}, false), do: {:ok, report}
+
+  defp validate_real_agent({:ok, report}, true) do
+    reasons = real_agent_rejection_reasons(report)
+
+    if reasons == [] do
+      {:ok, Map.put(report, :real_agent_evidence, %{required: true, accepted: true})}
+    else
+      {:error, :real_agent_required,
+       report
+       |> Map.put(:real_agent_evidence, %{required: true, accepted: false, reasons: reasons})
+       |> Map.update(:errors, %{"real_agent" => reasons}, fn errors ->
+         Map.put(errors, "real_agent", reasons)
+       end)}
+    end
+  end
+
+  defp real_agent_rejection_reasons(report) do
+    []
+    |> maybe_reject(report.agent == "stub-acp", "agent is built-in stub-acp")
+    |> maybe_reject(
+      Enum.any?(report.events, &test_harness_process?/1),
+      "agent command uses a local test harness"
+    )
+    |> Enum.reverse()
+  end
+
+  defp maybe_reject(reasons, true, reason), do: [reason | reasons]
+  defp maybe_reject(reasons, false, _reason), do: reasons
+
+  defp test_harness_process?(%{type: "agent_process_started", payload: payload}) do
+    payload
+    |> Map.get("args", [])
+    |> Enum.any?(&(&1 in ["priv/agent_stub.exs", "test/support/fake_agent_runner.exs"]))
+  end
+
+  defp test_harness_process?(_event), do: false
 
   defp event_report(event) do
     %{

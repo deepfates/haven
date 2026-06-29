@@ -14,6 +14,9 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   policy.
   Use repeated `--expect-event` flags to make the probe fail unless the run
   produces the event types required by the acceptance story.
+  Use `--require-real-agent` for evidence intended to satisfy the real-agent
+  Grei validation milestone; it rejects the built-in stub and known test
+  harnesses.
   Use repeated `--redact value` or `--redact-env ENV_VAR` flags to replace
   sensitive strings in the printed and written report with `[REDACTED]`.
   Use `--report path.json` to write the full probe report as pretty JSON.
@@ -37,7 +40,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     file_write_policy: :string,
     terminal_create_policy: :string,
     redact: :keep,
-    redact_env: :keep
+    redact_env: :keep,
+    require_real_agent: :boolean
   ]
 
   @aliases [a: :agent, w: :workspace, p: :prompt, t: :timeout]
