@@ -440,7 +440,7 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Wrote file through Haven."
   end
 
-  test "rejects unsupported ACP terminal requests visibly", %{conn: conn} do
+  test "handles ACP terminal create, wait, output, and release requests visibly", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Terminal request run"})
     stop_run_server_on_exit(run.id)
     sync_run_server!(run.id)
@@ -452,30 +452,64 @@ defmodule HavenWeb.RunLiveTest do
     |> element("#sample-terminal-button")
     |> render_click()
 
+    assert_receive {:event_appended, %{type: "terminal_create_requested"}}, 1_000
+
+    assert_receive {:event_appended,
+                    %{type: "terminal_created", payload: %{"terminal_id" => terminal_id}}},
+                   1_000
+
     assert_receive {:event_appended,
                     %{
-                      type: "terminal_request_rejected",
-                      payload: %{
-                        "method" => "terminal/create",
-                        "error" => %{"message" => "Terminal capabilities are not implemented"}
-                      }
+                      type: "terminal_wait_requested",
+                      payload: %{"terminal_id" => ^terminal_id}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_wait_succeeded",
+                      payload: %{"terminal_id" => ^terminal_id, "exit_status" => 0}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_output_requested",
+                      payload: %{"terminal_id" => ^terminal_id}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_output_succeeded",
+                      payload: %{"terminal_id" => ^terminal_id, "exit_status" => 0}
                     }},
                    1_000
 
     assert_receive {:event_appended,
                     %{
                       type: "agent_message_chunk",
-                      payload: %{
-                        "text" => "Terminal rejected: Terminal capabilities are not implemented"
-                      }
+                      payload: %{"text" => "Terminal output: hello (exit 0)"}
                     }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "terminal_release_requested",
+                      payload: %{"terminal_id" => ^terminal_id}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{type: "terminal_released", payload: %{"terminal_id" => ^terminal_id}}},
                    1_000
 
     assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
 
     html = render(view)
-    assert html =~ "terminal_request_rejected"
-    assert html =~ "Terminal rejected"
+    assert html =~ "terminal_created"
+    assert html =~ "terminal_output_succeeded"
+    assert html =~ "Terminal output: hello"
   end
 
   test "unknown agent fails visibly instead of launching the stub", %{conn: conn} do

@@ -146,7 +146,6 @@ defmodule StubAgent do
         }
 
       text == "terminal" ->
-        request_id = state.next_permission_id
         session_id = request.session_id
 
         terminal_request =
@@ -155,13 +154,11 @@ defmodule StubAgent do
           |> Map.put(:args, ["hello"])
           |> ACP.CreateTerminalRequest.to_json()
 
-        ACPWire.send(ACP.RPC.Request.new(request_id, "terminal/create", terminal_request))
-
-        %{
-          state
-          | next_permission_id: request_id + 1,
-            awaiting_terminal: Map.put(state.awaiting_terminal, request_id, {prompt_id, session_id})
-        }
+        request_terminal(state, "terminal/create", terminal_request, %{
+          prompt_id: prompt_id,
+          session_id: session_id,
+          step: :create
+        })
 
       text == "die" ->
         System.halt(1)
@@ -268,9 +265,9 @@ defmodule StubAgent do
       {nil, _} ->
         state
 
-      {{prompt_id, session_id}, awaiting_terminal} ->
-        send_agent_text(session_id, "Terminal rejected: #{error.message}")
-        send_prompt_result(prompt_id)
+      {pending, awaiting_terminal} ->
+        send_agent_text(pending.session_id, "Terminal failed: #{error.message}")
+        send_prompt_result(pending.prompt_id)
         %{state | awaiting_terminal: awaiting_terminal}
     end
   end
@@ -280,10 +277,57 @@ defmodule StubAgent do
       {nil, _} ->
         state
 
-      {{prompt_id, session_id}, awaiting_terminal} ->
+      {%{step: :create} = pending, awaiting_terminal} ->
         {:ok, response} = ACP.CreateTerminalResponse.from_json(result)
-        send_agent_text(session_id, "Created terminal: #{response.terminal_id}")
-        send_prompt_result(prompt_id)
+        state = %{state | awaiting_terminal: awaiting_terminal}
+
+        terminal_request =
+          pending.session_id
+          |> ACP.WaitForTerminalExitRequest.new(response.terminal_id)
+          |> ACP.WaitForTerminalExitRequest.to_json()
+
+        request_terminal(
+          state,
+          "terminal/wait_for_exit",
+          terminal_request,
+          Map.merge(pending, %{step: :wait, terminal_id: response.terminal_id})
+        )
+
+      {%{step: :wait} = pending, awaiting_terminal} ->
+        {:ok, response} = ACP.WaitForTerminalExitResponse.from_json(result)
+        state = %{state | awaiting_terminal: awaiting_terminal}
+
+        terminal_request =
+          pending.session_id
+          |> ACP.TerminalOutputRequest.new(pending.terminal_id)
+          |> ACP.TerminalOutputRequest.to_json()
+
+        request_terminal(
+          state,
+          "terminal/output",
+          terminal_request,
+          Map.merge(pending, %{step: :output, exit_code: response.exit_status.exit_code})
+        )
+
+      {%{step: :output} = pending, awaiting_terminal} ->
+        {:ok, response} = ACP.TerminalOutputResponse.from_json(result)
+        exit_code = terminal_exit_code(response.exit_status) || pending.exit_code
+        output = String.trim(response.output)
+
+        send_agent_text(pending.session_id, "Terminal output: #{output} (exit #{exit_code})")
+
+        state = %{state | awaiting_terminal: awaiting_terminal}
+
+        terminal_request =
+          pending.session_id
+          |> ACP.ReleaseTerminalRequest.new(pending.terminal_id)
+          |> ACP.ReleaseTerminalRequest.to_json()
+
+        request_terminal(state, "terminal/release", terminal_request, %{pending | step: :release})
+
+      {%{step: :release} = pending, awaiting_terminal} ->
+        {:ok, _response} = ACP.ReleaseTerminalResponse.from_json(result)
+        send_prompt_result(pending.prompt_id)
         %{state | awaiting_terminal: awaiting_terminal}
     end
   end
@@ -301,6 +345,21 @@ defmodule StubAgent do
 
   defp permission_message(:cancelled), do: "Permission cancelled."
   defp permission_message(_outcome), do: "Permission resolved."
+
+  defp request_terminal(state, method, params, pending) do
+    request_id = state.next_permission_id
+
+    ACPWire.send(ACP.RPC.Request.new(request_id, method, params))
+
+    %{
+      state
+      | next_permission_id: request_id + 1,
+        awaiting_terminal: Map.put(state.awaiting_terminal, request_id, pending)
+    }
+  end
+
+  defp terminal_exit_code(nil), do: nil
+  defp terminal_exit_code(%ACP.TerminalExitStatus{exit_code: exit_code}), do: exit_code
 
   defp send_agent_text(session_id, text) do
     send_session_update(

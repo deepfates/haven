@@ -5,6 +5,7 @@ defmodule Haven.Runs.RunServer do
   alias Haven.PortIO
   alias Haven.Runs
   alias Haven.Runs.ACPClientHandler
+  alias Haven.Terminals
   alias Haven.WorkspaceFiles
   alias Haven.Agents
 
@@ -53,7 +54,8 @@ defmodule Haven.Runs.RunServer do
        next_id: 1,
        next_permission_id: 1,
        pending_prompts: %{},
-       pending_permissions: %{}
+       pending_permissions: %{},
+       terminals: %{}
      }}
   end
 
@@ -332,16 +334,155 @@ defmodule Haven.Runs.RunServer do
     end
   end
 
-  def handle_call({:agent_terminal_requested, request}, _from, state) do
-    error = %{ACP.Error.method_not_found() | message: "Terminal capabilities are not implemented"}
+  def handle_call(
+        {:agent_terminal_requested, {:create_terminal, request} = agent_request},
+        _from,
+        state
+      ) do
+    run = Runs.get_run!(state.run_id)
+    payload = terminal_request_payload(agent_request)
 
-    Events.append!(state.run_id, "terminal_request_rejected", %{
-      "method" => ACP.AgentRequest.method(request),
-      "request" => terminal_request_payload(request),
-      "error" => ACP.Error.to_json(error)
-    })
+    Events.append!(state.run_id, "terminal_create_requested", payload)
 
-    {:reply, {:error, error}, state}
+    with {:ok, opts} <- Terminals.command_options(run.workspace, request),
+         {:ok, pid} <- Terminals.start(opts) do
+      terminal_id = Keyword.fetch!(opts, :terminal_id)
+
+      Events.append!(
+        state.run_id,
+        "terminal_created",
+        Map.merge(payload, %{"terminal_id" => terminal_id})
+      )
+
+      {:reply, {:ok, ACP.CreateTerminalResponse.new(terminal_id)},
+       %{state | terminals: Map.put(state.terminals, terminal_id, pid)}}
+    else
+      {:error, reason} ->
+        error = terminal_error("Could not create terminal", reason)
+
+        Events.append!(
+          state.run_id,
+          "terminal_create_failed",
+          Map.merge(payload, %{"error" => ACP.Error.to_json(error)})
+        )
+
+        {:reply, {:error, error}, state}
+    end
+  end
+
+  def handle_call(
+        {:agent_terminal_requested, {:terminal_output, request} = agent_request},
+        _from,
+        state
+      ) do
+    payload = terminal_request_payload(agent_request)
+    Events.append!(state.run_id, "terminal_output_requested", payload)
+
+    with {:ok, pid} <- fetch_terminal(state, request.terminal_id),
+         {:ok, output, exit_status} <- Terminals.output(pid) do
+      Events.append!(
+        state.run_id,
+        "terminal_output_succeeded",
+        Map.merge(payload, %{"bytes" => byte_size(output), "exit_status" => exit_status})
+      )
+
+      response = %ACP.TerminalOutputResponse{
+        output: output,
+        exit_status: terminal_exit_status(exit_status)
+      }
+
+      {:reply, {:ok, response}, state}
+    else
+      {:error, error} ->
+        Events.append!(
+          state.run_id,
+          "terminal_output_failed",
+          Map.merge(payload, %{"error" => ACP.Error.to_json(error)})
+        )
+
+        {:reply, {:error, error}, state}
+    end
+  end
+
+  def handle_call(
+        {:agent_terminal_requested, {:wait_for_terminal_exit, request} = agent_request},
+        _from,
+        state
+      ) do
+    payload = terminal_request_payload(agent_request)
+    Events.append!(state.run_id, "terminal_wait_requested", payload)
+
+    with {:ok, pid} <- fetch_terminal(state, request.terminal_id),
+         {:ok, exit_status} <- Terminals.wait_for_exit(pid) do
+      Events.append!(
+        state.run_id,
+        "terminal_wait_succeeded",
+        Map.merge(payload, %{"exit_status" => exit_status})
+      )
+
+      {:reply,
+       {:ok, ACP.WaitForTerminalExitResponse.new(ACP.TerminalExitStatus.new(exit_status))}, state}
+    else
+      {:error, error} ->
+        Events.append!(
+          state.run_id,
+          "terminal_wait_failed",
+          Map.merge(payload, %{"error" => ACP.Error.to_json(error)})
+        )
+
+        {:reply, {:error, error}, state}
+    end
+  end
+
+  def handle_call(
+        {:agent_terminal_requested, {:kill_terminal_command, request} = agent_request},
+        _from,
+        state
+      ) do
+    payload = terminal_request_payload(agent_request)
+    Events.append!(state.run_id, "terminal_kill_requested", payload)
+
+    with {:ok, pid} <- fetch_terminal(state, request.terminal_id),
+         :ok <- Terminals.kill(pid) do
+      Events.append!(state.run_id, "terminal_kill_succeeded", payload)
+      {:reply, {:ok, ACP.KillTerminalCommandResponse.new()}, state}
+    else
+      {:error, error} ->
+        Events.append!(
+          state.run_id,
+          "terminal_kill_failed",
+          Map.merge(payload, %{"error" => ACP.Error.to_json(error)})
+        )
+
+        {:reply, {:error, error}, state}
+    end
+  end
+
+  def handle_call(
+        {:agent_terminal_requested, {:release_terminal, request} = agent_request},
+        _from,
+        state
+      ) do
+    payload = terminal_request_payload(agent_request)
+    Events.append!(state.run_id, "terminal_release_requested", payload)
+
+    case Map.pop(state.terminals, request.terminal_id) do
+      {nil, _terminals} ->
+        error = ACP.Error.resource_not_found(request.terminal_id)
+
+        Events.append!(
+          state.run_id,
+          "terminal_release_failed",
+          Map.merge(payload, %{"error" => ACP.Error.to_json(error)})
+        )
+
+        {:reply, {:error, error}, state}
+
+      {pid, terminals} ->
+        Terminals.release(pid)
+        Events.append!(state.run_id, "terminal_released", payload)
+        {:reply, {:ok, ACP.ReleaseTerminalResponse.new()}, %{state | terminals: terminals}}
+    end
   end
 
   def handle_call(:shutdown, _from, state) do
@@ -353,6 +494,10 @@ defmodule Haven.Runs.RunServer do
   def terminate(_reason, state), do: cleanup_agent(state)
 
   defp cleanup_agent(state) do
+    Enum.each(state.terminals, fn {_terminal_id, pid} ->
+      stop_if_alive(pid, &Terminals.release/1)
+    end)
+
     stop_if_alive(state.port_io, &PortIO.stop/1)
 
     case state.conn do
@@ -397,10 +542,27 @@ defmodule Haven.Runs.RunServer do
     |> Map.from_struct()
     |> Map.drop([:meta])
     |> stringify_keys()
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Map.new()
   end
 
   defp stringify_keys(map) do
     Map.new(map, fn {key, value} -> {to_string(key), value} end)
+  end
+
+  defp fetch_terminal(state, terminal_id) do
+    case Map.fetch(state.terminals, terminal_id) do
+      {:ok, pid} -> {:ok, pid}
+      :error -> {:error, ACP.Error.resource_not_found(terminal_id)}
+    end
+  end
+
+  defp terminal_exit_status(nil), do: nil
+  defp terminal_exit_status(status), do: ACP.TerminalExitStatus.new(status)
+
+  defp terminal_error(message, reason) do
+    %{ACP.Error.internal_error() | message: message}
+    |> ACP.Error.with_data(%{"reason" => inspect(reason)})
   end
 
   defp append_session_update(run_id, notification) do

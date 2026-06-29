@@ -10,7 +10,7 @@ runs with explicit human decisions.
 - Compile gate: `mix compile --warnings-as-errors`
 - Final project gate: `mix precommit`
 - Browser smoke: create a run, trigger a permission request, approve it, trigger
-  an ACP file read, trigger an unsupported terminal request, and observe final
+  an ACP file read, trigger a deterministic terminal command, and observe final
   `idle` status plus persisted timeline events in the in-app browser.
 
 ## Proven Now
@@ -156,19 +156,26 @@ Evidence:
   `fs/read_text_file` and `fs/write_text_file` requests, verify durable
   `file_read_*` and `file_write_*` events, verify the agent receives responses,
   and verify writes land in the selected temporary workspace.
-- LiveView integration tests drive a real ACP `terminal/create` request and
-  verify Haven records `terminal_request_rejected`, returns an ACP error, and
-  lets the agent finish with a visible message.
-- Browser smoke verifies the rendered UI can trigger an ACP file read and an
-  unsupported terminal request, with visible timeline events and final `idle`
+- `Haven.Terminals` runs short-lived non-interactive commands, captures stdout
+  and stderr, reports exit status, and rejects terminal working directories
+  outside the run workspace.
+- LiveView integration tests drive the stub agent through real ACP
+  `terminal/create`, `terminal/wait_for_exit`, `terminal/output`, and
+  `terminal/release` requests, verify durable `terminal_*` events, verify the
+  agent receives output and exit status, and verify the final turn returns to
+  visible `idle`.
+- Browser smoke verifies the rendered UI can trigger an ACP file read and a
+  deterministic terminal command, with visible timeline events and final `idle`
   state.
 
 Still missing:
 
 - Real external agent coverage for file requests.
+- Real external agent coverage for terminal requests.
 - Permission policy around file reads and writes.
 - File diff/artifact projections for review.
-- Terminal create/output/release/kill/wait implementation.
+- PTY-style interactive terminal sessions.
+- Executable evidence for `terminal/kill`.
 - Configurable per-run capability grants.
 
 ## Not Proven Yet
@@ -178,8 +185,8 @@ be counted as complete until there is executable evidence.
 
 - Real external ACP agent integration beyond `priv/agent_stub.exs`.
 - File read/write capability requests from a real external agent.
-- Terminal create/output/release/kill/wait implementation. Current evidence only
-  proves visible rejection for `terminal/create`.
+- Terminal capability requests from a real external agent.
+- Interactive terminal behavior and executable `terminal/kill` evidence.
 - Authentication flows for agents that require auth.
 - Session load/resume/fork/list support when agents expose it.
 - Explicit handling for malformed ACP frames.
@@ -196,8 +203,8 @@ be counted as complete until there is executable evidence.
 2. Add LiveView tests for deliberate restart and reload after process exit.
 3. Connect the configurable command path to one real ACP-speaking agent and
    document the exact command/env contract.
-4. Add terminal capability handling, first against deterministic fake requests,
-   then against a real ACP-speaking agent.
+4. Connect terminal capability handling to a real ACP-speaking agent and add
+   explicit kill/interactive-terminal evidence.
 5. Connect file capability handling to a real ACP-speaking agent.
 6. Add browser smoke coverage for reload recovery and attention-lane movement,
    not just a single happy-path permission approval.

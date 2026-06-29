@@ -283,14 +283,16 @@ Proven:
 - Ordered session updates should be projected from the ACP stream subscription.
 - Deterministic ACP file read/write requests can be handled, logged, and scoped
   to the selected workspace.
-- Unsupported terminal requests can be rejected visibly instead of failing
-  opaquely.
+- Deterministic non-interactive ACP terminal create/wait/output/release requests
+  can be handled, logged, scoped to the selected workspace, and projected back
+  to the agent.
 
 Not yet proven:
 
 - Real external agents beyond the local stub.
 - File capability handling against real external agents.
-- Terminal capability implementation.
+- Terminal capability handling against real external agents.
+- Interactive terminal sessions and kill behavior.
 - Process restart and resume policy.
 - Multi-run load behavior.
 - Long-running turn streaming under real output volume.
@@ -322,7 +324,7 @@ Known implementation limitations:
 
 ## Recommended Next Milestone
 
-The next milestone should connect one real ACP-speaking agent and implement the
+The next milestone should connect one real ACP-speaking agent and harden the
 client capability callbacks for file and terminal operations.
 
 Acceptance criteria:
@@ -332,7 +334,6 @@ Acceptance criteria:
 - The user can send a prompt and see streamed session updates.
 - The agent can request permission and receive the selected outcome.
 - At least one file capability request is handled and logged.
-- At least one terminal capability request is handled and logged or explicitly
-  rejected with a visible error.
+- At least one terminal command is created, awaited, read, released, and logged.
 - Agent process exit is represented as a stable run state, without duplicate
   automatic restarts.
