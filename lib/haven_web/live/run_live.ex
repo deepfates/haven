@@ -3,6 +3,7 @@ defmodule HavenWeb.RunLive do
 
   alias Haven.Events
   alias Haven.FileChanges
+  alias Haven.PermissionAudits
   alias Haven.Runs
   alias Haven.Runs.Run
   alias Haven.TerminalSessions
@@ -104,6 +105,7 @@ defmodule HavenWeb.RunLive do
     |> assign(:run, run)
     |> assign(:capability_policy, Run.capability_policy(run.capability_policy))
     |> assign(:file_changes, FileChanges.list_for_run(id))
+    |> assign(:permission_audits, PermissionAudits.list_for_run(id))
     |> assign(:terminal_sessions, TerminalSessions.list_for_run(id))
     |> assign(:events, events)
     |> assign_event_projection(events)
@@ -685,6 +687,39 @@ defmodule HavenWeb.RunLive do
     ]
   end
 
+  defp permission_status_class(status) do
+    [
+      "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase",
+      case status do
+        "pending" -> "border-amber-200 bg-amber-50 text-amber-700"
+        "resolved" -> "border-emerald-200 bg-emerald-50 text-emerald-700"
+        "cancelled" -> "border-zinc-200 bg-zinc-50 text-zinc-600"
+        "ignored" -> "border-violet-200 bg-violet-50 text-violet-700"
+        _ -> "border-zinc-200 bg-zinc-50 text-zinc-600"
+      end
+    ]
+  end
+
+  defp permission_kind_label("agent_permission"), do: "Agent permission"
+  defp permission_kind_label("file_read"), do: "File read"
+  defp permission_kind_label("file_write"), do: "File write"
+  defp permission_kind_label("terminal_create"), do: "Terminal create"
+  defp permission_kind_label("resolution_attempt"), do: "Stale resolution"
+  defp permission_kind_label(kind), do: kind || "Permission"
+
+  defp permission_options_label(%{"items" => options}) when is_list(options) do
+    options
+    |> Enum.map(&(&1["optionId"] || &1["name"]))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(", ")
+    |> case do
+      "" -> "none"
+      label -> label
+    end
+  end
+
+  defp permission_options_label(_options), do: "none"
+
   defp terminal_status_class(status) do
     [
       "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase",
@@ -967,6 +1002,91 @@ defmodule HavenWeb.RunLive do
                     </dd>
                   </div>
                 </dl>
+              </div>
+              <div id="run-permission-audit" class="mt-4 border-t border-zinc-200 pt-4">
+                <div class="flex items-center justify-between gap-3">
+                  <h3 class="text-xs font-semibold uppercase text-zinc-500">
+                    Permission audit
+                  </h3>
+                  <span
+                    id="run-permission-audit-count"
+                    class="font-mono text-xs text-zinc-500"
+                  >
+                    {length(@permission_audits)}
+                  </span>
+                </div>
+
+                <div
+                  :if={@permission_audits == []}
+                  id="run-permission-audit-empty"
+                  class="mt-2 rounded-md border border-dashed border-zinc-300 p-3 text-xs text-zinc-500"
+                >
+                  No permission decisions recorded.
+                </div>
+
+                <div class="mt-3 space-y-3">
+                  <article
+                    :for={audit <- @permission_audits}
+                    id={"permission-audit-#{audit.id}"}
+                    class="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+                  >
+                    <div class="flex min-w-0 items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <p class="truncate text-xs font-semibold text-zinc-900">
+                          {audit.title || permission_kind_label(audit.kind)}
+                        </p>
+                        <p class="mt-1 font-mono text-[11px] text-zinc-500">
+                          request {audit.request_id}
+                        </p>
+                      </div>
+                      <span
+                        id={"permission-audit-#{audit.id}-status"}
+                        class={permission_status_class(audit.status)}
+                      >
+                        {audit.status}
+                      </span>
+                    </div>
+
+                    <dl class="mt-3 grid gap-2 text-xs text-zinc-700">
+                      <div id={"permission-audit-#{audit.id}-kind"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Kind</dt>
+                        <dd>{permission_kind_label(audit.kind)}</dd>
+                      </div>
+                      <div
+                        :if={audit.tool_call_id}
+                        id={"permission-audit-#{audit.id}-tool-call"}
+                      >
+                        <dt class="font-semibold uppercase text-zinc-500">Tool call</dt>
+                        <dd class="break-all font-mono">{audit.tool_call_id}</dd>
+                      </div>
+                      <div id={"permission-audit-#{audit.id}-options"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Options</dt>
+                        <dd class="break-all font-mono">{permission_options_label(audit.options)}</dd>
+                      </div>
+                      <div
+                        :if={audit.selected_option_id}
+                        id={"permission-audit-#{audit.id}-selected-option"}
+                      >
+                        <dt class="font-semibold uppercase text-zinc-500">Selected</dt>
+                        <dd class="font-mono">{audit.selected_option_id}</dd>
+                      </div>
+                      <div :if={audit.actor} id={"permission-audit-#{audit.id}-actor"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Actor</dt>
+                        <dd class="font-mono">{audit.actor}</dd>
+                      </div>
+                      <div :if={audit.reason} id={"permission-audit-#{audit.id}-reason"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Reason</dt>
+                        <dd class="break-all font-mono">{audit.reason}</dd>
+                      </div>
+                    </dl>
+
+                    <pre
+                      :if={audit.raw_input && audit.raw_input != %{}}
+                      id={"permission-audit-#{audit.id}-raw-input"}
+                      class="mt-3 max-h-32 overflow-auto rounded-md bg-white p-3 text-xs text-zinc-800 ring-1 ring-zinc-200"
+                    ><%= Jason.encode!(audit.raw_input, pretty: true) %></pre>
+                  </article>
+                </div>
               </div>
               <div id="run-file-changes" class="mt-4 border-t border-zinc-200 pt-4">
                 <div class="flex items-center justify-between gap-3">

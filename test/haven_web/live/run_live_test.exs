@@ -3,6 +3,7 @@ defmodule HavenWeb.RunLiveTest do
 
   alias Haven.Events
   alias Haven.FileChanges
+  alias Haven.PermissionAudits
   alias Haven.Repo
   alias Haven.Runs
   alias Haven.Runs.{Run, RunServer}
@@ -92,8 +93,9 @@ defmodule HavenWeb.RunLiveTest do
                     }},
                    1_000
 
-    assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
-    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    wait_for_event!(run.id, "agent_process_started")
+    wait_for_event!(run.id, "agent_session_started")
+    wait_for_idle_session!(run.id)
 
     html = render(view)
     assert html =~ "connected"
@@ -140,8 +142,9 @@ defmodule HavenWeb.RunLiveTest do
                     }},
                    1_000
 
-    assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
-    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    wait_for_event!(run.id, "agent_process_started")
+    wait_for_event!(run.id, "agent_session_started")
+    wait_for_idle_session!(run.id)
 
     refute has_element?(view, "#pending-permission-card")
     assert render(view) =~ "connected"
@@ -182,8 +185,9 @@ defmodule HavenWeb.RunLiveTest do
                     }},
                    1_000
 
-    assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
-    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    wait_for_event!(run.id, "agent_process_started")
+    wait_for_event!(run.id, "agent_session_started")
+    wait_for_idle_session!(run.id)
 
     assert has_element?(view, "#event-5", "Reconnect requested")
     assert has_element?(view, "#event-5", "Previous status: running")
@@ -238,8 +242,9 @@ defmodule HavenWeb.RunLiveTest do
                     }},
                    1_000
 
-    assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
-    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    wait_for_event!(run.id, "agent_process_started")
+    wait_for_event!(run.id, "agent_session_started")
+    wait_for_idle_session!(run.id)
 
     assert render(view) =~ "connected"
   end
@@ -580,7 +585,20 @@ defmodule HavenWeb.RunLiveTest do
     assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
 
     refute has_element?(view, "#pending-permission-card")
-    assert render(view) =~ "idle"
+    html = render(view)
+    assert html =~ "idle"
+    assert html =~ "Permission audit"
+    assert has_element?(view, "#run-permission-audit-count", "1")
+
+    [audit] = PermissionAudits.list_for_run(run.id)
+    assert audit.request_id == request_id
+    assert audit.kind == "agent_permission"
+    assert audit.title == "Write file"
+    assert audit.status == "resolved"
+    assert audit.selected_option_id == "allow"
+    assert audit.outcome == "selected"
+    assert audit.actor == "local_user"
+    assert audit.raw_input == %{"path" => Path.join(File.cwd!(), "notes.md")}
   end
 
   test "denies a permission request without taking the requested action", %{conn: conn} do
@@ -626,6 +644,11 @@ defmodule HavenWeb.RunLiveTest do
 
     refute has_element?(view, "#pending-permission-card")
     assert render(view) =~ "idle"
+
+    [audit] = PermissionAudits.list_for_run(run.id)
+    assert audit.status == "resolved"
+    assert audit.selected_option_id == "deny"
+    assert audit.actor == "local_user"
   end
 
   test "reload while waiting preserves the pending permission card", %{conn: conn} do
@@ -664,6 +687,10 @@ defmodule HavenWeb.RunLiveTest do
                       }
                     }},
                    1_000
+
+    [audit] = PermissionAudits.list_for_run(run.id)
+    assert audit.status == "resolved"
+    assert audit.selected_option_id == "allow"
   end
 
   test "cancel resolves outstanding permission as cancelled", %{conn: conn} do
@@ -702,6 +729,12 @@ defmodule HavenWeb.RunLiveTest do
 
     refute has_element?(view, "#pending-permission-card")
     assert render(view) =~ "idle"
+
+    [audit] = PermissionAudits.list_for_run(run.id)
+    assert audit.status == "cancelled"
+    assert audit.selected_option_id == "cancelled"
+    assert audit.outcome == "cancelled"
+    assert audit.actor == "local_user"
   end
 
   test "stale permission resolution is ignored and does not reopen the request", %{conn: conn} do
@@ -753,6 +786,13 @@ defmodule HavenWeb.RunLiveTest do
       |> Enum.filter(&(&1.type == "permission_resolved"))
 
     assert length(resolved) == 1
+
+    audits = PermissionAudits.list_for_run(run.id)
+    assert Enum.sort(Enum.map(audits, & &1.status)) == ["ignored", "resolved"]
+
+    ignored = Enum.find(audits, &(&1.status == "ignored"))
+    assert ignored.selected_option_id == "deny"
+    assert ignored.reason == "not_pending"
   end
 
   test "agent crash fails the in-flight turn and marks the run failed", %{conn: conn} do
@@ -818,6 +858,12 @@ defmodule HavenWeb.RunLiveTest do
     assert_receive {:event_appended, %{type: "turn_failed"}}, 1_000
     refute has_element?(view, "#pending-permission-card")
     assert render(view) =~ "failed"
+
+    [audit] = PermissionAudits.list_for_run(run.id)
+    assert audit.status == "cancelled"
+    assert audit.selected_option_id == "cancelled"
+    assert audit.reason == "agent_process_exited"
+    assert audit.actor == "system"
   end
 
   test "explicit restart recovers a run after an actual agent crash", %{conn: conn} do
@@ -2727,6 +2773,23 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, pid} = Runs.ensure_started(run_id)
     _ = :sys.get_state(pid)
     :ok
+  end
+
+  defp wait_for_event!(run_id, type, attempts \\ 40)
+
+  defp wait_for_event!(run_id, type, 0) do
+    flunk("run #{run_id} did not append #{type}")
+  end
+
+  defp wait_for_event!(run_id, type, attempts) do
+    if Enum.any?(Events.list_for_run(run_id), &(&1.type == type)) do
+      :ok
+    else
+      receive do
+      after
+        50 -> wait_for_event!(run_id, type, attempts - 1)
+      end
+    end
   end
 
   defp wait_for_idle_session!(run_id, attempts \\ 40)

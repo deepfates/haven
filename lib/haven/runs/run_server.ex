@@ -6,6 +6,7 @@ defmodule Haven.Runs.RunServer do
 
   alias Haven.Events
   alias Haven.FileChanges
+  alias Haven.PermissionAudits
   alias Haven.PortIO
   alias Haven.Runs
   alias Haven.Runs.ACPClientHandler
@@ -319,12 +320,15 @@ defmodule Haven.Runs.RunServer do
     request_id = normalize_id(request_id)
 
     with %{kind: _kind} = pending <- state.pending_permissions[request_id] do
-      Events.append!(state.run_id, "permission_resolved", %{
+      payload = %{
         "request_id" => request_id,
         "option_id" => option_id,
         "outcome" => "selected",
         "actor" => "local_user"
-      })
+      }
+
+      Events.append!(state.run_id, "permission_resolved", payload)
+      PermissionAudits.mark_resolved!(state.run_id, request_id, payload)
 
       state = apply_permission_resolution(state, pending, option_id)
       Runs.update_status!(state.run_id, %{status: "running"})
@@ -333,12 +337,15 @@ defmodule Haven.Runs.RunServer do
        %{state | pending_permissions: Map.delete(state.pending_permissions, request_id)}}
     else
       _ ->
-        Events.append!(state.run_id, "permission_resolution_ignored", %{
+        payload = %{
           "request_id" => request_id,
           "option_id" => option_id,
           "reason" => "not_pending",
           "actor" => "local_user"
-        })
+        }
+
+        Events.append!(state.run_id, "permission_resolution_ignored", payload)
+        PermissionAudits.record_ignored_resolution!(state.run_id, request_id, payload)
 
         {:reply, {:error, :not_pending}, state}
     end
@@ -348,12 +355,15 @@ defmodule Haven.Runs.RunServer do
     Events.append!(state.run_id, "turn_cancelled", %{})
 
     Enum.each(state.pending_permissions, fn {request_id, pending} ->
-      Events.append!(state.run_id, "permission_resolved", %{
+      payload = %{
         "request_id" => request_id,
         "option_id" => "cancelled",
         "outcome" => "cancelled",
         "actor" => "local_user"
-      })
+      }
+
+      Events.append!(state.run_id, "permission_resolved", payload)
+      PermissionAudits.mark_resolved!(state.run_id, request_id, payload)
 
       cancel_pending_permission(pending)
     end)
@@ -385,13 +395,13 @@ defmodule Haven.Runs.RunServer do
       |> Map.put("request_id", request_id)
 
     if Runs.get_run!(state.run_id).status == "failed" do
-      Events.append!(state.run_id, "permission_requested", payload)
+      append_permission_requested!(state, :agent_permission, payload)
       append_system_permission_cancelled(state.run_id, request_id, "agent_process_exited")
       cancel_pending_permission(%{kind: :agent_permission, from: from})
 
       {:noreply, %{state | next_permission_id: request_id + 1}}
     else
-      Events.append!(state.run_id, "permission_requested", payload)
+      append_permission_requested!(state, :agent_permission, payload)
       Runs.update_status!(state.run_id, %{status: "waiting"})
 
       pending = %{kind: :agent_permission, request: request, from: from}
@@ -449,9 +459,9 @@ defmodule Haven.Runs.RunServer do
         {:noreply, %{state | next_permission_id: request_id + 1}}
 
       true ->
-        Events.append!(
-          state.run_id,
-          "permission_requested",
+        append_permission_requested!(
+          state,
+          :file_read,
           file_permission_payload(:read, request_id, payload)
         )
 
@@ -521,9 +531,9 @@ defmodule Haven.Runs.RunServer do
         {:noreply, %{state | next_permission_id: request_id + 1}}
 
       true ->
-        Events.append!(
-          state.run_id,
-          "permission_requested",
+        append_permission_requested!(
+          state,
+          :file_write,
           file_permission_payload(
             :write,
             request_id,
@@ -566,9 +576,9 @@ defmodule Haven.Runs.RunServer do
         {:noreply, %{state | next_permission_id: request_id + 1}}
 
       "ask" ->
-        Events.append!(
-          state.run_id,
-          "permission_requested",
+        append_permission_requested!(
+          state,
+          :terminal_create,
           terminal_permission_payload(request_id, payload)
         )
 
@@ -1265,13 +1275,21 @@ defmodule Haven.Runs.RunServer do
     %{state | pending_prompts: Map.delete(state.pending_prompts, id)}
   end
 
+  defp append_permission_requested!(state, kind, payload) do
+    Events.append!(state.run_id, "permission_requested", payload)
+    PermissionAudits.create_pending!(state.run_id, kind, payload)
+  end
+
   defp append_system_permission_cancelled(run_id, request_id, reason) do
-    Events.append!(run_id, "permission_resolved", %{
+    payload = %{
       "request_id" => request_id,
       "option_id" => "cancelled",
       "outcome" => "cancelled",
       "reason" => reason,
       "actor" => "system"
-    })
+    }
+
+    Events.append!(run_id, "permission_resolved", payload)
+    PermissionAudits.mark_resolved!(run_id, request_id, payload)
   end
 end

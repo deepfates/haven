@@ -164,6 +164,10 @@ Required behavior:
 - Canceling outstanding requests during run cancellation resolves them with a
   cancelled outcome.
 - Stale or already-resolved permissions should not present active buttons.
+- Permission requests and resolution attempts should also appear in a durable
+  audit projection so users can review what was requested, which options were
+  available, who or what resolved it, and whether the request was selected,
+  cancelled, or ignored without spelunking raw timeline JSON.
 
 ## Protocol Requirements
 
@@ -216,7 +220,9 @@ Likely additional models:
 
 - `workspaces`
 - `agents`
-- `permissions`
+- `permission_audits` for durable requested/resolved/ignored permission
+  projections with actor class, selected option, request metadata, and raw
+  input.
 - `artifacts`
 - `file_changes` for durable proposed/applied file write projections with
   bounded content and diff previews.

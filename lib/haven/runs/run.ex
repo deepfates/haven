@@ -16,6 +16,7 @@ defmodule Haven.Runs.Run do
 
     has_many :events, Haven.Events.Event
     has_many :file_changes, Haven.FileChanges.FileChange
+    has_many :permission_audits, Haven.PermissionAudits.PermissionAudit
     has_many :terminal_sessions, Haven.TerminalSessions.TerminalSession
 
     timestamps(type: :utc_datetime)
