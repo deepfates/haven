@@ -314,6 +314,82 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, ~s|[data-event-kind="user"]|, "User")
   end
 
+  test "renders ACP file tool calls as reviewable timeline evidence", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "File tool call projection"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+
+    Events.append!(run.id, "tool_call", %{
+      "kind" => "read",
+      "locations" => [%{"path" => "/workspace/README.md"}],
+      "status" => "in_progress",
+      "title" => "Read file '/workspace/README.md'",
+      "toolCallId" => "call_file"
+    })
+
+    Events.append!(run.id, "tool_call_update", %{
+      "rawOutput" => %{
+        "exit_code" => 0,
+        "formatted_output" => "Grei file sentinel: quartz-lantern-729\n"
+      },
+      "status" => "completed",
+      "toolCallId" => "call_file"
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, ~s|#event-5[data-event-kind="protocol"]|, "Protocol")
+    assert has_element?(view, "#tool-call-path", "/workspace/README.md")
+    assert has_element?(view, "#tool-call-status", "in_progress")
+    assert render(view) =~ "File read"
+    assert render(view) =~ "Completed successfully"
+    assert has_element?(view, "#tool-result-output", "Grei file sentinel: quartz-lantern-729")
+  end
+
+  test "renders ACP terminal tool calls with command output and exit status", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Terminal tool call projection"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+
+    Events.append!(run.id, "tool_call", %{
+      "_meta" => %{
+        "terminal_info" => %{
+          "cwd" => "/workspace",
+          "terminal_id" => "call_terminal"
+        }
+      },
+      "kind" => "execute",
+      "rawInput" => %{
+        "command" => "printf 'Grei terminal sentinel: amber-harbor-314\\n'",
+        "cwd" => "/workspace"
+      },
+      "status" => "in_progress",
+      "title" => "printf 'Grei terminal sentinel: amber-harbor-314\\n'",
+      "toolCallId" => "call_terminal"
+    })
+
+    Events.append!(run.id, "tool_call_update", %{
+      "_meta" => %{
+        "terminal_exit" => %{"exit_code" => 0, "terminal_id" => "call_terminal"},
+        "terminal_output_delta" => %{
+          "data" => "Grei terminal sentinel: amber-harbor-314\n",
+          "terminal_id" => "call_terminal"
+        }
+      },
+      "status" => "completed",
+      "toolCallId" => "call_terminal"
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, ~s|#event-5[data-event-kind="protocol"]|, "Protocol")
+    assert render(view) =~ "Terminal"
+    assert has_element?(view, "#tool-call-command", "printf")
+    assert has_element?(view, "#tool-call-cwd", "/workspace")
+    assert has_element?(view, "#tool-result-exit-code", "0")
+    assert has_element?(view, "#tool-result-output", "Grei terminal sentinel: amber-harbor-314")
+  end
+
   test "keeps concurrent live runs isolated", %{conn: conn} do
     {:ok, alpha} = Runs.create_run(%{"title" => "Alpha run"})
     {:ok, beta} = Runs.create_run(%{"title" => "Beta run"})

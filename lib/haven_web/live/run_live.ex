@@ -186,6 +186,15 @@ defmodule HavenWeb.RunLive do
             <p class="whitespace-pre-wrap">{@event.payload["text"]}</p>
           <% "agent_message_chunk" -> %>
             <p class="whitespace-pre-wrap text-sky-700">{@event.payload["text"]}</p>
+          <% "tool_call" -> %>
+            <.tool_call_event payload={@event.payload} />
+          <% "tool_call_update" -> %>
+            <.tool_call_update_event payload={@event.payload} />
+          <% "agent_thought_redacted" -> %>
+            <p class="font-semibold text-zinc-900">Agent thought redacted</p>
+            <p class="mt-1 text-sm text-zinc-600">
+              Haven preserved that private agent reasoning occurred without storing its raw text.
+            </p>
           <% "permission_requested" -> %>
             <p class="font-semibold">
               {get_in(@event.payload, ["toolCall", "title"]) || "Permission requested"}
@@ -212,6 +221,91 @@ defmodule HavenWeb.RunLive do
         <% end %>
       </div>
     </article>
+    """
+  end
+
+  defp tool_call_event(assigns) do
+    assigns =
+      assigns
+      |> assign(:kind, assigns.payload["kind"] || "tool")
+      |> assign(:title, assigns.payload["title"] || "Tool call")
+      |> assign(:path, tool_call_path(assigns.payload))
+      |> assign(:command, get_in(assigns.payload, ["rawInput", "command"]))
+      |> assign(
+        :cwd,
+        get_in(assigns.payload, ["rawInput", "cwd"]) ||
+          get_in(assigns.payload, ["_meta", "terminal_info", "cwd"])
+      )
+      |> assign(:status, assigns.payload["status"])
+
+    ~H"""
+    <div class="space-y-2">
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
+        <span class="rounded-md bg-zinc-950 px-2 py-1 text-xs font-semibold uppercase text-white">
+          {tool_call_kind_label(@kind)}
+        </span>
+        <p class="min-w-0 font-semibold text-zinc-900">{@title}</p>
+      </div>
+
+      <dl class="grid gap-2 text-sm text-zinc-700 sm:grid-cols-2">
+        <div :if={@path} id="tool-call-path" class="min-w-0">
+          <dt class="text-xs font-semibold uppercase text-zinc-500">Path</dt>
+          <dd class="truncate font-mono text-xs">{@path}</dd>
+        </div>
+        <div :if={@command} id="tool-call-command" class="min-w-0">
+          <dt class="text-xs font-semibold uppercase text-zinc-500">Command</dt>
+          <dd class="truncate font-mono text-xs">{@command}</dd>
+        </div>
+        <div :if={@cwd} id="tool-call-cwd" class="min-w-0">
+          <dt class="text-xs font-semibold uppercase text-zinc-500">Working directory</dt>
+          <dd class="truncate font-mono text-xs">{@cwd}</dd>
+        </div>
+        <div :if={@status} id="tool-call-status" class="min-w-0">
+          <dt class="text-xs font-semibold uppercase text-zinc-500">Status</dt>
+          <dd class="font-mono text-xs">{@status}</dd>
+        </div>
+      </dl>
+    </div>
+    """
+  end
+
+  defp tool_call_update_event(assigns) do
+    assigns =
+      assigns
+      |> assign(:title, assigns.payload["title"])
+      |> assign(:status, assigns.payload["status"])
+      |> assign(:exit_code, tool_call_exit_code(assigns.payload))
+      |> assign(:output, tool_call_output(assigns.payload))
+
+    ~H"""
+    <div class="space-y-2">
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
+        <span class="rounded-md bg-emerald-700 px-2 py-1 text-xs font-semibold uppercase text-white">
+          Tool result
+        </span>
+        <p class="font-semibold text-zinc-900">
+          {tool_result_label(@status, @exit_code)}
+        </p>
+      </div>
+      <p :if={@title} class="text-sm font-medium text-zinc-800">{@title}</p>
+
+      <dl class="grid gap-2 text-sm text-zinc-700 sm:grid-cols-2">
+        <div :if={@status} id="tool-result-status">
+          <dt class="text-xs font-semibold uppercase text-zinc-500">Status</dt>
+          <dd class="font-mono text-xs">{@status}</dd>
+        </div>
+        <div :if={!is_nil(@exit_code)} id="tool-result-exit-code">
+          <dt class="text-xs font-semibold uppercase text-zinc-500">Exit code</dt>
+          <dd class="font-mono text-xs">{@exit_code}</dd>
+        </div>
+      </dl>
+
+      <pre
+        :if={@output}
+        id="tool-result-output"
+        class="max-h-48 overflow-auto rounded-md bg-zinc-950 p-3 text-xs text-zinc-50"
+      ><%= @output %></pre>
+    </div>
     """
   end
 
@@ -282,6 +376,38 @@ defmodule HavenWeb.RunLive do
       "protocol" -> "Protocol"
       "runtime" -> "Runtime"
       kind -> String.capitalize(kind)
+    end
+  end
+
+  defp tool_call_kind_label("read"), do: "File read"
+  defp tool_call_kind_label("execute"), do: "Terminal"
+  defp tool_call_kind_label(kind), do: String.replace(to_string(kind), "_", " ")
+
+  defp tool_result_label("completed", 0), do: "Completed successfully"
+
+  defp tool_result_label("completed", exit_code) when is_integer(exit_code),
+    do: "Completed with exit #{exit_code}"
+
+  defp tool_result_label(status, _exit_code) when is_binary(status), do: String.capitalize(status)
+  defp tool_result_label(_status, _exit_code), do: "Tool result"
+
+  defp tool_call_path(%{"locations" => [%{"path" => path} | _rest]}) when is_binary(path),
+    do: path
+
+  defp tool_call_path(_payload), do: nil
+
+  defp tool_call_exit_code(payload) do
+    get_in(payload, ["rawOutput", "exit_code"]) ||
+      get_in(payload, ["_meta", "terminal_exit", "exit_code"])
+  end
+
+  defp tool_call_output(payload) do
+    output =
+      get_in(payload, ["rawOutput", "formatted_output"]) ||
+        get_in(payload, ["_meta", "terminal_output_delta", "data"])
+
+    if is_binary(output) and output != "" do
+      String.slice(output, 0, 4_000)
     end
   end
 

@@ -434,6 +434,10 @@ Evidence:
 - Haven redacts agent thought chunks into a single `agent_thought_redacted`
   marker per turn so real-agent probe reports and browser timelines do not
   persist raw model scratchpad text.
+- The run timeline now renders ACP `tool_call` / `tool_call_update` file and
+  terminal activity as first-class reviewable evidence: file path, command,
+  working directory, status, exit code, and bounded output preview are projected
+  without requiring users to inspect raw JSON.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
   gate rather than only a documentation convention.
@@ -447,8 +451,8 @@ Still missing:
   `terminal/release`, and `terminal/kill`).
 - Product-grade file artifact projections for review; current evidence is a
   bounded proposed-content preview plus a bounded line-oriented diff preview on
-  write permission requests, and raw `tool_call` JSON for real `codex-acp`
-  file/terminal activity.
+  write permission requests, and compact `tool_call` projections for real
+  `codex-acp` file/terminal activity.
 - PTY-style interactive terminal sessions.
 - More expressive scoped-policy UI beyond comma-separated path fields.
 
@@ -470,11 +474,10 @@ be counted as complete until there is executable evidence.
 
 ## Next Best Validation Work
 
-1. Improve the UI projection for real `tool_call` / `tool_call_update` file and
-   terminal activity so it is reviewable as first-class workspace evidence
-   rather than raw JSON blobs.
-2. Find or build a non-test ACP-speaking adapter that exercises Haven-mediated
+1. Find or build a non-test ACP-speaking adapter that exercises Haven-mediated
    `fs/*` and `terminal/*` client requests, then commit passing
    `--require-real-agent` reports for those stories.
+2. Add richer grouped projections that pair `tool_call` starts with their
+   corresponding `tool_call_update` results across long timelines.
 3. Add interactive-terminal evidence once the terminal model moves beyond
    bounded non-interactive command execution.
