@@ -22,13 +22,13 @@ runs with explicit human decisions.
   explicit workspace, reject a missing workspace at run creation, reload a
   pending permission and deny it, cancel a waiting permission turn, submit a
   stale permission decision and observe ignored resolution, reload disconnected
-  history, explicitly reconnect that history, restart after an actual agent
-  crash, trigger malformed ACP startup output, trigger malformed ACP output
-  after a successful session start, create a run with file-read allow,
-  file-write deny, and terminal-create deny policy, create a run with
-  file-read/file-write path scopes and inspect those effective scopes on run
-  detail, and observe final status plus persisted timeline events in the
-  in-app browser.
+  history, explicitly reconnect that history, verify post-reconnect transcript
+  projection across a resumed turn, restart after an actual agent crash,
+  trigger malformed ACP startup output, trigger malformed ACP output after a
+  successful session start, create a run with file-read allow, file-write deny,
+  and terminal-create deny policy, create a run with file-read/file-write path
+  scopes and inspect those effective scopes on run detail, and observe final
+  status plus persisted timeline events in the in-app browser.
 
 ## Proven Now
 
@@ -260,6 +260,10 @@ Evidence:
   with an unterminated turn offer Reconnect, append a system `turn_failed`
   event for the stale turn, start a fresh ACP process, and reopen prompt
   controls without pretending the old turn is still live.
+- LiveView integration tests and browser smoke verify the post-reconnect
+  transcript remains readable across resumed work: the old prompt, explicit
+  reconnect boundary, system `turn_failed`, new user prompt, and new agent
+  response all render together in sequence.
 - Tests and browser smoke verify terminal run archival hides old failed/closed
   work from the default inbox while keeping durable run events.
 - Browser smoke verifies a run that actually recorded `agent_process_exited`
@@ -421,5 +425,3 @@ be counted as complete until there is executable evidence.
 2. Connect terminal capability handling to a real ACP-speaking agent and add
    interactive-terminal evidence.
 3. Connect file capability handling to a real ACP-speaking agent.
-4. Add browser smoke coverage for post-reconnect transcript projection across
-   multiple resumed turns.

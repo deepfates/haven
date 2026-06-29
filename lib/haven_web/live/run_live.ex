@@ -191,6 +191,22 @@ defmodule HavenWeb.RunLive do
               {get_in(@event.payload, ["toolCall", "title"]) || "Permission requested"}
             </p>
             <pre class="mt-2 overflow-x-auto rounded-md bg-zinc-100 p-3 text-xs text-zinc-700"><%= Jason.encode!(get_in(@event.payload, ["toolCall", "rawInput"]) || %{}, pretty: true) %></pre>
+          <% "run_reconnect_requested" -> %>
+            <p class="font-semibold text-zinc-900">Reconnect requested</p>
+            <p class="mt-1 text-sm text-zinc-600">
+              Previous status: {@event.payload["previous_status"] || "unknown"}
+            </p>
+          <% "turn_failed" -> %>
+            <p class="font-semibold text-rose-700">Turn failed</p>
+            <p class="mt-1 text-sm text-zinc-600">
+              {@event.payload["error"] || "unknown error"}
+            </p>
+            <p
+              :if={@event.payload["actor"]}
+              class="mt-1 text-xs uppercase tracking-wide text-zinc-500"
+            >
+              {@event.payload["actor"]}
+            </p>
           <% _ -> %>
             <pre class="overflow-x-auto rounded-md bg-zinc-100 p-3 text-xs text-zinc-700"><%= Jason.encode!(@event.payload, pretty: true) %></pre>
         <% end %>

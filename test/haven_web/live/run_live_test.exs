@@ -180,8 +180,36 @@ defmodule HavenWeb.RunLiveTest do
     assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
     assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
 
+    assert has_element?(view, "#event-5", "Reconnect requested")
+    assert has_element?(view, "#event-5", "Previous status: running")
+    assert has_element?(view, "#event-6", "Turn failed")
+    assert has_element?(view, "#event-6", "run_reconnect_requested")
+    assert has_element?(view, "#event-6", "system")
     assert render(view) =~ "connected"
     assert has_element?(view, "#send-prompt-button:not([disabled])")
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "after reconnect"})
+    |> render_submit()
+
+    assert_receive {:event_appended, %{type: "turn_started"}}, 1_000
+
+    assert_receive {:event_appended,
+                    %{type: "user_message", payload: %{"text" => "after reconnect"}}},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{type: "agent_message_chunk", payload: %{"text" => "Echo: after reconnect"}}},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    html = render(view)
+    assert html =~ "still running"
+    assert html =~ "Reconnect requested"
+    assert html =~ "Turn failed"
+    assert html =~ "after reconnect"
+    assert html =~ "Echo: after reconnect"
   end
 
   test "explicit restart starts a new process for failed runs", %{conn: conn} do
