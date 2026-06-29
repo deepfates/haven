@@ -27,13 +27,17 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#new-run-form")
     assert has_element?(view, "#agent")
     assert has_element?(view, "#workspace")
+    assert has_element?(view, "#file_read_paths")
+    assert has_element?(view, "#file_write_paths")
     assert has_element?(view, "#terminal_create_policy option[value='ask']")
 
     view
     |> form("#new-run-form", %{
       "title" => "Review agent changes",
       "file_read_policy" => "allow",
+      "file_read_paths" => " README.md, docs ",
       "file_write_policy" => "deny",
+      "file_write_paths" => "notes, tmp/output.md",
       "terminal_create_policy" => "ask"
     })
     |> render_submit()
@@ -45,7 +49,9 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert run.capability_policy == %{
              "file_read" => "allow",
+             "file_read_paths" => ["README.md", "docs"],
              "file_write" => "deny",
+             "file_write_paths" => ["notes", "tmp/output.md"],
              "terminal_create" => "ask"
            }
 

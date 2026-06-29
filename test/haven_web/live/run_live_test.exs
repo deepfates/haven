@@ -32,7 +32,9 @@ defmodule HavenWeb.RunLiveTest do
         "title" => "Policy facts run",
         "capability_policy" => %{
           "file_read" => "allow",
+          "file_read_paths" => ["README.md", "docs"],
           "file_write" => "ask",
+          "file_write_paths" => ["notes"],
           "terminal_create" => "deny"
         }
       })
@@ -44,7 +46,9 @@ defmodule HavenWeb.RunLiveTest do
 
     assert has_element?(view, "#run-capability-policy")
     assert has_element?(view, "#run-policy-file-read", "Allow")
+    assert has_element?(view, "#run-policy-file-read-paths", "README.md, docs")
     assert has_element?(view, "#run-policy-file-write", "Ask")
+    assert has_element?(view, "#run-policy-file-write-paths", "notes")
     assert has_element?(view, "#run-policy-terminal-create", "Deny")
   end
 

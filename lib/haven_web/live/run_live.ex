@@ -300,6 +300,11 @@ defmodule HavenWeb.RunLive do
   defp policy_label("deny"), do: "Deny"
   defp policy_label(_ask), do: "Ask"
 
+  defp policy_scope_label(scopes) when is_list(scopes) and scopes != [],
+    do: Enum.join(scopes, ", ")
+
+  defp policy_scope_label(_scopes), do: "All workspace paths"
+
   defp policy_badge_class(decision) do
     [
       "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase",
@@ -508,10 +513,22 @@ defmodule HavenWeb.RunLive do
                       {policy_label(@capability_policy["file_read"])}
                     </dd>
                   </div>
+                  <div id="run-policy-file-read-paths" class="grid gap-1">
+                    <dt class="text-zinc-500">Read paths</dt>
+                    <dd class="break-all text-zinc-700">
+                      {policy_scope_label(@capability_policy["file_read_paths"])}
+                    </dd>
+                  </div>
                   <div id="run-policy-file-write" class="flex items-center justify-between gap-3">
                     <dt class="text-zinc-500">File writes</dt>
                     <dd class={policy_badge_class(@capability_policy["file_write"])}>
                       {policy_label(@capability_policy["file_write"])}
+                    </dd>
+                  </div>
+                  <div id="run-policy-file-write-paths" class="grid gap-1">
+                    <dt class="text-zinc-500">Write paths</dt>
+                    <dd class="break-all text-zinc-700">
+                      {policy_scope_label(@capability_policy["file_write_paths"])}
                     </dd>
                   </div>
                   <div id="run-policy-terminal-create" class="flex items-center justify-between gap-3">

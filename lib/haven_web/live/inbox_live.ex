@@ -155,7 +155,9 @@ defmodule HavenWeb.InboxLive do
       "workspace_id" => "",
       "agent" => "stub-acp",
       "file_read_policy" => "ask",
+      "file_read_paths" => "",
       "file_write_policy" => "ask",
+      "file_write_paths" => "",
       "terminal_create_policy" => "allow"
     }
   end
@@ -204,7 +206,9 @@ defmodule HavenWeb.InboxLive do
 
     selected_workspace = selected_workspace_path(workspace_id)
     file_read_policy = capability_policy_value(params, "file_read_policy")
+    file_read_paths = capability_path_scope_value(params, "file_read_paths")
     file_write_policy = capability_policy_value(params, "file_write_policy")
+    file_write_paths = capability_path_scope_value(params, "file_write_paths")
 
     terminal_create_policy =
       capability_policy_value(params, "terminal_create_policy", ["ask", "allow", "deny"], "allow")
@@ -220,7 +224,9 @@ defmodule HavenWeb.InboxLive do
       "agent" => if(agent == "", do: defaults["agent"], else: agent),
       "capability_policy" => %{
         "file_read" => file_read_policy,
+        "file_read_paths" => file_read_paths,
         "file_write" => file_write_policy,
+        "file_write_paths" => file_write_paths,
         "terminal_create" => terminal_create_policy
       }
     }
@@ -232,6 +238,21 @@ defmodule HavenWeb.InboxLive do
       _value -> default
     end
   end
+
+  defp capability_path_scope_value(params, key) do
+    params
+    |> Map.get(key, "")
+    |> parse_path_scope()
+  end
+
+  defp parse_path_scope(value) when is_binary(value) do
+    value
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp parse_path_scope(_value), do: []
 
   defp selected_workspace_path(""), do: nil
 
@@ -495,19 +516,37 @@ defmodule HavenWeb.InboxLive do
                   Start
                 </button>
               </div>
-              <div class="grid gap-3 md:grid-cols-3">
-                <.input
-                  field={@form[:file_read_policy]}
-                  type="select"
-                  label="File reads"
-                  options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
-                />
-                <.input
-                  field={@form[:file_write_policy]}
-                  type="select"
-                  label="File writes"
-                  options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
-                />
+              <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(160px,0.7fr)]">
+                <div class="grid gap-2">
+                  <.input
+                    field={@form[:file_read_policy]}
+                    type="select"
+                    label="File reads"
+                    options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
+                  />
+                  <.input
+                    field={@form[:file_read_paths]}
+                    type="text"
+                    label="Read paths"
+                    placeholder="README.md, docs"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="grid gap-2">
+                  <.input
+                    field={@form[:file_write_policy]}
+                    type="select"
+                    label="File writes"
+                    options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
+                  />
+                  <.input
+                    field={@form[:file_write_paths]}
+                    type="text"
+                    label="Write paths"
+                    placeholder="notes, tmp/output.md"
+                    autocomplete="off"
+                  />
+                </div>
                 <.input
                   field={@form[:terminal_create_policy]}
                   type="select"

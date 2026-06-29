@@ -377,7 +377,8 @@ Not yet proven:
   local evidence path.
 - Backpressure, log compaction, and transcript projection performance.
 - Security boundaries around workspace access, especially product-grade UI for
-  richer configurable capability grants.
+  richer configurable capability grants beyond the current comma-separated
+  workspace-relative path scopes.
 - Authentication flows and product-grade agent/workspace configuration,
   including OS-native workspace browse affordances; persisted workspace
   name/path records, persisted agent command definitions, basic inbox

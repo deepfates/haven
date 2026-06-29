@@ -25,8 +25,10 @@ runs with explicit human decisions.
   history, explicitly reconnect that history, restart after an actual agent
   crash, trigger malformed ACP startup output, trigger malformed ACP output
   after a successful session start, create a run with file-read allow,
-  file-write deny, and terminal-create deny policy, and observe final status
-  plus persisted timeline events in the in-app browser.
+  file-write deny, and terminal-create deny policy, create a run with
+  file-read/file-write path scopes and inspect those effective scopes on run
+  detail, and observe final status plus persisted timeline events in the
+  in-app browser.
 
 ## Proven Now
 
@@ -337,7 +339,9 @@ Evidence:
   policy decisions. Browser smoke verifies the same policy controls and
   rendered run timeline behavior. The run detail facts panel also renders the
   effective policy, with LiveView and browser coverage verifying the
-  post-creation inspection path.
+  post-creation inspection path. Inbox and run-detail LiveView tests verify
+  file path scopes can be entered during run creation, normalized into
+  workspace-relative policy lists, and inspected after creation.
 - `mix haven.agent_probe` now exercises a configured ACP agent through Haven's
   real run lifecycle, including run creation, ACP boot/session setup, prompting,
   optional permission resolution, per-run capability policy, durable event
@@ -369,7 +373,7 @@ Still missing:
   bounded proposed-content preview plus a bounded line-oriented diff preview on
   write permission requests.
 - PTY-style interactive terminal sessions.
-- Product-grade UI for configuring scoped path rules.
+- More expressive scoped-policy UI beyond comma-separated path fields.
 
 ## Not Proven Yet
 
