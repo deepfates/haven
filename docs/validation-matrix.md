@@ -16,7 +16,8 @@ runs with explicit human decisions.
   and approve an ACP file read, trigger and approve an ACP file write, trigger a
   deterministic terminal command, cancel an open non-permission turn, create a
   run with an ACP terminal kill for a direct process, create a run with an
-  explicit workspace, reject a missing workspace at run creation, reload
+  explicit workspace, reject a missing workspace at run creation, reload a
+  pending permission and deny it, cancel a waiting permission turn, reload
   disconnected history, explicitly reconnect that history, restart after an
   actual agent crash, trigger malformed ACP output after a successful session
   start, and observe final status plus persisted timeline events in the in-app
@@ -146,13 +147,19 @@ Evidence:
 - Browser smoke verifies the same allow flow through the real rendered UI,
   including a rendered `permission_resolved` payload with
   `"actor": "local_user"`.
+- Browser smoke verifies a waiting permission survives a page reload and can be
+  denied from the rendered card, producing the denied agent response and final
+  `idle` state.
+- Browser smoke verifies cancellation while waiting on permission removes the
+  card, records a local-user cancelled permission resolution, suppresses the
+  late cancelled agent update, and returns the run to `idle`.
 
 Still missing:
 
 - Authenticated user identity for audit trails; current metadata distinguishes
   actor class, not a specific person.
-- Browser smoke for deny, cancel, stale, and reload paths; current browser smoke
-  covers allow and its actor metadata.
+- Browser smoke for stale permission resolution; current browser smoke covers
+  allow, reload-then-deny, and waiting cancellation.
 
 ### Runtime And Persistence
 
@@ -296,5 +303,5 @@ be counted as complete until there is executable evidence.
 2. Connect terminal capability handling to a real ACP-speaking agent and add
    process-tree kill/interactive-terminal evidence.
 3. Connect file capability handling to a real ACP-speaking agent.
-4. Add browser smoke coverage for reload recovery and non-happy-path permission
-   flows, not just approval.
+4. Add browser smoke coverage for stale permission resolution and broader reload
+   recovery.
