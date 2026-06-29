@@ -17,11 +17,11 @@ runs with explicit human decisions.
   deterministic terminal command, cancel an open non-permission turn, create a
   run with an ACP terminal kill for a direct process, create a run with an
   explicit workspace, reject a missing workspace at run creation, reload a
-  pending permission and deny it, cancel a waiting permission turn, reload
-  disconnected history, explicitly reconnect that history, restart after an
-  actual agent crash, trigger malformed ACP output after a successful session
-  start, and observe final status plus persisted timeline events in the in-app
-  browser.
+  pending permission and deny it, cancel a waiting permission turn, submit a
+  stale permission decision and observe ignored resolution, reload disconnected
+  history, explicitly reconnect that history, restart after an actual agent
+  crash, trigger malformed ACP output after a successful session start, and
+  observe final status plus persisted timeline events in the in-app browser.
 
 ## Proven Now
 
@@ -153,13 +153,15 @@ Evidence:
 - Browser smoke verifies cancellation while waiting on permission removes the
   card, records a local-user cancelled permission resolution, suppresses the
   late cancelled agent update, and returns the run to `idle`.
+- Browser smoke verifies a stale duplicate permission decision records
+  `permission_resolution_ignored` with `reason: not_pending`, preserves
+  `actor: local_user` and the attempted `option_id`, keeps the run `idle`, and
+  does not recreate the pending permission card.
 
 Still missing:
 
 - Authenticated user identity for audit trails; current metadata distinguishes
   actor class, not a specific person.
-- Browser smoke for stale permission resolution; current browser smoke covers
-  allow, reload-then-deny, and waiting cancellation.
 
 ### Runtime And Persistence
 
@@ -303,5 +305,4 @@ be counted as complete until there is executable evidence.
 2. Connect terminal capability handling to a real ACP-speaking agent and add
    process-tree kill/interactive-terminal evidence.
 3. Connect file capability handling to a real ACP-speaking agent.
-4. Add browser smoke coverage for stale permission resolution and broader reload
-   recovery.
+4. Add browser smoke coverage for broader reload recovery.
