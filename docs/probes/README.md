@@ -23,6 +23,7 @@ Examples:
 
 ```bash
 mix haven.agent_probe --list-agents --workspace /path/to/repo
+mix haven.agent_probe --list-agents --preflight --workspace /path/to/repo
 
 mix haven.agent_probe \
   --agent my-agent \
@@ -87,6 +88,11 @@ Use `--list-agents` first when preparing real-agent evidence. It prints every
 configured agent, whether its command resolves on this machine, whether it can
 count as a `--require-real-agent` candidate, and an example basic probe command.
 The inventory shows environment variable names but not their values.
+
+Use `--list-agents --preflight` when a command is only a probe candidate. The
+preflight creates a short durable run and verifies ACP initialization plus
+session creation, surfacing failures such as a generic shell command that starts
+successfully but answers the ACP `initialize` request incorrectly.
 
 Before committing a report, inspect it for secrets in command arguments,
 environment-derived output, prompts, and agent messages.

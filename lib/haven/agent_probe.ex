@@ -76,6 +76,53 @@ defmodule Haven.AgentProbe do
     end
   end
 
+  @spec preflight(keyword()) :: {:ok, report()} | {:error, atom(), report()}
+  def preflight(opts) do
+    agent = Keyword.get(opts, :agent, "stub-acp")
+    workspace = Keyword.get(opts, :workspace, File.cwd!())
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    redactions = redactions(opts)
+    require_real_agent? = Keyword.get(opts, :require_real_agent, false)
+    prompt = "(preflight only)"
+    expected_events = ["agent_initialized", "agent_session_started"]
+
+    result =
+      with {:ok, run} <-
+             Runs.create_run(%{
+               "title" => Keyword.get(opts, :title, preflight_title(agent)),
+               "workspace" => workspace,
+               "agent" => agent,
+               "capability_policy" => capability_policy(opts)
+             }),
+           {:ok, booted} <- wait_for_boot(run.id, timeout) do
+        _ = Runs.stop_run(booted.id)
+
+        booted
+        |> redacted_report(prompt, expected_events, redactions)
+        |> validate_expected_events(expected_events)
+        |> validate_real_agent(require_real_agent?)
+      else
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:error, :invalid_run,
+           invalid_run_report(agent, workspace, prompt, changeset, expected_events)
+           |> apply_redactions(redactions)}
+
+        {:error, reason, run_id} ->
+          _ = Runs.stop_run(run_id)
+
+          {:error, reason,
+           run_id |> Runs.get_run!() |> redacted_report(prompt, expected_events, redactions)}
+
+        {:error, reason} ->
+          {:error, reason,
+           agent
+           |> invalid_run_report(workspace, prompt, nil, expected_events)
+           |> apply_redactions(redactions)}
+      end
+
+    result
+  end
+
   @spec agent_inventory(String.t()) :: [map()]
   def agent_inventory(workspace \\ File.cwd!()) do
     workspace = Path.expand(workspace)
@@ -110,6 +157,7 @@ defmodule Haven.AgentProbe do
   end
 
   defp title(agent), do: "Agent probe: #{agent}"
+  defp preflight_title(agent), do: "Agent preflight: #{agent}"
 
   defp capability_policy(opts) do
     base_policy =

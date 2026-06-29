@@ -2,6 +2,7 @@ defmodule Haven.AgentProbeTest do
   use Haven.DataCase
 
   alias Haven.AgentProbe
+  alias Haven.Runs
 
   setup do
     original = Application.get_env(:haven, :agents)
@@ -196,6 +197,53 @@ defmodule Haven.AgentProbeTest do
            ]
 
     refute Jason.encode!(inventory) =~ "hidden-value"
+  end
+
+  test "preflights an ACP agent without sending a prompt" do
+    assert {:ok, report} =
+             AgentProbe.preflight(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               timeout: 5_000
+             )
+
+    assert report.agent == "stub-acp"
+    assert report.status == "idle"
+
+    assert event_types(report) == [
+             "run_created",
+             "agent_process_started",
+             "agent_initialized",
+             "agent_session_started"
+           ]
+
+    refute Runs.started?(report.run_id)
+  end
+
+  test "preflight surfaces non-ACP commands before full evidence probes" do
+    Application.put_env(:haven, :agents, %{
+      "not-acp" => %{executable: "sh", args: ["-c", "cat"]}
+    })
+
+    assert {:error, :boot_failed, report} =
+             AgentProbe.preflight(
+               agent: "not-acp",
+               workspace: File.cwd!(),
+               timeout: 1_000,
+               require_real_agent: true
+             )
+
+    assert report.agent == "not-acp"
+    assert report.status == "failed"
+    assert "agent_initialized" not in event_types(report)
+
+    assert Enum.any?(report.events, fn
+             %{type: "agent_protocol_failed", payload: %{"reason" => reason}} ->
+               reason =~ "Method not found"
+
+             _event ->
+               false
+           end)
   end
 
   test "can create probe runs with file capability policy" do

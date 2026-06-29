@@ -7,10 +7,13 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --terminal-create-policy deny --expect-event terminal_create_denied
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --report docs/probes/my-agent.json
       mix haven.agent_probe --list-agents --workspace .
+      mix haven.agent_probe --list-agents --preflight --workspace .
 
   Use `--list-agents` to inspect configured agent commands, whether they
   resolve on this machine, and whether they are eligible for
   `--require-real-agent` evidence.
+  Add `--preflight` to `--list-agents` to try ACP initialization/session
+  creation for each eligible probe candidate before attempting a full report.
   Use `--resolve-permissions allow` or `--resolve-permissions deny` when the
   probe prompt is expected to trigger permission-gated file or terminal work.
   Use `--file-read-policy`, `--file-write-policy`, and
@@ -49,7 +52,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     redact: :keep,
     redact_env: :keep,
     require_real_agent: :boolean,
-    list_agents: :boolean
+    list_agents: :boolean,
+    preflight: :boolean
   ]
 
   @aliases [a: :agent, w: :workspace, p: :prompt, t: :timeout]
@@ -66,7 +70,11 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     report_path = Keyword.get(opts, :report)
 
     if Keyword.get(opts, :list_agents, false) do
-      print_agent_inventory(Keyword.fetch!(opts, :workspace))
+      print_agent_inventory(
+        Keyword.fetch!(opts, :workspace),
+        Keyword.get(opts, :preflight, false),
+        Keyword.get(opts, :timeout, 5_000)
+      )
     else
       case Haven.AgentProbe.run(opts) do
         {:ok, report} ->
@@ -127,7 +135,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     end
   end
 
-  defp print_agent_inventory(workspace) do
+  defp print_agent_inventory(workspace, preflight?, preflight_timeout) do
     inventory = Haven.AgentProbe.agent_inventory(workspace)
 
     Mix.shell().info("Workspace: #{workspace}")
@@ -160,6 +168,14 @@ defmodule Mix.Tasks.Haven.AgentProbe do
         Mix.shell().info(
           "  example: mix haven.agent_probe --agent #{agent.agent} --workspace #{workspace} --require-real-agent --expect-event agent_initialized --expect-event agent_session_started --expect-event turn_finished --report docs/probes/#{agent.agent}-basic.json"
         )
+
+        if preflight? do
+          print_agent_preflight(agent.agent, workspace, preflight_timeout)
+        else
+          Mix.shell().info(
+            "  preflight: not run (add --preflight to verify ACP initialize/session handshake)"
+          )
+        end
       end
     end)
 
@@ -184,6 +200,33 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   end
 
   defp inspect_args(args), do: inspect(args)
+
+  defp print_agent_preflight(agent, workspace, timeout) do
+    case Haven.AgentProbe.preflight(
+           agent: agent,
+           workspace: workspace,
+           timeout: timeout,
+           require_real_agent: true
+         ) do
+      {:ok, report} ->
+        Mix.shell().info("  preflight: ok (run #{report.run_id}, status #{report.status})")
+
+      {:error, reason, report} ->
+        Mix.shell().info("  preflight: failed (#{reason}, run #{report.run_id || "none"})")
+
+        report.events
+        |> List.last()
+        |> case do
+          nil ->
+            :ok
+
+          event ->
+            Mix.shell().info(
+              "  preflight last event: #{event.type} #{Jason.encode!(event.payload)}"
+            )
+        end
+    end
+  end
 
   defp print_report(report) do
     Mix.shell().info("Run: #{report.run_id || "(not created)"}")

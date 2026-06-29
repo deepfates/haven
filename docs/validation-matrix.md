@@ -376,6 +376,10 @@ Evidence:
 - `mix haven.agent_probe --list-agents` inventories configured agents, command
   resolution, real-agent probe eligibility, rejection reasons, and redacted
   environment key names before a user attempts a real-agent probe.
+- `mix haven.agent_probe --list-agents --preflight` can turn probe candidacy
+  into an explicit ACP boot check by creating short durable runs for eligible
+  candidates and verifying `agent_initialized` plus `agent_session_started`
+  before a user attempts a full evidence report.
 - The inbox Agent Setup panel surfaces the same probe-readiness distinction for
   saved agent configs, showing whether a saved command is a probe candidate or
   a rejected local harness/invalid command, rendering a basic
@@ -389,6 +393,10 @@ Evidence:
   `browser-candidate-1782737117083` starts `/bin/sh -c cat` but fails during
   ACP initialization with `agent_protocol_failed` / `Method not found`, proving
   that static probe candidacy is not enough to claim real-agent integration.
+- Local `--list-agents --preflight --timeout 2000` now reports all saved
+  `/bin/sh -c cat` candidates as `preflight: failed` with last event
+  `agent_protocol_failed`, preserving durable failed preflight runs for
+  inspection.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
   gate rather than only a documentation convention.
