@@ -10,8 +10,9 @@ runs with explicit human decisions.
 - Compile gate: `mix compile --warnings-as-errors`
 - Final project gate: `mix precommit`
 - Browser smoke: create a run, trigger a permission request, approve it, trigger
-  an ACP file read, trigger a deterministic terminal command, and observe final
-  `idle` status plus persisted timeline events in the in-app browser.
+  an ACP file read, trigger a deterministic terminal command, create a run with
+  an explicit workspace, and observe final `idle` status plus persisted timeline
+  events in the in-app browser.
 
 ## Proven Now
 
@@ -23,14 +24,18 @@ Evidence:
 
 - `test/haven_web/live/inbox_live_test.exs` creates a run from the inbox and
   verifies navigation to run detail.
+- The inbox create form captures title, workspace, and agent choice; LiveView
+  tests verify selected workspace and configured agent are persisted into the
+  run record.
 - The same test verifies waiting, running, and idle runs render in separate
   attention lanes.
-- Browser smoke verifies the rendered inbox can start a real run.
+- Browser smoke verifies the rendered inbox can start a real run with an
+  explicit workspace and that the run detail/ACP launch args reflect it.
 
 Still missing:
 
-- Agent selection.
-- Workspace selection.
+- Agent/workspace persistence models and richer configuration management.
+- Workspace path validation and browse/picker affordances.
 - Archive/hide closed runs.
 - Filtering beyond the fixed lanes.
 

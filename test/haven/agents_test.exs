@@ -40,6 +40,20 @@ defmodule Haven.AgentsTest do
     assert command.args == ["--workspace", "/repo"]
   end
 
+  test "lists the built-in stub and configured agent keys for run creation" do
+    Application.put_env(:haven, :agents, %{
+      "zeta" => %{executable: "/bin/zeta"},
+      "alpha" => %{executable: "/bin/alpha"},
+      "stub-acp" => %{executable: "/bin/ignored"}
+    })
+
+    assert Agents.available() == [
+             {"stub-acp", "stub-acp"},
+             {"alpha", "alpha"},
+             {"zeta", "zeta"}
+           ]
+  end
+
   test "unknown agents are explicit errors" do
     assert {:error, {:unknown_agent, "missing"}} = Agents.command("missing", "/repo")
   end

@@ -54,7 +54,8 @@ curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow
 - `priv/agent_stub.exs` is an ACP-backed JSON-lines stub agent.
 
 The default development agent is a self-contained ACP stub. Configured agent
-keys can point at another ACP command. File capability callbacks are proven
+keys can point at another ACP command and can be selected when starting a run,
+alongside an explicit workspace path. File capability callbacks are proven
 against deterministic ACP requests, and terminal create/wait/output/release is
 proven for short-lived non-interactive commands. The next milestone is to
 validate one real external agent and harden capability policy while keeping the

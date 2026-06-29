@@ -1,6 +1,7 @@
 defmodule HavenWeb.InboxLive do
   use HavenWeb, :live_view
 
+  alias Haven.Agents
   alias Haven.Runs
 
   @impl true
@@ -10,14 +11,15 @@ defmodule HavenWeb.InboxLive do
     {:ok,
      socket
      |> assign(:page_title, "Haven")
-     |> assign(:form, to_form(%{"title" => ""}))
+     |> assign(:form, to_form(default_run_params()))
+     |> assign(:agent_options, Agents.available())
      |> assign_runs()}
   end
 
   @impl true
-  def handle_event("create_run", %{"title" => title}, socket) do
-    title = if String.trim(title) == "", do: "Untitled run", else: String.trim(title)
-    {:ok, run} = Runs.create_run(%{"title" => title})
+  def handle_event("create_run", params, socket) do
+    attrs = run_attrs(params)
+    {:ok, run} = Runs.create_run(attrs)
     {:noreply, push_navigate(socket, to: ~p"/runs/#{run.id}")}
   end
 
@@ -32,6 +34,39 @@ defmodule HavenWeb.InboxLive do
     |> assign(:needs_you, Enum.filter(runs, &(&1.status == "waiting")))
     |> assign(:running, Enum.filter(runs, &(&1.status in ["initializing", "running"])))
     |> assign(:history, Enum.reject(runs, &(&1.status in ["waiting", "initializing", "running"])))
+  end
+
+  defp default_run_params do
+    %{
+      "title" => "",
+      "workspace" => File.cwd!(),
+      "agent" => "stub-acp"
+    }
+  end
+
+  defp run_attrs(params) do
+    defaults = default_run_params()
+
+    title =
+      params
+      |> Map.get("title", defaults["title"])
+      |> String.trim()
+
+    workspace =
+      params
+      |> Map.get("workspace", defaults["workspace"])
+      |> String.trim()
+
+    agent =
+      params
+      |> Map.get("agent", defaults["agent"])
+      |> String.trim()
+
+    %{
+      "title" => if(title == "", do: "Untitled run", else: title),
+      "workspace" => if(workspace == "", do: defaults["workspace"], else: Path.expand(workspace)),
+      "agent" => if(agent == "", do: defaults["agent"], else: agent)
+    }
   end
 
   defp status_class("waiting"), do: badge_class("border-amber-200 bg-amber-50 text-amber-700")
@@ -71,26 +106,48 @@ defmodule HavenWeb.InboxLive do
     <Layouts.app flash={@flash}>
       <main id="haven-inbox" class="min-h-dvh bg-zinc-100 text-zinc-950">
         <section class="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-8">
-          <header class="flex flex-col gap-4 border-b border-zinc-200 pb-5 md:flex-row md:items-end md:justify-between">
+          <header class="grid gap-5 border-b border-zinc-200 pb-5 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)] lg:items-end">
             <div>
               <p class="text-sm font-medium text-zinc-500">Haven</p>
               <h1 class="text-3xl font-bold tracking-normal">Agent attention inbox</h1>
             </div>
 
-            <.form id="new-run-form" for={@form} phx-submit="create_run" class="flex gap-2">
-              <.input
-                field={@form[:title]}
-                type="text"
-                class="h-10 w-64 rounded-md border border-zinc-300 bg-white px-3 text-sm shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-                placeholder="Run goal"
-                autocomplete="off"
-              />
-              <button
-                id="start-run-button"
-                class="h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Start
-              </button>
+            <.form
+              id="new-run-form"
+              for={@form}
+              phx-submit="create_run"
+              class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
+            >
+              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem]">
+                <.input
+                  field={@form[:title]}
+                  type="text"
+                  label="Run goal"
+                  placeholder="Review agent changes"
+                  autocomplete="off"
+                />
+                <.input
+                  field={@form[:agent]}
+                  type="select"
+                  label="Agent"
+                  options={@agent_options}
+                />
+              </div>
+              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                <.input
+                  field={@form[:workspace]}
+                  type="text"
+                  label="Workspace"
+                  placeholder="/path/to/workspace"
+                  autocomplete="off"
+                />
+                <button
+                  id="start-run-button"
+                  class="mb-2 h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Start
+                </button>
+              </div>
             </.form>
           </header>
 

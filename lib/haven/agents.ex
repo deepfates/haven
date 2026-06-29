@@ -16,6 +16,18 @@ defmodule Haven.Agents do
           label: String.t()
         }
 
+  @spec available :: [{String.t(), String.t()}]
+  def available do
+    configured =
+      configured_agents()
+      |> Map.keys()
+      |> Enum.reject(&(&1 == "stub-acp"))
+      |> Enum.sort()
+      |> Enum.map(&{&1, &1})
+
+    [{"stub-acp", "stub-acp"} | configured]
+  end
+
   @spec command(String.t(), String.t()) :: {:ok, command()} | {:error, term()}
   def command("stub-acp", workspace) do
     case System.find_executable("mix") do

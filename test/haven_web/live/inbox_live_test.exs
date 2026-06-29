@@ -6,20 +6,69 @@ defmodule HavenWeb.InboxLiveTest do
   alias Haven.Runs
   alias Haven.Runs.Run
 
+  setup do
+    original = Application.get_env(:haven, :agents)
+
+    on_exit(fn ->
+      if original do
+        Application.put_env(:haven, :agents, original)
+      else
+        Application.delete_env(:haven, :agents)
+      end
+    end)
+  end
+
   test "creates a run from the inbox and navigates to the run detail", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#haven-inbox")
     assert has_element?(view, "#new-run-form")
+    assert has_element?(view, "#agent")
+    assert has_element?(view, "#workspace")
 
     view
-    |> form("#new-run-form", %{"title" => "Review agent changes"})
+    |> form("#new-run-form", %{
+      "title" => "Review agent changes"
+    })
     |> render_submit()
 
     [run] = Runs.list_runs()
     stop_run_server_on_exit(run.id)
 
     assert run.title == "Review agent changes"
+    assert_redirect(view, ~p"/runs/#{run.id}")
+  end
+
+  @tag :tmp_dir
+  test "creates a run with the selected workspace and configured agent", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    Application.put_env(:haven, :agents, %{
+      "configured-stub" => %{
+        executable: System.find_executable("mix"),
+        args: ["run", "--no-compile", "--no-start", "priv/agent_stub.exs", "{workspace}"]
+      }
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, ~s|#agent option[value="configured-stub"]|)
+
+    view
+    |> form("#new-run-form", %{
+      "title" => "Custom context run",
+      "workspace" => tmp_dir,
+      "agent" => "configured-stub"
+    })
+    |> render_submit()
+
+    [run] = Runs.list_runs()
+    stop_run_server_on_exit(run.id)
+
+    assert run.title == "Custom context run"
+    assert run.workspace == Path.expand(tmp_dir)
+    assert run.agent == "configured-stub"
     assert_redirect(view, ~p"/runs/#{run.id}")
   end
 
