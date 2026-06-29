@@ -331,6 +331,8 @@ Proven:
 - Malformed agent output after a successful ACP session has started is projected
   as a visible `agent_protocol_failed` run failure, and the active turn is
   failed instead of hanging indefinitely.
+- The same post-start malformed-output failure path is proven through the
+  configured external-agent command path using the fake ACP harness.
 - Timeline events expose a visible and machine-readable provenance marker
   (`app`, `user`, `agent`, `client`, `protocol`, or `runtime`) so users can
   distinguish app decisions from protocol and runtime activity.

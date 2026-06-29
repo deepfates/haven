@@ -1134,6 +1134,81 @@ defmodule HavenWeb.RunLiveTest do
     assert render(view) =~ "malformed_agent_output"
   end
 
+  test "configured fake ACP harness malformed output fails the active run", %{conn: conn} do
+    original = Application.get_env(:haven, :agents)
+
+    on_exit(fn ->
+      if original do
+        Application.put_env(:haven, :agents, original)
+      else
+        Application.delete_env(:haven, :agents)
+      end
+    end)
+
+    Application.put_env(:haven, :agents, %{
+      "fake-malformed" => %{
+        executable: System.find_executable("mix"),
+        args: [
+          "run",
+          "--no-compile",
+          "--no-start",
+          "test/support/fake_agent_runner.exs",
+          "malformed",
+          "{workspace}"
+        ],
+        cwd: "{workspace}",
+        env: [{"MIX_ENV", "test"}]
+      }
+    })
+
+    run = insert_run!("Fake malformed run", "fake-malformed")
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+    Runs.subscribe()
+
+    {:ok, _pid} = Runs.start_run(run.id)
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+
+    {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
+    assert html =~ "fake-malformed"
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "malformed-after-start"})
+    |> render_submit()
+
+    assert_receive {:event_appended, %{type: "turn_started"}}, 1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_protocol_failed",
+                      payload: %{
+                        "reason" => "malformed_agent_output",
+                        "line" => "fake malformed frame"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "turn_failed",
+                      payload: %{"error" => "malformed_agent_output"}
+                    }},
+                   1_000
+
+    assert_receive {:run_updated, %{id: run_id, status: "failed"}}, 1_000
+    assert run_id == run.id
+
+    [{pid, _}] = Registry.lookup(Haven.Runs.Registry, run.id)
+    _ = :sys.get_state(pid)
+
+    assert Runs.get_run!(run.id).status == "failed"
+    refute Enum.any?(Events.list_for_run(run.id), &(&1.type == "agent_process_down"))
+
+    {:ok, _reloaded, html} = live(conn, ~p"/runs/#{run.id}")
+    assert html =~ "failed"
+    assert html =~ "fake malformed frame"
+  end
+
   test "configured agent key drives the launched ACP process", %{conn: conn} do
     original = Application.get_env(:haven, :agents)
 

@@ -92,6 +92,11 @@ defmodule Haven.FakeACPAgent do
     |> request_permission(prompt_id, session_id, "Second permission", "tool_duplicate_2")
   end
 
+  defp handle_prompt("malformed", "malformed-after-start", _prompt_id, _session_id, state) do
+    IO.puts("fake malformed frame")
+    state
+  end
+
   defp handle_prompt(_scenario, text, prompt_id, session_id, state) do
     send_agent_text(session_id, "Fake echo: #{text}")
     send_prompt_result(prompt_id)

@@ -206,6 +206,9 @@ Evidence:
   after a successful ACP session has started records `agent_protocol_failed`,
   fails the active turn with `malformed_agent_output`, marks the run `failed`,
   and renders the failure in the timeline.
+- A configured fake ACP harness can emit a malformed frame after session startup;
+  LiveView integration verifies the same `agent_protocol_failed` and
+  `turn_failed` projection through the configured external-agent command path.
 - RunServer shutdown now explicitly tears down the ACP connection and port IO
   bridge.
 - Event ordering and persistence are covered by `test/haven/events_test.exs`.
@@ -285,9 +288,9 @@ be counted as complete until there is executable evidence.
 
 ## Next Best Validation Work
 
-1. Extend the fake ACP agent harness beyond partial streaming and duplicate
-   permission pressure so it can emit malformed frames after session startup and
-   simulate restart.
+1. Extend the fake ACP agent harness beyond partial streaming, duplicate
+   permission pressure, and malformed post-start frames so it can simulate
+   restart.
 2. Connect the configurable command/cwd/env path to one real ACP-speaking agent and
    document any agent-specific auth contract.
 3. Connect terminal capability handling to a real ACP-speaking agent and add
