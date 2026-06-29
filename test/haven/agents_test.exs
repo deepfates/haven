@@ -1,0 +1,46 @@
+defmodule Haven.AgentsTest do
+  use ExUnit.Case, async: false
+
+  alias Haven.Agents
+
+  setup do
+    original = Application.get_env(:haven, :agents)
+
+    on_exit(fn ->
+      if original do
+        Application.put_env(:haven, :agents, original)
+      else
+        Application.delete_env(:haven, :agents)
+      end
+    end)
+  end
+
+  test "resolves the built-in stub ACP agent" do
+    assert {:ok, command} = Agents.command("stub-acp", "/tmp/work")
+    assert command.label == "stub-acp"
+    assert command.executable =~ "mix"
+
+    assert command.args == [
+             "run",
+             "--no-compile",
+             "--no-start",
+             "priv/agent_stub.exs",
+             "/tmp/work"
+           ]
+  end
+
+  test "resolves configured agents and substitutes workspace" do
+    Application.put_env(:haven, :agents, %{
+      "external" => %{executable: "/bin/agent", args: ["--workspace", "{workspace}"]}
+    })
+
+    assert {:ok, command} = Agents.command("external", "/repo")
+    assert command.label == "external"
+    assert command.executable == "/bin/agent"
+    assert command.args == ["--workspace", "/repo"]
+  end
+
+  test "unknown agents are explicit errors" do
+    assert {:error, {:unknown_agent, "missing"}} = Agents.command("missing", "/repo")
+  end
+end

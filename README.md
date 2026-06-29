@@ -43,6 +43,7 @@ curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow
 ## Shape
 
 - `Haven.Runs.RunServer` owns one live agent run.
+- `Haven.Agents` resolves built-in and configured ACP agent commands.
 - `Haven.PortIO` bridges spawned agent ports to the IO shape expected
   by `agent_client_protocol`.
 - `Haven.Runs` is the run lifecycle context.
@@ -51,6 +52,7 @@ curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow
 - `RunLive` is the run timeline and control surface.
 - `priv/agent_stub.exs` is an ACP-backed JSON-lines stub agent.
 
-The default development agent is a self-contained ACP stub. The next milestone
-is to implement file and terminal client capabilities against a real
-ACP-speaking agent while keeping the run/event/LiveView shape.
+The default development agent is a self-contained ACP stub. Configured agent
+keys can point at another ACP command, but the next milestone is to validate one
+real external agent and implement file and terminal client capabilities while
+keeping the run/event/LiveView shape.

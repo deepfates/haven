@@ -5,10 +5,19 @@ defmodule Haven.Runs.RunServer do
   alias Haven.PortIO
   alias Haven.Runs
   alias Haven.Runs.ACPClientHandler
+  alias Haven.Agents
 
   def start_link(opts) do
     run_id = Keyword.fetch!(opts, :run_id)
     GenServer.start_link(__MODULE__, run_id, name: via(run_id))
+  end
+
+  def child_spec(opts) do
+    %{
+      id: {__MODULE__, Keyword.fetch!(opts, :run_id)},
+      start: {__MODULE__, :start_link, [opts]},
+      restart: :transient
+    }
   end
 
   def agent_permission_requested(server, request) do
@@ -39,50 +48,19 @@ defmodule Haven.Runs.RunServer do
   def handle_info(:boot_agent, state) do
     run = Runs.get_run!(state.run_id)
 
-    {:ok, port_io} =
-      PortIO.start_link(
-        executable: System.find_executable("mix"),
-        args: ["run", "--no-compile", "--no-start", "priv/agent_stub.exs", run.workspace]
-      )
-
-    {:ok, conn} =
-      ACP.ClientSideConnection.start_link(
-        input: port_io,
-        output: port_io,
-        handler: ACPClientHandler,
-        handler_state: self()
-      )
-
-    ACP.ClientSideConnection.subscribe(conn)
-
-    Events.append!(state.run_id, "agent_process_started", %{
-      "command" => "priv/agent_stub.exs",
-      "transport" => "mix run --no-compile --no-start"
-    })
-
-    Runs.update_status!(state.run_id, %{status: "initializing"})
-
-    {:ok, initialize_result} =
-      ACP.ClientSideConnection.initialize(
-        conn,
-        ACP.InitializeRequest.new(ACP.ProtocolVersion.v1())
-      )
-
-    {:ok, _response} = ACP.InitializeResponse.from_json(initialize_result)
-    Events.append!(state.run_id, "agent_initialized", %{})
-
-    {:ok, session_result} =
-      ACP.ClientSideConnection.new_session(conn, ACP.NewSessionRequest.new(run.workspace))
-
-    {:ok, session} = ACP.NewSessionResponse.from_json(session_result)
-
-    Events.append!(state.run_id, "agent_session_started", %{
-      "agent_session_id" => session.session_id
-    })
-
-    Runs.update_status!(state.run_id, %{status: "idle", agent_session_id: session.session_id})
-
-    {:noreply, %{state | port_io: port_io, conn: conn, agent_session_id: session.session_id}}
+    with {:ok, command} <- Agents.command(run.agent, run.workspace),
+         {:ok, port_io} <-
+           PortIO.start_link(
+             executable: command.executable,
+             args: command.args
+           ) do
+      boot_agent_connection(state, run, command, port_io)
+    else
+      {:error, reason} ->
+        Events.append!(state.run_id, "agent_start_failed", %{"reason" => inspect(reason)})
+        Runs.update_status!(state.run_id, %{status: "failed"})
+        {:stop, :normal, state}
+    end
   end
 
   def handle_info(
@@ -134,6 +112,49 @@ defmodule Haven.Runs.RunServer do
     Events.append!(state.run_id, "agent_process_down", %{"reason" => inspect(reason)})
     Runs.update_status!(state.run_id, %{status: "failed"})
     {:noreply, %{fail_pending_work(state, inspect(reason)) | conn: nil, port_io: nil}}
+  end
+
+  defp boot_agent_connection(state, run, command, port_io) do
+    {:ok, conn} =
+      ACP.ClientSideConnection.start_link(
+        input: port_io,
+        output: port_io,
+        handler: ACPClientHandler,
+        handler_state: self()
+      )
+
+    ACP.ClientSideConnection.subscribe(conn)
+
+    Events.append!(state.run_id, "agent_process_started", %{
+      "agent" => run.agent,
+      "command" => command.label,
+      "executable" => command.executable,
+      "args" => command.args
+    })
+
+    Runs.update_status!(state.run_id, %{status: "initializing"})
+
+    {:ok, initialize_result} =
+      ACP.ClientSideConnection.initialize(
+        conn,
+        ACP.InitializeRequest.new(ACP.ProtocolVersion.v1())
+      )
+
+    {:ok, _response} = ACP.InitializeResponse.from_json(initialize_result)
+    Events.append!(state.run_id, "agent_initialized", %{})
+
+    {:ok, session_result} =
+      ACP.ClientSideConnection.new_session(conn, ACP.NewSessionRequest.new(run.workspace))
+
+    {:ok, session} = ACP.NewSessionResponse.from_json(session_result)
+
+    Events.append!(state.run_id, "agent_session_started", %{
+      "agent_session_id" => session.session_id
+    })
+
+    Runs.update_status!(state.run_id, %{status: "idle", agent_session_id: session.session_id})
+
+    {:noreply, %{state | port_io: port_io, conn: conn, agent_session_id: session.session_id}}
   end
 
   @impl true
@@ -238,6 +259,36 @@ defmodule Haven.Runs.RunServer do
        | next_permission_id: request_id + 1,
          pending_permissions: Map.put(state.pending_permissions, request_id, pending)
      }}
+  end
+
+  def handle_call(:shutdown, _from, state) do
+    cleanup_agent(state)
+    {:stop, :normal, :ok, state}
+  end
+
+  @impl true
+  def terminate(_reason, state), do: cleanup_agent(state)
+
+  defp cleanup_agent(state) do
+    stop_if_alive(state.port_io, &PortIO.stop/1)
+
+    case state.conn do
+      %ACP.ClientSideConnection{} = conn ->
+        stop_if_alive(conn.conn, fn _pid -> ACP.ClientSideConnection.stop(conn) end)
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp stop_if_alive(nil, _stop), do: :ok
+
+  defp stop_if_alive(pid, stop) when is_pid(pid) do
+    if Process.alive?(pid) do
+      stop.(pid)
+    end
+  catch
+    :exit, _ -> :ok
   end
 
   defp append_session_update(run_id, notification) do

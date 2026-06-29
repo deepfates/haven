@@ -107,6 +107,14 @@ Status: partially proven.
 Evidence:
 
 - A supervised `RunServer` owns each live run.
+- `Haven.Agents` resolves the built-in `stub-acp` command and configured agent
+  keys from application env.
+- LiveView integration tests verify that an unknown run agent records
+  `agent_start_failed`, marks the run `failed`, and renders that failure without
+  falling back to the stub.
+- LiveView integration tests verify a configured agent key launches the ACP
+  process and records the selected agent, executable, and substituted workspace
+  args in the timeline.
 - Tests revealed and fixed a real status projection bug: `RunLive` now subscribes
   to run-status broadcasts as well as event broadcasts, so the header does not
   remain `running` after a completed turn.
@@ -116,15 +124,21 @@ Evidence:
 - LiveView integration tests trigger a non-zero stub exit and verify the run
   records `agent_process_exited`, fails the in-flight turn, and renders a
   visible `failed` state.
+- Tests revealed and fixed a run-server restart-loop bug: terminal `failed` and
+  `closed` runs are no longer auto-resurrected by LiveView mounts, and normal
+  RunServer exits are not restarted by the supervisor.
+- RunServer shutdown now explicitly tears down the ACP connection and port IO
+  bridge.
 - Event ordering and persistence are covered by `test/haven/events_test.exs`.
 
 Still missing:
 
-- Restart behavior after agent process crash.
-- Resume from an existing persisted run without spawning a duplicate or
-  misleading live session.
+- Deliberate restart behavior after agent process crash.
+- Resume from an existing persisted non-terminal run without spawning a
+  duplicate or misleading live session.
 - Concurrent multi-run behavior under realistic load.
-- Graceful cleanup and lifecycle policy for failed or closed run servers.
+- Production lifecycle policy for pruning or archiving failed and closed run
+  servers.
 
 ## Not Proven Yet
 
@@ -140,16 +154,16 @@ be counted as complete until there is executable evidence.
 - Browser smoke for agent death; current executable evidence is LiveView-level.
 - Browser smoke for non-message session updates; current executable evidence is
   LiveView-level.
-- Product-grade workspace and agent configuration.
+- Product-grade workspace and agent configuration UI.
 - Audit metadata for who made a permission decision.
 
 ## Next Best Validation Work
 
 1. Add a supervised fake ACP agent test harness that can stream partial chunks,
    request duplicate permissions, emit malformed frames, and simulate restart.
-2. Add LiveView tests for restart and reload after process exit.
-3. Add a real ACP-agent adapter path configurable per run instead of hard-coding
-   the stub in `RunServer`.
+2. Add LiveView tests for deliberate restart and reload after process exit.
+3. Connect the configurable command path to one real ACP-speaking agent and
+   document the exact command/env contract.
 4. Add file and terminal capability handling, first against deterministic fake
    requests, then against a real ACP-speaking agent.
 5. Add browser smoke coverage for reload recovery and attention-lane movement,

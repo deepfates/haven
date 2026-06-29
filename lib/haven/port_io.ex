@@ -22,6 +22,7 @@ defmodule Haven.PortIO do
   end
 
   def exit_status(pid), do: GenServer.call(pid, :exit_status)
+  def stop(pid), do: GenServer.stop(pid, :normal)
 
   @impl true
   def init(opts) do
@@ -85,6 +86,15 @@ defmodule Haven.PortIO do
     state = %{state | exit_status: state.exit_status || -1}
     state = flush_readers(state)
     {:noreply, state}
+  end
+
+  @impl true
+  def terminate(_reason, state), do: close_port(state.port)
+
+  defp close_port(port) do
+    Port.close(port)
+  catch
+    :error, _ -> :ok
   end
 
   defp split_lines(data, buffer) do

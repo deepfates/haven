@@ -2,7 +2,9 @@ defmodule HavenWeb.RunLiveTest do
   use HavenWeb.ConnCase
 
   alias Haven.Events
+  alias Haven.Repo
   alias Haven.Runs
+  alias Haven.Runs.Run
 
   test "renders a durable run timeline after startup and reload", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Durable run"})
@@ -350,6 +352,71 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Inspect workspace"
   end
 
+  test "unknown agent fails visibly instead of launching the stub", %{conn: conn} do
+    run = insert_run!("Unknown agent run", "missing-agent")
+    Events.subscribe(run.id)
+
+    {:ok, _pid} = Runs.start_run(run.id)
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_start_failed",
+                      payload: %{"reason" => reason}
+                    }},
+                   1_000
+
+    assert reason =~ "unknown_agent"
+
+    {:ok, _view, html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert html =~ "failed"
+    assert html =~ "agent_start_failed"
+    assert html =~ "missing-agent"
+  end
+
+  test "configured agent key drives the launched ACP process", %{conn: conn} do
+    original = Application.get_env(:haven, :agents)
+
+    on_exit(fn ->
+      if original do
+        Application.put_env(:haven, :agents, original)
+      else
+        Application.delete_env(:haven, :agents)
+      end
+    end)
+
+    Application.put_env(:haven, :agents, %{
+      "configured-stub" => %{
+        executable: System.find_executable("mix"),
+        args: ["run", "--no-compile", "--no-start", "priv/agent_stub.exs", "{workspace}"]
+      }
+    })
+
+    run = insert_run!("Configured agent run", "configured-stub")
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, _pid} = Runs.start_run(run.id)
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_process_started",
+                      payload: %{
+                        "agent" => "configured-stub",
+                        "command" => "configured-stub",
+                        "args" => args
+                      }
+                    }},
+                   1_000
+
+    assert List.last(args) == run.workspace
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+
+    {:ok, _view, html} = live(conn, ~p"/runs/#{run.id}")
+    assert html =~ "configured-stub"
+    assert html =~ "agent_session_started"
+  end
+
   defp sync_run_server!(run_id) do
     {:ok, pid} = Runs.ensure_started(run_id)
     _ = :sys.get_state(pid)
@@ -358,9 +425,27 @@ defmodule HavenWeb.RunLiveTest do
 
   defp stop_run_server_on_exit(run_id) do
     on_exit(fn ->
-      for {pid, _} <- Registry.lookup(Haven.Runs.Registry, run_id) do
-        DynamicSupervisor.terminate_child(Haven.Runs.Supervisor, pid)
-      end
+      Runs.stop_run(run_id)
     end)
+  end
+
+  defp insert_run!(title, agent) do
+    run =
+      %Run{}
+      |> Run.changeset(%{
+        title: title,
+        workspace: File.cwd!(),
+        agent: agent,
+        status: "idle"
+      })
+      |> Repo.insert!()
+
+    Events.append!(run.id, "run_created", %{
+      "title" => run.title,
+      "workspace" => run.workspace,
+      "agent" => run.agent
+    })
+
+    run
   end
 end

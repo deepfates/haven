@@ -18,21 +18,26 @@ defmodule Haven.Runs do
       |> Map.put_new("agent", "stub-acp")
       |> Map.put_new("status", "idle")
 
-    Repo.transaction(fn ->
-      run =
-        %Run{}
-        |> Run.changeset(attrs)
-        |> Repo.insert!()
+    result =
+      Repo.transaction(fn ->
+        run =
+          %Run{}
+          |> Run.changeset(attrs)
+          |> Repo.insert!()
 
-      Events.append!(run.id, "run_created", %{
-        "title" => run.title,
-        "workspace" => run.workspace,
-        "agent" => run.agent
-      })
+        Events.append!(run.id, "run_created", %{
+          "title" => run.title,
+          "workspace" => run.workspace,
+          "agent" => run.agent
+        })
 
-      start_run(run.id)
-      run
-    end)
+        run
+      end)
+
+    with {:ok, run} <- result do
+      _ = start_run(run.id)
+      {:ok, run}
+    end
   end
 
   def start_run(run_id) do
@@ -47,8 +52,21 @@ defmodule Haven.Runs do
 
   def ensure_started(run_id) do
     case Registry.lookup(Haven.Runs.Registry, run_id) do
-      [{pid, _}] -> {:ok, pid}
-      [] -> start_run(run_id)
+      [{pid, _}] ->
+        {:ok, pid}
+
+      [] ->
+        case get_run!(run_id) do
+          %{status: status} when status in ["closed", "failed"] -> {:error, :terminal_run}
+          _run -> start_run(run_id)
+        end
+    end
+  end
+
+  def stop_run(run_id) do
+    case Registry.lookup(Haven.Runs.Registry, run_id) do
+      [{pid, _}] -> GenServer.call(pid, :shutdown, :infinity)
+      [] -> :ok
     end
   end
 
