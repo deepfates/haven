@@ -261,7 +261,7 @@ defmodule Haven.Runs.RunServer do
   def handle_call({:resolve_permission, request_id, option_id}, _from, state) do
     request_id = normalize_id(request_id)
 
-    with %{from: from} <- state.pending_permissions[request_id] do
+    with %{kind: _kind} = pending <- state.pending_permissions[request_id] do
       Events.append!(state.run_id, "permission_resolved", %{
         "request_id" => request_id,
         "option_id" => option_id,
@@ -269,11 +269,7 @@ defmodule Haven.Runs.RunServer do
         "actor" => "local_user"
       })
 
-      response =
-        {:selected, ACP.SelectedPermissionOutcome.new(option_id)}
-        |> ACP.RequestPermissionResponse.new()
-
-      GenServer.reply(from, {:ok, response})
+      resolve_pending_permission(state, pending, option_id)
       Runs.update_status!(state.run_id, %{status: "running"})
 
       {:reply, :ok,
@@ -302,11 +298,7 @@ defmodule Haven.Runs.RunServer do
         "actor" => "local_user"
       })
 
-      response =
-        :cancelled
-        |> ACP.RequestPermissionResponse.new()
-
-      GenServer.reply(pending.from, {:ok, response})
+      cancel_pending_permission(pending)
     end)
 
     if state.agent_session_id do
@@ -328,17 +320,25 @@ defmodule Haven.Runs.RunServer do
       |> ACP.RequestPermissionRequest.to_json()
       |> Map.put("request_id", request_id)
 
-    Events.append!(state.run_id, "permission_requested", payload)
-    Runs.update_status!(state.run_id, %{status: "waiting"})
+    if Runs.get_run!(state.run_id).status == "failed" do
+      Events.append!(state.run_id, "permission_requested", payload)
+      append_system_permission_cancelled(state.run_id, request_id, "agent_process_exited")
+      cancel_pending_permission(%{kind: :agent_permission, from: from})
 
-    pending = %{request: request, from: from}
+      {:noreply, %{state | next_permission_id: request_id + 1}}
+    else
+      Events.append!(state.run_id, "permission_requested", payload)
+      Runs.update_status!(state.run_id, %{status: "waiting"})
 
-    {:noreply,
-     %{
-       state
-       | next_permission_id: request_id + 1,
-         pending_permissions: Map.put(state.pending_permissions, request_id, pending)
-     }}
+      pending = %{kind: :agent_permission, request: request, from: from}
+
+      {:noreply,
+       %{
+         state
+         | next_permission_id: request_id + 1,
+           pending_permissions: Map.put(state.pending_permissions, request_id, pending)
+       }}
+    end
   end
 
   def handle_call({:agent_read_text_file_requested, request}, _from, state) do
@@ -368,9 +368,10 @@ defmodule Haven.Runs.RunServer do
     end
   end
 
-  def handle_call({:agent_write_text_file_requested, request}, _from, state) do
+  def handle_call({:agent_write_text_file_requested, request}, from, state) do
     run = Runs.get_run!(state.run_id)
     payload = file_request_payload(request)
+    request_id = state.next_permission_id
 
     Events.append!(
       state.run_id,
@@ -378,25 +379,28 @@ defmodule Haven.Runs.RunServer do
       Map.put(payload, "bytes", byte_size(request.content))
     )
 
-    case WorkspaceFiles.write_text_file(run.workspace, request) do
-      {:ok, path} ->
-        Events.append!(
-          state.run_id,
-          "file_write_succeeded",
-          Map.put(payload, "resolved_path", path)
-        )
+    Events.append!(
+      state.run_id,
+      "permission_requested",
+      file_write_permission_payload(request_id, payload, request.content)
+    )
 
-        {:reply, {:ok, ACP.WriteTextFileResponse.new()}, state}
+    Runs.update_status!(state.run_id, %{status: "waiting"})
 
-      {:error, error} ->
-        Events.append!(
-          state.run_id,
-          "file_write_failed",
-          Map.merge(payload, %{"error" => ACP.Error.to_json(error)})
-        )
+    pending = %{
+      kind: :file_write,
+      from: from,
+      request: request,
+      payload: payload,
+      workspace: run.workspace
+    }
 
-        {:reply, {:error, error}, state}
-    end
+    {:noreply,
+     %{
+       state
+       | next_permission_id: request_id + 1,
+         pending_permissions: Map.put(state.pending_permissions, request_id, pending)
+     }}
   end
 
   def handle_call(
@@ -602,6 +606,81 @@ defmodule Haven.Runs.RunServer do
     }
   end
 
+  defp file_write_permission_payload(request_id, payload, content) do
+    %{
+      "request_id" => request_id,
+      "toolCall" => %{
+        "toolCallId" => "file_write_#{request_id}",
+        "title" => "Write file",
+        "status" => "pending",
+        "rawInput" => Map.put(payload, "bytes", byte_size(content))
+      },
+      "options" => [
+        %{"optionId" => "allow", "name" => "Allow write", "kind" => "allow_once"},
+        %{"optionId" => "deny", "name" => "Deny", "kind" => "reject_once"}
+      ]
+    }
+  end
+
+  defp resolve_pending_permission(_state, %{kind: :agent_permission, from: from}, option_id) do
+    response =
+      {:selected, ACP.SelectedPermissionOutcome.new(option_id)}
+      |> ACP.RequestPermissionResponse.new()
+
+    GenServer.reply(from, {:ok, response})
+  end
+
+  defp resolve_pending_permission(state, %{kind: :file_write} = pending, "allow") do
+    case WorkspaceFiles.write_text_file(pending.workspace, pending.request) do
+      {:ok, path} ->
+        Events.append!(
+          state.run_id,
+          "file_write_succeeded",
+          Map.put(pending.payload, "resolved_path", path)
+        )
+
+        GenServer.reply(pending.from, {:ok, ACP.WriteTextFileResponse.new()})
+
+      {:error, error} ->
+        Events.append!(
+          state.run_id,
+          "file_write_failed",
+          Map.merge(pending.payload, %{"error" => ACP.Error.to_json(error)})
+        )
+
+        GenServer.reply(pending.from, {:error, error})
+    end
+  end
+
+  defp resolve_pending_permission(state, %{kind: :file_write} = pending, _option_id) do
+    error = permission_denied_error(pending.payload["path"])
+
+    Events.append!(
+      state.run_id,
+      "file_write_denied",
+      Map.merge(pending.payload, %{"error" => ACP.Error.to_json(error)})
+    )
+
+    GenServer.reply(pending.from, {:error, error})
+  end
+
+  defp cancel_pending_permission(%{kind: :agent_permission, from: from}) do
+    response =
+      :cancelled
+      |> ACP.RequestPermissionResponse.new()
+
+    GenServer.reply(from, {:ok, response})
+  end
+
+  defp cancel_pending_permission(%{kind: :file_write} = pending) do
+    GenServer.reply(pending.from, {:error, permission_denied_error(pending.payload["path"])})
+  end
+
+  defp permission_denied_error(path) do
+    ACP.Error.new(-32003, "Permission denied")
+    |> ACP.Error.with_data(%{"path" => path, "reason" => "permission_denied"})
+  end
+
   defp terminal_request_payload({_type, request}) do
     request
     |> Map.from_struct()
@@ -680,19 +759,8 @@ defmodule Haven.Runs.RunServer do
       end)
 
     Enum.each(state.pending_permissions, fn {request_id, pending} ->
-      Events.append!(state.run_id, "permission_resolved", %{
-        "request_id" => request_id,
-        "option_id" => "cancelled",
-        "outcome" => "cancelled",
-        "reason" => reason,
-        "actor" => "system"
-      })
-
-      response =
-        :cancelled
-        |> ACP.RequestPermissionResponse.new()
-
-      GenServer.reply(pending.from, {:ok, response})
+      append_system_permission_cancelled(state.run_id, request_id, reason)
+      cancel_pending_permission(pending)
     end)
 
     %{state | pending_permissions: %{}}
@@ -707,5 +775,15 @@ defmodule Haven.Runs.RunServer do
     end
 
     %{state | pending_prompts: Map.delete(state.pending_prompts, id)}
+  end
+
+  defp append_system_permission_cancelled(run_id, request_id, reason) do
+    Events.append!(run_id, "permission_resolved", %{
+      "request_id" => request_id,
+      "option_id" => "cancelled",
+      "outcome" => "cancelled",
+      "reason" => reason,
+      "actor" => "system"
+    })
   end
 end

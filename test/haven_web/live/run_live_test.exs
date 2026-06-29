@@ -585,6 +585,23 @@ defmodule HavenWeb.RunLiveTest do
                    1_000
 
     assert bytes > 0
+    assert has_element?(view, "#pending-permission-card", "Write file")
+
+    refute File.exists?(Path.join(tmp_dir, "haven-written.txt"))
+
+    view
+    |> element(~s|#pending-permission-card button[phx-value-option-id="allow"]|)
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_resolved",
+                      payload: %{
+                        "option_id" => "allow",
+                        "actor" => "local_user"
+                      }
+                    }},
+                   1_000
 
     assert_receive {:event_appended,
                     %{
@@ -608,6 +625,69 @@ defmodule HavenWeb.RunLiveTest do
     html = render(view)
     assert html =~ "file_write_succeeded"
     assert html =~ "Wrote file through Haven."
+  end
+
+  @tag :tmp_dir
+  test "denies ACP file write requests before touching the workspace", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    {:ok, run} = Runs.create_run(%{"title" => "Deny file write run", "workspace" => tmp_dir})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> element("#sample-write-file-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "file_write_requested",
+                      payload: %{"path" => "haven-written.txt"}
+                    }},
+                   1_000
+
+    assert has_element?(view, "#pending-permission-card", "Write file")
+
+    view
+    |> element(~s|#pending-permission-card button[phx-value-option-id="deny"]|)
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "permission_resolved",
+                      payload: %{
+                        "option_id" => "deny",
+                        "actor" => "local_user"
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "file_write_denied",
+                      payload: %{
+                        "path" => "haven-written.txt",
+                        "error" => %{"data" => %{"reason" => "permission_denied"}}
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "File request failed: Permission denied"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    refute File.exists?(Path.join(tmp_dir, "haven-written.txt"))
+    refute has_element?(view, "#pending-permission-card")
+    assert render(view) =~ "file_write_denied"
   end
 
   test "handles ACP terminal create, wait, output, and release requests visibly", %{conn: conn} do

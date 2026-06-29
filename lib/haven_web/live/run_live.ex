@@ -164,6 +164,7 @@ defmodule HavenWeb.RunLive do
               "file_write_requested",
               "file_write_succeeded",
               "file_write_failed",
+              "file_write_denied",
               "terminal_create_requested",
               "terminal_created",
               "terminal_create_failed",

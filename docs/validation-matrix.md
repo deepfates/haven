@@ -13,12 +13,13 @@ runs with explicit human decisions.
   `agent_protocol_failed`, marks the run `failed`, and does not restart the
   agent process.
 - Browser smoke: create a run, trigger a permission request, approve it, trigger
-  an ACP file read, trigger a deterministic terminal command, create a run with
-  an ACP terminal kill for a direct process, create a run with an explicit
-  workspace, reject a missing workspace at run creation, reload disconnected
-  history, explicitly reconnect that history, restart after an actual agent
-  crash, trigger malformed ACP output after a successful session start, and
-  observe final status plus persisted timeline events in the in-app browser.
+  an ACP file read, trigger and approve an ACP file write, trigger a
+  deterministic terminal command, create a run with an ACP terminal kill for a
+  direct process, create a run with an explicit workspace, reject a missing
+  workspace at run creation, reload disconnected history, explicitly reconnect
+  that history, restart after an actual agent crash, trigger malformed ACP
+  output after a successful session start, and observe final status plus
+  persisted timeline events in the in-app browser.
 
 ## Proven Now
 
@@ -210,7 +211,9 @@ Evidence:
 - LiveView integration tests drive the stub agent through real ACP
   `fs/read_text_file` and `fs/write_text_file` requests, verify durable
   `file_read_*` and `file_write_*` events, verify the agent receives responses,
-  and verify writes land in the selected temporary workspace.
+  verify writes pause on a local permission decision before touching the
+  filesystem, verify denial leaves the selected temporary workspace unchanged,
+  and verify approved writes land in that workspace.
 - `Haven.Terminals` runs short-lived non-interactive commands, captures stdout
   and stderr, reports exit status, and rejects terminal working directories
   outside the run workspace.
@@ -223,14 +226,16 @@ Evidence:
   `terminal/kill` for a direct `sleep` process, then verify durable kill, wait,
   output, release, and final turn events.
 - Browser smoke verifies the rendered UI can trigger an ACP file read and a
-  deterministic terminal command, plus an ACP terminal kill for a direct
-  process, with visible timeline events and final `idle` state.
+  permission-gated ACP file write, approve that write through the rendered
+  permission card, and trigger a deterministic terminal command, plus an ACP
+  terminal kill for a direct process, with visible timeline events and final
+  `idle` state.
 
 Still missing:
 
 - Real external agent coverage for file requests.
 - Real external agent coverage for terminal requests.
-- Permission policy around file reads and writes.
+- Permission policy around file reads.
 - File diff/artifact projections for review.
 - PTY-style interactive terminal sessions.
 - Process-tree kill semantics for shell-launched children.

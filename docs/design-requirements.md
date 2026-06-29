@@ -292,6 +292,9 @@ Proven:
 - Ordered session updates should be projected from the ACP stream subscription.
 - Deterministic ACP file read/write requests can be handled, logged, and scoped
   to the selected workspace.
+- ACP file write requests are permission-gated before touching the workspace:
+  approval performs the write, denial leaves the workspace unchanged, and both
+  outcomes are durable timeline events.
 - Deterministic non-interactive ACP terminal create/wait/output/release requests
   can be handled, logged, scoped to the selected workspace, and projected back
   to the agent.
@@ -326,7 +329,8 @@ Not yet proven:
 - Multi-run load behavior.
 - Long-running turn streaming under real output volume.
 - Backpressure, log compaction, and transcript projection performance.
-- Security boundaries around workspace access.
+- Security boundaries around workspace access, especially file reads and
+  configurable capability grants.
 - Authentication and product-grade agent/workspace configuration, including
   workspace picker/browse affordances.
 - Authenticated user identity on permission decisions; current actor metadata is
