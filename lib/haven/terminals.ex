@@ -5,7 +5,7 @@ defmodule Haven.Terminals do
 
   use GenServer
 
-  defstruct [:port, :terminal_id, output: "", exit_status: nil, waiters: []]
+  defstruct [:port, :terminal_id, :os_pid, output: "", exit_status: nil, waiters: []]
 
   def start(opts), do: GenServer.start(__MODULE__, opts)
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
@@ -45,7 +45,12 @@ defmodule Haven.Terminals do
         ]
       )
 
-    {:ok, %__MODULE__{port: port, terminal_id: Keyword.fetch!(opts, :terminal_id)}}
+    {:ok,
+     %__MODULE__{
+       port: port,
+       os_pid: port_os_pid(port),
+       terminal_id: Keyword.fetch!(opts, :terminal_id)
+     }}
   end
 
   @impl true
@@ -62,6 +67,7 @@ defmodule Haven.Terminals do
   end
 
   def handle_call(:kill, _from, state) do
+    kill_process_tree(state.os_pid)
     close_port(state.port)
     {:reply, :ok, finish(state, -1)}
   end
@@ -84,7 +90,10 @@ defmodule Haven.Terminals do
   end
 
   @impl true
-  def terminate(_reason, state), do: close_port(state.port)
+  def terminate(_reason, state) do
+    kill_process_tree(state.os_pid)
+    close_port(state.port)
+  end
 
   defp resolve_executable(command) when is_binary(command) do
     cond do
@@ -130,6 +139,72 @@ defmodule Haven.Terminals do
   defp finish(state, status) do
     Enum.each(state.waiters, &GenServer.reply(&1, {:ok, status}))
     %{state | exit_status: status, waiters: []}
+  end
+
+  defp port_os_pid(port) do
+    case Port.info(port, :os_pid) do
+      {:os_pid, pid} when is_integer(pid) -> pid
+      _ -> nil
+    end
+  end
+
+  defp kill_process_tree(nil), do: :ok
+
+  defp kill_process_tree(os_pid) when is_integer(os_pid) do
+    pids =
+      os_pid
+      |> descendant_pids()
+      |> Kernel.++([os_pid])
+      |> Enum.uniq()
+      |> Enum.map(&Integer.to_string/1)
+
+    kill_pids(pids, "-TERM")
+    kill_pids(pids, "-KILL")
+  end
+
+  defp descendant_pids(os_pid) do
+    children_by_parent()
+    |> collect_descendants(os_pid, [])
+    |> Enum.reverse()
+  end
+
+  defp children_by_parent do
+    with ps when is_binary(ps) <- System.find_executable("ps"),
+         {output, 0} <- System.cmd(ps, ["-axo", "pid=,ppid="]) do
+      output
+      |> String.split("\n", trim: true)
+      |> Enum.reduce(%{}, fn line, acc ->
+        case line |> String.split() |> Enum.map(&Integer.parse/1) do
+          [{pid, ""}, {ppid, ""}] -> Map.update(acc, ppid, [pid], &[pid | &1])
+          _ -> acc
+        end
+      end)
+    else
+      _ -> %{}
+    end
+  end
+
+  defp collect_descendants(children_by_parent, os_pid, acc) do
+    children = Map.get(children_by_parent, os_pid, [])
+
+    Enum.reduce(children, acc, fn child, acc ->
+      collect_descendants(children_by_parent, child, [child | acc])
+    end)
+  end
+
+  defp kill_pids([], _signal), do: :ok
+
+  defp kill_pids(pids, signal) do
+    case System.find_executable("kill") do
+      nil ->
+        :ok
+
+      kill ->
+        _ = System.cmd(kill, [signal | pids], stderr_to_stdout: true)
+        :ok
+    end
+  rescue
+    _ -> :ok
   end
 
   defp close_port(port) do

@@ -308,9 +308,9 @@ Proven:
 - Deterministic non-interactive ACP terminal create/wait/output/release requests
   can be handled, logged, scoped to the selected workspace, and projected back
   to the agent.
-- Deterministic ACP terminal kill requests for direct child processes can be
-  handled, logged, followed by wait/output/release, and projected back to the
-  agent.
+- Deterministic ACP terminal kill requests for direct child processes and
+  shell-launched child processes can be handled, logged, followed by
+  wait/output/release, and projected back to the agent.
 - Disconnected idle run history can be viewed without silently spawning a new
   agent process.
 - Disconnected idle history and failed persisted runs can be explicitly

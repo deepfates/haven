@@ -185,6 +185,21 @@ defmodule StubAgent do
           step: :kill_create
         })
 
+      text == "kill-terminal-tree" ->
+        session_id = request.session_id
+
+        terminal_request =
+          session_id
+          |> ACP.CreateTerminalRequest.new("sh")
+          |> Map.put(:args, ["-c", "sleep 30 & wait"])
+          |> ACP.CreateTerminalRequest.to_json()
+
+        request_terminal(state, "terminal/create", terminal_request, %{
+          prompt_id: prompt_id,
+          session_id: session_id,
+          step: :kill_create
+        })
+
       text == "malformed-after-start" ->
         IO.puts("this is not json")
         state

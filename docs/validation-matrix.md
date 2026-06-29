@@ -277,6 +277,11 @@ Evidence:
 - LiveView integration tests drive the stub agent through real ACP
   `terminal/kill` for a direct `sleep` process, then verify durable kill, wait,
   output, release, and final turn events.
+- `test/haven/terminals_test.exs` verifies terminal kill recursively terminates
+  a shell-launched background `sleep` child, not only the direct shell process.
+- LiveView integration tests drive the stub agent through ACP `terminal/kill`
+  for a shell-launched child process and verify durable kill, wait, output,
+  final agent message, release, and final `idle` projection.
 - Browser smoke verifies the rendered UI can trigger permission-gated ACP file
   read and write requests, approve them through the rendered permission card,
   see the proposed write content before approval, and trigger a deterministic
@@ -295,7 +300,6 @@ Still missing:
 - Full file diff/artifact projections for review; current evidence is only a
   bounded proposed-content preview on write permission requests.
 - PTY-style interactive terminal sessions.
-- Process-tree kill semantics for shell-launched children.
 - Configurable per-run capability grants.
 
 ## Not Proven Yet
@@ -308,7 +312,7 @@ be counted as complete until there is executable evidence.
   configured ACP agent.
 - File read/write capability requests from a real external agent.
 - Terminal capability requests from a real external agent.
-- Interactive terminal behavior and process-tree kill semantics.
+- Interactive terminal behavior.
 - Authentication flows for agents that require auth; configured env can pass
   secrets to launched agents, but no interactive auth flow is proven.
 - Session load/resume/fork/list support when agents expose it.
@@ -321,6 +325,6 @@ be counted as complete until there is executable evidence.
    by running `mix haven.agent_probe` against it, then commit the transcript and
    document any agent-specific auth contract.
 2. Connect terminal capability handling to a real ACP-speaking agent and add
-   process-tree kill/interactive-terminal evidence.
+   interactive-terminal evidence.
 3. Connect file capability handling to a real ACP-speaking agent.
 4. Add browser smoke coverage for broader reload recovery.
