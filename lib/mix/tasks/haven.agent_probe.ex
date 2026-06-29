@@ -163,14 +163,16 @@ defmodule Mix.Tasks.Haven.AgentProbe do
         Mix.shell().info("  error: #{agent.error}")
       end
 
-      Mix.shell().info("  real-agent probe candidate: #{agent.real_agent_candidate}")
+      Mix.shell().info("  static real-agent probe candidate: #{agent.real_agent_candidate}")
 
       if agent.real_agent_rejection_reasons != [] do
         Mix.shell().info(
           "  rejection reasons: #{Enum.join(agent.real_agent_rejection_reasons, "; ")}"
         )
       else
-        Mix.shell().info("  evidence status: not proven until this command passes a probe")
+        Mix.shell().info(
+          "  evidence status: command resolves, but ACP compatibility is not proven until preflight or a full probe passes"
+        )
       end
 
       if agent.real_agent_candidate do
@@ -182,7 +184,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
           print_agent_preflight(agent.agent, workspace, preflight_timeout)
         else
           Mix.shell().info(
-            "  preflight: not run (add --preflight to verify ACP initialize/session handshake)"
+            "  preflight: not run (add --preflight to verify ACP initialize/session handshake before treating this as evidence)"
           )
         end
       end
@@ -193,12 +195,12 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     case Enum.filter(inventory, & &1.real_agent_candidate) do
       [] ->
         Mix.shell().info(
-          "Real-agent probe candidates: none. Configure an ACP-speaking non-test agent before generating docs/probes evidence."
+          "Static real-agent probe candidates: none. Configure an ACP-speaking non-test agent before generating docs/probes evidence."
         )
 
       candidates ->
         Mix.shell().info(
-          "Real-agent probe candidates: #{Enum.map_join(candidates, ", ", & &1.agent)}"
+          "Static real-agent probe candidates: #{Enum.map_join(candidates, ", ", & &1.agent)}"
         )
     end
 

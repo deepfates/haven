@@ -429,7 +429,7 @@ defmodule HavenWeb.InboxLive do
       tone
   end
 
-  defp agent_evidence_label(%{real_agent_candidate: true}), do: "Probe candidate"
+  defp agent_evidence_label(%{real_agent_candidate: true}), do: "Static candidate"
   defp agent_evidence_label(%{status: "invalid"}), do: "Invalid command"
   defp agent_evidence_label(_inventory), do: "Local harness"
 
@@ -443,7 +443,7 @@ defmodule HavenWeb.InboxLive do
     do: badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
 
   defp agent_evidence_reason(%{real_agent_rejection_reasons: []}) do
-    "not evidence until the generated probe passes"
+    "command resolves; not ACP evidence until preflight or a generated probe passes"
   end
 
   defp agent_evidence_reason(%{real_agent_rejection_reasons: reasons}) when is_list(reasons),

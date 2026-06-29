@@ -375,8 +375,10 @@ Evidence:
   the guard rejects the built-in `stub-acp` and the configured local test
   harness scripts before writing a passing acceptance artifact.
 - `mix haven.agent_probe --list-agents` inventories configured agents, command
-  resolution, real-agent probe eligibility, rejection reasons, and redacted
-  environment key names before a user attempts a real-agent probe.
+  resolution, static real-agent probe eligibility, rejection reasons, and
+  redacted environment key names before a user attempts a real-agent probe. This
+  is intentionally weaker than evidence: a command can resolve and still fail
+  ACP preflight.
 - `mix haven.agent_probe --list-agents --preflight` can turn probe candidacy
   into an explicit ACP boot check by creating short durable runs for eligible
   candidates and verifying `agent_initialized` plus `agent_session_started`
@@ -386,13 +388,13 @@ Evidence:
   guide users toward real ACP adapters such as `claude-acp`, `codex-acp`, and
   `gemini` instead of relying on local shell placeholders.
 - The inbox Agent Setup panel surfaces the same probe-readiness distinction for
-  saved agent configs, showing whether a saved command is a probe candidate or
-  a rejected local harness/invalid command, rendering basic boot,
+  saved agent configs, showing whether a saved command is only a static probe
+  candidate or a rejected local harness/invalid command, rendering basic boot,
   field-checked file-read, file-write approval, terminal approval, and
   terminal-denial `--require-real-agent` report commands only for eligible probe
   candidates. Those generated commands mirror the missing Grei evidence stories,
-  explicitly warn that they are not evidence until the probe passes, and never
-  render environment values.
+  explicitly warn that they are not ACP evidence until preflight or a generated
+  probe passes, and never render environment values.
 - Browser smoke verifies the Agent Setup panel also surfaces the public
   registry discovery command with `--registry` and warns that registry commands
   download and run third-party code before probing.
