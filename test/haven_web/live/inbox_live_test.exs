@@ -2,6 +2,7 @@ defmodule HavenWeb.InboxLiveTest do
   use HavenWeb.ConnCase
 
   alias Haven.Events
+  alias Haven.Agents
   alias Haven.Repo
   alias Haven.Runs
   alias Haven.Runs.Run
@@ -88,6 +89,36 @@ defmodule HavenWeb.InboxLiveTest do
     assert run.title == "Custom context run"
     assert run.workspace == Path.expand(tmp_dir)
     assert run.agent == "configured-stub"
+    assert_redirect(view, ~p"/runs/#{run.id}")
+  end
+
+  @tag :tmp_dir
+  test "creates a run with a persisted agent config", %{conn: conn, tmp_dir: tmp_dir} do
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "persisted-stub",
+               executable: "mix",
+               args: ["run", "--no-compile", "--no-start", "priv/agent_stub.exs", "{workspace}"]
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, ~s|#agent option[value="persisted-stub"]|)
+
+    view
+    |> form("#new-run-form", %{
+      "title" => "Persisted agent run",
+      "workspace" => tmp_dir,
+      "agent" => "persisted-stub"
+    })
+    |> render_submit()
+
+    [run] = Runs.list_runs()
+    stop_run_server_on_exit(run.id)
+
+    assert run.title == "Persisted agent run"
+    assert run.workspace == Path.expand(tmp_dir)
+    assert run.agent == "persisted-stub"
     assert_redirect(view, ~p"/runs/#{run.id}")
   end
 

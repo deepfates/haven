@@ -356,8 +356,9 @@ Not yet proven:
 - Security boundaries around workspace access, especially configurable
   capability grants.
 - Authentication flows and product-grade agent/workspace configuration,
-  including workspace picker/browse affordances; env injection exists for
-  launched agents, but interactive auth is not proven.
+  including workspace picker/browse affordances; persisted agent command
+  definitions and env injection exist for launched agents, but interactive auth
+  is not proven.
 - Authenticated user identity on permission decisions; current actor metadata is
   local/system classification only.
 

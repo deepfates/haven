@@ -1,5 +1,5 @@
 defmodule Haven.AgentsTest do
-  use ExUnit.Case, async: false
+  use Haven.DataCase, async: false
 
   alias Haven.Agents
 
@@ -99,6 +99,44 @@ defmodule Haven.AgentsTest do
              {"alpha", "alpha"},
              {"zeta", "zeta"}
            ]
+  end
+
+  test "resolves persisted agent configs" do
+    executable = System.find_executable("sh")
+
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "persisted",
+               executable: "sh",
+               args: ["-c", "echo {workspace}"],
+               cwd: "{workspace}",
+               env: %{"WORKSPACE" => "{workspace}"}
+             })
+
+    assert Agents.available() == [{"stub-acp", "stub-acp"}, {"persisted", "persisted"}]
+
+    assert {:ok, command} = Agents.command("persisted", "/repo")
+    assert command.label == "persisted"
+    assert command.executable == executable
+    assert command.args == ["-c", "echo /repo"]
+    assert command.cwd == "/repo"
+    assert command.env == [{"WORKSPACE", "/repo"}]
+  end
+
+  test "runtime env configured agents override persisted configs with the same key" do
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "shared",
+               executable: "sh",
+               args: ["persisted"]
+             })
+
+    Application.put_env(:haven, :agents, %{
+      "shared" => %{executable: "sh", args: ["runtime"]}
+    })
+
+    assert {:ok, command} = Agents.command("shared", "/repo")
+    assert command.args == ["runtime"]
   end
 
   test "unknown agents are explicit errors" do

@@ -16,6 +16,10 @@ defmodule Haven.Agents do
   """
 
   import Bitwise
+  import Ecto.Query
+
+  alias Haven.Agents.AgentConfig
+  alias Haven.Repo
 
   @type command :: %{
           executable: String.t(),
@@ -28,13 +32,23 @@ defmodule Haven.Agents do
   @spec available :: [{String.t(), String.t()}]
   def available do
     configured =
-      configured_agents()
+      all_configured_agents()
       |> Map.keys()
       |> Enum.reject(&(&1 == "stub-acp"))
       |> Enum.sort()
       |> Enum.map(&{&1, &1})
 
     [{"stub-acp", "stub-acp"} | configured]
+  end
+
+  def list_agent_configs do
+    Repo.all(from agent in AgentConfig, order_by: [asc: agent.key])
+  end
+
+  def create_agent_config(attrs) do
+    %AgentConfig{}
+    |> AgentConfig.changeset(attrs)
+    |> Repo.insert()
   end
 
   @spec command(String.t(), String.t()) :: {:ok, command()} | {:error, term()}
@@ -56,14 +70,45 @@ defmodule Haven.Agents do
   end
 
   def command(agent, workspace) when is_binary(agent) do
-    case configured_agents()[agent] do
+    case all_configured_agents()[agent] do
       nil -> {:error, {:unknown_agent, agent}}
       spec -> command_from_spec(agent, spec, workspace)
     end
   end
 
+  defp all_configured_agents do
+    Map.merge(persisted_agents(), configured_agents())
+  end
+
   defp configured_agents do
     Application.get_env(:haven, :agents, %{})
+  end
+
+  defp persisted_agents do
+    if repo_started?() do
+      AgentConfig
+      |> Repo.all()
+      |> Map.new(fn agent_config ->
+        {agent_config.key,
+         %{
+           executable: agent_config.executable,
+           args: Map.get(agent_config.args || %{}, "items", []),
+           cwd: agent_config.cwd,
+           env: agent_config.env || %{}
+         }}
+      end)
+    else
+      %{}
+    end
+  rescue
+    _ -> %{}
+  end
+
+  defp repo_started? do
+    case Process.whereis(Repo) do
+      pid when is_pid(pid) -> true
+      _ -> false
+    end
   end
 
   defp command_from_spec(agent, spec, workspace) when is_map(spec) do
