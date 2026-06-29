@@ -941,6 +941,71 @@ defmodule HavenWeb.RunLiveTest do
     assert text == "Usage survived."
   end
 
+  test "agent thought chunks are tracked without storing raw thought text", %{conn: conn} do
+    original = Application.get_env(:haven, :agents)
+
+    on_exit(fn ->
+      if original do
+        Application.put_env(:haven, :agents, original)
+      else
+        Application.delete_env(:haven, :agents)
+      end
+    end)
+
+    Application.put_env(:haven, :agents, %{
+      "fake-thought" => %{
+        executable: System.find_executable("mix"),
+        args: [
+          "run",
+          "--no-compile",
+          "--no-start",
+          "test/support/fake_agent_runner.exs",
+          "thought",
+          "{workspace}"
+        ],
+        cwd: "{workspace}",
+        env: [{"MIX_ENV", "test"}]
+      }
+    })
+
+    {:ok, run} = Runs.create_run(%{"title" => "Thought run", "agent" => "fake-thought"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "thought"})
+    |> render_submit()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_thought_redacted",
+                      payload: %{
+                        "redacted" => true,
+                        "content_type" => "text",
+                        "first_chunk_length" => 36
+                      }
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{type: "agent_message_chunk", payload: %{"text" => "Thought redacted."}}},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    encoded_events =
+      run.id
+      |> Events.list_for_run()
+      |> Enum.map(&{&1.type, &1.payload})
+      |> inspect()
+
+    refute encoded_events =~ "private scratchpad should not render"
+    refute render(view) =~ "private scratchpad should not render"
+  end
+
   @tag :tmp_dir
   test "handles ACP file read requests inside the run workspace", %{conn: conn, tmp_dir: tmp_dir} do
     File.write!(Path.join(tmp_dir, "README.md"), "Haven capability fixture\nsecond line\n")

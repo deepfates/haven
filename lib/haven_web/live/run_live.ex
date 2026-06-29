@@ -218,7 +218,8 @@ defmodule HavenWeb.RunLive do
   defp event_kind("user_message"), do: "user"
   defp event_kind("agent_message_chunk"), do: "agent"
 
-  defp event_kind(type) when type in ["tool_call_update", "plan_update"] do
+  defp event_kind(type)
+       when type in ["tool_call", "tool_call_update", "plan_update", "agent_thought_redacted"] do
     "protocol"
   end
 

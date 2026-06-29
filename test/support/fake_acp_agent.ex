@@ -134,6 +134,13 @@ defmodule Haven.FakeACPAgent do
     state
   end
 
+  defp handle_prompt("thought", "thought", prompt_id, session_id, state) do
+    send_agent_thought(session_id, "private scratchpad should not render")
+    send_agent_text(session_id, "Thought redacted.")
+    send_prompt_result(prompt_id)
+    state
+  end
+
   defp handle_prompt("file-read", "read-file", prompt_id, session_id, state) do
     request_id = state.next_request_id
 
@@ -333,6 +340,17 @@ defmodule Haven.FakeACPAgent do
   defp send_agent_text(session_id, text) do
     update =
       {:agent_message_chunk, ACP.ContentChunk.new(ACP.ContentBlock.from_string(text))}
+
+    notification = ACP.SessionNotification.new(session_id, update)
+
+    ACPWire.send(
+      ACP.RPC.Notification.new("session/update", ACP.SessionNotification.to_json(notification))
+    )
+  end
+
+  defp send_agent_thought(session_id, text) do
+    update =
+      {:agent_thought_chunk, ACP.ContentChunk.new(ACP.ContentBlock.from_string(text))}
 
     notification = ACP.SessionNotification.new(session_id, update)
 

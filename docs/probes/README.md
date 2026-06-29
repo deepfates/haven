@@ -19,6 +19,14 @@ Grei/Haven real-agent evidence when all of the following are true:
 - The ordered `events` list shows the relevant ACP lifecycle, prompt, permission,
   file, terminal, failure, or recovery events.
 
+Some agents expose file and terminal activity as ACP `tool_call` /
+`tool_call_update` session updates instead of calling the client request
+methods that Haven mediates directly. Those reports are useful real-agent
+evidence for visibility and timeline projection, but they must not be counted as
+proof of Haven-mediated `fs/*` or `terminal/*` permission handling unless the
+expected events include the corresponding `file_*`, `terminal_*`, and
+permission events.
+
 Examples:
 
 ```bash

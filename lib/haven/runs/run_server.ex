@@ -60,6 +60,7 @@ defmodule Haven.Runs.RunServer do
        pending_prompts: %{},
        pending_permissions: %{},
        cancelled_session_ids: MapSet.new(),
+       agent_thought_redacted?: false,
        terminals: %{}
      }}
   end
@@ -91,15 +92,18 @@ defmodule Haven.Runs.RunServer do
          {:incoming, :notification, "session/update", {:session_notification, notification}}},
         state
       ) do
-    if suppress_session_update?(state, notification) do
-      Events.append!(
-        state.run_id,
-        "agent_update_ignored",
-        ignored_session_update_payload(notification, "turn_cancelled")
-      )
-    else
-      append_session_update(state.run_id, notification)
-    end
+    state =
+      if suppress_session_update?(state, notification) do
+        Events.append!(
+          state.run_id,
+          "agent_update_ignored",
+          ignored_session_update_payload(notification, "turn_cancelled")
+        )
+
+        state
+      else
+        append_session_update(state, notification)
+      end
 
     {:noreply, state}
   end
@@ -300,6 +304,7 @@ defmodule Haven.Runs.RunServer do
          state
          | next_id: id + 1,
            pending_prompts: Map.put(state.pending_prompts, id, text),
+           agent_thought_redacted?: false,
            cancelled_session_ids:
              MapSet.delete(state.cancelled_session_ids, state.agent_session_id)
        }}
@@ -1047,18 +1052,43 @@ defmodule Haven.Runs.RunServer do
     |> ACP.Error.with_data(%{"reason" => inspect(reason)})
   end
 
-  defp append_session_update(run_id, notification) do
+  defp append_session_update(state, notification) do
     case notification.update do
       {:agent_message_chunk, %ACP.ContentChunk{content: {:text, %ACP.TextContent{text: text}}}} ->
-        Events.append!(run_id, "agent_message_chunk", %{"text" => text})
+        Events.append!(state.run_id, "agent_message_chunk", %{"text" => text})
+        state
+
+      {:agent_thought_chunk, %ACP.ContentChunk{content: {:text, %ACP.TextContent{text: text}}}} ->
+        append_redacted_agent_thought(state, %{
+          "content_type" => "text",
+          "first_chunk_length" => String.length(text)
+        })
+
+      {:agent_thought_chunk, _payload} ->
+        append_redacted_agent_thought(state, %{})
 
       {type, _payload} ->
         Events.append!(
-          run_id,
+          state.run_id,
           Atom.to_string(type),
           ACP.SessionNotification.to_json(notification)["update"]
         )
+
+        state
     end
+  end
+
+  defp append_redacted_agent_thought(%{agent_thought_redacted?: true} = state, _payload),
+    do: state
+
+  defp append_redacted_agent_thought(state, payload) do
+    Events.append!(
+      state.run_id,
+      "agent_thought_redacted",
+      Map.merge(%{"redacted" => true}, payload)
+    )
+
+    %{state | agent_thought_redacted?: true}
   end
 
   defp suppress_session_update?(state, notification) do

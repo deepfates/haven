@@ -417,21 +417,38 @@ Evidence:
   basic real external ACP turn: initialization, session start, user prompt,
   streamed agent message chunks, an unknown `usage_update` session update
   preserved as `agent_update_unknown`, and `turn_finished`.
+- `docs/probes/codex-acp-file-tool-call.json` is a committed passing
+  `--require-real-agent` report showing `codex-acp` can inspect a disposable
+  workspace file and return a sentinel, but it does so through ACP
+  `tool_call`/`tool_call_update` session updates rather than Haven's
+  `fs/read_text_file` client request handler.
+- `docs/probes/codex-acp-terminal-tool-call.json` is a committed passing
+  `--require-real-agent` report showing `codex-acp` can execute a terminal
+  command and return a sentinel, but it does so through ACP
+  `tool_call`/`tool_call_update` session updates rather than Haven's
+  `terminal/create`, `terminal/output`, and related client request handlers.
 - Haven now wraps the upstream Elixir ACP client-side decoder so newer/unknown
   `session/update` variants are persisted as raw protocol events instead of
   crashing the connection. This was required by `codex-acp`, which currently
   emits `usage_update`.
+- Haven redacts agent thought chunks into a single `agent_thought_redacted`
+  marker per turn so real-agent probe reports and browser timelines do not
+  persist raw model scratchpad text.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
   gate rather than only a documentation convention.
 
 Still missing:
 
-- Real non-test external agent coverage for file requests.
-- Real non-test external agent coverage for terminal requests.
+- Real non-test external agent coverage for Haven-mediated file requests
+  (`fs/read_text_file` / `fs/write_text_file`).
+- Real non-test external agent coverage for Haven-mediated terminal requests
+  (`terminal/create`, `terminal/output`, `terminal/wait_for_exit`,
+  `terminal/release`, and `terminal/kill`).
 - Product-grade file artifact projections for review; current evidence is a
   bounded proposed-content preview plus a bounded line-oriented diff preview on
-  write permission requests.
+  write permission requests, and raw `tool_call` JSON for real `codex-acp`
+  file/terminal activity.
 - PTY-style interactive terminal sessions.
 - More expressive scoped-policy UI beyond comma-separated path fields.
 
@@ -440,9 +457,10 @@ Still missing:
 These are not cosmetic gaps. They are core to the full Grei telos and should not
 be counted as complete until there is executable evidence.
 
-- Real external ACP agent integration beyond a basic prompt/response smoke turn.
-- File read/write capability requests from a real non-test external agent.
-- Terminal capability requests from a real non-test external agent.
+- Haven-mediated file read/write capability requests from a real non-test
+  external agent.
+- Haven-mediated terminal capability requests from a real non-test external
+  agent.
 - Interactive terminal behavior.
 - Authentication flows for agents that require auth; configured env can pass
   secrets to launched agents, but no interactive auth flow is proven.
@@ -452,11 +470,11 @@ be counted as complete until there is executable evidence.
 
 ## Next Best Validation Work
 
-1. Broaden the passing `codex-acp` evidence from a disposable basic prompt to
-   approved repo-workspace stories with `--require-real-agent` and
-   `--expect-event` assertions for file and terminal capability events. Commit
-   each `--report` JSON artifact and document any agent-specific auth contract
-   using `docs/probes/README.md`.
-2. Connect terminal capability handling to a real ACP-speaking agent and add
-   interactive-terminal evidence.
-3. Connect file capability handling to a real ACP-speaking agent.
+1. Improve the UI projection for real `tool_call` / `tool_call_update` file and
+   terminal activity so it is reviewable as first-class workspace evidence
+   rather than raw JSON blobs.
+2. Find or build a non-test ACP-speaking adapter that exercises Haven-mediated
+   `fs/*` and `terminal/*` client requests, then commit passing
+   `--require-real-agent` reports for those stories.
+3. Add interactive-terminal evidence once the terminal model moves beyond
+   bounded non-interactive command execution.
