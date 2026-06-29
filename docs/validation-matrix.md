@@ -298,9 +298,9 @@ Evidence:
   verify reads pause on a local permission decision before file content is
   returned, verify write denial leaves the selected temporary workspace
   unchanged, and verify approved writes land in that workspace.
-- LiveView integration tests verify write permission requests include a bounded
-  proposed-content preview for human review, including a truncation marker for
-  large writes.
+- LiveView integration tests verify write permission requests include bounded
+  proposed-content and line-oriented diff previews for human review, including
+  independent truncation markers for large writes.
 - `Haven.Terminals` runs short-lived non-interactive commands, captures stdout
   and stderr, reports exit status, and rejects terminal working directories
   outside the run workspace.
@@ -356,8 +356,9 @@ Still missing:
 
 - Real non-test external agent coverage for file requests.
 - Real non-test external agent coverage for terminal requests.
-- Full file diff/artifact projections for review; current evidence is only a
-  bounded proposed-content preview on write permission requests.
+- Product-grade file artifact projections for review; current evidence is a
+  bounded proposed-content preview plus a bounded line-oriented diff preview on
+  write permission requests.
 - PTY-style interactive terminal sessions.
 - Broader per-run capability policy, including terminal approval prompts and
   scoped path rules.

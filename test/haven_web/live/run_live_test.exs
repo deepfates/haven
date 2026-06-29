@@ -982,15 +982,22 @@ defmodule HavenWeb.RunLiveTest do
                           "title" => "Write file",
                           "rawInput" => %{
                             "content_preview" => "written by Haven ACP\n",
-                            "content_truncated" => false
+                            "content_truncated" => false,
+                            "diff_kind" => "create",
+                            "diff_preview" => diff_preview,
+                            "diff_truncated" => false
                           }
                         }
                       }
                     }},
                    1_000
 
+    assert diff_preview =~ "--- /dev/null"
+    assert diff_preview =~ "+++ haven-written.txt"
+    assert diff_preview =~ "+written by Haven ACP\n"
     assert has_element?(view, "#pending-permission-card", "Write file")
     assert has_element?(view, "#pending-permission-card", "written by Haven ACP")
+    assert has_element?(view, "#pending-permission-card", "diff_preview")
 
     refute File.exists?(Path.join(tmp_dir, "haven-written.txt"))
 
@@ -1040,7 +1047,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     [{pid, _}] = Registry.lookup(Haven.Runs.Registry, run.id)
-    content = String.duplicate("x", 4_010)
+    content = String.duplicate("x", 9_000)
     request = ACP.WriteTextFileRequest.new("session-large", "large.txt", content)
 
     task =
@@ -1055,10 +1062,13 @@ defmodule HavenWeb.RunLiveTest do
                         "request_id" => request_id,
                         "toolCall" => %{
                           "rawInput" => %{
-                            "bytes" => 4_010,
+                            "bytes" => 9_000,
                             "content_preview" => preview,
                             "content_preview_limit" => 4_000,
-                            "content_truncated" => true
+                            "content_truncated" => true,
+                            "diff_preview" => diff_preview,
+                            "diff_preview_limit" => 8_000,
+                            "diff_truncated" => true
                           }
                         }
                       }
@@ -1066,6 +1076,7 @@ defmodule HavenWeb.RunLiveTest do
                    1_000
 
     assert String.length(preview) == 4_000
+    assert String.length(diff_preview) == 8_000
 
     assert :ok = Runs.resolve_permission(run.id, request_id, "deny")
     assert {:error, %ACP.Error{message: "Permission denied"}} = Task.await(task, 1_000)

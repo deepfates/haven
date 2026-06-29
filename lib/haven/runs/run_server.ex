@@ -2,6 +2,7 @@ defmodule Haven.Runs.RunServer do
   use GenServer
 
   @file_write_preview_limit 4_000
+  @file_write_diff_preview_limit 8_000
 
   alias Haven.Events
   alias Haven.PortIO
@@ -465,7 +466,7 @@ defmodule Haven.Runs.RunServer do
           file_permission_payload(
             :write,
             request_id,
-            file_write_permission_input(payload, request.content)
+            file_write_permission_input(payload, request.content, run.workspace, request)
           )
         )
 
@@ -706,14 +707,22 @@ defmodule Haven.Runs.RunServer do
     }
   end
 
-  defp file_write_permission_input(payload, content) do
+  defp file_write_permission_input(payload, content, workspace, request) do
     preview = String.slice(content, 0, @file_write_preview_limit)
+
+    diff_preview =
+      WorkspaceFiles.write_text_file_diff_preview(
+        workspace,
+        request,
+        @file_write_diff_preview_limit
+      )
 
     payload
     |> Map.put("bytes", byte_size(content))
     |> Map.put("content_preview", preview)
     |> Map.put("content_truncated", String.length(content) > @file_write_preview_limit)
     |> Map.put("content_preview_limit", @file_write_preview_limit)
+    |> Map.merge(diff_preview)
   end
 
   defp file_permission_payload(kind, request_id, raw_input) do

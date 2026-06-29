@@ -36,6 +36,57 @@ defmodule Haven.WorkspaceFilesTest do
   end
 
   @tag :tmp_dir
+  test "builds a write diff preview for a new file", %{tmp_dir: tmp_dir} do
+    request = ACP.WriteTextFileRequest.new("session", "notes.md", "hello\nworld\n")
+
+    assert %{
+             "diff_kind" => "create",
+             "diff_preview" => diff,
+             "diff_truncated" => false,
+             "existing_bytes" => 0
+           } = WorkspaceFiles.write_text_file_diff_preview(tmp_dir, request, 1_000)
+
+    assert diff =~ "--- /dev/null"
+    assert diff =~ "+++ notes.md"
+    assert diff =~ "+hello\n"
+    assert diff =~ "+world\n"
+    refute File.exists?(Path.join(tmp_dir, "notes.md"))
+  end
+
+  @tag :tmp_dir
+  test "builds a bounded write diff preview for an existing file", %{tmp_dir: tmp_dir} do
+    File.write!(Path.join(tmp_dir, "notes.md"), "old\n")
+
+    request = ACP.WriteTextFileRequest.new("session", "notes.md", "new\n")
+
+    assert %{
+             "diff_kind" => "modify",
+             "diff_preview" => diff,
+             "diff_preview_limit" => 24,
+             "diff_truncated" => true,
+             "existing_bytes" => 4
+           } = WorkspaceFiles.write_text_file_diff_preview(tmp_dir, request, 24)
+
+    assert String.length(diff) == 24
+    assert diff =~ "--- notes.md"
+  end
+
+  @tag :tmp_dir
+  test "does not read outside the workspace while building a write diff preview", %{
+    tmp_dir: tmp_dir
+  } do
+    request = ACP.WriteTextFileRequest.new("session", "../outside.md", "nope")
+
+    assert %{
+             "diff_error" => "outside_workspace",
+             "diff_kind" => "unknown",
+             "diff_preview" => "",
+             "diff_truncated" => false,
+             "existing_bytes" => nil
+           } = WorkspaceFiles.write_text_file_diff_preview(tmp_dir, request, 1_000)
+  end
+
+  @tag :tmp_dir
   test "rejects writes outside the workspace", %{tmp_dir: tmp_dir} do
     request = ACP.WriteTextFileRequest.new("session", "../outside.md", "nope")
 

@@ -308,9 +308,9 @@ Proven:
 - ACP file read and write requests are permission-gated before returning file
   content or touching the workspace: approval performs the capability request,
   denial blocks it, and both outcomes are durable timeline events.
-- Write permission requests include a bounded proposed-content preview, giving
-  the user something concrete to inspect before approving, though this is not
-  yet a full diff/artifact review system.
+- Write permission requests include bounded proposed-content and line-oriented
+  diff previews, giving the user something concrete to inspect before
+  approving, though this is not yet a full diff/artifact review system.
 - Runs can carry per-run capability policy for file reads, file writes, and
   terminal creation. File reads/writes support explicit ask, allow, or deny
   behavior; terminal creation currently supports allow or deny. Each applied
@@ -361,7 +361,8 @@ Not yet proven:
 - Real external agents beyond the local stub and configured test-only fake
   harness.
 - File capability handling against real non-test external agents.
-- Full file diff/artifact projections for write review.
+- Product-grade file artifact projections for write review beyond the current
+  bounded line-oriented diff preview.
 - Terminal capability handling against real non-test external agents.
 - Ask/approval workflow for terminal creation policy.
 - Interactive terminal sessions and process-tree kill behavior.

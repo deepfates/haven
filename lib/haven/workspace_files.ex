@@ -25,6 +25,37 @@ defmodule Haven.WorkspaceFiles do
     end
   end
 
+  def write_text_file_diff_preview(workspace, request, limit) do
+    with {:ok, path} <- resolve_path(workspace, request.path) do
+      existing_content =
+        case File.read(path) do
+          {:ok, content} -> content
+          {:error, :enoent} -> nil
+          {:error, _reason} -> nil
+        end
+
+      diff = render_write_diff(request.path, existing_content, request.content)
+
+      %{
+        "diff_kind" => if(is_nil(existing_content), do: "create", else: "modify"),
+        "diff_preview" => String.slice(diff, 0, limit),
+        "diff_preview_limit" => limit,
+        "diff_truncated" => String.length(diff) > limit,
+        "existing_bytes" => if(is_nil(existing_content), do: 0, else: byte_size(existing_content))
+      }
+    else
+      {:error, :outside_workspace} ->
+        %{
+          "diff_error" => "outside_workspace",
+          "diff_kind" => "unknown",
+          "diff_preview" => "",
+          "diff_preview_limit" => limit,
+          "diff_truncated" => false,
+          "existing_bytes" => nil
+        }
+    end
+  end
+
   defp resolve_path(workspace, path) when is_binary(path) do
     workspace = Path.expand(workspace)
 
@@ -59,6 +90,54 @@ defmodule Haven.WorkspaceFiles do
     do: Enum.take(lines, limit)
 
   defp limit_lines(lines, _limit), do: lines
+
+  defp render_write_diff(path, nil, content) do
+    additions =
+      content
+      |> diff_lines()
+      |> Enum.map_join("", &"+#{&1}")
+
+    """
+    --- /dev/null
+    +++ #{path}
+    #{additions}\
+    """
+  end
+
+  defp render_write_diff(path, existing_content, content) do
+    deletions =
+      existing_content
+      |> diff_lines()
+      |> Enum.map_join("", &"-#{&1}")
+
+    additions =
+      content
+      |> diff_lines()
+      |> Enum.map_join("", &"+#{&1}")
+
+    """
+    --- #{path}
+    +++ #{path}
+    #{deletions}#{additions}\
+    """
+  end
+
+  defp diff_lines(content), do: String.split(content, "\n", trim: false) |> attach_newlines()
+
+  defp attach_newlines([]), do: []
+  defp attach_newlines([""]), do: []
+
+  defp attach_newlines(lines) do
+    last_index = length(lines) - 1
+
+    lines
+    |> Enum.with_index()
+    |> Enum.map(fn
+      {"", ^last_index} -> ""
+      {line, _index} -> line <> "\n"
+    end)
+    |> Enum.reject(&(&1 == ""))
+  end
 
   defp outside_workspace_error(path) do
     ACP.Error.invalid_params()
