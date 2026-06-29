@@ -319,6 +319,9 @@ Proven:
 - Running turns are not promptable: the rendered UI disables prompt/sample
   controls while keeping cancellation available, and the run process rejects
   stale/direct concurrent prompt submissions as busy.
+- Late session updates emitted after a local cancellation are recorded as
+  ignored protocol updates instead of being appended as fresh agent transcript
+  chunks.
 - Malformed ACP output during startup is projected as a visible
   `agent_protocol_failed` run failure without an automatic restart loop.
 - Malformed agent output after a successful ACP session has started is projected
@@ -338,6 +341,9 @@ Not yet proven:
 - ACP-native session resume policy.
 - Multi-run load behavior.
 - Long-running turn streaming under real output volume.
+- Prompt-id-level correlation for late chunks; current cancellation suppression
+  is session-level because ACP session updates do not carry prompt ids in the
+  local evidence path.
 - Backpressure, log compaction, and transcript projection performance.
 - Security boundaries around workspace access, especially configurable
   capability grants.

@@ -155,6 +155,8 @@ defmodule HavenWeb.RunLive do
     "protocol"
   end
 
+  defp event_kind("agent_update_ignored"), do: "protocol"
+
   defp event_kind(type)
        when type in [
               "permission_requested",

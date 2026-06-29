@@ -489,7 +489,23 @@ defmodule HavenWeb.RunLiveTest do
     |> render_click()
 
     assert_receive {:event_appended, %{type: "turn_cancelled"}}, 1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_update_ignored",
+                      payload: %{
+                        "reason" => "turn_cancelled",
+                        "update_type" => "agent_message_chunk"
+                      }
+                    }},
+                   1_000
+
     assert render(view) =~ "idle"
+
+    refute Enum.any?(Events.list_for_run(run.id), fn
+             %{type: "agent_message_chunk", payload: %{"text" => "Turn cancelled."}} -> true
+             _event -> false
+           end)
   end
 
   test "non-message session updates are preserved in the timeline", %{conn: conn} do

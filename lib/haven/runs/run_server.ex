@@ -57,6 +57,7 @@ defmodule Haven.Runs.RunServer do
        next_permission_id: 1,
        pending_prompts: %{},
        pending_permissions: %{},
+       cancelled_session_ids: MapSet.new(),
        terminals: %{}
      }}
   end
@@ -88,7 +89,16 @@ defmodule Haven.Runs.RunServer do
          {:incoming, :notification, "session/update", {:session_notification, notification}}},
         state
       ) do
-    append_session_update(state.run_id, notification)
+    if suppress_session_update?(state, notification) do
+      Events.append!(
+        state.run_id,
+        "agent_update_ignored",
+        ignored_session_update_payload(notification, "turn_cancelled")
+      )
+    else
+      append_session_update(state.run_id, notification)
+    end
+
     {:noreply, state}
   end
 
@@ -264,7 +274,13 @@ defmodule Haven.Runs.RunServer do
       end)
 
       {:reply, :ok,
-       %{state | next_id: id + 1, pending_prompts: Map.put(state.pending_prompts, id, text)}}
+       %{
+         state
+         | next_id: id + 1,
+           pending_prompts: Map.put(state.pending_prompts, id, text),
+           cancelled_session_ids:
+             MapSet.delete(state.cancelled_session_ids, state.agent_session_id)
+       }}
     else
       {:reply, {:error, :busy}, state}
     end
@@ -321,7 +337,14 @@ defmodule Haven.Runs.RunServer do
     end
 
     Runs.update_status!(state.run_id, %{status: "idle"})
-    {:reply, :ok, %{state | pending_permissions: %{}, pending_prompts: %{}}}
+
+    {:reply, :ok,
+     %{
+       state
+       | pending_permissions: %{},
+         pending_prompts: %{},
+         cancelled_session_ids: MapSet.put(state.cancelled_session_ids, state.agent_session_id)
+     }}
   end
 
   def handle_call({:agent_permission_requested, request}, from, state) do
@@ -796,6 +819,22 @@ defmodule Haven.Runs.RunServer do
         )
     end
   end
+
+  defp suppress_session_update?(state, notification) do
+    MapSet.member?(state.cancelled_session_ids, notification.session_id) and
+      no_pending_work?(state)
+  end
+
+  defp ignored_session_update_payload(notification, reason) do
+    %{
+      "session_id" => notification.session_id,
+      "reason" => reason,
+      "update_type" => session_update_type(notification.update)
+    }
+  end
+
+  defp session_update_type({type, _payload}), do: Atom.to_string(type)
+  defp session_update_type(_update), do: "unknown"
 
   defp normalize_id(id) when is_integer(id), do: id
 

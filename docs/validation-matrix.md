@@ -100,10 +100,14 @@ Evidence:
 - LiveView integration tests verify stale/direct prompt submission while a turn
   is already running is rejected as `{:error, :busy}` instead of starting a
   second concurrent turn.
+- LiveView integration tests verify that late session updates after user
+  cancellation are recorded as ignored protocol updates instead of being
+  appended as fresh agent transcript chunks.
 
 Still missing:
 
-- Strong suppression/correlation of late chunks from cancelled prompts.
+- Prompt-id-level correlation of late chunks when agents provide enough
+  metadata; current suppression is session-level after cancellation.
 - Retry or continue after recoverable failure.
 - Disabled controls for every impossible state and control combination beyond
   the covered waiting/running/disconnected states.
