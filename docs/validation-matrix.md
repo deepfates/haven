@@ -475,6 +475,12 @@ Evidence:
   killed/exited/released lifecycle semantics; LiveView integration tests verify
   these rows are created and updated through real stub ACP terminal
   create/wait/output/kill/release flows.
+- The run detail sidebar now renders durable terminal sessions as an operational
+  fact surface with command, terminal id, status, args, working directory,
+  executable, exit status, output bytes, env key names, and bounded output
+  preview. Browser smoke creates a run, triggers the terminal sample, verifies
+  the rendered terminal session, reloads the page, and verifies the same
+  persisted projection remains visible.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
   gate rather than only a documentation convention. Committed reports can now

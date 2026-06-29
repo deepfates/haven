@@ -51,6 +51,9 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-policy-file-write", "Ask")
     assert has_element?(view, "#run-policy-file-write-paths", "notes")
     assert has_element?(view, "#run-policy-terminal-create", "Deny")
+    assert has_element?(view, "#run-terminal-sessions")
+    assert has_element?(view, "#run-terminal-session-count", "0")
+    assert has_element?(view, "#run-terminal-sessions-empty", "No terminal sessions recorded.")
   end
 
   test "viewing disconnected idle history does not spawn a new agent process", %{conn: conn} do
@@ -1841,6 +1844,15 @@ defmodule HavenWeb.RunLiveTest do
     assert session.output_bytes == byte_size("hello\n")
     assert session.output_preview == "hello\n"
     assert session.released_at
+
+    assert has_element?(view, "#run-terminal-session-count", "1")
+    assert has_element?(view, "#terminal-session-#{terminal_id}", "echo")
+    assert has_element?(view, "#terminal-session-#{terminal_id}-status", "exited")
+    assert has_element?(view, "#terminal-session-#{terminal_id}-args", "hello")
+    assert has_element?(view, "#terminal-session-#{terminal_id}-cwd", run.workspace)
+    assert has_element?(view, "#terminal-session-#{terminal_id}-exit", "0")
+    assert has_element?(view, "#terminal-session-#{terminal_id}-bytes", "6")
+    assert has_element?(view, "#terminal-session-#{terminal_id}-output", "hello")
   end
 
   test "auto-denies ACP terminal creation when the run policy rejects it", %{conn: conn} do
@@ -2128,6 +2140,9 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "terminal_kill_succeeded"
     assert html =~ "Terminal killed (exit -1)."
     assert html =~ "idle"
+    assert html =~ "Terminal sessions"
+    assert html =~ terminal_id
+    assert html =~ "killed"
   end
 
   test "handles ACP terminal kill requests for shell-launched children", %{conn: conn} do

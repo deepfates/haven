@@ -4,6 +4,7 @@ defmodule HavenWeb.RunLive do
   alias Haven.Events
   alias Haven.Runs
   alias Haven.Runs.Run
+  alias Haven.TerminalSessions
 
   @event_filters [
     {"all", "All"},
@@ -101,6 +102,7 @@ defmodule HavenWeb.RunLive do
     socket
     |> assign(:run, run)
     |> assign(:capability_policy, Run.capability_policy(run.capability_policy))
+    |> assign(:terminal_sessions, TerminalSessions.list_for_run(id))
     |> assign(:events, events)
     |> assign_event_projection(events)
     |> assign(:live?, live?)
@@ -681,6 +683,34 @@ defmodule HavenWeb.RunLive do
     ]
   end
 
+  defp terminal_status_class(status) do
+    [
+      "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase",
+      case status do
+        "running" -> "border-sky-200 bg-sky-50 text-sky-700"
+        "exited" -> "border-emerald-200 bg-emerald-50 text-emerald-700"
+        "killed" -> "border-rose-200 bg-rose-50 text-rose-700"
+        "failed" -> "border-rose-200 bg-rose-50 text-rose-700"
+        _ -> "border-zinc-200 bg-zinc-50 text-zinc-600"
+      end
+    ]
+  end
+
+  defp terminal_args_label(%{"items" => []}), do: "none"
+  defp terminal_args_label(%{"items" => args}) when is_list(args), do: Enum.join(args, " ")
+  defp terminal_args_label(_args), do: "none"
+
+  defp terminal_env_keys_label(%{"items" => []}), do: "none"
+  defp terminal_env_keys_label(%{"items" => keys}) when is_list(keys), do: Enum.join(keys, ", ")
+  defp terminal_env_keys_label(_keys), do: "none"
+
+  defp terminal_exit_label(nil), do: "running"
+  defp terminal_exit_label(status), do: to_string(status)
+
+  defp terminal_output_preview(""), do: nil
+  defp terminal_output_preview(nil), do: nil
+  defp terminal_output_preview(preview), do: preview
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -908,6 +938,97 @@ defmodule HavenWeb.RunLive do
                     </dd>
                   </div>
                 </dl>
+              </div>
+              <div id="run-terminal-sessions" class="mt-4 border-t border-zinc-200 pt-4">
+                <div class="flex items-center justify-between gap-3">
+                  <h3 class="text-xs font-semibold uppercase text-zinc-500">
+                    Terminal sessions
+                  </h3>
+                  <span
+                    id="run-terminal-session-count"
+                    class="font-mono text-xs text-zinc-500"
+                  >
+                    {length(@terminal_sessions)}
+                  </span>
+                </div>
+
+                <div
+                  :if={@terminal_sessions == []}
+                  id="run-terminal-sessions-empty"
+                  class="mt-2 rounded-md border border-dashed border-zinc-300 p-3 text-xs text-zinc-500"
+                >
+                  No terminal sessions recorded.
+                </div>
+
+                <div class="mt-3 space-y-3">
+                  <article
+                    :for={session <- @terminal_sessions}
+                    id={"terminal-session-#{session.terminal_id}"}
+                    class="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+                  >
+                    <div class="flex min-w-0 items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <p class="truncate font-mono text-xs font-semibold text-zinc-900">
+                          {session.command}
+                        </p>
+                        <p class="mt-1 break-all font-mono text-[11px] text-zinc-500">
+                          {session.terminal_id}
+                        </p>
+                      </div>
+                      <span
+                        id={"terminal-session-#{session.terminal_id}-status"}
+                        class={terminal_status_class(session.status)}
+                      >
+                        {session.status}
+                      </span>
+                    </div>
+
+                    <dl class="mt-3 grid gap-2 text-xs text-zinc-700">
+                      <div id={"terminal-session-#{session.terminal_id}-args"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Arguments</dt>
+                        <dd class="break-all font-mono">{terminal_args_label(session.args)}</dd>
+                      </div>
+                      <div id={"terminal-session-#{session.terminal_id}-cwd"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Working directory</dt>
+                        <dd class="break-all font-mono">{session.cwd}</dd>
+                      </div>
+                      <div
+                        :if={session.executable}
+                        id={"terminal-session-#{session.terminal_id}-executable"}
+                      >
+                        <dt class="font-semibold uppercase text-zinc-500">Executable</dt>
+                        <dd class="break-all font-mono">{session.executable}</dd>
+                      </div>
+                      <div id={"terminal-session-#{session.terminal_id}-exit"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Exit status</dt>
+                        <dd class="font-mono">{terminal_exit_label(session.exit_status)}</dd>
+                      </div>
+                      <div id={"terminal-session-#{session.terminal_id}-bytes"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Output bytes</dt>
+                        <dd class="font-mono">{session.output_bytes}</dd>
+                      </div>
+                      <div id={"terminal-session-#{session.terminal_id}-env"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Env keys</dt>
+                        <dd class="break-all font-mono">
+                          {terminal_env_keys_label(session.env_keys)}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    <pre
+                      :if={terminal_output_preview(session.output_preview)}
+                      id={"terminal-session-#{session.terminal_id}-output"}
+                      class="mt-3 max-h-32 overflow-auto rounded-md bg-zinc-950 p-3 text-xs text-zinc-50"
+                    ><%= session.output_preview %></pre>
+                    <p
+                      :if={session.output_truncated}
+                      id={"terminal-session-#{session.terminal_id}-truncated"}
+                      class="mt-2 text-xs font-medium text-amber-700"
+                    >
+                      Output preview truncated.
+                    </p>
+                  </article>
+                </div>
               </div>
               <button
                 :if={@can_reconnect?}
