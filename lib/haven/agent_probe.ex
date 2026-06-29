@@ -269,9 +269,17 @@ defmodule Haven.AgentProbe do
     |> String.split(".", trim: true)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
+    |> strip_payload_prefix()
   end
 
-  defp field_path(field) when is_list(field), do: Enum.map(field, &to_string/1)
+  defp field_path(field) when is_list(field) do
+    field
+    |> Enum.map(&to_string/1)
+    |> strip_payload_prefix()
+  end
+
+  defp strip_payload_prefix(["payload" | rest]), do: rest
+  defp strip_payload_prefix(path), do: path
 
   defp wait_for_boot(run_id, timeout) do
     wait_until(run_id, timeout, fn run ->

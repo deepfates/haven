@@ -488,9 +488,9 @@ defmodule Haven.AgentProbeTest do
                prompt: "terminal",
                terminal_create_policy: "deny",
                expect_events: ["terminal_create_denied"],
-               expect_event_field: "terminal_create_denied:command=echo",
+               expect_event_field: "terminal_create_denied:payload.command=echo",
                expect_event_fields: [
-                 %{event: "capability_policy_applied", field: "decision", value: "deny"}
+                 %{event: "capability_policy_applied", field: "payload.decision", value: "deny"}
                ],
                timeout: 5_000
              )

@@ -14,6 +14,10 @@ Grei/Haven real-agent evidence when all of the following are true:
 - `expected_events` names the lifecycle or capability events required by the
   story being validated.
 - `missing_expected_events` is empty.
+- `expected_event_fields`, when present, names payload facts required by the
+  story being validated, such as requested paths, terminal commands, exit
+  statuses, and permission decisions.
+- `missing_expected_event_fields` is empty.
 - `status` is `idle` or another explicitly expected terminal state for the
   story.
 - The ordered `events` list shows the relevant ACP lifecycle, prompt, permission,
@@ -49,18 +53,21 @@ mix haven.agent_probe \
   --agent my-agent \
   --workspace /path/to/repo \
   --prompt "read README.md" \
+  --require-real-agent \
   --file-read-paths README.md,docs \
   --resolve-permissions allow \
   --expect-event permission_requested \
   --expect-event permission_resolved \
   --expect-event file_read_succeeded \
   --expect-event turn_finished \
+  --expect-event-field file_read_succeeded:payload.path=README.md \
   --report docs/probes/my-agent-file-read.json
 
 mix haven.agent_probe \
   --agent my-agent \
   --workspace /path/to/repo \
   --prompt "run the test command" \
+  --require-real-agent \
   --terminal-create-policy ask \
   --resolve-permissions allow \
   --expect-event permission_requested \
@@ -68,28 +75,36 @@ mix haven.agent_probe \
   --expect-event terminal_created \
   --expect-event terminal_output_succeeded \
   --expect-event turn_finished \
+  --expect-event-field terminal_create_requested:payload.command=mix \
+  --expect-event-field terminal_output_succeeded:payload.exit_status=0 \
   --report docs/probes/my-agent-terminal-approval.json
 
 mix haven.agent_probe \
   --agent my-agent \
   --workspace /path/to/repo \
   --prompt "run the test command" \
+  --require-real-agent \
   --terminal-create-policy allow \
   --expect-event terminal_created \
   --expect-event terminal_output_succeeded \
   --expect-event terminal_released \
   --expect-event turn_finished \
+  --expect-event-field terminal_create_requested:payload.command=mix \
+  --expect-event-field terminal_output_succeeded:payload.exit_status=0 \
   --report docs/probes/my-agent-terminal.json
 
 mix haven.agent_probe \
   --agent my-agent \
   --workspace /path/to/repo \
   --prompt "try to open a terminal" \
+  --require-real-agent \
   --terminal-create-policy deny \
   --expect-event terminal_create_requested \
   --expect-event capability_policy_applied \
   --expect-event terminal_create_denied \
   --expect-event turn_finished \
+  --expect-event-field terminal_create_requested:payload.command=mix \
+  --expect-event-field capability_policy_applied:payload.decision=deny \
   --report docs/probes/my-agent-terminal-denied.json
 ```
 

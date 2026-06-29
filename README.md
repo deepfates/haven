@@ -52,7 +52,7 @@ To probe any configured ACP agent through Haven's real run lifecycle:
 mix haven.agent_probe --agent stub-acp --workspace . --prompt "hello"
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "summarize this repo"
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "read README.md" --resolve-permissions allow
-mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "run tests" --expect-event terminal_created --expect-event terminal_output_succeeded
+mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "run tests" --expect-event terminal_created --expect-event terminal_output_succeeded --expect-event-field terminal_output_succeeded:payload.exit_status=0
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "run tests" --report docs/probes/my-agent-terminal.json
 mix haven.agent_probe --list-agents --preflight --workspace /path/to/repo
 mix haven.agent_probe --list-agents --registry --workspace /path/to/repo
@@ -83,6 +83,9 @@ sends the prompt through `RunServer`, optionally resolves permission stalls, and
 prints the persisted event timeline. Repeated `--expect-event` flags make the
 probe fail unless the run emits the required Haven event types, turning
 real-agent checks into acceptance contracts instead of best-effort smoke.
+Repeated `--expect-event-field EVENT:payload.path=value` flags also require
+specific event payload facts, such as the requested path, terminal command,
+permission decision, or exit status.
 Use `--list-agents --preflight` first when a saved command merely looks
 plausible: it starts a short durable run for each probe candidate and verifies
 the ACP initialize/session handshake before you attempt a full evidence report.
