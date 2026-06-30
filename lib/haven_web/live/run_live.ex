@@ -980,8 +980,13 @@ defmodule HavenWeb.RunLive do
                   <dd>{if @live?, do: "connected", else: "not connected"}</dd>
                 </div>
               </dl>
-              <div id="run-capability-policy" class="mt-4 border-t border-zinc-200 pt-4">
-                <h3 class="text-xs font-semibold uppercase text-zinc-500">Capability policy</h3>
+              <details id="run-capability-policy" class="mt-4 border-t border-zinc-200 pt-3">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-1 text-xs font-semibold uppercase text-zinc-500 marker:hidden">
+                  <span>Capability policy</span>
+                  <span class="normal-case text-zinc-400">
+                    {policy_label(@capability_policy["file_read"])} reads
+                  </span>
+                </summary>
                 <dl class="mt-2 grid gap-2">
                   <div id="run-policy-file-read" class="flex items-center justify-between gap-3">
                     <dt class="text-zinc-500">File reads</dt>
@@ -1014,19 +1019,17 @@ defmodule HavenWeb.RunLive do
                     </dd>
                   </div>
                 </dl>
-              </div>
-              <div id="run-permission-audit" class="mt-4 border-t border-zinc-200 pt-4">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="text-xs font-semibold uppercase text-zinc-500">
-                    Permission audit
-                  </h3>
+              </details>
+              <details id="run-permission-audit" class="mt-4 border-t border-zinc-200 pt-3">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-1 text-xs font-semibold uppercase text-zinc-500 marker:hidden">
+                  <span>Permission audit</span>
                   <span
                     id="run-permission-audit-count"
                     class="font-mono text-xs text-zinc-500"
                   >
                     {length(@permission_audits)}
                   </span>
-                </div>
+                </summary>
 
                 <div
                   :if={@permission_audits == []}
@@ -1099,14 +1102,14 @@ defmodule HavenWeb.RunLive do
                     ><%= Jason.encode!(audit.raw_input, pretty: true) %></pre>
                   </article>
                 </div>
-              </div>
-              <div id="run-file-changes" class="mt-4 border-t border-zinc-200 pt-4">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="text-xs font-semibold uppercase text-zinc-500">File changes</h3>
+              </details>
+              <details id="run-file-changes" class="mt-4 border-t border-zinc-200 pt-3">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-1 text-xs font-semibold uppercase text-zinc-500 marker:hidden">
+                  <span>File changes</span>
                   <span id="run-file-change-count" class="font-mono text-xs text-zinc-500">
                     {length(@file_changes)}
                   </span>
-                </div>
+                </summary>
 
                 <div
                   :if={@file_changes == []}
@@ -1192,19 +1195,17 @@ defmodule HavenWeb.RunLive do
                     </p>
                   </article>
                 </div>
-              </div>
-              <div id="run-terminal-sessions" class="mt-4 border-t border-zinc-200 pt-4">
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="text-xs font-semibold uppercase text-zinc-500">
-                    Terminal sessions
-                  </h3>
+              </details>
+              <details id="run-terminal-sessions" class="mt-4 border-t border-zinc-200 pt-3">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-1 text-xs font-semibold uppercase text-zinc-500 marker:hidden">
+                  <span>Terminal sessions</span>
                   <span
                     id="run-terminal-session-count"
                     class="font-mono text-xs text-zinc-500"
                   >
                     {length(@terminal_sessions)}
                   </span>
-                </div>
+                </summary>
 
                 <div
                   :if={@terminal_sessions == []}
@@ -1283,7 +1284,7 @@ defmodule HavenWeb.RunLive do
                     </p>
                   </article>
                 </div>
-              </div>
+              </details>
               <button
                 :if={@can_reconnect?}
                 id="reconnect-run-button"

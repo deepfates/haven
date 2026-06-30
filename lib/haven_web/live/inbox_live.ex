@@ -797,295 +797,307 @@ defmodule HavenWeb.InboxLive do
             </div>
           </section>
 
-          <section
+          <details
             id="workspaces-panel"
-            class="grid gap-4 border-t border-zinc-200 pt-5 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]"
+            class="group border-t border-zinc-200 pt-3"
           >
-            <div>
-              <h2 class="text-sm font-semibold uppercase text-zinc-500">Workspaces</h2>
-              <div
-                id="workspace-list"
-                class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white"
-              >
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-2 text-sm font-semibold text-zinc-700 marker:hidden">
+              <span>Manage workspaces</span>
+              <span class="font-mono text-xs text-zinc-500">{length(@workspaces)}</span>
+            </summary>
+            <div class="grid gap-4 pt-3 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]">
+              <div>
+                <h2 class="text-sm font-semibold uppercase text-zinc-500">Workspaces</h2>
                 <div
-                  :if={@workspaces == []}
-                  id="workspace-empty"
-                  class="px-4 py-5 text-sm text-zinc-500"
+                  id="workspace-list"
+                  class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white"
                 >
-                  No saved workspaces yet.
-                </div>
-                <div
-                  :for={workspace <- @workspaces}
-                  id={"workspace-#{workspace.id}"}
-                  class="border-t border-zinc-100 px-4 py-3 first:border-t-0"
-                >
-                  <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                      <p class="truncate text-sm font-semibold text-zinc-950">{workspace.name}</p>
-                      <p class="mt-1 truncate text-xs text-zinc-500">{workspace.path}</p>
-                    </div>
-                    <div class="flex shrink-0 items-center gap-2">
-                      <button
-                        id={"edit-workspace-#{workspace.id}"}
-                        type="button"
-                        title="Edit workspace"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950"
-                        phx-click="edit_workspace"
-                        phx-value-id={workspace.id}
-                      >
-                        <.icon name="hero-pencil-square" class="size-4" />
-                      </button>
-                      <button
-                        id={"delete-workspace-#{workspace.id}"}
-                        type="button"
-                        title="Delete workspace"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
-                        phx-click="delete_workspace"
-                        phx-value-id={workspace.id}
-                      >
-                        <.icon name="hero-trash" class="size-4" />
-                      </button>
-                    </div>
+                  <div
+                    :if={@workspaces == []}
+                    id="workspace-empty"
+                    class="px-4 py-5 text-sm text-zinc-500"
+                  >
+                    No saved workspaces yet.
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <.form
-              id="workspace-form"
-              for={@workspace_form}
-              phx-submit="save_workspace"
-              class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
-            >
-              <.input field={@workspace_form[:id]} type="hidden" />
-              <p
-                :if={@workspace_error}
-                id="workspace-error"
-                class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
-              >
-                {@workspace_error}
-              </p>
-              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <.input
-                  field={@workspace_form[:name]}
-                  type="text"
-                  label="Name"
-                  placeholder="Haven"
-                  autocomplete="off"
-                />
-                <.input
-                  field={@workspace_form[:path]}
-                  type="text"
-                  label="Path"
-                  placeholder="/path/to/repo"
-                  autocomplete="off"
-                />
-              </div>
-              <div class="flex justify-end gap-2">
-                <button
-                  :if={@editing_workspace_id}
-                  id="cancel-workspace-edit-button"
-                  type="button"
-                  class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                  phx-click="cancel_workspace_edit"
-                >
-                  Cancel
-                </button>
-                <button
-                  id="save-workspace-button"
-                  class="h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
-                >
-                  {if @editing_workspace_id, do: "Update Workspace", else: "Save Workspace"}
-                </button>
-              </div>
-            </.form>
-          </section>
-
-          <section
-            id="agent-configs-panel"
-            class="grid gap-4 border-b border-zinc-200 pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]"
-          >
-            <div>
-              <h2 class="text-sm font-semibold uppercase text-zinc-500">Agent Setup</h2>
-              <div
-                id="agent-registry-hint"
-                class="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900"
-              >
-                <div class="flex items-start gap-3">
-                  <.icon name="hero-sparkles" class="mt-0.5 size-4 shrink-0 text-sky-600" />
-                  <div class="min-w-0">
-                    <p class="font-semibold">Find real ACP agents from the public registry</p>
-                    <code
-                      id="agent-registry-command"
-                      class="mt-2 block overflow-x-auto rounded-md border border-sky-200 bg-white/80 px-2 py-1 text-[11px] leading-5 text-sky-950"
-                    >
-                      {agent_registry_command()}
-                    </code>
-                    <p class="mt-2 text-xs text-sky-800">
-                      Registry commands download and run third-party code; use an approved workspace and auth scope before probing.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div
-                id="agent-config-list"
-                class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white"
-              >
-                <div
-                  :if={@agent_configs == []}
-                  id="agent-config-empty"
-                  class="px-4 py-5 text-sm text-zinc-500"
-                >
-                  No saved agent commands yet.
-                </div>
-                <div
-                  :for={agent_config <- @agent_configs}
-                  id={"agent-config-#{agent_config.key}"}
-                  class="border-t border-zinc-100 px-4 py-3 first:border-t-0"
-                >
-                  <% readiness = Map.get(@agent_inventory, agent_config.key, %{}) %>
-                  <% probe_commands = agent_probe_commands(readiness) %>
-                  <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                      <p class="truncate text-sm font-semibold text-zinc-950">{agent_config.key}</p>
-                      <p class="mt-1 truncate text-xs text-zinc-500">{agent_config.executable}</p>
-                      <div :if={probe_commands != []} class="mt-2 space-y-2">
-                        <div
-                          :for={probe <- probe_commands}
-                          id={"agent-config-#{agent_config.key}-probe-#{probe.id}"}
-                        >
-                          <p class="text-[11px] font-semibold uppercase text-zinc-500">
-                            {probe.label}
-                          </p>
-                          <code
-                            id={
-                              if probe.id == "basic",
-                                do: "agent-config-#{agent_config.key}-probe-command",
-                                else: "agent-config-#{agent_config.key}-probe-#{probe.id}-command"
-                            }
-                            class="mt-1 block overflow-x-auto rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] leading-5 text-zinc-700"
-                          >
-                            {probe.command}
-                          </code>
-                        </div>
+                  <div
+                    :for={workspace <- @workspaces}
+                    id={"workspace-#{workspace.id}"}
+                    class="border-t border-zinc-100 px-4 py-3 first:border-t-0"
+                  >
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-zinc-950">{workspace.name}</p>
+                        <p class="mt-1 truncate text-xs text-zinc-500">{workspace.path}</p>
                       </div>
-                      <p
-                        :if={agent_evidence_reason(readiness)}
-                        id={"agent-config-#{agent_config.key}-evidence-reason"}
-                        class="mt-2 truncate text-xs text-zinc-500"
+                      <div class="flex shrink-0 items-center gap-2">
+                        <button
+                          id={"edit-workspace-#{workspace.id}"}
+                          type="button"
+                          title="Edit workspace"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950"
+                          phx-click="edit_workspace"
+                          phx-value-id={workspace.id}
+                        >
+                          <.icon name="hero-pencil-square" class="size-4" />
+                        </button>
+                        <button
+                          id={"delete-workspace-#{workspace.id}"}
+                          type="button"
+                          title="Delete workspace"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                          phx-click="delete_workspace"
+                          phx-value-id={workspace.id}
+                        >
+                          <.icon name="hero-trash" class="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <.form
+                id="workspace-form"
+                for={@workspace_form}
+                phx-submit="save_workspace"
+                class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
+              >
+                <.input field={@workspace_form[:id]} type="hidden" />
+                <p
+                  :if={@workspace_error}
+                  id="workspace-error"
+                  class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+                >
+                  {@workspace_error}
+                </p>
+                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  <.input
+                    field={@workspace_form[:name]}
+                    type="text"
+                    label="Name"
+                    placeholder="Haven"
+                    autocomplete="off"
+                  />
+                  <.input
+                    field={@workspace_form[:path]}
+                    type="text"
+                    label="Path"
+                    placeholder="/path/to/repo"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button
+                    :if={@editing_workspace_id}
+                    id="cancel-workspace-edit-button"
+                    type="button"
+                    class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    phx-click="cancel_workspace_edit"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    id="save-workspace-button"
+                    class="h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                  >
+                    {if @editing_workspace_id, do: "Update Workspace", else: "Save Workspace"}
+                  </button>
+                </div>
+              </.form>
+            </div>
+          </details>
+
+          <details
+            id="agent-configs-panel"
+            class="group border-b border-zinc-200 pb-4"
+          >
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-2 text-sm font-semibold text-zinc-700 marker:hidden">
+              <span>Manage agents</span>
+              <span class="font-mono text-xs text-zinc-500">{length(@agent_configs)}</span>
+            </summary>
+            <div class="grid gap-4 pt-3 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]">
+              <div>
+                <h2 class="text-sm font-semibold uppercase text-zinc-500">Agent Setup</h2>
+                <div
+                  id="agent-registry-hint"
+                  class="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900"
+                >
+                  <div class="flex items-start gap-3">
+                    <.icon name="hero-sparkles" class="mt-0.5 size-4 shrink-0 text-sky-600" />
+                    <div class="min-w-0">
+                      <p class="font-semibold">Find real ACP agents from the public registry</p>
+                      <code
+                        id="agent-registry-command"
+                        class="mt-2 block overflow-x-auto rounded-md border border-sky-200 bg-white/80 px-2 py-1 text-[11px] leading-5 text-sky-950"
                       >
-                        {agent_evidence_reason(readiness)}
+                        {agent_registry_command()}
+                      </code>
+                      <p class="mt-2 text-xs text-sky-800">
+                        Registry commands download and run third-party code; use an approved workspace and auth scope before probing.
                       </p>
                     </div>
-                    <div class="flex shrink-0 items-center gap-2">
-                      <span
-                        id={"agent-config-#{agent_config.key}-evidence"}
-                        class={agent_evidence_class(readiness)}
-                      >
-                        {agent_evidence_label(readiness)}
-                      </span>
-                      <span class="rounded-full border border-zinc-200 px-2 py-1 text-xs text-zinc-500">
-                        {length(Map.get(agent_config.args || %{}, "items", []))} args
-                      </span>
-                      <button
-                        id={"edit-agent-config-#{agent_config.key}"}
-                        type="button"
-                        title="Edit agent"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950"
-                        phx-click="edit_agent_config"
-                        phx-value-id={agent_config.id}
-                      >
-                        <.icon name="hero-pencil-square" class="size-4" />
-                      </button>
-                      <button
-                        id={"delete-agent-config-#{agent_config.key}"}
-                        type="button"
-                        title="Delete agent"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
-                        phx-click="delete_agent_config"
-                        phx-value-id={agent_config.id}
-                      >
-                        <.icon name="hero-trash" class="size-4" />
-                      </button>
+                  </div>
+                </div>
+                <div
+                  id="agent-config-list"
+                  class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white"
+                >
+                  <div
+                    :if={@agent_configs == []}
+                    id="agent-config-empty"
+                    class="px-4 py-5 text-sm text-zinc-500"
+                  >
+                    No saved agent commands yet.
+                  </div>
+                  <div
+                    :for={agent_config <- @agent_configs}
+                    id={"agent-config-#{agent_config.key}"}
+                    class="border-t border-zinc-100 px-4 py-3 first:border-t-0"
+                  >
+                    <% readiness = Map.get(@agent_inventory, agent_config.key, %{}) %>
+                    <% probe_commands = agent_probe_commands(readiness) %>
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-zinc-950">{agent_config.key}</p>
+                        <p class="mt-1 truncate text-xs text-zinc-500">{agent_config.executable}</p>
+                        <div :if={probe_commands != []} class="mt-2 space-y-2">
+                          <div
+                            :for={probe <- probe_commands}
+                            id={"agent-config-#{agent_config.key}-probe-#{probe.id}"}
+                          >
+                            <p class="text-[11px] font-semibold uppercase text-zinc-500">
+                              {probe.label}
+                            </p>
+                            <code
+                              id={
+                                if probe.id == "basic",
+                                  do: "agent-config-#{agent_config.key}-probe-command",
+                                  else: "agent-config-#{agent_config.key}-probe-#{probe.id}-command"
+                              }
+                              class="mt-1 block overflow-x-auto rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] leading-5 text-zinc-700"
+                            >
+                              {probe.command}
+                            </code>
+                          </div>
+                        </div>
+                        <p
+                          :if={agent_evidence_reason(readiness)}
+                          id={"agent-config-#{agent_config.key}-evidence-reason"}
+                          class="mt-2 truncate text-xs text-zinc-500"
+                        >
+                          {agent_evidence_reason(readiness)}
+                        </p>
+                      </div>
+                      <div class="flex shrink-0 items-center gap-2">
+                        <span
+                          id={"agent-config-#{agent_config.key}-evidence"}
+                          class={agent_evidence_class(readiness)}
+                        >
+                          {agent_evidence_label(readiness)}
+                        </span>
+                        <span class="rounded-full border border-zinc-200 px-2 py-1 text-xs text-zinc-500">
+                          {length(Map.get(agent_config.args || %{}, "items", []))} args
+                        </span>
+                        <button
+                          id={"edit-agent-config-#{agent_config.key}"}
+                          type="button"
+                          title="Edit agent"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950"
+                          phx-click="edit_agent_config"
+                          phx-value-id={agent_config.id}
+                        >
+                          <.icon name="hero-pencil-square" class="size-4" />
+                        </button>
+                        <button
+                          id={"delete-agent-config-#{agent_config.key}"}
+                          type="button"
+                          title="Delete agent"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                          phx-click="delete_agent_config"
+                          phx-value-id={agent_config.id}
+                        >
+                          <.icon name="hero-trash" class="size-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <.form
-              id="agent-config-form"
-              for={@agent_config_form}
-              phx-submit="save_agent_config"
-              phx-update="replace"
-              class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
-            >
-              <.input field={@agent_config_form[:id]} type="hidden" />
-              <p
-                :if={@agent_config_error}
-                id="agent-config-error"
-                class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+              <.form
+                id="agent-config-form"
+                for={@agent_config_form}
+                phx-submit="save_agent_config"
+                phx-update="replace"
+                class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
               >
-                {@agent_config_error}
-              </p>
-              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <.input field={@agent_config_form[:id]} type="hidden" />
+                <p
+                  :if={@agent_config_error}
+                  id="agent-config-error"
+                  class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+                >
+                  {@agent_config_error}
+                </p>
+                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  <.input
+                    field={@agent_config_form[:key]}
+                    type="text"
+                    label="Agent key"
+                    placeholder="claude-local"
+                    autocomplete="off"
+                  />
+                  <.input
+                    field={@agent_config_form[:executable]}
+                    type="text"
+                    label="Executable"
+                    placeholder="agent-command"
+                    autocomplete="off"
+                  />
+                </div>
                 <.input
-                  field={@agent_config_form[:key]}
-                  type="text"
-                  label="Agent key"
-                  placeholder="claude-local"
-                  autocomplete="off"
-                />
-                <.input
-                  field={@agent_config_form[:executable]}
-                  type="text"
-                  label="Executable"
-                  placeholder="agent-command"
-                  autocomplete="off"
-                />
-              </div>
-              <.input
-                field={@agent_config_form[:args_text]}
-                type="textarea"
-                label="Arguments"
-                placeholder="--workspace\n{workspace}"
-                rows="3"
-              />
-              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <.input
-                  field={@agent_config_form[:cwd]}
-                  type="text"
-                  label="Working directory"
-                  placeholder="{workspace}"
-                  autocomplete="off"
-                />
-                <.input
-                  field={@agent_config_form[:env_text]}
+                  field={@agent_config_form[:args_text]}
                   type="textarea"
-                  label="Environment"
-                  placeholder="TOKEN=..."
+                  label="Arguments"
+                  placeholder="--workspace\n{workspace}"
                   rows="3"
                 />
-              </div>
-              <div class="flex justify-end gap-2">
-                <button
-                  :if={@editing_agent_config_id}
-                  id="cancel-agent-config-edit-button"
-                  type="button"
-                  class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                  phx-click="cancel_agent_config_edit"
-                >
-                  Cancel
-                </button>
-                <button
-                  id="save-agent-config-button"
-                  class="h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
-                >
-                  {if @editing_agent_config_id, do: "Update Agent", else: "Save Agent"}
-                </button>
-              </div>
-            </.form>
-          </section>
+                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  <.input
+                    field={@agent_config_form[:cwd]}
+                    type="text"
+                    label="Working directory"
+                    placeholder="{workspace}"
+                    autocomplete="off"
+                  />
+                  <.input
+                    field={@agent_config_form[:env_text]}
+                    type="textarea"
+                    label="Environment"
+                    placeholder="TOKEN=..."
+                    rows="3"
+                  />
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button
+                    :if={@editing_agent_config_id}
+                    id="cancel-agent-config-edit-button"
+                    type="button"
+                    class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    phx-click="cancel_agent_config_edit"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    id="save-agent-config-button"
+                    class="h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                  >
+                    {if @editing_agent_config_id, do: "Update Agent", else: "Save Agent"}
+                  </button>
+                </div>
+              </.form>
+            </div>
+          </details>
         </section>
       </main>
     </Layouts.app>

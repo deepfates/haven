@@ -74,6 +74,15 @@ defmodule HavenWeb.InboxLiveTest do
     assert history_index < agent_setup_index
   end
 
+  test "keeps setup surfaces behind secondary inbox disclosures", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#workspaces-panel summary", "Manage workspaces")
+    assert has_element?(view, "#agent-configs-panel summary", "Manage agents")
+    assert has_element?(view, "#workspace-form")
+    assert has_element?(view, "#agent-config-form")
+  end
+
   test "rejects a run with a missing workspace", %{conn: conn} do
     missing_workspace = Path.join(System.tmp_dir!(), "haven-missing-workspace")
     File.rm_rf!(missing_workspace)

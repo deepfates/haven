@@ -39,7 +39,10 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-thread")
     assert has_element?(view, "#timeline-filters summary", "Filter activity")
     assert has_element?(view, "#run-prompt-form")
-    assert has_element?(view, "#run-capability-policy")
+    assert has_element?(view, "#run-capability-policy summary", "Capability policy")
+    assert has_element?(view, "#run-permission-audit summary", "Permission audit")
+    assert has_element?(view, "#run-file-changes summary", "File changes")
+    assert has_element?(view, "#run-terminal-sessions summary", "Terminal sessions")
   end
 
   test "renders the run capability policy in the facts panel", %{conn: conn} do
