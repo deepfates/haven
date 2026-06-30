@@ -633,6 +633,19 @@ defmodule HavenWeb.RunLive do
     payload["toolCallId"] || payload["tool_call_id"] || payload["id"]
   end
 
+  defp permission_tool_call_id(permission) do
+    tool_call = permission.payload["toolCall"] || %{}
+    tool_call["toolCallId"] || tool_call["tool_call_id"] || tool_call["id"] || "unknown"
+  end
+
+  defp permission_tool_status(permission) do
+    get_in(permission.payload, ["toolCall", "status"]) || "pending"
+  end
+
+  defp permission_option_label(option) do
+    "#{option["name"]} (#{option["optionId"]})"
+  end
+
   defp event_sequence_label(event, %{seq: result_seq}), do: "##{event.seq}-#{result_seq}"
   defp event_sequence_label(event, _result_event), do: "##{event.seq}"
 
@@ -815,6 +828,30 @@ defmodule HavenWeb.RunLive do
                 <p class="mt-2 text-sm text-zinc-600">
                   The agent is blocked until you choose an option.
                 </p>
+                <dl class="mt-3 grid gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 sm:grid-cols-2">
+                  <div id="pending-permission-request-id" class="min-w-0">
+                    <dt class="font-semibold uppercase text-zinc-500">Request</dt>
+                    <dd class="truncate font-mono">{@pending_permission.payload["request_id"]}</dd>
+                  </div>
+                  <div id="pending-permission-tool-call-id" class="min-w-0">
+                    <dt class="font-semibold uppercase text-zinc-500">Tool call</dt>
+                    <dd class="truncate font-mono">{permission_tool_call_id(@pending_permission)}</dd>
+                  </div>
+                  <div id="pending-permission-tool-status" class="min-w-0">
+                    <dt class="font-semibold uppercase text-zinc-500">Status</dt>
+                    <dd class="truncate font-mono">{permission_tool_status(@pending_permission)}</dd>
+                  </div>
+                  <div id="pending-permission-options" class="min-w-0">
+                    <dt class="font-semibold uppercase text-zinc-500">Options</dt>
+                    <dd class="truncate font-mono">
+                      {Enum.map_join(
+                        @pending_permission.payload["options"] || [],
+                        ", ",
+                        &permission_option_label/1
+                      )}
+                    </dd>
+                  </div>
+                </dl>
                 <details class="mt-3 rounded-md border border-zinc-200 px-3 py-2">
                   <summary class="cursor-pointer text-sm font-medium text-zinc-700">
                     Technical details

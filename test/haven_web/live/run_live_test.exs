@@ -587,6 +587,11 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Needs approval"
     assert html =~ "Write file"
     assert has_element?(view, "#pending-permission-card")
+    assert has_element?(view, "#pending-permission-request-id", to_string(request_id))
+    assert has_element?(view, "#pending-permission-tool-call-id", "tool_#{request_id}")
+    assert has_element?(view, "#pending-permission-tool-status", "pending")
+    assert has_element?(view, "#pending-permission-options", "Allow once (allow)")
+    assert has_element?(view, "#pending-permission-options", "Deny (deny)")
 
     view
     |> element(~s|#pending-permission-card button[phx-value-option-id="allow"]|)
@@ -1260,11 +1265,18 @@ defmodule HavenWeb.RunLiveTest do
     assert_receive {:event_appended,
                     %{
                       type: "permission_requested",
-                      payload: %{"toolCall" => %{"title" => "Read file"}}
+                      payload: %{
+                        "request_id" => request_id,
+                        "toolCall" => %{"title" => "Read file"}
+                      }
                     }},
                    1_000
 
     assert has_element?(view, "#pending-permission-card", "Read file")
+    assert has_element?(view, "#pending-permission-request-id", to_string(request_id))
+    assert has_element?(view, "#pending-permission-tool-call-id", "file_read_#{request_id}")
+    assert has_element?(view, "#pending-permission-tool-status", "pending")
+    assert has_element?(view, "#pending-permission-options", "Allow read (allow)")
 
     view
     |> element(~s|#pending-permission-card button[phx-value-option-id="allow"]|)
@@ -2077,6 +2089,10 @@ defmodule HavenWeb.RunLiveTest do
 
     assert has_element?(view, "#pending-permission-card", "Create terminal")
     assert has_element?(view, "#pending-permission-card", "Allow terminal")
+    assert has_element?(view, "#pending-permission-request-id", to_string(request_id))
+    assert has_element?(view, "#pending-permission-tool-call-id", "terminal_create_#{request_id}")
+    assert has_element?(view, "#pending-permission-tool-status", "pending")
+    assert has_element?(view, "#pending-permission-options", "Allow terminal (allow)")
     refute_receive {:event_appended, %{type: "terminal_created"}}, 100
 
     view

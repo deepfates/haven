@@ -218,6 +218,9 @@ Evidence:
   explicit allow, deny, reload-then-allow, user cancellation, and stale
   duplicate attempts record `local_user`; agent crash cleanup of a pending
   permission records `system`.
+- LiveView integration tests verify active permission cards expose the exact
+  request id, tool call id, tool status, and option ids for generic agent
+  permissions, file reads, and terminal creation before the user decides.
 - Browser smoke verifies the same allow flow through the real rendered UI,
   including a rendered `permission_resolved` payload with
   `"actor": "local_user"`.
