@@ -29,6 +29,19 @@ defmodule HavenWeb.RunLiveTest do
     assert reloaded_html =~ "agent_session_started"
   end
 
+  test "renders a conversation-first run thread with details disclosed on demand", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Thread first run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-thread")
+    assert has_element?(view, "#timeline-filters summary", "Filter activity")
+    assert has_element?(view, "#run-prompt-form")
+    assert has_element?(view, "#run-capability-policy")
+  end
+
   test "renders the run capability policy in the facts panel", %{conn: conn} do
     {:ok, run} =
       Runs.create_run(%{

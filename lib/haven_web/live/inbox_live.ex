@@ -629,15 +629,15 @@ defmodule HavenWeb.InboxLive do
     assigns = assign_new(assigns, :show_archive, fn -> false end)
 
     ~H"""
-    <article class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50">
+    <article class="border-b border-zinc-200 bg-white px-4 py-3 transition last:border-b-0 hover:bg-zinc-50">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <h3 class="truncate font-semibold text-zinc-950">{@run.title}</h3>
-          <p class="mt-1 truncate text-sm text-zinc-500">{@run.workspace}</p>
+          <h3 class="truncate text-sm font-semibold text-zinc-950">{@run.title}</h3>
+          <p class="mt-1 truncate text-xs text-zinc-500">{@run.workspace}</p>
         </div>
         <span class={status_class(@run.status)}>{@run.status}</span>
       </div>
-      <div class="mt-3 flex items-center justify-between gap-3">
+      <div class="mt-2 flex items-center justify-between gap-3">
         <div class="text-xs text-zinc-500">
           {@run.agent} · updated {Calendar.strftime(@run.updated_at, "%H:%M:%S")}
         </div>
@@ -669,19 +669,20 @@ defmodule HavenWeb.InboxLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <main id="haven-inbox" class="min-h-dvh bg-zinc-100 text-zinc-950">
-        <section class="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-8">
-          <header class="grid gap-5 border-b border-zinc-200 pb-5 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)] lg:items-end">
+      <main id="haven-inbox" class="min-h-dvh bg-white text-zinc-950">
+        <section class="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-4 md:px-8 md:py-6">
+          <header class="grid gap-4 border-b border-zinc-200 pb-4 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)] lg:items-end">
             <div>
               <p class="text-sm font-medium text-zinc-500">Haven</p>
-              <h1 class="text-3xl font-bold tracking-normal">Agent attention inbox</h1>
+              <h1 class="text-2xl font-semibold tracking-normal">Inbox</h1>
+              <p class="mt-1 text-sm text-zinc-500">Agent work across your folders.</p>
             </div>
 
             <.form
               id="new-run-form"
               for={@form}
               phx-submit="create_run"
-              class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
+              class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3"
             >
               <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem]">
                 <.input
@@ -720,50 +721,85 @@ defmodule HavenWeb.InboxLive do
                   Start
                 </button>
               </div>
-              <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(160px,0.7fr)]">
-                <div class="grid gap-2">
+              <details class="rounded-md border border-zinc-200 px-3 py-2">
+                <summary class="cursor-pointer text-sm font-medium text-zinc-700">
+                  Capability policy
+                </summary>
+                <div class="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(160px,0.7fr)]">
+                  <div class="grid gap-2">
+                    <.input
+                      field={@form[:file_read_policy]}
+                      type="select"
+                      label="File reads"
+                      options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
+                    />
+                    <.input
+                      field={@form[:file_read_paths]}
+                      type="text"
+                      label="Read paths"
+                      placeholder="README.md, docs"
+                      autocomplete="off"
+                    />
+                  </div>
+                  <div class="grid gap-2">
+                    <.input
+                      field={@form[:file_write_policy]}
+                      type="select"
+                      label="File writes"
+                      options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
+                    />
+                    <.input
+                      field={@form[:file_write_paths]}
+                      type="text"
+                      label="Write paths"
+                      placeholder="notes, tmp/output.md"
+                      autocomplete="off"
+                    />
+                  </div>
                   <.input
-                    field={@form[:file_read_policy]}
+                    field={@form[:terminal_create_policy]}
                     type="select"
-                    label="File reads"
+                    label="Terminals"
                     options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
                   />
-                  <.input
-                    field={@form[:file_read_paths]}
-                    type="text"
-                    label="Read paths"
-                    placeholder="README.md, docs"
-                    autocomplete="off"
-                  />
                 </div>
-                <div class="grid gap-2">
-                  <.input
-                    field={@form[:file_write_policy]}
-                    type="select"
-                    label="File writes"
-                    options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
-                  />
-                  <.input
-                    field={@form[:file_write_paths]}
-                    type="text"
-                    label="Write paths"
-                    placeholder="notes, tmp/output.md"
-                    autocomplete="off"
-                  />
-                </div>
-                <.input
-                  field={@form[:terminal_create_policy]}
-                  type="select"
-                  label="Terminals"
-                  options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
-                />
-              </div>
+              </details>
             </.form>
           </header>
 
+          <section :if={@needs_you != []} class="space-y-2">
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Needs You</h2>
+            <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+              <.run_card :for={run <- @needs_you} run={run} />
+            </div>
+          </section>
+
+          <section :if={@running != []} class="space-y-2">
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Running</h2>
+            <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+              <.run_card :for={run <- @running} run={run} />
+            </div>
+          </section>
+
+          <section class="space-y-2">
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">History</h2>
+            <div
+              :if={@history == []}
+              class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+            >
+              No quiet runs yet. Start one above.
+            </div>
+            <div
+              :if={@history != []}
+              class="overflow-hidden rounded-lg border border-zinc-200 bg-white"
+            >
+              <.run_card :for={run <- @history} run={run} show_archive={true} />
+            </div>
+          </section>
+
           <section
             id="workspaces-panel"
-            class="grid gap-4 border-b border-zinc-200 pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]"
+            class="grid gap-4 border-t border-zinc-200 pt-5 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]"
           >
             <div>
               <h2 class="text-sm font-semibold uppercase text-zinc-500">Workspaces</h2>
@@ -1049,33 +1085,6 @@ defmodule HavenWeb.InboxLive do
                 </button>
               </div>
             </.form>
-          </section>
-
-          <section :if={@needs_you != []} class="space-y-3">
-            <h2 class="text-sm font-semibold uppercase text-zinc-500">Needs You</h2>
-            <div class="grid gap-3">
-              <.run_card :for={run <- @needs_you} run={run} />
-            </div>
-          </section>
-
-          <section :if={@running != []} class="space-y-3">
-            <h2 class="text-sm font-semibold uppercase text-zinc-500">Running</h2>
-            <div class="grid gap-3 md:grid-cols-2">
-              <.run_card :for={run <- @running} run={run} />
-            </div>
-          </section>
-
-          <section class="space-y-3">
-            <h2 class="text-sm font-semibold uppercase text-zinc-500">History</h2>
-            <div
-              :if={@history == []}
-              class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
-            >
-              No quiet runs yet. Start one above.
-            </div>
-            <div class="grid gap-3 md:grid-cols-2">
-              <.run_card :for={run <- @history} run={run} show_archive={true} />
-            </div>
           </section>
         </section>
       </main>

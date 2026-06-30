@@ -641,14 +641,14 @@ defmodule HavenWeb.RunLive do
 
   defp event_card_class(kind) do
     [
-      "rounded-lg border bg-white p-4 shadow-sm",
+      "rounded-2xl px-4 py-3 text-sm",
       case kind do
-        "user" -> "border-indigo-200"
-        "agent" -> "border-sky-200"
-        "client" -> "border-amber-200"
-        "protocol" -> "border-violet-200"
-        "runtime" -> "border-rose-200"
-        _ -> "border-zinc-200"
+        "user" -> "ml-auto max-w-[88%] border border-zinc-200 bg-zinc-50"
+        "agent" -> "mr-auto max-w-[88%] border border-zinc-200 bg-white"
+        "client" -> "w-full border border-zinc-200 bg-white"
+        "protocol" -> "w-full border border-zinc-200 bg-zinc-50"
+        "runtime" -> "w-full border border-zinc-200 bg-zinc-50"
+        _ -> "w-full border border-zinc-200 bg-white"
       end
     ]
   end
@@ -779,10 +779,10 @@ defmodule HavenWeb.RunLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <main id="haven-run" class="min-h-dvh bg-zinc-100 text-zinc-950">
-        <section class="mx-auto grid max-w-6xl gap-4 p-4 md:grid-cols-[1fr_320px] md:p-8">
+      <main id="haven-run" class="min-h-dvh bg-white text-zinc-950">
+        <section class="mx-auto grid max-w-6xl gap-4 px-4 py-4 md:grid-cols-[minmax(0,1fr)_320px] md:px-8 md:py-6">
           <div class="space-y-4">
-            <header class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+            <header class="border-b border-zinc-200 pb-4">
               <div class="flex items-start justify-between gap-4">
                 <div class="min-w-0">
                   <.link
@@ -791,7 +791,7 @@ defmodule HavenWeb.RunLive do
                   >
                     ← Inbox
                   </.link>
-                  <h1 class="mt-2 truncate text-2xl font-bold">{@run.title}</h1>
+                  <h1 class="mt-2 truncate text-2xl font-semibold">{@run.title}</h1>
                   <p class="mt-1 truncate text-sm text-zinc-500">{@run.workspace}</p>
                 </div>
                 <span class="inline-flex shrink-0 items-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm font-medium text-zinc-700">
@@ -800,31 +800,71 @@ defmodule HavenWeb.RunLive do
               </div>
             </header>
 
-            <section class="space-y-3">
-              <div
-                id="timeline-filters"
-                class="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
+            <section id="run-thread" class="flex flex-col gap-3">
+              <section
+                :if={@pending_permission}
+                id="pending-permission-card"
+                class="rounded-2xl border border-zinc-300 bg-white p-4"
               >
-                <button
-                  :for={{kind, label} <- @event_filters}
-                  id={"timeline-filter-#{kind}"}
-                  type="button"
-                  phx-click="filter_events"
-                  phx-value-kind={kind}
-                  class={[
-                    "inline-flex h-8 items-center rounded-md border px-3 text-xs font-semibold transition",
-                    @event_filter == kind &&
-                      "border-zinc-950 bg-zinc-950 text-white",
-                    @event_filter != kind &&
-                      "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
-                  ]}
-                >
-                  {label}
-                  <span class="ml-1 text-[11px] opacity-70">
-                    {Map.get(@event_counts, kind, 0)}
-                  </span>
-                </button>
-              </div>
+                <p class="text-xs font-semibold uppercase text-zinc-500">Needs approval</p>
+                <h2 class="mt-1 text-base font-semibold text-zinc-950">
+                  {get_in(@pending_permission.payload, ["toolCall", "title"]) || "Approve request?"}
+                </h2>
+                <p class="mt-2 text-sm text-zinc-600">
+                  The agent is blocked until you choose an option.
+                </p>
+                <details class="mt-3 rounded-md border border-zinc-200 px-3 py-2">
+                  <summary class="cursor-pointer text-sm font-medium text-zinc-700">
+                    Technical details
+                  </summary>
+                  <pre class="mt-2 max-h-40 overflow-auto rounded-md bg-zinc-50 p-3 text-xs text-zinc-700"><%= Jason.encode!(get_in(@pending_permission.payload, ["toolCall", "rawInput"]) || %{}, pretty: true) %></pre>
+                </details>
+                <div class="mt-3 flex gap-2">
+                  <button
+                    :for={option <- @pending_permission.payload["options"]}
+                    class={[
+                      "h-10 rounded-md px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
+                      if(String.starts_with?(option["kind"], "allow"),
+                        do: "bg-zinc-950 text-white hover:bg-zinc-800",
+                        else: "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                      )
+                    ]}
+                    phx-click="resolve_permission"
+                    phx-value-request-id={@pending_permission.payload["request_id"]}
+                    phx-value-option-id={option["optionId"]}
+                    disabled={!@live?}
+                  >
+                    {option["name"]}
+                  </button>
+                </div>
+              </section>
+
+              <details id="timeline-filters" class="rounded-lg border border-zinc-200 bg-white p-3">
+                <summary class="cursor-pointer text-sm font-medium text-zinc-700">
+                  Filter activity
+                </summary>
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    :for={{kind, label} <- @event_filters}
+                    id={"timeline-filter-#{kind}"}
+                    type="button"
+                    phx-click="filter_events"
+                    phx-value-kind={kind}
+                    class={[
+                      "inline-flex h-8 items-center rounded-md border px-3 text-xs font-semibold transition",
+                      @event_filter == kind &&
+                        "border-zinc-950 bg-zinc-950 text-white",
+                      @event_filter != kind &&
+                        "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                    ]}
+                  >
+                    {label}
+                    <span class="ml-1 text-[11px] opacity-70">
+                      {Map.get(@event_counts, kind, 0)}
+                    </span>
+                  </button>
+                </div>
+              </details>
               <div
                 :if={@timeline_entries == []}
                 id="timeline-empty-filter"
@@ -841,35 +881,7 @@ defmodule HavenWeb.RunLive do
           </div>
 
           <aside class="space-y-4">
-            <section
-              :if={@pending_permission}
-              id="pending-permission-card"
-              class="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm"
-            >
-              <h2 class="font-semibold text-amber-800">Needs approval</h2>
-              <p class="mt-2 text-sm">{get_in(@pending_permission.payload, ["toolCall", "title"])}</p>
-              <pre class="mt-2 overflow-x-auto rounded-md bg-white p-3 text-xs text-zinc-700"><%= Jason.encode!(get_in(@pending_permission.payload, ["toolCall", "rawInput"]) || %{}, pretty: true) %></pre>
-              <div class="mt-3 flex gap-2">
-                <button
-                  :for={option <- @pending_permission.payload["options"]}
-                  class={
-                    if String.starts_with?(option["kind"], "allow"),
-                      do:
-                        "rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-500",
-                      else:
-                        "rounded-md bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-rose-500"
-                  }
-                  phx-click="resolve_permission"
-                  phx-value-request-id={@pending_permission.payload["request_id"]}
-                  phx-value-option-id={option["optionId"]}
-                  disabled={!@live?}
-                >
-                  {option["name"]}
-                </button>
-              </div>
-            </section>
-
-            <section class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+            <section class="rounded-lg border border-zinc-200 bg-white p-4">
               <h2 class="font-semibold">Control</h2>
               <.form
                 id="run-prompt-form"

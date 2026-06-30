@@ -58,6 +58,22 @@ defmodule HavenWeb.InboxLiveTest do
     assert_redirect(view, ~p"/runs/#{run.id}")
   end
 
+  test "renders runs before setup panels in the mobile-first inbox hierarchy", %{conn: conn} do
+    insert_run!("Quiet run", "idle")
+
+    {:ok, _view, html} = live(conn, ~p"/")
+
+    assert html =~ "Inbox"
+    assert html =~ "History"
+
+    history_index = :binary.match(html, "Quiet run") |> elem(0)
+    workspace_index = :binary.match(html, "workspaces-panel") |> elem(0)
+    agent_setup_index = :binary.match(html, "agent-configs-panel") |> elem(0)
+
+    assert history_index < workspace_index
+    assert history_index < agent_setup_index
+  end
+
   test "rejects a run with a missing workspace", %{conn: conn} do
     missing_workspace = Path.join(System.tmp_dir!(), "haven-missing-workspace")
     File.rm_rf!(missing_workspace)

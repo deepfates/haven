@@ -18,6 +18,9 @@ inspectable agent runs with explicit human decisions.
 - LiveView integration: malformed ACP startup output records
   `agent_protocol_failed`, marks the run `failed`, and does not restart the
   agent process.
+- LiveView integration: inbox hierarchy tests verify runs render before
+  workspace/agent setup panels, and run-detail tests verify the conversation
+  thread exists with filter controls disclosed behind a summary element.
 - Browser smoke: create a run, trigger a permission request, approve it, trigger
   and approve an ACP file read, trigger and approve an ACP file write, trigger a
   deterministic terminal command, cancel an open non-permission turn, create a

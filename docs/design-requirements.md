@@ -109,6 +109,11 @@ transcript.
 The inbox is the attention surface. It should be dense and operational, not a
 marketing dashboard.
 
+The inbox should be mobile-first and row-oriented. Runs should appear before
+workspace and agent administration, because the user's first question is what
+needs attention. Setup and policy controls should remain available but should
+not dominate the first screen.
+
 Required content:
 
 - Run title.
@@ -129,6 +134,12 @@ Required actions:
 ### Run Detail
 
 The run detail page is both transcript and control room.
+
+The default presentation should be conversation/activity first. On mobile, run
+facts, filters, protocol details, file changes, terminal sessions, and audit
+records should be disclosed on demand. On desktop, those same details may
+expand into a side rail, but they must remain secondary to the current run
+thread and next decision.
 
 Required content:
 
