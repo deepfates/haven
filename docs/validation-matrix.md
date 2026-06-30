@@ -158,11 +158,14 @@ Evidence:
   client, protocol, and runtime events.
 - LiveView integration tests verify timeline controls can filter persisted
   events by provenance without mutating the run event log.
+- LiveView integration tests verify the run timeline can search persisted
+  activity by event type and payload content without mutating the event log,
+  including paired tool-call result evidence.
 
 Still missing:
 
 - Rich protocol event normalization.
-- Rich grouping by event provenance and other timeline facets.
+- Rich grouping beyond provenance/search facets.
 
 ### Prompting And Control
 

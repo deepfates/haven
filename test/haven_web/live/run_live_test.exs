@@ -363,6 +363,47 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, ~s|[data-event-kind="user"]|, "User")
   end
 
+  test "searches timeline events without mutating event history", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Timeline search run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> form("#run-prompt-form", %{"prompt" => "find quartz evidence"})
+    |> render_submit()
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    assert has_element?(view, "#timeline-search-form")
+    assert has_element?(view, "#event_search")
+
+    view
+    |> form("#timeline-search-form", %{"event_search" => "quartz"})
+    |> render_change()
+
+    assert has_element?(view, ~s|[data-event-kind="user"]|, "User")
+    assert render(view) =~ "find quartz evidence"
+    refute has_element?(view, ~s|[data-event-kind="runtime"]|)
+
+    view
+    |> form("#timeline-search-form", %{"event_search" => "not-present"})
+    |> render_change()
+
+    assert has_element?(view, "#timeline-empty-filter", "No events match this search.")
+    refute render(view) =~ "find quartz evidence"
+
+    view
+    |> element("#clear-timeline-search")
+    |> render_click()
+
+    assert has_element?(view, ~s|[data-event-kind="runtime"]|, "Runtime")
+    assert has_element?(view, ~s|[data-event-kind="user"]|, "User")
+    assert length(Events.list_for_run(run.id)) > 1
+  end
+
   test "renders ACP file tool calls as reviewable timeline evidence", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "File tool call projection"})
     stop_run_server_on_exit(run.id)
@@ -395,6 +436,14 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#tool-call-result-5")
     assert render(view) =~ "File read"
     assert render(view) =~ "Completed successfully"
+    assert has_element?(view, "#tool-result-output", "Grei file sentinel: quartz-lantern-729")
+
+    view
+    |> form("#timeline-search-form", %{"event_search" => "quartz-lantern-729"})
+    |> render_change()
+
+    assert has_element?(view, "#event-5", "#5-6 · tool_call + tool_call_update")
+    refute has_element?(view, "#event-6")
     assert has_element?(view, "#tool-result-output", "Grei file sentinel: quartz-lantern-729")
   end
 

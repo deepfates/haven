@@ -29,6 +29,7 @@ defmodule HavenWeb.RunLive do
      socket
      |> assign(:prompt, "")
      |> assign(:event_filter, "all")
+     |> assign(:event_search, "")
      |> assign_run(id)}
   end
 
@@ -85,6 +86,20 @@ defmodule HavenWeb.RunLive do
      |> assign_event_projection(socket.assigns.events)}
   end
 
+  def handle_event("search_events", %{"event_search" => query}, socket) do
+    {:noreply,
+     socket
+     |> assign(:event_search, normalize_event_search(query))
+     |> assign_event_projection(socket.assigns.events)}
+  end
+
+  def handle_event("clear_event_search", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:event_search, "")
+     |> assign_event_projection(socket.assigns.events)}
+  end
+
   @impl true
   def handle_info({:event_appended, _event}, socket) do
     {:noreply, assign_run(socket, socket.assigns.run.id)}
@@ -121,11 +136,13 @@ defmodule HavenWeb.RunLive do
 
   defp assign_event_projection(socket, events) do
     filter = socket.assigns[:event_filter] || "all"
-    timeline_entries = timeline_entries(events, filter)
+    search = socket.assigns[:event_search] || ""
+    timeline_entries = timeline_entries(events, filter, search)
 
     socket
     |> assign(:event_filters, @event_filters)
     |> assign(:event_counts, event_counts(events))
+    |> assign(:event_search, search)
     |> assign(:timeline_entries, timeline_entries)
   end
 
@@ -148,7 +165,7 @@ defmodule HavenWeb.RunLive do
     Map.put(counts, "all", length(events))
   end
 
-  defp timeline_entries(events, filter) do
+  defp timeline_entries(events, filter, search) do
     paired_results = paired_tool_results(events)
     paired_result_seqs = MapSet.new(Map.values(paired_results), & &1.seq)
 
@@ -166,6 +183,42 @@ defmodule HavenWeb.RunLive do
           [%{event: event, result_event: nil}]
       end
     end)
+    |> filter_timeline_entries(search)
+  end
+
+  defp normalize_event_search(query) when is_binary(query), do: String.trim(query)
+  defp normalize_event_search(_query), do: ""
+
+  defp filter_timeline_entries(entries, ""), do: entries
+
+  defp filter_timeline_entries(entries, search) do
+    normalized_search = String.downcase(search)
+
+    Enum.filter(entries, fn entry ->
+      entry
+      |> timeline_entry_search_text()
+      |> String.downcase()
+      |> String.contains?(normalized_search)
+    end)
+  end
+
+  defp timeline_entry_search_text(%{event: event, result_event: result_event}) do
+    [
+      event.type,
+      event_kind_label(event.type),
+      safe_json(event.payload),
+      result_event && result_event.type,
+      result_event && safe_json(result_event.payload)
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+  end
+
+  defp safe_json(value) do
+    case Jason.encode(value) do
+      {:ok, json} -> json
+      {:error, _reason} -> inspect(value)
+    end
   end
 
   defp paired_tool_results(events) do
@@ -959,6 +1012,31 @@ defmodule HavenWeb.RunLive do
                 <summary class="cursor-pointer text-sm font-medium text-zinc-700">
                   Filter activity
                 </summary>
+                <form
+                  id="timeline-search-form"
+                  phx-change="search_events"
+                  phx-submit="search_events"
+                  class="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
+                >
+                  <.input
+                    id="event_search"
+                    name="event_search"
+                    value={@event_search}
+                    type="search"
+                    label="Search activity"
+                    placeholder="Event type, tool id, path, command, output"
+                    autocomplete="off"
+                  />
+                  <button
+                    :if={@event_search != ""}
+                    id="clear-timeline-search"
+                    type="button"
+                    class="mb-2 h-10 self-end rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    phx-click="clear_event_search"
+                  >
+                    Clear
+                  </button>
+                </form>
                 <div class="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     :for={{kind, label} <- @event_filters}
@@ -986,7 +1064,11 @@ defmodule HavenWeb.RunLive do
                 id="timeline-empty-filter"
                 class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
               >
-                No events match this filter.
+                <%= if @event_search != "" do %>
+                  No events match this search.
+                <% else %>
+                  No events match this filter.
+                <% end %>
               </div>
               <.event
                 :for={entry <- @timeline_entries}
