@@ -7,6 +7,13 @@ defmodule HavenWeb.InboxLive do
   alias Haven.Runs
   alias Haven.Workspaces
 
+  @run_filters [
+    {"all", "All"},
+    {"needs_you", "Needs You"},
+    {"running", "Running"},
+    {"history", "History"}
+  ]
+
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket), do: Runs.subscribe()
@@ -14,6 +21,7 @@ defmodule HavenWeb.InboxLive do
     {:ok,
      socket
      |> assign(:page_title, "Haven")
+     |> assign(:run_filter, "all")
      |> assign(:form, to_form(default_run_params()))
      |> assign(:workspace_form, to_form(default_workspace_params(), as: :workspace_config))
      |> assign(:workspace_error, nil)
@@ -42,6 +50,15 @@ defmodule HavenWeb.InboxLive do
   def handle_event("archive_run", %{"id" => id}, socket) do
     _ = Runs.archive_run(id)
     {:noreply, assign_runs(socket)}
+  end
+
+  def handle_event("filter_runs", %{"filter" => filter}, socket) do
+    filter = if valid_run_filter?(filter), do: filter, else: "all"
+
+    {:noreply,
+     socket
+     |> assign(:run_filter, filter)
+     |> assign_runs()}
   end
 
   def handle_event("save_workspace", %{"workspace_config" => params}, socket) do
@@ -147,11 +164,41 @@ defmodule HavenWeb.InboxLive do
       Runs.list_runs()
       |> attach_latest_events()
 
+    needs_you = Enum.filter(runs, &(&1.status == "waiting"))
+    running = Enum.filter(runs, &(&1.status in ["initializing", "running"]))
+    history = Enum.reject(runs, &(&1.status in ["waiting", "initializing", "running"]))
+
+    run_filter = socket.assigns[:run_filter] || "all"
+
+    {visible_needs_you, visible_running, visible_history} =
+      visible_run_groups(run_filter, needs_you, running, history)
+
     socket
     |> assign(:runs, runs)
-    |> assign(:needs_you, Enum.filter(runs, &(&1.status == "waiting")))
-    |> assign(:running, Enum.filter(runs, &(&1.status in ["initializing", "running"])))
-    |> assign(:history, Enum.reject(runs, &(&1.status in ["waiting", "initializing", "running"])))
+    |> assign(:run_filters, @run_filters)
+    |> assign(:run_filter_counts, %{
+      "all" => length(runs),
+      "needs_you" => length(needs_you),
+      "running" => length(running),
+      "history" => length(history)
+    })
+    |> assign(:needs_you, visible_needs_you)
+    |> assign(:running, visible_running)
+    |> assign(:history, visible_history)
+    |> assign(
+      :filtered_runs_empty?,
+      run_filter != "all" and
+        visible_needs_you == [] and visible_running == [] and visible_history == []
+    )
+  end
+
+  defp visible_run_groups("needs_you", needs_you, _running, _history), do: {needs_you, [], []}
+  defp visible_run_groups("running", _needs_you, running, _history), do: {[], running, []}
+  defp visible_run_groups("history", _needs_you, _running, history), do: {[], [], history}
+  defp visible_run_groups(_filter, needs_you, running, history), do: {needs_you, running, history}
+
+  defp valid_run_filter?(filter) do
+    Enum.any?(@run_filters, fn {value, _label} -> value == filter end)
   end
 
   defp attach_latest_events(runs) do
@@ -439,6 +486,14 @@ defmodule HavenWeb.InboxLive do
   defp status_class(_), do: badge_class("border-zinc-200 bg-white text-zinc-600")
 
   defp archivable?(run), do: run.status in ["closed", "failed"]
+
+  defp run_filter_button_class(filter, active_filter) do
+    [
+      "inline-flex h-9 items-center rounded-md border px-3 text-xs font-semibold transition",
+      filter == active_filter && "border-zinc-950 bg-zinc-950 text-white",
+      filter != active_filter && "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+    ]
+  end
 
   defp badge_class(tone) do
     "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium " <>
@@ -860,21 +915,53 @@ defmodule HavenWeb.InboxLive do
             </.form>
           </header>
 
-          <section :if={@needs_you != []} class="space-y-2">
+          <nav
+            id="inbox-run-filters"
+            class="flex gap-2 overflow-x-auto pb-1"
+            aria-label="Run filters"
+          >
+            <button
+              :for={{filter, label} <- @run_filters}
+              id={"inbox-filter-#{filter}"}
+              type="button"
+              class={run_filter_button_class(filter, @run_filter)}
+              phx-click="filter_runs"
+              phx-value-filter={filter}
+            >
+              {label}
+              <span class="ml-1 font-mono text-[11px] opacity-70">
+                {Map.get(@run_filter_counts, filter, 0)}
+              </span>
+            </button>
+          </nav>
+
+          <div
+            :if={@filtered_runs_empty?}
+            id="inbox-filter-empty"
+            class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+          >
+            No runs in this view.
+          </div>
+
+          <section :if={@needs_you != []} id="inbox-needs-you-section" class="space-y-2">
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Needs You</h2>
             <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
               <.run_card :for={run <- @needs_you} run={run} />
             </div>
           </section>
 
-          <section :if={@running != []} class="space-y-2">
+          <section :if={@running != []} id="inbox-running-section" class="space-y-2">
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Running</h2>
             <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
               <.run_card :for={run <- @running} run={run} />
             </div>
           </section>
 
-          <section class="space-y-2">
+          <section
+            :if={@run_filter in ["all", "history"]}
+            id="inbox-history-section"
+            class="space-y-2"
+          >
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">History</h2>
             <div
               :if={@history == []}

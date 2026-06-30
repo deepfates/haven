@@ -101,6 +101,8 @@ Evidence:
 - LiveView tests verify inbox rows project the latest meaningful run event and
   refresh that activity when a new event arrives without requiring a run status
   change.
+- LiveView tests verify the inbox can filter the attention surface to All,
+  Needs You, Running, or History while preserving lane counts and empty states.
 - Browser smoke verifies the rendered inbox can start a real run with an
   explicit workspace and that the run detail/ACP launch args reflect it.
 - Browser smoke verifies a run waiting on permission moves into the rendered
@@ -117,7 +119,7 @@ Still missing:
 
 - Richer workspace configuration UI and metadata beyond name/path.
 - OS-native workspace browse affordances.
-- Filtering beyond the fixed lanes.
+- Search and richer filtering beyond the fixed operational lanes.
 
 ### Run Timeline
 

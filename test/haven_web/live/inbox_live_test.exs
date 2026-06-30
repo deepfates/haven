@@ -573,12 +573,55 @@ defmodule HavenWeb.InboxLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/")
 
-    assert has_element?(view, "section", "Needs You")
-    assert has_element?(view, "section", "Running")
-    assert has_element?(view, "section", "History")
+    assert has_element?(view, "#inbox-needs-you-section")
+    assert has_element?(view, "#inbox-running-section")
+    assert has_element?(view, "#inbox-history-section")
     assert has_element?(view, "article", "Needs approval")
     assert has_element?(view, "article", "Still working")
     assert has_element?(view, "article", "Quiet")
+  end
+
+  test "filters inbox runs by operational lane", %{conn: conn} do
+    insert_run!("Needs approval", "waiting")
+    insert_run!("Still working", "running")
+    insert_run!("Quiet", "idle")
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#inbox-filter-all", "3")
+    assert has_element?(view, "#inbox-filter-needs_you", "1")
+    assert has_element?(view, "#inbox-filter-running", "1")
+    assert has_element?(view, "#inbox-filter-history", "1")
+
+    view
+    |> element("#inbox-filter-running")
+    |> render_click()
+
+    assert has_element?(view, "#inbox-running-section")
+    assert has_element?(view, "article", "Still working")
+    refute has_element?(view, "article", "Needs approval")
+    refute has_element?(view, "article", "Quiet")
+
+    view
+    |> element("#inbox-filter-history")
+    |> render_click()
+
+    assert has_element?(view, "#inbox-history-section")
+    assert has_element?(view, "article", "Quiet")
+    refute has_element?(view, "article", "Still working")
+  end
+
+  test "shows an empty state for a filtered lane with no runs", %{conn: conn} do
+    insert_run!("Quiet", "idle")
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#inbox-filter-needs_you")
+    |> render_click()
+
+    assert has_element?(view, "#inbox-filter-empty", "No runs in this view.")
+    refute has_element?(view, "article", "Quiet")
   end
 
   test "renders latest run activity in inbox rows", %{conn: conn} do
@@ -618,7 +661,7 @@ defmodule HavenWeb.InboxLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/")
 
-    assert has_element?(view, "section", "History")
+    assert has_element?(view, "#inbox-history-section")
     assert has_element?(view, "article", "Lane movement run")
 
     assert :ok = Runs.send_prompt(run.id, "permission")
@@ -627,7 +670,7 @@ defmodule HavenWeb.InboxLiveTest do
     assert_receive {:run_updated, %{id: id, status: "waiting"}}, 1_000
     assert id == run.id
 
-    assert has_element?(view, "section", "Needs You")
+    assert has_element?(view, "#inbox-needs-you-section")
     assert has_element?(view, "article", "Lane movement run")
 
     assert :ok = Runs.resolve_permission(run.id, 1, "allow")
@@ -638,8 +681,8 @@ defmodule HavenWeb.InboxLiveTest do
     [{pid, _}] = Registry.lookup(Haven.Runs.Registry, run.id)
     _ = :sys.get_state(pid)
 
-    refute has_element?(view, "section", "Needs You")
-    assert has_element?(view, "section", "History")
+    refute has_element?(view, "#inbox-needs-you-section")
+    assert has_element?(view, "#inbox-history-section")
     assert has_element?(view, "article", "Lane movement run")
   end
 
