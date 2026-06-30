@@ -22,6 +22,7 @@ defmodule HavenWeb.InboxLive do
      socket
      |> assign(:page_title, "Haven")
      |> assign(:run_filter, "all")
+     |> assign(:run_search, "")
      |> assign(:form, to_form(default_run_params()))
      |> assign(:workspace_form, to_form(default_workspace_params(), as: :workspace_config))
      |> assign(:workspace_error, nil)
@@ -58,6 +59,20 @@ defmodule HavenWeb.InboxLive do
     {:noreply,
      socket
      |> assign(:run_filter, filter)
+     |> assign_runs()}
+  end
+
+  def handle_event("search_runs", %{"run_search" => query}, socket) do
+    {:noreply,
+     socket
+     |> assign(:run_search, normalize_search_query(query))
+     |> assign_runs()}
+  end
+
+  def handle_event("clear_run_search", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:run_search, "")
      |> assign_runs()}
   end
 
@@ -164,9 +179,12 @@ defmodule HavenWeb.InboxLive do
       Runs.list_runs()
       |> attach_latest_events()
 
-    needs_you = Enum.filter(runs, &(&1.status == "waiting"))
-    running = Enum.filter(runs, &(&1.status in ["initializing", "running"]))
-    history = Enum.reject(runs, &(&1.status in ["waiting", "initializing", "running"]))
+    run_search = socket.assigns[:run_search] || ""
+    visible_runs = filter_runs_by_search(runs, run_search)
+
+    needs_you = Enum.filter(visible_runs, &(&1.status == "waiting"))
+    running = Enum.filter(visible_runs, &(&1.status in ["initializing", "running"]))
+    history = Enum.reject(visible_runs, &(&1.status in ["waiting", "initializing", "running"]))
 
     run_filter = socket.assigns[:run_filter] || "all"
 
@@ -175,9 +193,11 @@ defmodule HavenWeb.InboxLive do
 
     socket
     |> assign(:runs, runs)
+    |> assign(:visible_runs, visible_runs)
+    |> assign(:run_search, run_search)
     |> assign(:run_filters, @run_filters)
     |> assign(:run_filter_counts, %{
-      "all" => length(runs),
+      "all" => length(visible_runs),
       "needs_you" => length(needs_you),
       "running" => length(running),
       "history" => length(history)
@@ -187,9 +207,10 @@ defmodule HavenWeb.InboxLive do
     |> assign(:history, visible_history)
     |> assign(
       :filtered_runs_empty?,
-      run_filter != "all" and
+      (run_filter != "all" or run_search != "") and
         visible_needs_you == [] and visible_running == [] and visible_history == []
     )
+    |> assign(:searched_runs_empty?, run_search != "" and visible_runs == [])
   end
 
   defp visible_run_groups("needs_you", needs_you, _running, _history), do: {needs_you, [], []}
@@ -210,6 +231,33 @@ defmodule HavenWeb.InboxLive do
     Enum.map(runs, fn run ->
       Map.put(run, :latest_event, Map.get(latest_events, run.id))
     end)
+  end
+
+  defp normalize_search_query(query) when is_binary(query), do: String.trim(query)
+  defp normalize_search_query(_query), do: ""
+
+  defp filter_runs_by_search(runs, ""), do: runs
+
+  defp filter_runs_by_search(runs, query) do
+    normalized_query = String.downcase(query)
+
+    Enum.filter(runs, fn run ->
+      run
+      |> run_search_text()
+      |> String.downcase()
+      |> String.contains?(normalized_query)
+    end)
+  end
+
+  defp run_search_text(run) do
+    [
+      run.title,
+      run.workspace,
+      run.agent,
+      run.status,
+      latest_activity(run.latest_event)
+    ]
+    |> Enum.join(" ")
   end
 
   defp default_run_params do
@@ -915,6 +963,32 @@ defmodule HavenWeb.InboxLive do
             </.form>
           </header>
 
+          <form
+            id="inbox-search-form"
+            phx-change="search_runs"
+            phx-submit="search_runs"
+            class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
+          >
+            <.input
+              id="run_search"
+              name="run_search"
+              value={@run_search}
+              type="search"
+              label="Search runs"
+              placeholder="Title, folder, agent, status, activity"
+              autocomplete="off"
+            />
+            <button
+              :if={@run_search != ""}
+              id="clear-inbox-search"
+              type="button"
+              class="mb-2 h-10 self-end rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+              phx-click="clear_run_search"
+            >
+              Clear
+            </button>
+          </form>
+
           <nav
             id="inbox-run-filters"
             class="flex gap-2 overflow-x-auto pb-1"
@@ -940,7 +1014,11 @@ defmodule HavenWeb.InboxLive do
             id="inbox-filter-empty"
             class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
           >
-            No runs in this view.
+            <%= if @searched_runs_empty? do %>
+              No runs match your search.
+            <% else %>
+              No runs in this view.
+            <% end %>
           </div>
 
           <section :if={@needs_you != []} id="inbox-needs-you-section" class="space-y-2">
@@ -958,7 +1036,7 @@ defmodule HavenWeb.InboxLive do
           </section>
 
           <section
-            :if={@run_filter in ["all", "history"]}
+            :if={@run_filter in ["all", "history"] and !@filtered_runs_empty?}
             id="inbox-history-section"
             class="space-y-2"
           >

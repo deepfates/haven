@@ -103,6 +103,9 @@ Evidence:
   change.
 - LiveView tests verify the inbox can filter the attention surface to All,
   Needs You, Running, or History while preserving lane counts and empty states.
+- LiveView tests verify the inbox can search visible run facts across title,
+  workspace path, agent key, status, and latest activity while preserving lane
+  counts and clear/no-match states.
 - Browser smoke verifies the rendered inbox can start a real run with an
   explicit workspace and that the run detail/ACP launch args reflect it.
 - Browser smoke verifies a run waiting on permission moves into the rendered
@@ -119,7 +122,7 @@ Still missing:
 
 - Richer workspace configuration UI and metadata beyond name/path.
 - OS-native workspace browse affordances.
-- Search and richer filtering beyond the fixed operational lanes.
+- Richer filtering beyond the fixed operational lanes and free-text search.
 
 ### Run Timeline
 

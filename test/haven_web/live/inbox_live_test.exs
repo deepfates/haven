@@ -611,6 +611,64 @@ defmodule HavenWeb.InboxLiveTest do
     refute has_element?(view, "article", "Still working")
   end
 
+  @tag :tmp_dir
+  test "searches inbox runs by row facts and latest activity", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    matching_workspace = Path.join(tmp_dir, "project-alpha")
+    other_workspace = Path.join(tmp_dir, "project-beta")
+    File.mkdir_p!(matching_workspace)
+    File.mkdir_p!(other_workspace)
+
+    matched = insert_run!("Docs cleanup", "idle", %{workspace: matching_workspace})
+    insert_run!("Payment bug", "waiting", %{workspace: other_workspace, agent: "other-acp"})
+
+    Events.append!(matched.id, "file_write_succeeded", %{"path" => "notes/result.md"})
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#inbox-search-form")
+    assert has_element?(view, "#run_search")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "project-alpha"})
+    |> render_change()
+
+    assert has_element?(view, "article", "Docs cleanup")
+    refute has_element?(view, "article", "Payment bug")
+    assert has_element?(view, "#inbox-filter-all", "1")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "other-acp"})
+    |> render_change()
+
+    assert has_element?(view, "article", "Payment bug")
+    refute has_element?(view, "article", "Docs cleanup")
+    assert has_element?(view, "#inbox-filter-needs_you", "1")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "notes/result.md"})
+    |> render_change()
+
+    assert has_element?(view, "article", "Docs cleanup")
+    refute has_element?(view, "article", "Payment bug")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "not-here"})
+    |> render_change()
+
+    assert has_element?(view, "#inbox-filter-empty", "No runs match your search.")
+    refute has_element?(view, "article", "Docs cleanup")
+
+    view
+    |> element("#clear-inbox-search")
+    |> render_click()
+
+    assert has_element?(view, "article", "Docs cleanup")
+    assert has_element?(view, "article", "Payment bug")
+  end
+
   test "shows an empty state for a filtered lane with no runs", %{conn: conn} do
     insert_run!("Quiet", "idle")
 
@@ -711,15 +769,20 @@ defmodule HavenWeb.InboxLiveTest do
     assert payload["previous_status"] == "failed"
   end
 
-  defp insert_run!(title, status) do
+  defp insert_run!(title, status, attrs \\ %{}) do
     run =
       %Run{}
-      |> Run.changeset(%{
-        title: title,
-        workspace: File.cwd!(),
-        agent: "stub-acp",
-        status: status
-      })
+      |> Run.changeset(
+        Map.merge(
+          %{
+            title: title,
+            workspace: File.cwd!(),
+            agent: "stub-acp",
+            status: status
+          },
+          attrs
+        )
+      )
       |> Repo.insert!()
 
     Events.append!(run.id, "run_created", %{
