@@ -27,7 +27,7 @@ defmodule Haven.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [precommit: :test, "haven.runtime_smoke": :dev]
     ]
   end
 

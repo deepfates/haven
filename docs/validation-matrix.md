@@ -12,6 +12,10 @@ inspectable agent runs with explicit human decisions.
 - Runtime migration gate before browser smoke: `MIX_ENV=dev mix
   haven.pending_migrations` must report no pending migrations for the dev
   database that backs `http://127.0.0.1:4000/`.
+- Runtime HTTP smoke: with the dev server running, `MIX_ENV=dev mix
+  haven.runtime_smoke` renders the real inbox/run pages, creates a run through
+  `/dev/runs`, triggers and resolves a permission request, and verifies the
+  thread, decision, and evidence disclosure surfaces in rendered HTML.
 - Agent probe harness: `mix haven.agent_probe --report` can produce durable JSON
   evidence artifacts with explicit `--expect-event` acceptance checks; see
   `docs/probes/README.md`.
@@ -49,6 +53,10 @@ happy path. For every production-grade claim, keep these checks current:
 - Verify the actual browser/runtime database before browser smoke with
   `MIX_ENV=dev mix haven.pending_migrations`; test database migrations do not
   prove the running app at port 4000 can render.
+- Run `MIX_ENV=dev mix haven.runtime_smoke` before treating a local UI change as
+  runtime-verified. It is an automated rendered-HTML smoke for the dev server,
+  not a substitute for visual browser inspection when layout, responsiveness, or
+  real browser interaction behavior is the claim.
 - Prefer persisted state checks after live UI actions: reload the browser,
   inspect durable events/projections, and confirm the state still holds.
 - Record useful failures as negative evidence. A failed real-agent probe with

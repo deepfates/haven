@@ -46,6 +46,18 @@ curl -X POST http://127.0.0.1:4000/dev/runs \
   -d '{"title":"Malformed smoke","agent":"malformed-agent","workspace":"'"$PWD"'"}'
 ```
 
+With `mix phx.server` running, the repeatable runtime smoke exercises the same
+rendered dev-server path and deterministic controls:
+
+```bash
+MIX_ENV=dev mix haven.runtime_smoke
+```
+
+It checks dev migrations, renders the inbox, creates a stub-backed run through
+`/dev/runs`, waits for startup events on the run page, triggers and resolves a
+permission request, and verifies the thread/decision/evidence disclosure
+surfaces in rendered HTML.
+
 To probe any configured ACP agent through Haven's real run lifecycle:
 
 ```bash
