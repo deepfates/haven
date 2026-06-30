@@ -14,8 +14,10 @@ inspectable agent runs with explicit human decisions.
   database that backs `http://127.0.0.1:4000/`.
 - Runtime HTTP smoke: with the dev server running, `MIX_ENV=dev mix
   haven.runtime_smoke` renders the real inbox/run pages, creates a run through
-  `/dev/runs`, triggers and resolves a permission request, and verifies the
-  thread, decision, and evidence disclosure surfaces in rendered HTML.
+  `/dev/runs` in a disposable workspace, triggers and resolves a generic
+  permission request, approves ACP file read/write requests, verifies the
+  written file, runs a deterministic terminal command, and verifies the thread,
+  decision, and evidence disclosure surfaces in rendered HTML.
 - Agent probe harness: `mix haven.agent_probe --report` can produce durable JSON
   evidence artifacts with explicit `--expect-event` acceptance checks; see
   `docs/probes/README.md`.

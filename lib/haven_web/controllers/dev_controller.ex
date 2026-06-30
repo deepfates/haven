@@ -39,6 +39,18 @@ defmodule HavenWeb.DevController do
     respond(conn, Runs.send_prompt(id, "permission"))
   end
 
+  def sample(conn, %{"id" => id, "sample" => "read-file"}) do
+    respond(conn, Runs.send_prompt(id, "read-file"))
+  end
+
+  def sample(conn, %{"id" => id, "sample" => "write-file"}) do
+    respond(conn, Runs.send_prompt(id, "write-file"))
+  end
+
+  def sample(conn, %{"id" => id, "sample" => "terminal"}) do
+    respond(conn, Runs.send_prompt(id, "terminal"))
+  end
+
   def permission(conn, %{"id" => id, "request_id" => request_id, "option_id" => option_id}) do
     respond(conn, Runs.resolve_permission(id, request_id, option_id))
   end

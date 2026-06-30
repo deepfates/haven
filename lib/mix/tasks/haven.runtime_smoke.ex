@@ -14,8 +14,9 @@ defmodule Mix.Tasks.Haven.RuntimeSmoke do
       MIX_ENV=dev mix haven.runtime_smoke --base-url http://127.0.0.1:4001
 
   The task requires dev routes to be enabled and a server to already be running.
-  It creates a short stub-backed run through `/dev/runs`, triggers a permission
-  request, resolves it, and verifies the rendered inbox/run pages expose the
+  It creates a disposable workspace by default, starts a stub-backed run through
+  `/dev/runs`, triggers permission/file/terminal capability paths, resolves the
+  human decisions, and verifies the rendered inbox/run pages expose the
   mobile-first thread, decision, and evidence disclosure surfaces.
   """
 
@@ -61,13 +62,23 @@ defmodule Mix.Tasks.Haven.RuntimeSmoke do
     end
 
     workspace =
-      opts
-      |> Keyword.get(:workspace, File.cwd!())
-      |> Path.expand()
+      case Keyword.fetch(opts, :workspace) do
+        {:ok, path} ->
+          path
+          |> Path.expand()
+          |> tap(fn expanded ->
+            unless File.dir?(expanded) do
+              Mix.raise("Workspace must be an existing directory: #{expanded}")
+            end
 
-    unless File.dir?(workspace) do
-      Mix.raise("Workspace must be an existing directory: #{workspace}")
-    end
+            unless File.regular?(Path.join(expanded, "README.md")) do
+              Mix.raise("Workspace must include README.md for the read-file smoke: #{expanded}")
+            end
+          end)
+
+        :error ->
+          create_smoke_workspace!()
+      end
 
     [
       base_url: Keyword.get(opts, :base_url, @default_base_url),
@@ -112,41 +123,97 @@ defmodule Mix.Tasks.Haven.RuntimeSmoke do
     assert_contains!(run_html, "Capability policy", "capability disclosure")
     assert_contains!(run_html, "Permission audit", "permission audit disclosure")
 
-    sample_until_ok!(client, run["id"], "permission", timeout_ms)
+    request_id =
+      trigger_pending_permission!(client, run["id"], run_path, "permission", timeout_ms)
 
-    waiting_html =
-      wait_until!(timeout_ms, "permission request appears", fn ->
+    resolve_permission!(client, run["id"], request_id, "allow")
+
+    wait_until!(timeout_ms, "permission resolution is rendered durably", fn ->
+      html = get_html!(client, run_path)
+
+      if contains_all?(html, ["permission_resolved", "turn_finished"]) and
+           not String.contains?(html, "pending-permission-card") do
+        {:ok, html}
+      else
+        :retry
+      end
+    end)
+
+    read_request_id =
+      trigger_pending_permission!(client, run["id"], run_path, "read-file", timeout_ms)
+
+    resolve_permission!(client, run["id"], read_request_id, "allow")
+
+    wait_until!(timeout_ms, "file read succeeds and renders", fn ->
+      html = get_html!(client, run_path)
+
+      if contains_all?(html, [
+           "file_read_succeeded",
+           "Read file: Haven runtime smoke fixture"
+         ]) do
+        {:ok, html}
+      else
+        :retry
+      end
+    end)
+
+    write_request_id =
+      trigger_pending_permission!(client, run["id"], run_path, "write-file", timeout_ms)
+
+    resolve_permission!(client, run["id"], write_request_id, "allow")
+
+    wait_until!(timeout_ms, "file write succeeds and renders", fn ->
+      html = get_html!(client, run_path)
+
+      if contains_all?(html, [
+           "file_write_succeeded",
+           "haven-written.txt",
+           "Wrote file through Haven."
+         ]) do
+        {:ok, html}
+      else
+        :retry
+      end
+    end)
+
+    unless File.read(Path.join(workspace, "haven-written.txt")) == {:ok, "written by Haven ACP\n"} do
+      Mix.raise("File write smoke did not create the expected workspace file.")
+    end
+
+    sample_until_ok!(client, run["id"], "terminal", timeout_ms)
+
+    terminal_html =
+      wait_until!(timeout_ms, "terminal capability succeeds and renders", fn ->
         html = get_html!(client, run_path)
 
-        if contains_all?(html, ["pending-permission-card", "Needs approval"]) do
+        if contains_all?(html, [
+             "terminal_created",
+             "terminal_output_succeeded",
+             "Terminal output: hello",
+             "run-terminal-session-count"
+           ]) do
           {:ok, html}
         else
           :retry
         end
       end)
 
-    assert_contains!(waiting_html, "Technical details", "permission technical disclosure")
-
-    resolve_permission!(client, run["id"], "1", "allow")
-
-    resolved_html =
-      wait_until!(timeout_ms, "permission resolution is rendered durably", fn ->
-        html = get_html!(client, run_path)
-
-        if contains_all?(html, ["permission_resolved", "turn_finished"]) and
-             not String.contains?(html, "pending-permission-card") do
-          {:ok, html}
-        else
-          :retry
-        end
-      end)
-
-    assert_contains!(resolved_html, "run-thread", "run thread after resolution")
+    assert_contains!(terminal_html, "run-thread", "run thread after terminal smoke")
 
     Mix.shell().info("Runtime smoke passed.")
     Mix.shell().info("  base_url: #{client.options[:base_url]}")
+    Mix.shell().info("  workspace: #{workspace}")
     Mix.shell().info("  run_id: #{run["id"]}")
     Mix.shell().info("  run_url: #{client.options[:base_url]}#{run_path}")
+  end
+
+  defp create_smoke_workspace! do
+    path =
+      Path.join(System.tmp_dir!(), "haven-runtime-smoke-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(path)
+    File.write!(Path.join(path, "README.md"), "Haven runtime smoke fixture\n")
+    path
   end
 
   defp get_html!(client, path) do
@@ -186,6 +253,28 @@ defmodule Mix.Tasks.Haven.RuntimeSmoke do
         other -> Mix.raise("Sample #{sample} failed: #{inspect(other)}")
       end
     end)
+  end
+
+  defp trigger_pending_permission!(client, run_id, run_path, sample, timeout_ms) do
+    sample_until_ok!(client, run_id, sample, timeout_ms)
+
+    waiting_html =
+      wait_until!(timeout_ms, "#{sample} permission request appears", fn ->
+        html = get_html!(client, run_path)
+
+        if contains_all?(html, ["pending-permission-card", "Needs approval"]) do
+          {:ok, html}
+        else
+          :retry
+        end
+      end)
+
+    assert_contains!(waiting_html, "Technical details", "permission technical disclosure")
+
+    case Regex.run(~r/phx-value-request-id="([^"]+)"/, waiting_html, capture: :all_but_first) do
+      [request_id] -> request_id
+      _match -> Mix.raise("Could not find pending permission request id in rendered run page.")
+    end
   end
 
   defp resolve_permission!(client, run_id, request_id, option_id) do

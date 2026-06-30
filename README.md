@@ -40,6 +40,9 @@ In development, there are HTTP controls for deterministic local testing:
 ```bash
 curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/echo
 curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/permission
+curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/read-file
+curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/write-file
+curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/terminal
 curl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow
 curl -X POST http://127.0.0.1:4000/dev/runs \
   -H 'content-type: application/json' \
@@ -54,9 +57,11 @@ MIX_ENV=dev mix haven.runtime_smoke
 ```
 
 It checks dev migrations, renders the inbox, creates a stub-backed run through
-`/dev/runs`, waits for startup events on the run page, triggers and resolves a
-permission request, and verifies the thread/decision/evidence disclosure
-surfaces in rendered HTML.
+`/dev/runs` in a disposable workspace, waits for startup events on the run
+page, triggers and resolves a generic permission request, approves ACP file
+read/write requests, verifies the written file, runs a deterministic terminal
+command, and verifies the thread/decision/evidence disclosure surfaces in
+rendered HTML.
 
 To probe any configured ACP agent through Haven's real run lifecycle:
 
