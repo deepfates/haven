@@ -808,6 +808,31 @@ defmodule HavenWeb.RunLive do
                   </.link>
                   <h1 class="mt-2 truncate text-2xl font-semibold">{@run.title}</h1>
                   <p class="mt-1 truncate text-sm text-zinc-500">{@run.workspace}</p>
+                  <dl
+                    id="run-header-facts"
+                    class="mt-3 grid gap-2 text-xs text-zinc-600 sm:grid-cols-2 lg:grid-cols-4"
+                  >
+                    <div id="run-header-agent" class="min-w-0">
+                      <dt class="font-semibold uppercase text-zinc-500">Agent</dt>
+                      <dd class="truncate font-mono">{@run.agent}</dd>
+                    </div>
+                    <div id="run-header-session" class="min-w-0">
+                      <dt class="font-semibold uppercase text-zinc-500">Session</dt>
+                      <dd class="truncate font-mono">{@run.agent_session_id || "starting"}</dd>
+                    </div>
+                    <div id="run-header-created" class="min-w-0">
+                      <dt class="font-semibold uppercase text-zinc-500">Created</dt>
+                      <dd class="truncate font-mono">
+                        {Calendar.strftime(@run.inserted_at, "%Y-%m-%d %H:%M:%S")}
+                      </dd>
+                    </div>
+                    <div id="run-header-updated" class="min-w-0">
+                      <dt class="font-semibold uppercase text-zinc-500">Updated</dt>
+                      <dd class="truncate font-mono">
+                        {Calendar.strftime(@run.updated_at, "%Y-%m-%d %H:%M:%S")}
+                      </dd>
+                    </div>
+                  </dl>
                 </div>
                 <span class="inline-flex shrink-0 items-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm font-medium text-zinc-700">
                   {@run.status}

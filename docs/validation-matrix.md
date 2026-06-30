@@ -129,6 +129,9 @@ Evidence:
 
 - `test/haven_web/live/run_live_test.exs` verifies startup events are persisted
   and survive a fresh LiveView mount.
+- LiveView integration tests verify the run header exposes title-adjacent run
+  identity facts: agent key, session id, created timestamp, and updated
+  timestamp.
 - LiveView integration tests verify a non-message ACP `tool_call_update`
   notification is preserved as a durable timeline event.
 - LiveView integration tests verify disconnected idle history renders without

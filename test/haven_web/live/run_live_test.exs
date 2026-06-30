@@ -36,6 +36,13 @@ defmodule HavenWeb.RunLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
 
+    run = Runs.get_run!(run.id)
+
+    assert has_element?(view, "#run-header-facts")
+    assert has_element?(view, "#run-header-agent", "stub-acp")
+    assert has_element?(view, "#run-header-session", run.agent_session_id)
+    assert has_element?(view, "#run-header-created")
+    assert has_element?(view, "#run-header-updated")
     assert has_element?(view, "#run-thread")
     assert has_element?(view, "#timeline-filters summary", "Filter activity")
     assert has_element?(view, "#run-prompt-form")
