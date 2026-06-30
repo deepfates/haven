@@ -749,8 +749,10 @@ defmodule HavenWeb.RunLiveTest do
                     %{type: "permission_requested", payload: %{"request_id" => request_id}}},
                    1_000
 
+    assert has_element?(view, "#pending-permission-cancel-button", "Cancel turn")
+
     view
-    |> element("#cancel-run-button")
+    |> element("#pending-permission-cancel-button")
     |> render_click()
 
     assert_receive {:event_appended, %{type: "turn_cancelled"}}, 1_000

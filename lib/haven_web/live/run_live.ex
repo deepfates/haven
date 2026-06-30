@@ -883,7 +883,7 @@ defmodule HavenWeb.RunLive do
                   </summary>
                   <pre class="mt-2 max-h-40 overflow-auto rounded-md bg-zinc-50 p-3 text-xs text-zinc-700"><%= Jason.encode!(get_in(@pending_permission.payload, ["toolCall", "rawInput"]) || %{}, pretty: true) %></pre>
                 </details>
-                <div class="mt-3 flex gap-2">
+                <div class="mt-3 flex flex-wrap gap-2">
                   <button
                     :for={option <- @pending_permission.payload["options"]}
                     class={[
@@ -899,6 +899,15 @@ defmodule HavenWeb.RunLive do
                     disabled={!@live?}
                   >
                     {option["name"]}
+                  </button>
+                  <button
+                    id="pending-permission-cancel-button"
+                    type="button"
+                    class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    phx-click="cancel"
+                    disabled={!@can_cancel?}
+                  >
+                    Cancel turn
                   </button>
                 </div>
               </section>
