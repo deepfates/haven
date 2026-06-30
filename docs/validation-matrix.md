@@ -141,6 +141,9 @@ Evidence:
   spawning a new agent process or appending synthetic live events.
 - LiveView integration tests verify an explicit reconnect/restart request starts
   a fresh ACP process for disconnected idle history and failed persisted runs.
+- LiveView integration tests verify disconnected and failed runs expose a
+  main-thread recovery card whose Reconnect/Restart action starts the fresh ACP
+  process while preserving the existing transcript.
 - Browser smoke verifies the timeline renders protocol-shaped events during a
   real browser session, that disconnected history is visibly read-only, and that
   clicking Reconnect appends recovery and startup events.
@@ -180,6 +183,9 @@ Evidence:
 - LiveView integration tests and browser smoke verify prompt controls are
   disabled while a turn is running, cancel remains available, and controls
   reopen after the cancellation returns the run to `idle`.
+- LiveView integration tests verify recoverable disconnected and failed states
+  expose the next Reconnect/Restart action in the conversation path, not only in
+  secondary controls.
 - LiveView integration tests verify stale/direct prompt submission while a turn
   is already running is rejected as `{:error, :busy}` instead of starting a
   second concurrent turn.

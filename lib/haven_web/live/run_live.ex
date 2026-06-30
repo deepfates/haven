@@ -115,6 +115,7 @@ defmodule HavenWeb.RunLive do
     |> assign(:can_prompt?, live? and run.status == "idle")
     |> assign(:can_cancel?, live? and run.status in ["initializing", "running", "waiting"])
     |> assign(:can_reconnect?, can_reconnect?(run, live?))
+    |> assign(:recovery_attention, recovery_attention(run, live?))
     |> assign(:pending_permission, latest_pending_permission(events))
   end
 
@@ -189,6 +190,26 @@ defmodule HavenWeb.RunLive do
   defp can_reconnect?(run, live?) do
     run.status == "failed" or (not live? and run.status != "closed")
   end
+
+  defp recovery_attention(%{status: "failed"}, _live?) do
+    %{
+      title: "Run failed",
+      body:
+        "The agent process is no longer usable. Restart starts a fresh ACP session while keeping this run history intact.",
+      action: "Restart"
+    }
+  end
+
+  defp recovery_attention(%{status: status}, false) when status != "closed" do
+    %{
+      title: "Run is not connected",
+      body:
+        "The durable history is available, but no live agent process is attached. Reconnect starts a fresh ACP session for this run.",
+      action: "Reconnect"
+    }
+  end
+
+  defp recovery_attention(_run, _live?), do: nil
 
   defp latest_pending_permission(events) do
     resolved =
@@ -841,6 +862,28 @@ defmodule HavenWeb.RunLive do
             </header>
 
             <section id="run-thread" class="flex flex-col gap-3">
+              <section
+                :if={@recovery_attention}
+                id="run-recovery-card"
+                class="rounded-2xl border border-rose-200 bg-rose-50 p-4"
+              >
+                <p class="text-xs font-semibold uppercase text-rose-700">Needs recovery</p>
+                <h2 class="mt-1 text-base font-semibold text-zinc-950">
+                  {@recovery_attention.title}
+                </h2>
+                <p class="mt-2 text-sm text-zinc-700">
+                  {@recovery_attention.body}
+                </p>
+                <button
+                  id="run-recovery-action-button"
+                  type="button"
+                  class="mt-3 h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                  phx-click="reconnect"
+                >
+                  {@recovery_attention.action}
+                </button>
+              </section>
+
               <section
                 :if={@pending_permission}
                 id="pending-permission-card"

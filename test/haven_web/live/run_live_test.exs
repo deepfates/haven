@@ -115,10 +115,12 @@ defmodule HavenWeb.RunLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
 
+    assert has_element?(view, "#run-recovery-card", "Run is not connected")
+    assert has_element?(view, "#run-recovery-action-button", "Reconnect")
     assert has_element?(view, "#reconnect-run-button", "Reconnect")
 
     view
-    |> element("#reconnect-run-button")
+    |> element("#run-recovery-action-button")
     |> render_click()
 
     assert_receive {:event_appended,
@@ -264,10 +266,12 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
 
     assert html =~ "failed"
+    assert has_element?(view, "#run-recovery-card", "Run failed")
+    assert has_element?(view, "#run-recovery-action-button", "Restart")
     assert has_element?(view, "#reconnect-run-button", "Restart")
 
     view
-    |> element("#reconnect-run-button")
+    |> element("#run-recovery-action-button")
     |> render_click()
 
     assert_receive {:event_appended,
@@ -924,6 +928,8 @@ defmodule HavenWeb.RunLiveTest do
     assert_receive {:event_appended, %{type: "turn_failed"}}, 1_000
 
     assert render(view) =~ "failed"
+    assert has_element?(view, "#run-recovery-card", "Run failed")
+    assert has_element?(view, "#run-recovery-action-button", "Restart")
     assert has_element?(view, "#reconnect-run-button", "Restart")
 
     view
