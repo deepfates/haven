@@ -567,8 +567,9 @@ defmodule HavenWeb.InboxLiveTest do
   end
 
   test "groups runs into operational attention lanes", %{conn: conn} do
-    insert_run!("Needs approval", "waiting")
+    waiting = insert_run!("Needs approval", "waiting")
     insert_run!("Still working", "running")
+    failed = insert_run!("Needs restart", "failed")
     insert_run!("Quiet", "idle")
 
     {:ok, view, _html} = live(conn, ~p"/")
@@ -577,7 +578,12 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#inbox-running-section")
     assert has_element?(view, "#inbox-history-section")
     assert has_element?(view, "article", "Needs approval")
+    assert has_element?(view, "#run-#{waiting.id}-attention", "Needs decision")
+    assert has_element?(view, "a", "Decide")
     assert has_element?(view, "article", "Still working")
+    assert has_element?(view, "article", "Needs restart")
+    assert has_element?(view, "#run-#{failed.id}-attention", "Needs recovery")
+    assert has_element?(view, "a", "Recover")
     assert has_element?(view, "article", "Quiet")
   end
 
@@ -646,6 +652,13 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "article", "Payment bug")
     refute has_element?(view, "article", "Docs cleanup")
     assert has_element?(view, "#inbox-filter-needs_you", "1")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "needs decision"})
+    |> render_change()
+
+    assert has_element?(view, "article", "Payment bug")
+    refute has_element?(view, "article", "Docs cleanup")
 
     view
     |> form("#inbox-search-form", %{"run_search" => "notes/result.md"})

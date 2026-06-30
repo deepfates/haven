@@ -98,14 +98,17 @@ Evidence:
   directories before any run process starts.
 - The same test verifies waiting, running, and idle runs render in separate
   attention lanes.
+- LiveView tests verify inbox rows expose explicit attention labels and primary
+  actions for runs needing human decisions or recovery, so users can distinguish
+  permission/failure work without opening each run.
 - LiveView tests verify inbox rows project the latest meaningful run event and
   refresh that activity when a new event arrives without requiring a run status
   change.
 - LiveView tests verify the inbox can filter the attention surface to All,
   Needs You, Running, or History while preserving lane counts and empty states.
 - LiveView tests verify the inbox can search visible run facts across title,
-  workspace path, agent key, status, and latest activity while preserving lane
-  counts and clear/no-match states.
+  workspace path, agent key, status, attention state, and latest activity while
+  preserving lane counts and clear/no-match states.
 - Browser smoke verifies the rendered inbox can start a real run with an
   explicit workspace and that the run detail/ACP launch args reflect it.
 - Browser smoke verifies a run waiting on permission moves into the rendered

@@ -255,8 +255,10 @@ defmodule HavenWeb.InboxLive do
       run.workspace,
       run.agent,
       run.status,
+      run_attention_label(run),
       latest_activity(run.latest_event)
     ]
+    |> Enum.reject(&is_nil/1)
     |> Enum.join(" ")
   end
 
@@ -535,6 +537,20 @@ defmodule HavenWeb.InboxLive do
 
   defp archivable?(run), do: run.status in ["closed", "failed"]
 
+  defp run_attention_label(%{status: "waiting"}), do: "Needs decision"
+  defp run_attention_label(%{status: "failed"}), do: "Needs recovery"
+  defp run_attention_label(_run), do: nil
+
+  defp run_attention_class(%{status: "waiting"}),
+    do: badge_class("border-amber-200 bg-amber-50 text-amber-700")
+
+  defp run_attention_class(%{status: "failed"}),
+    do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
+
+  defp run_action_label(%{status: "waiting"}), do: "Decide"
+  defp run_action_label(%{status: "failed"}), do: "Recover"
+  defp run_action_label(_run), do: "Open"
+
   defp run_filter_button_class(filter, active_filter) do
     [
       "inline-flex h-9 items-center rounded-md border px-3 text-xs font-semibold transition",
@@ -811,7 +827,10 @@ defmodule HavenWeb.InboxLive do
   end
 
   defp run_card(assigns) do
-    assigns = assign_new(assigns, :show_archive, fn -> false end)
+    assigns =
+      assigns
+      |> assign_new(:show_archive, fn -> false end)
+      |> assign(:attention_label, run_attention_label(assigns.run))
 
     ~H"""
     <article class="border-b border-zinc-200 bg-white px-4 py-3 transition last:border-b-0 hover:bg-zinc-50">
@@ -820,7 +839,16 @@ defmodule HavenWeb.InboxLive do
           <h3 class="truncate text-sm font-semibold text-zinc-950">{@run.title}</h3>
           <p class="mt-1 truncate text-xs text-zinc-500">{@run.workspace}</p>
         </div>
-        <span class={status_class(@run.status)}>{@run.status}</span>
+        <div class="flex shrink-0 flex-col items-end gap-1">
+          <span class={status_class(@run.status)}>{@run.status}</span>
+          <span
+            :if={@attention_label}
+            id={"run-#{@run.id}-attention"}
+            class={run_attention_class(@run)}
+          >
+            {@attention_label}
+          </span>
+        </div>
       </div>
       <div class="mt-2 flex items-center justify-between gap-3">
         <div class="min-w-0 text-xs text-zinc-500">
@@ -842,7 +870,7 @@ defmodule HavenWeb.InboxLive do
             navigate={~p"/runs/#{@run.id}"}
             class="inline-flex h-8 items-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
           >
-            Open
+            {run_action_label(@run)}
           </.link>
           <button
             :if={@show_archive and archivable?(@run)}
