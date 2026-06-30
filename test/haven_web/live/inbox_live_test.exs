@@ -581,6 +581,34 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "article", "Quiet")
   end
 
+  test "renders latest run activity in inbox rows", %{conn: conn} do
+    run = insert_run!("Activity row", "idle")
+
+    Events.append!(run.id, "agent_message_chunk", %{
+      "text" => "Reviewed the workspace\nand found one issue."
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(
+             view,
+             "#run-#{run.id}-latest-activity",
+             "Agent: Reviewed the workspace and found one issue."
+           )
+  end
+
+  test "updates latest activity when a run event arrives without a status change", %{conn: conn} do
+    run = insert_run!("Live activity row", "idle")
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#run-#{run.id}-latest-activity", "Run created")
+
+    Events.append!(run.id, "file_write_succeeded", %{"path" => "notes/result.md"})
+
+    assert has_element?(view, "#run-#{run.id}-latest-activity", "Wrote file: notes/result.md")
+  end
+
   test "moves live runs between attention lanes as their status changes", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Lane movement run"})
     stop_run_server_on_exit(run.id)

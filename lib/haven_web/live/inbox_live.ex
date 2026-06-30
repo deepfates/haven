@@ -3,6 +3,7 @@ defmodule HavenWeb.InboxLive do
 
   alias Haven.AgentProbe
   alias Haven.Agents
+  alias Haven.Events
   alias Haven.Runs
   alias Haven.Workspaces
 
@@ -139,14 +140,29 @@ defmodule HavenWeb.InboxLive do
   @impl true
   def handle_info({:run_updated, _run}, socket), do: {:noreply, assign_runs(socket)}
 
+  def handle_info({:run_event_appended, _event}, socket), do: {:noreply, assign_runs(socket)}
+
   defp assign_runs(socket) do
-    runs = Runs.list_runs()
+    runs =
+      Runs.list_runs()
+      |> attach_latest_events()
 
     socket
     |> assign(:runs, runs)
     |> assign(:needs_you, Enum.filter(runs, &(&1.status == "waiting")))
     |> assign(:running, Enum.filter(runs, &(&1.status in ["initializing", "running"])))
     |> assign(:history, Enum.reject(runs, &(&1.status in ["waiting", "initializing", "running"])))
+  end
+
+  defp attach_latest_events(runs) do
+    latest_events =
+      runs
+      |> Enum.map(& &1.id)
+      |> Events.latest_by_run_id()
+
+    Enum.map(runs, fn run ->
+      Map.put(run, :latest_event, Map.get(latest_events, run.id))
+    end)
   end
 
   defp default_run_params do
@@ -429,6 +445,72 @@ defmodule HavenWeb.InboxLive do
       tone
   end
 
+  defp latest_activity(nil), do: "No events yet"
+
+  defp latest_activity(%{type: "permission_requested", payload: payload}) do
+    title = get_in(payload, ["toolCall", "title"]) || "permission requested"
+    "Needs decision: #{title}"
+  end
+
+  defp latest_activity(%{type: "permission_resolved", payload: %{"option_id" => option_id}}) do
+    "Decision recorded: #{option_id}"
+  end
+
+  defp latest_activity(%{type: "agent_message_chunk", payload: %{"text" => text}}) do
+    "Agent: #{one_line(text)}"
+  end
+
+  defp latest_activity(%{type: "user_message", payload: %{"text" => text}}) do
+    "You: #{one_line(text)}"
+  end
+
+  defp latest_activity(%{type: "file_read_succeeded", payload: %{"path" => path}}) do
+    "Read file: #{path}"
+  end
+
+  defp latest_activity(%{type: "file_write_succeeded", payload: %{"path" => path}}) do
+    "Wrote file: #{path}"
+  end
+
+  defp latest_activity(%{type: "file_write_denied", payload: %{"path" => path}}) do
+    "File write denied: #{path}"
+  end
+
+  defp latest_activity(%{type: "terminal_created", payload: %{"command" => command}}) do
+    "Started terminal: #{command}"
+  end
+
+  defp latest_activity(%{type: "terminal_output_succeeded", payload: %{"command" => command}}) do
+    "Terminal output: #{command}"
+  end
+
+  defp latest_activity(%{type: "turn_finished"}), do: "Turn finished"
+  defp latest_activity(%{type: "turn_failed"}), do: "Turn failed"
+  defp latest_activity(%{type: "turn_cancelled"}), do: "Turn cancelled"
+  defp latest_activity(%{type: "agent_process_exited"}), do: "Agent process exited"
+  defp latest_activity(%{type: "agent_protocol_failed"}), do: "Agent protocol failed"
+  defp latest_activity(%{type: "agent_session_started"}), do: "Agent session started"
+  defp latest_activity(%{type: "agent_initialized"}), do: "Agent initialized"
+  defp latest_activity(%{type: "run_created"}), do: "Run created"
+  defp latest_activity(%{type: type}), do: event_label(type)
+
+  defp latest_activity_time(nil), do: nil
+
+  defp latest_activity_time(%{inserted_at: inserted_at}),
+    do: Calendar.strftime(inserted_at, "%H:%M:%S")
+
+  defp one_line(text) when is_binary(text) do
+    text
+    |> String.replace(~r/\s+/, " ")
+    |> String.trim()
+  end
+
+  defp event_label(type) do
+    type
+    |> String.replace("_", " ")
+    |> String.capitalize()
+  end
+
   defp agent_evidence_label(%{real_agent_candidate: true}), do: "Static candidate"
   defp agent_evidence_label(%{status: "invalid"}), do: "Invalid command"
   defp agent_evidence_label(_inventory), do: "Local harness"
@@ -638,8 +720,19 @@ defmodule HavenWeb.InboxLive do
         <span class={status_class(@run.status)}>{@run.status}</span>
       </div>
       <div class="mt-2 flex items-center justify-between gap-3">
-        <div class="text-xs text-zinc-500">
-          {@run.agent} · updated {Calendar.strftime(@run.updated_at, "%H:%M:%S")}
+        <div class="min-w-0 text-xs text-zinc-500">
+          <p class="truncate">
+            {@run.agent} · started {Calendar.strftime(@run.inserted_at, "%H:%M:%S")} · updated {Calendar.strftime(
+              @run.updated_at,
+              "%H:%M:%S"
+            )}
+          </p>
+          <p id={"run-#{@run.id}-latest-activity"} class="mt-1 truncate text-zinc-700">
+            {latest_activity(@run.latest_event)}
+            <span :if={latest_activity_time(@run.latest_event)} class="text-zinc-400">
+              · {latest_activity_time(@run.latest_event)}
+            </span>
+          </p>
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <.link

@@ -45,6 +45,18 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-terminal-sessions summary", "Terminal sessions")
   end
 
+  test "ignores global inbox activity notifications while using run-scoped events", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Scoped event run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    Events.append!(run.id, "agent_message_chunk", %{"text" => "Scoped event update"})
+
+    assert has_element?(view, "#run-thread", "Scoped event update")
+  end
+
   test "renders the run capability policy in the facts panel", %{conn: conn} do
     {:ok, run} =
       Runs.create_run(%{

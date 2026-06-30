@@ -90,6 +90,8 @@ defmodule HavenWeb.RunLive do
     {:noreply, assign_run(socket, socket.assigns.run.id)}
   end
 
+  def handle_info({:run_event_appended, _event}, socket), do: {:noreply, socket}
+
   def handle_info({:run_updated, %{id: id}}, %{assigns: %{run: %{id: id}}} = socket) do
     {:noreply, assign_run(socket, id)}
   end

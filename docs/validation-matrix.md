@@ -98,6 +98,9 @@ Evidence:
   directories before any run process starts.
 - The same test verifies waiting, running, and idle runs render in separate
   attention lanes.
+- LiveView tests verify inbox rows project the latest meaningful run event and
+  refresh that activity when a new event arrives without requiring a run status
+  change.
 - Browser smoke verifies the rendered inbox can start a real run with an
   explicit workspace and that the run detail/ACP launch args reflect it.
 - Browser smoke verifies a run waiting on permission moves into the rendered
