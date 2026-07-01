@@ -7,7 +7,11 @@
       "payload": {
         "agent": "codex-acp",
         "capability_policy": {
-          "file_read": "ask",
+          "file_read": "allow",
+          "file_read_paths": [
+            "README.md",
+            "docs"
+          ],
           "file_write": "ask",
           "terminal_create": "allow"
         },
@@ -39,26 +43,12 @@
       "type": "agent_session_started",
       "seq": 4,
       "payload": {
-        "agent_session_id": "019f1ce2-f4fb-7143-a4ab-494a99f87b50"
-      }
-    },
-    {
-      "type": "turn_started",
-      "seq": 5,
-      "payload": {
-        "prompt": "Read README.md through the client file-read capability if available. Reply with only the sentinel line."
-      }
-    },
-    {
-      "type": "user_message",
-      "seq": 6,
-      "payload": {
-        "text": "Read README.md through the client file-read capability if available. Reply with only the sentinel line."
+        "agent_session_id": "019f1dab-f3ec-7042-9db9-de3be083a480"
       }
     },
     {
       "type": "available_commands_update",
-      "seq": 7,
+      "seq": 5,
       "payload": {
         "availableCommands": [
           {
@@ -167,6 +157,20 @@
       }
     },
     {
+      "type": "turn_started",
+      "seq": 6,
+      "payload": {
+        "prompt": "read README.md through the client file-read capability"
+      }
+    },
+    {
+      "type": "user_message",
+      "seq": 7,
+      "payload": {
+        "text": "read README.md through the client file-read capability"
+      }
+    },
+    {
       "type": "session_info_update",
       "seq": 8,
       "payload": {
@@ -182,8 +186,136 @@
       }
     },
     {
-      "type": "tool_call",
+      "type": "agent_thought_redacted",
       "seq": 9,
+      "payload": {
+        "content_type": "text",
+        "first_chunk_length": 2,
+        "redacted": true
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 10,
+      "payload": {
+        "text": "I"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 11,
+      "payload": {
+        "text": "’ll"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 12,
+      "payload": {
+        "text": " read"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 13,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 14,
+      "payload": {
+        "text": "README"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 15,
+      "payload": {
+        "text": ".md"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 16,
+      "payload": {
+        "text": "`"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 17,
+      "payload": {
+        "text": " from"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 18,
+      "payload": {
+        "text": " the"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 19,
+      "payload": {
+        "text": " workspace"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 20,
+      "payload": {
+        "text": " and"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 21,
+      "payload": {
+        "text": " report"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 22,
+      "payload": {
+        "text": " the"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 23,
+      "payload": {
+        "text": " relevant"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 24,
+      "payload": {
+        "text": " contents"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 25,
+      "payload": {
+        "text": " back"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 26,
+      "payload": {
+        "text": "."
+      }
+    },
+    {
+      "type": "tool_call",
+      "seq": 27,
       "payload": {
         "kind": "read",
         "locations": [
@@ -194,235 +326,1094 @@
         "sessionUpdate": "tool_call",
         "status": "in_progress",
         "title": "Read file '/Users/deepfates/Hacking/github/deepfates/haven/README.md'",
-        "toolCallId": "call_xH88EAjW6dzr9LnAWSQJvRgk"
+        "toolCallId": "call_eIcFkqdxUTS5B6XC8iIbPBDc"
       }
     },
     {
       "type": "tool_call_update",
-      "seq": 10,
+      "seq": 28,
       "payload": {
         "rawOutput": {
           "exit_code": 0,
-          "formatted_output": "# Haven\n\nHaven is a Phoenix/OTP application for running ACP coding agents outside an IDE.\n\nThe core shape:\n\n- A durable run is stored in SQLite.\n- Each live run is owned by a supervised `RunServer` process.\n- The run process owns an ACP client connection to an external agent process.\n- Meaningful state transitions are appended as events.\n- LiveView renders an attention inbox and a run timeline from persisted state.\n- Permission requests become explicit decisions.\n- Reload reconstructs the run from the event log.\n\nSee [docs/design-requirements.md](docs/design-requirements.md) for the product\nand system requirements guiding the project. See\n[docs/validation-matrix.md](docs/validation-matrix.md) for what is currently\nproved by tests and browser smoke, and what remains unproven.\n\n## Run\n\n```bash\nmix ecto.setup\nmix phx.server\n```\n\nOpen [localhost:4000](http://localhost:4000).\n\nThe inbox can save frequently used workspace directories and reuse them from\nthe run form's saved-workspace picker. Manual workspace paths still work.\n\nThe run page includes sample controls:\n\n- `Echo` sends a complete prompt turn.\n- `Ask permission` triggers a permission request.\n- The approval card resolves the permission and lets the stub finish the turn.\n\nIn development, there are HTTP controls for deterministic local testing:\n\n```bash\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/echo\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/permission\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/read-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/write-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/terminal\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow\ncurl -X POST http://127.0.0.1:4000/dev/runs \\\n  -H 'content-type: application/json' \\\n  -d '{\"title\":\"Malformed smoke\",\"agent\":\"malformed-agent\",\"workspace\":\"'\"$PWD\"'\"}'\n```\n\nWith `mix phx.server` running, the repeatable runtime smoke exercises the same\nrendered dev-server path and deterministic controls:\n\n```bash\nMIX_ENV=dev mix haven.runtime_smoke\nMIX_ENV=dev mix haven.runtime_smoke --load-runs 3\n```\n\nIt checks dev migrations, renders the inbox, creates a stub-backed run through\n`/dev/runs` in a disposable workspace, waits for startup events on the run\npage, triggers and resolves a generic permission request, approves ACP file\nread/write requests, verifies the written file, runs a deterministic terminal\ncommand, and verifies the thread/decision/evidence disclosure surfaces in\nrendered HTML. With `--load-runs N`, it also creates N additional disposable\nruns, alternates ordinary and bounded long-output turns, reloads the rendered\npages, and checks cross-run isolation.\n\nTo probe any configured ACP agent through Haven's real run lifecycle:\n\n```bash\nmix haven.agent_probe --agent stub-acp --workspace . --prompt \"hello\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"summarize this repo\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"read README.md\" --resolve-permissions allow\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --expect-event terminal_created --expect-event terminal_output_succeeded --expect-event-field terminal_output_succeeded:payload.exit_status=0\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --report docs/probes/my-agent-terminal.json\nmix haven.agent_probe --list-agents --preflight --workspace /path/to/repo\nmix haven.agent_probe --list-agents --registry --workspace /path/to/repo\n```\n\nConfigured agents can be supplied at runtime with `HAVEN_AGENTS_JSON`:\n\n```bash\nexport HAVEN_AGENTS_JSON='{\n  \"my-agent\": {\n    \"executable\": \"my-acp-agent\",\n    \"args\": [\"--stdio\", \"--workspace\", \"{workspace}\"],\n    \"cwd\": \"{workspace}\",\n    \"env\": {\"TOKEN\": \"...\"}\n  }\n}'\n```\n\n`executable` may be an absolute path or a command on `PATH`. `{workspace}` is\nsubstituted in `args`, `cwd`, and `env` values before Haven starts the agent.\nAgents can also be stored in SQLite through the inbox Agent Setup form or\n`Haven.Agents.create_agent_config/1`; the inbox supports basic create, edit,\nand delete for persisted commands, and persisted agent keys appear in the run\npicker alongside runtime configuration.\n\nThe probe creates a durable run, waits for ACP initialization/session creation,\nsends the prompt through `RunServer`, optionally resolves permission stalls, and\nprints the persisted event timeline. Repeated `--expect-event` flags make the\nprobe fail unless the run emits the required Haven event types, turning\nreal-agent checks into acceptance contracts instead of best-effort smoke.\nRepeated `--expect-event-field EVENT:payload.path=value` flags also require\nspecific event payload facts, such as the requested path, terminal command,\npermission decision, or exit status.\nUse `--list-agents --preflight` first when a saved command merely looks\nplausible: it starts a short durable run for each probe candidate and verifies\nthe ACP initialize/session handshake before you attempt a full evidence report.\nUse `--list-agents --registry` to fetch the public ACP Registry and print\nnpx-backed agent command suggestions that can be supplied through\n`HAVEN_AGENTS_JSON`. Registry commands download and run third-party code; run\npreflight and evidence probes only with an approved workspace and auth scope.\n`--report path.json` writes the full report as pretty JSON for committed proof\nartifacts. Passing the probe with `stub-acp` proves the harness; passing it with\na real configured ACP agent is the next integration milestone. See\n`docs/probes/README.md` for the report requirements that make a probe count as\nreal-agent evidence.\n\n## Shape\n\n- `Haven.Runs.RunServer` owns one live agent run.\n- `Haven.Agents` resolves built-in and configured ACP agent commands.\n- `Haven.PortIO` bridges spawned agent ports to the IO shape expected\n  by `agent_client_protocol`.\n- `Haven.WorkspaceFiles` handles workspace-scoped file capability requests.\n- `Haven.Runs` is the run lifecycle context.\n- `Haven.Events` is the append-only event log.\n- `InboxLive` is the attention inbox.\n- `RunLive` is the run timeline and control surface.\n- `priv/agent_stub.exs` is an ACP-backed JSON-lines stub agent.\n\nThe default development agent is a self-contained ACP stub. Configured agent\nkeys can point at another ACP command and can be selected when starting a run,\nalongside an explicit workspace path. File capability callbacks are proven\nagainst deterministic ACP requests, and terminal create/wait/output/release is\nproven for short-lived non-interactive commands. The next milestone is to\nvalidate one real external agent and harden capability policy while keeping the\nrun/event/LiveView shape.\n"
+          "formatted_output": "# Haven\n\nHaven is a Phoenix/OTP application for running ACP coding agents outside an IDE.\n\nThe core shape:\n\n- A durable run is stored in SQLite.\n- Each live run is owned by a supervised `RunServer` process.\n- The run process owns an ACP client connection to an external agent process.\n- Meaningful state transitions are appended as events.\n- LiveView renders an attention inbox and a run timeline from persisted state.\n- Permission requests become explicit decisions.\n- Reload reconstructs the run from the event log.\n\nSee [docs/design-requirements.md](docs/design-requirements.md) for the product\nand system requirements guiding the project. See\n[docs/validation-matrix.md](docs/validation-matrix.md) for what is currently\nproved by tests and browser smoke, and what remains unproven.\n\n## Run\n\n```bash\nmix ecto.setup\nmix phx.server\n```\n\nOpen [localhost:4000](http://localhost:4000).\n\nThe inbox can save frequently used workspace directories and reuse them from\nthe run form's saved-workspace picker. Manual workspace paths still work.\n\nThe run page includes sample controls:\n\n- `Echo` sends a complete prompt turn.\n- `Ask permission` triggers a permission request.\n- The approval card resolves the permission and lets the stub finish the turn.\n\nIn development, there are HTTP controls for deterministic local testing:\n\n```bash\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/echo\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/permission\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/read-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/write-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/terminal\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow\ncurl -X POST http://127.0.0.1:4000/dev/runs \\\n  -H 'content-type: application/json' \\\n  -d '{\"title\":\"Malformed smoke\",\"agent\":\"malformed-agent\",\"workspace\":\"'\"$PWD\"'\"}'\n```\n\nWith `mix phx.server` running, the repeatable runtime smoke exercises the same\nrendered dev-server path and deterministic controls:\n\n```bash\nMIX_ENV=dev mix haven.runtime_smoke\nMIX_ENV=dev mix haven.runtime_smoke --load-runs 3\n```\n\nIt checks dev migrations, renders the inbox, creates a stub-backed run through\n`/dev/runs` in a disposable workspace, waits for startup events on the run\npage, triggers and resolves a generic permission request, approves ACP file\nread/write requests, verifies the written file, runs a deterministic terminal\ncommand, and verifies the thread/decision/evidence disclosure surfaces in\nrendered HTML. With `--load-runs N`, it also creates N additional disposable\nruns, alternates ordinary and bounded long-output turns, reloads the rendered\npages, and checks cross-run isolation.\n\nTo probe any configured ACP agent through Haven's real run lifecycle:\n\n```bash\nmix haven.agent_probe --agent stub-acp --workspace . --prompt \"hello\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"summarize this repo\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"read README.md\" --resolve-permissions allow\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --expect-event terminal_created --expect-event terminal_output_succeeded --expect-event-field terminal_output_succeeded:payload.exit_status=0\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --report docs/probes/my-agent-terminal.json\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"summarize this repo\" --load-runs 2 --load-concurrency 2 --require-real-agent --report docs/probe-load/my-agent-load.json\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"write a long summary\" --expect-min-agent-output-chars 1200 --expect-min-agent-message-chunks 8 --require-real-agent --report docs/probes/my-agent-long-output.json\nmix haven.agent_probe --list-agents --preflight --workspace /path/to/repo\nmix haven.agent_probe --list-agents --registry --preflight --proof-commands --workspace /path/to/repo\n```\n\nConfigured agents can be supplied at runtime with `HAVEN_AGENTS_JSON`:\n\n```bash\nexport HAVEN_AGENTS_JSON='{\n  \"my-agent\": {\n    \"executable\": \"my-acp-agent\",\n    \"args\": [\"--stdio\", \"--workspace\", \"{workspace}\"],\n    \"cwd\": \"{workspace}\",\n    \"env\": {\"TOKEN\": \"...\"}\n  }\n}'\n```\n\n`executable` may be an absolute path or a command on `PATH`. `{workspace}` is\nsubstituted in `args`, `cwd`, and `env` values before Haven starts the agent.\nAgents can also be stored in SQLite through the inbox Agent Setup form or\n`Haven.Agents.create_agent_config/1`; the inbox supports basic create, edit,\nand delete for persisted commands, and persisted agent keys appear in the run\npicker alongside runtime configuration.\n\nThe probe creates a durable run, waits for ACP initialization/session creation,\nsends the prompt through `RunServer`, optionally resolves permission stalls, and\nprints a compact persisted event summary. Add `--show-events` when you need the\nfull event payloads in terminal output; `--report path.json` always writes the\nfull event list. Repeated `--expect-event` flags make the probe fail unless the\nrun emits the required Haven event types, turning real-agent checks into\nacceptance contracts instead of best-effort smoke.\nRepeated `--expect-event-field EVENT:payload.path=value` flags also require\nspecific event payload facts, such as the requested path, terminal command,\npermission decision, or exit status.\n`--expect-min-agent-output-chars N` and\n`--expect-min-agent-message-chunks N` require a minimum streamed agent response\nsize for bounded long-output evidence.\nUse `--list-agents --preflight` first when a saved command merely looks\nplausible: it starts a short durable run for each probe candidate and verifies\nthe ACP initialize/session handshake before you attempt a full evidence report.\nProbe output suppresses debug-level application logs by default so inventory,\npreflight, and report output stay readable as evidence. Add `--verbose` when\ndebugging the probe task itself. Preflight inventory prints a final summary\nwith how many static real-agent candidates passed and which agent keys are\nready for full evidence probes.\nUse `--list-agents --registry --preflight --proof-commands` to fetch the public\nACP Registry and print npx-backed agent command suggestions that can be\nsupplied through `HAVEN_AGENTS_JSON`. Registry output lists package and env key\nrequirements before printing copyable preflight/proof commands. Registry\ncommands download and run third-party code; run preflight and evidence probes\nonly with an approved workspace and auth scope.\n`--report path.json` writes the full report as pretty JSON for committed proof\nartifacts. `--load-runs N` repeats the same real-agent probe as distinct\ndurable runs and writes an aggregate report when paired with `--report`;\n`--load-concurrency N` runs up to N child probes at the same time.\nPassing the probe with `stub-acp` proves the harness; passing it with a real\nconfigured ACP agent is the next integration milestone. See\n`docs/probes/README.md` and `docs/probe-load/README.md` for the report\nrequirements that make a probe count as real-agent evidence.\n\n## Shape\n\n- `Haven.Runs.RunServer` owns one live agent run.\n- `Haven.Agents` resolves built-in and configured ACP agent commands.\n- `Haven.PortIO` bridges spawned agent ports to the IO shape expected\n  by `agent_client_protocol`.\n- `Haven.WorkspaceFiles` handles workspace-scoped file capability requests.\n- `Haven.Runs` is the run lifecycle context.\n- `Haven.Events` is the append-only event log.\n- `InboxLive` is the attention inbox.\n- `RunLive` is the run timeline and control surface.\n- `priv/agent_stub.exs` is an ACP-backed JSON-lines stub agent.\n\nThe default development agent is a self-contained ACP stub. Configured agent\nkeys can point at another ACP command and can be selected when starting a run,\nalongside an explicit workspace path. File capability callbacks are proven\nagainst deterministic ACP requests, and terminal create/wait/output/release is\nproven for short-lived non-interactive commands. The next milestone is to\nvalidate one real external agent and harden capability policy while keeping the\nrun/event/LiveView shape.\n"
         },
         "sessionUpdate": "tool_call_update",
         "status": "completed",
-        "toolCallId": "call_xH88EAjW6dzr9LnAWSQJvRgk"
+        "toolCallId": "call_eIcFkqdxUTS5B6XC8iIbPBDc"
       }
     },
     {
       "type": "agent_update_unknown",
-      "seq": 11,
+      "seq": 29,
       "payload": {
-        "session_id": "019f1ce2-f4fb-7143-a4ab-494a99f87b50",
+        "session_id": "019f1dab-f3ec-7042-9db9-de3be083a480",
         "update": {
           "sessionUpdate": "usage_update",
           "size": 258400,
-          "used": 20192
+          "used": 20174
         },
         "update_type": "usage_update"
-      }
-    },
-    {
-      "type": "agent_thought_redacted",
-      "seq": 12,
-      "payload": {
-        "content_type": "text",
-        "first_chunk_length": 2,
-        "redacted": true
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 13,
-      "payload": {
-        "text": "The"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 14,
-      "payload": {
-        "text": " next"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 15,
-      "payload": {
-        "text": " milestone"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 16,
-      "payload": {
-        "text": " is"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 17,
-      "payload": {
-        "text": " to"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 18,
-      "payload": {
-        "text": " validate"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 19,
-      "payload": {
-        "text": " one"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 20,
-      "payload": {
-        "text": " real"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 21,
-      "payload": {
-        "text": " external"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 22,
-      "payload": {
-        "text": " agent"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 23,
-      "payload": {
-        "text": " and"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 24,
-      "payload": {
-        "text": " hard"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 25,
-      "payload": {
-        "text": "en"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 26,
-      "payload": {
-        "text": " capability"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 27,
-      "payload": {
-        "text": " policy"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 28,
-      "payload": {
-        "text": " while"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 29,
-      "payload": {
-        "text": " keeping"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 30,
       "payload": {
-        "text": " the"
+        "text": "Read"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 31,
       "payload": {
-        "text": " run"
+        "text": " `"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 32,
       "payload": {
-        "text": "/event"
+        "text": "README"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 33,
       "payload": {
-        "text": "/"
+        "text": ".md"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 34,
       "payload": {
-        "text": "Live"
+        "text": "`."
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 35,
       "payload": {
-        "text": "View"
+        "text": " It"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 36,
       "payload": {
-        "text": " shape"
+        "text": " describes"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 37,
       "payload": {
-        "text": "."
+        "text": " Haven"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 38,
+      "payload": {
+        "text": " as"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 39,
+      "payload": {
+        "text": " a"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 40,
+      "payload": {
+        "text": " Phoenix"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 41,
+      "payload": {
+        "text": "/"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 42,
+      "payload": {
+        "text": "OTP"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 43,
+      "payload": {
+        "text": " app"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 44,
+      "payload": {
+        "text": " for"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 45,
+      "payload": {
+        "text": " running"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 46,
+      "payload": {
+        "text": " ACP"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 47,
+      "payload": {
+        "text": " coding"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 48,
+      "payload": {
+        "text": " agents"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 49,
+      "payload": {
+        "text": " outside"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 50,
+      "payload": {
+        "text": " an"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 51,
+      "payload": {
+        "text": " IDE"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 52,
+      "payload": {
+        "text": ","
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 53,
+      "payload": {
+        "text": " with"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 54,
+      "payload": {
+        "text": " durable"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 55,
+      "payload": {
+        "text": " SQLite"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 56,
+      "payload": {
+        "text": "-backed"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 57,
+      "payload": {
+        "text": " runs"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 58,
+      "payload": {
+        "text": ","
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 59,
+      "payload": {
+        "text": " supervised"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 60,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 61,
+      "payload": {
+        "text": "Run"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 62,
+      "payload": {
+        "text": "Server"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 63,
+      "payload": {
+        "text": "`"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 64,
+      "payload": {
+        "text": " processes"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 65,
+      "payload": {
+        "text": ","
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 66,
+      "payload": {
+        "text": " event"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 67,
+      "payload": {
+        "text": "-log"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 68,
+      "payload": {
+        "text": " reconstruction"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 69,
+      "payload": {
+        "text": ","
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 70,
+      "payload": {
+        "text": " Live"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 71,
+      "payload": {
+        "text": "View"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 72,
+      "payload": {
+        "text": " inbox"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 73,
+      "payload": {
+        "text": "/t"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 74,
+      "payload": {
+        "text": "imeline"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 75,
+      "payload": {
+        "text": " UI"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 76,
+      "payload": {
+        "text": ","
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 77,
+      "payload": {
+        "text": " and"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 78,
+      "payload": {
+        "text": " explicit"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 79,
+      "payload": {
+        "text": " permission"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 80,
+      "payload": {
+        "text": " decisions"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 81,
+      "payload": {
+        "text": ".\n\n"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 82,
+      "payload": {
+        "text": "It"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 83,
+      "payload": {
+        "text": " also"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 84,
+      "payload": {
+        "text": " documents"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 85,
+      "payload": {
+        "text": " local"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 86,
+      "payload": {
+        "text": " setup"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 87,
+      "payload": {
+        "text": " with"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 88,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 89,
+      "payload": {
+        "text": "mix"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 90,
+      "payload": {
+        "text": " ect"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 91,
+      "payload": {
+        "text": "o"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 92,
+      "payload": {
+        "text": ".setup"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 93,
+      "payload": {
+        "text": "`"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 94,
+      "payload": {
+        "text": " and"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 95,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 96,
+      "payload": {
+        "text": "mix"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 97,
+      "payload": {
+        "text": " ph"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 98,
+      "payload": {
+        "text": "x"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 99,
+      "payload": {
+        "text": ".server"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 100,
+      "payload": {
+        "text": "`,"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 101,
+      "payload": {
+        "text": " dev"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 102,
+      "payload": {
+        "text": " smoke"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 103,
+      "payload": {
+        "text": "/pro"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 104,
+      "payload": {
+        "text": "be"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 105,
+      "payload": {
+        "text": " commands"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 106,
+      "payload": {
+        "text": ","
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 107,
+      "payload": {
+        "text": " runtime"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 108,
+      "payload": {
+        "text": " agent"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 109,
+      "payload": {
+        "text": " configuration"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 110,
+      "payload": {
+        "text": " via"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 111,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 112,
+      "payload": {
+        "text": "HAV"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 113,
+      "payload": {
+        "text": "EN"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 114,
+      "payload": {
+        "text": "_AG"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 115,
+      "payload": {
+        "text": "ENTS"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 116,
+      "payload": {
+        "text": "_JSON"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 117,
+      "payload": {
+        "text": "`,"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 118,
+      "payload": {
+        "text": " and"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 119,
+      "payload": {
+        "text": " the"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 120,
+      "payload": {
+        "text": " main"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 121,
+      "payload": {
+        "text": " modules"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 122,
+      "payload": {
+        "text": ":"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 123,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 124,
+      "payload": {
+        "text": "H"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 125,
+      "payload": {
+        "text": "aven"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 126,
+      "payload": {
+        "text": ".R"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 127,
+      "payload": {
+        "text": "uns"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 128,
+      "payload": {
+        "text": ".Run"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 129,
+      "payload": {
+        "text": "Server"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 130,
+      "payload": {
+        "text": "`,"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 131,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 132,
+      "payload": {
+        "text": "H"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 133,
+      "payload": {
+        "text": "aven"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 134,
+      "payload": {
+        "text": ".A"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 135,
+      "payload": {
+        "text": "g"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 136,
+      "payload": {
+        "text": "ents"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 137,
+      "payload": {
+        "text": "`,"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 138,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 139,
+      "payload": {
+        "text": "H"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 140,
+      "payload": {
+        "text": "aven"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 141,
+      "payload": {
+        "text": ".Port"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 142,
+      "payload": {
+        "text": "IO"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 143,
+      "payload": {
+        "text": "`,"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 144,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 145,
+      "payload": {
+        "text": "H"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 146,
+      "payload": {
+        "text": "aven"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 147,
+      "payload": {
+        "text": ".Work"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 148,
+      "payload": {
+        "text": "space"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 149,
+      "payload": {
+        "text": "Files"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 150,
+      "payload": {
+        "text": "`,"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 151,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 152,
+      "payload": {
+        "text": "H"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 153,
+      "payload": {
+        "text": "aven"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 154,
+      "payload": {
+        "text": ".R"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 155,
+      "payload": {
+        "text": "uns"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 156,
+      "payload": {
+        "text": "`,"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 157,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 158,
+      "payload": {
+        "text": "H"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 159,
+      "payload": {
+        "text": "aven"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 160,
+      "payload": {
+        "text": ".Events"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 161,
+      "payload": {
+        "text": "`,"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 162,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 163,
+      "payload": {
+        "text": "Inbox"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 164,
+      "payload": {
+        "text": "Live"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 165,
+      "payload": {
+        "text": "`,"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 166,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 167,
+      "payload": {
+        "text": "Run"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 168,
+      "payload": {
+        "text": "Live"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 169,
+      "payload": {
+        "text": "`,"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 170,
+      "payload": {
+        "text": " and"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 171,
+      "payload": {
+        "text": " `"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 172,
+      "payload": {
+        "text": "priv"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 173,
+      "payload": {
+        "text": "/"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 174,
+      "payload": {
+        "text": "agent"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 175,
+      "payload": {
+        "text": "_stub"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 176,
+      "payload": {
+        "text": ".ex"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 177,
+      "payload": {
+        "text": "s"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 178,
+      "payload": {
+        "text": "`."
       }
     },
     {
       "type": "agent_update_unknown",
-      "seq": 38,
+      "seq": 179,
       "payload": {
-        "session_id": "019f1ce2-f4fb-7143-a4ab-494a99f87b50",
+        "session_id": "019f1dab-f3ec-7042-9db9-de3be083a480",
         "update": {
           "sessionUpdate": "usage_update",
           "size": 258400,
-          "used": 21921
+          "used": 22306
         },
         "update_type": "usage_update"
       }
     },
     {
       "type": "session_info_update",
-      "seq": 39,
+      "seq": 180,
       "payload": {
         "_meta": {
           "codex": {
@@ -436,7 +1427,7 @@
     },
     {
       "type": "turn_finished",
-      "seq": 40,
+      "seq": 181,
       "payload": {
         "request_id": 1,
         "result": {
@@ -447,66 +1438,63 @@
                   "model": "gpt-5.5",
                   "token_count": {
                     "cachedInputTokens": 19840,
-                    "inputTokens": 1991,
-                    "outputTokens": 90,
-                    "reasoningOutputTokens": 59,
-                    "totalTokens": 21921
+                    "inputTokens": 2313,
+                    "outputTokens": 153,
+                    "reasoningOutputTokens": 0,
+                    "totalTokens": 22306
                   }
                 }
               ],
               "token_count": {
                 "cachedInputTokens": 19840,
-                "inputTokens": 1991,
-                "outputTokens": 90,
-                "reasoningOutputTokens": 59,
-                "totalTokens": 21921
+                "inputTokens": 2313,
+                "outputTokens": 153,
+                "reasoningOutputTokens": 0,
+                "totalTokens": 22306
               }
             }
           },
           "stopReason": "end_turn",
           "usage": {
             "cachedReadTokens": 19840,
-            "inputTokens": 1991,
-            "outputTokens": 90,
-            "thoughtTokens": 59,
-            "totalTokens": 21921
+            "inputTokens": 2313,
+            "outputTokens": 153,
+            "thoughtTokens": 0,
+            "totalTokens": 22306
           }
         }
       }
     }
   ],
-  "prompt": "Read README.md through the client file-read capability if available. Reply with only the sentinel line.",
+  "prompt": "read README.md through the client file-read capability",
   "diagnostics": [
     {
       "message": "Expected Haven-mediated client capability events were missing, but generic ACP tool_call activity was observed. This is useful agent evidence, not proof of Haven-mediated fs/* or terminal/* handling.",
       "type": "tool_call_only_capability_gap",
-      "missing_events": [
-        "file_read_requested",
-        "file_read_succeeded"
-      ],
       "observed_events": [
         "tool_call",
         "tool_call_update"
+      ],
+      "missing_events": [
+        "file_read_requested",
+        "file_read_succeeded"
       ]
     }
   ],
-  "run_id": "2ca9105b-45d8-449a-8e42-bf704790ebe8",
-  "agent": "codex-acp",
   "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
+  "agent": "codex-acp",
+  "run_id": "23f2219e-aefa-4482-bf45-5ac13cf8ed2a",
   "expected_events": [
-    "permission_requested",
-    "permission_resolved",
     "file_read_requested",
+    "capability_policy_applied",
     "file_read_succeeded",
     "turn_finished"
   ],
-  "missing_expected_events": [
-    "permission_requested",
-    "permission_resolved",
-    "file_read_requested",
-    "file_read_succeeded"
-  ],
-  "redactions": [],
+  "agent_output_metrics": {
+    "text_char_count": 675,
+    "message_chunk_count": 166
+  },
+  "expected_output": {},
   "expected_event_fields": [
     {
       "value": "README.md",
@@ -519,21 +1507,28 @@
       "event": "file_read_succeeded"
     }
   ],
+  "missing_expected_events": [
+    "file_read_requested",
+    "capability_policy_applied",
+    "file_read_succeeded"
+  ],
   "missing_expected_event_fields": [],
+  "missing_expected_output": [],
   "unsupported_client_capabilities": [
     {
       "reason": "Observed generic ACP tool_call activity instead of Haven-mediated client capability events.",
-      "missing_events": [
-        "file_read_requested",
-        "file_read_succeeded"
-      ],
       "observed_events": [
         "tool_call",
         "tool_call_update"
       ],
+      "missing_events": [
+        "file_read_requested",
+        "file_read_succeeded"
+      ],
       "capability": "fs/read_text_file"
     }
   ],
+  "redactions": [],
   "real_agent_evidence": {
     "required": true,
     "accepted": true

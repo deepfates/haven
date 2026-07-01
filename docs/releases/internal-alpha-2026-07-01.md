@@ -107,9 +107,9 @@ Current negative mediated-capability evidence:
 - `docs/probe-failures/codex-acp-file-write-mediated-negative.json`
 - `docs/probe-failures/codex-acp-terminal-mediated-negative.json`
 
-Both reports show useful real `codex-acp` work through ACP `tool_call` /
+These reports show useful real `codex-acp` work through ACP `tool_call` /
 `tool_call_update`, but missing Haven-mediated permission, file, and terminal
-client-handler events. Treat these as production boundaries, not positive
+client-handler events. Treat them as production boundaries, not positive
 capability proof.
 
 ## Alpha Cut Line

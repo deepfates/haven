@@ -817,10 +817,12 @@ Evidence:
   `tool_call`/`tool_call_update` session updates rather than Haven's
   `fs/read_text_file` client request handler.
 - `docs/probe-failures/codex-acp-file-mediated-negative.json` is a named failed
-  2026-07-01 attempt to require `permission_requested`,
-  `permission_resolved`, `file_read_requested`, and `file_read_succeeded`
-  against saved `codex-acp`. The agent still reads the file via generic ACP
-  `tool_call` / `tool_call_update`; the report now declares
+  2026-07-01 attempt, refreshed as durable run
+  `23f2219e-aefa-4482-bf45-5ac13cf8ed2a`, to require
+  `capability_policy_applied`, `file_read_requested`, and
+  `file_read_succeeded` against saved `codex-acp` with explicit allow policy
+  scoped to `README.md` and `docs`. The agent still reads the file via generic
+  ACP `tool_call` / `tool_call_update`; the report declares
   `fs/read_text_file` in `unsupported_client_capabilities`, so this counts as
   explicit unsupported evidence for Haven-mediated proof with this agent class,
   not positive `fs/*` proof.

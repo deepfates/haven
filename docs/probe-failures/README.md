@@ -24,12 +24,13 @@ recorded.
 
 - `codex-acp-file-mediated-negative.json`: regenerated on 2026-07-01 against
   saved `codex-acp` (`npx @agentclientprotocol/codex-acp@1.0.1`). The probe
-  required `permission_requested`, `permission_resolved`,
-  `file_read_requested`, and `file_read_succeeded`. The agent read the sentinel
-  file and returned the answer, but only via ACP `tool_call` /
-  `tool_call_update`; the report records `tool_call_only_capability_gap`,
-  declares `fs/read_text_file` unsupported for Haven-mediated proof with this
-  agent class, and includes accepted real-agent metadata.
+  used explicit allow policy for `README.md` and `docs`, then required
+  `capability_policy_applied`, `file_read_requested`, and
+  `file_read_succeeded`. The agent read `README.md` and returned useful output,
+  but only via ACP `tool_call` / `tool_call_update`; the report records
+  `tool_call_only_capability_gap`, declares `fs/read_text_file` unsupported for
+  Haven-mediated proof with this agent class, and includes accepted real-agent
+  metadata.
 - `codex-acp-file-write-mediated-negative.json`: generated on 2026-07-01
   against saved `codex-acp`. The probe required `permission_requested`,
   `permission_resolved`, `file_write_requested`, and `file_write_succeeded`.
