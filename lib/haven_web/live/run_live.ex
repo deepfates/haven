@@ -1836,84 +1836,6 @@ defmodule HavenWeb.RunLive do
                   >
                     {workspace_parent(@run.workspace)}
                   </p>
-                  <dl
-                    id="run-header-facts"
-                    class="mt-3 grid gap-2 text-xs text-zinc-600 sm:grid-cols-2 lg:grid-cols-4"
-                  >
-                    <div id="run-header-agent" class="min-w-0">
-                      <dt class="font-semibold uppercase text-zinc-500">Agent</dt>
-                      <dd class="truncate font-mono">{@run.agent}</dd>
-                      <dd class="mt-1 flex flex-wrap gap-1">
-                        <span
-                          id="run-header-agent-launch"
-                          class={agent_launch_class(@agent_readiness)}
-                        >
-                          {agent_launch_label(@agent_readiness)}
-                        </span>
-                        <span
-                          id="run-header-agent-trust"
-                          class={agent_evidence_class(@agent_readiness, @agent_probe_reports)}
-                        >
-                          {agent_evidence_label(@agent_readiness, @agent_probe_reports)}
-                        </span>
-                      </dd>
-                      <dd
-                        id="run-header-agent-evidence-reason"
-                        class="mt-1 truncate text-[11px] font-normal normal-case text-zinc-500"
-                      >
-                        {agent_evidence_reason(@agent_readiness, @agent_probe_reports)}
-                      </dd>
-                      <dd
-                        id="run-header-agent-cwd"
-                        class="mt-1 truncate text-[11px] font-normal normal-case text-zinc-500"
-                        title={agent_launch_cwd_scope_label(@agent_readiness)}
-                      >
-                        {agent_launch_cwd_scope_label(@agent_readiness)}
-                      </dd>
-                      <dd
-                        id="run-header-agent-env-keys"
-                        class="truncate text-[11px] font-normal normal-case text-zinc-500"
-                        title={agent_launch_env_scope_label(@agent_readiness)}
-                      >
-                        {agent_launch_env_scope_label(@agent_readiness)}
-                      </dd>
-                    </div>
-                    <div id="run-header-session" class="min-w-0">
-                      <dt class="font-semibold uppercase text-zinc-500">Session</dt>
-                      <dd class="truncate font-mono">{@run.agent_session_id || "starting"}</dd>
-                    </div>
-                    <div id="run-header-created" class="min-w-0">
-                      <dt class="font-semibold uppercase text-zinc-500">Created</dt>
-                      <dd class="truncate font-mono">
-                        {Calendar.strftime(@run.inserted_at, "%Y-%m-%d %H:%M:%S")}
-                      </dd>
-                    </div>
-                    <div id="run-header-updated" class="min-w-0">
-                      <dt class="font-semibold uppercase text-zinc-500">Updated</dt>
-                      <dd class="truncate font-mono">
-                        {Calendar.strftime(@run.updated_at, "%Y-%m-%d %H:%M:%S")}
-                      </dd>
-                    </div>
-                  </dl>
-                  <details
-                    :if={@agent_probe_reports != []}
-                    id="run-header-agent-probe-evidence"
-                    class="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900"
-                  >
-                    <summary class="cursor-pointer font-semibold">
-                      Accepted probe artifacts
-                    </summary>
-                    <ul class="mt-2 space-y-1">
-                      <li
-                        :for={report <- @agent_probe_reports}
-                        id={"run-header-agent-probe-#{Path.basename(report.path, ".json")}"}
-                        class="truncate"
-                        title={report.prompt}
-                      >
-                        {agent_probe_report_label(report)}
-                      </li>
-                    </ul>
-                  </details>
                 </div>
                 <div class="flex shrink-0 flex-col items-end gap-2">
                   <span class="inline-flex items-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm font-medium text-zinc-700">
@@ -2542,19 +2464,75 @@ defmodule HavenWeb.RunLive do
             <section class="rounded-lg border border-zinc-200 bg-white p-4 text-sm shadow-sm">
               <h2 class="font-semibold">Run facts</h2>
               <dl class="mt-3 space-y-2">
-                <div>
+                <div id="run-facts-agent">
                   <dt class="text-zinc-500">Agent</dt>
-                  <dd>{@run.agent}</dd>
+                  <dd class="font-mono">{@run.agent}</dd>
+                  <dd class="mt-1 flex flex-wrap gap-1">
+                    <span id="run-facts-agent-launch" class={agent_launch_class(@agent_readiness)}>
+                      {agent_launch_label(@agent_readiness)}
+                    </span>
+                    <span
+                      id="run-facts-agent-trust"
+                      class={agent_evidence_class(@agent_readiness, @agent_probe_reports)}
+                    >
+                      {agent_evidence_label(@agent_readiness, @agent_probe_reports)}
+                    </span>
+                  </dd>
+                  <dd
+                    id="run-facts-agent-evidence-reason"
+                    class="mt-1 text-xs text-zinc-500"
+                  >
+                    {agent_evidence_reason(@agent_readiness, @agent_probe_reports)}
+                  </dd>
                 </div>
-                <div>
+                <div id="run-facts-agent-cwd">
+                  <dt class="text-zinc-500">Agent cwd</dt>
+                  <dd class="break-all text-xs">{agent_launch_cwd_scope_label(@agent_readiness)}</dd>
+                </div>
+                <div id="run-facts-agent-env-keys">
+                  <dt class="text-zinc-500">Agent env</dt>
+                  <dd class="break-all text-xs">{agent_launch_env_scope_label(@agent_readiness)}</dd>
+                </div>
+                <div id="run-facts-session">
                   <dt class="text-zinc-500">Agent session</dt>
                   <dd class="break-all">{@run.agent_session_id || "starting"}</dd>
                 </div>
-                <div>
+                <div id="run-facts-process">
                   <dt class="text-zinc-500">Process</dt>
                   <dd>{if @live?, do: "connected", else: "not connected"}</dd>
                 </div>
+                <div id="run-facts-created">
+                  <dt class="text-zinc-500">Created</dt>
+                  <dd class="font-mono text-xs">
+                    {Calendar.strftime(@run.inserted_at, "%Y-%m-%d %H:%M:%S")}
+                  </dd>
+                </div>
+                <div id="run-facts-updated">
+                  <dt class="text-zinc-500">Updated</dt>
+                  <dd class="font-mono text-xs">
+                    {Calendar.strftime(@run.updated_at, "%Y-%m-%d %H:%M:%S")}
+                  </dd>
+                </div>
               </dl>
+              <details
+                :if={@agent_probe_reports != []}
+                id="run-agent-probe-evidence"
+                class="mt-4 border-t border-zinc-200 pt-3 text-xs"
+              >
+                <summary class="cursor-pointer font-semibold uppercase text-zinc-500">
+                  Accepted probe artifacts
+                </summary>
+                <ul class="mt-2 space-y-1">
+                  <li
+                    :for={report <- @agent_probe_reports}
+                    id={"run-agent-probe-#{Path.basename(report.path, ".json")}"}
+                    class="truncate"
+                    title={report.prompt}
+                  >
+                    {agent_probe_report_label(report)}
+                  </li>
+                </ul>
+              </details>
               <section id="run-evidence-summary" class="mt-4 border-t border-zinc-200 pt-3">
                 <h3 class="text-xs font-semibold uppercase text-zinc-500">Evidence</h3>
                 <dl class="mt-2 grid grid-cols-2 gap-2 text-xs">

@@ -45,19 +45,19 @@ defmodule HavenWeb.RunLiveTest do
 
     run = Runs.get_run!(run.id)
 
-    assert has_element?(view, "#run-header-facts")
     assert has_element?(view, ~s|#run-header-workspace[title="#{run.workspace}"]|)
     assert has_element?(view, "#run-header-workspace", Path.basename(run.workspace))
     assert has_element?(view, "#run-header-workspace-path", Path.dirname(run.workspace))
-    assert has_element?(view, "#run-header-agent", "stub-acp")
-    assert has_element?(view, "#run-header-agent-launch", "Launch ready")
-    assert has_element?(view, "#run-header-agent-trust", "Local harness")
-    assert has_element?(view, "#run-header-agent-evidence-reason", "built-in stub-acp")
-    assert has_element?(view, "#run-header-agent-cwd", "cwd app default")
-    assert has_element?(view, "#run-header-agent-env-keys", "env none")
-    assert has_element?(view, "#run-header-session", run.agent_session_id)
-    assert has_element?(view, "#run-header-created")
-    assert has_element?(view, "#run-header-updated")
+    refute has_element?(view, "#run-header-facts")
+    assert has_element?(view, "#run-facts-agent", "stub-acp")
+    assert has_element?(view, "#run-facts-agent-launch", "Launch ready")
+    assert has_element?(view, "#run-facts-agent-trust", "Local harness")
+    assert has_element?(view, "#run-facts-agent-evidence-reason", "built-in stub-acp")
+    assert has_element?(view, "#run-facts-agent-cwd", "cwd app default")
+    assert has_element?(view, "#run-facts-agent-env-keys", "env none")
+    assert has_element?(view, "#run-facts-session", run.agent_session_id)
+    assert has_element?(view, "#run-facts-created")
+    assert has_element?(view, "#run-facts-updated")
     assert has_element?(view, "#run-evidence-summary")
     assert has_element?(view, "#run-evidence-events", "4")
     assert has_element?(view, "#run-evidence-decisions", "0")
@@ -133,10 +133,10 @@ defmodule HavenWeb.RunLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
 
-    assert has_element?(view, "#run-header-agent", "scoped-run-agent")
-    assert has_element?(view, "#run-header-agent-launch", "Launch ready")
-    assert has_element?(view, "#run-header-agent-cwd", "cwd #{Path.expand(agent_cwd)}")
-    assert has_element?(view, "#run-header-agent-env-keys", "env keys TOKEN, WORKSPACE")
+    assert has_element?(view, "#run-facts-agent", "scoped-run-agent")
+    assert has_element?(view, "#run-facts-agent-launch", "Launch ready")
+    assert has_element?(view, "#run-facts-agent-cwd", "cwd #{Path.expand(agent_cwd)}")
+    assert has_element?(view, "#run-facts-agent-env-keys", "env keys TOKEN, WORKSPACE")
 
     refute render(view) =~ "hidden-run-token"
   end
@@ -173,7 +173,7 @@ defmodule HavenWeb.RunLiveTest do
     end
   end
 
-  test "renders accepted real-agent evidence in the run header", %{conn: conn} do
+  test "renders accepted real-agent evidence in run details", %{conn: conn} do
     assert {:ok, _agent_config} =
              Agents.create_agent_config(%{
                key: "codex-acp",
@@ -185,27 +185,28 @@ defmodule HavenWeb.RunLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
 
-    assert has_element?(view, "#run-header-agent", "codex-acp")
-    assert has_element?(view, "#run-header-agent-launch", "Launch ready")
-    assert has_element?(view, "#run-header-agent-trust", "3 accepted probes")
+    refute has_element?(view, "#run-header-agent")
+    assert has_element?(view, "#run-facts-agent", "codex-acp")
+    assert has_element?(view, "#run-facts-agent-launch", "Launch ready")
+    assert has_element?(view, "#run-facts-agent-trust", "3 accepted probes")
 
     assert has_element?(
              view,
-             "#run-header-agent-evidence-reason",
+             "#run-facts-agent-evidence-reason",
              "validated committed reports"
            )
 
-    assert has_element?(view, "#run-header-agent-probe-evidence", "Accepted probe artifacts")
+    assert has_element?(view, "#run-agent-probe-evidence", "Accepted probe artifacts")
 
     assert has_element?(
              view,
-             "#run-header-agent-probe-codex-acp-basic",
+             "#run-agent-probe-codex-acp-basic",
              "docs/probes/codex-acp-basic.json"
            )
 
     assert has_element?(
              view,
-             "#run-header-agent-probe-codex-acp-terminal-tool-call",
+             "#run-agent-probe-codex-acp-terminal-tool-call",
              "docs/probes/codex-acp-terminal-tool-call.json"
            )
   end
