@@ -22,6 +22,11 @@ evidence exists.
   permission request, approves ACP file read/write requests, verifies the
   written file, runs a deterministic terminal command, and verifies the thread,
   decision, audit timestamp, and evidence disclosure surfaces in rendered HTML.
+- Responsive browser smoke: `docs/browser-smoke/2026-07-01-runtime-and-responsive.md`
+  records the current in-app browser check for the simplified inbox/run
+  hierarchy, absence of duplicate/dev surfaces, inspectable evidence/details,
+  and no page-level horizontal overflow at desktop/default and `390x844`
+  mobile viewport sizes.
 - Agent probe harness: `mix haven.agent_probe --report` can produce durable JSON
   evidence artifacts with explicit `--expect-event` acceptance checks; see
   `docs/probes/README.md`.
