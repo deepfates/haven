@@ -1232,6 +1232,20 @@ defmodule HavenWeb.RunLive do
     end
   end
 
+  defp short_session_id(nil), do: "starting"
+  defp short_session_id(""), do: "starting"
+
+  defp short_session_id(session_id) when is_binary(session_id) do
+    if String.length(session_id) > 12 do
+      String.slice(session_id, 0, 8)
+    else
+      session_id
+    end
+  end
+
+  defp compact_time_label(nil), do: "unknown"
+  defp compact_time_label(time), do: Calendar.strftime(time, "%H:%M:%S")
+
   defp agent_readiness(agent, workspace) do
     workspace
     |> AgentProbe.agent_inventory()
@@ -1887,6 +1901,29 @@ defmodule HavenWeb.RunLive do
                   >
                     {workspace_parent(@run.workspace)}
                   </p>
+                  <dl
+                    id="run-header-identity"
+                    class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500"
+                  >
+                    <div id="run-header-agent" class="inline-flex min-w-0 items-center gap-1">
+                      <dt class="font-semibold text-zinc-600">Agent</dt>
+                      <dd class="truncate font-mono text-zinc-800">{@run.agent}</dd>
+                    </div>
+                    <div
+                      id="run-header-session"
+                      title={@run.agent_session_id || "starting"}
+                      class="inline-flex min-w-0 items-center gap-1"
+                    >
+                      <dt class="font-semibold text-zinc-600">Session</dt>
+                      <dd class="truncate font-mono text-zinc-800">
+                        {short_session_id(@run.agent_session_id)}
+                      </dd>
+                    </div>
+                    <div id="run-header-updated" class="inline-flex min-w-0 items-center gap-1">
+                      <dt class="font-semibold text-zinc-600">Updated</dt>
+                      <dd class="font-mono text-zinc-800">{compact_time_label(@run.updated_at)}</dd>
+                    </div>
+                  </dl>
                 </div>
                 <div class="flex shrink-0 flex-col items-end gap-2">
                   <span class="inline-flex items-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm font-medium text-zinc-700">

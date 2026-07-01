@@ -48,6 +48,11 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, ~s|#run-header-workspace[title="#{run.workspace}"]|)
     assert has_element?(view, "#run-header-workspace", Path.basename(run.workspace))
     assert has_element?(view, "#run-header-workspace-path", Path.dirname(run.workspace))
+    assert has_element?(view, "#run-header-identity")
+    assert has_element?(view, "#run-header-agent", "stub-acp")
+    assert has_element?(view, ~s|#run-header-session[title="#{run.agent_session_id}"]|)
+    assert has_element?(view, "#run-header-session", String.slice(run.agent_session_id, 0, 8))
+    assert has_element?(view, "#run-header-updated", "Updated")
     refute has_element?(view, "#run-header-facts")
     assert has_element?(view, "#run-facts-agent", "stub-acp")
     assert has_element?(view, "#run-facts-agent-launch", "Launch ready")
@@ -186,7 +191,7 @@ defmodule HavenWeb.RunLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
 
-    refute has_element?(view, "#run-header-agent")
+    assert has_element?(view, "#run-header-agent", "codex-acp")
     assert has_element?(view, "#run-facts-agent", "codex-acp")
     assert has_element?(view, "#run-facts-agent-launch", "Launch ready")
     assert has_element?(view, "#run-facts-agent-trust", "5 accepted probes")
