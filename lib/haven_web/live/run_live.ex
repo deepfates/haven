@@ -839,10 +839,27 @@ defmodule HavenWeb.RunLive do
   defp policy_label("deny"), do: "Deny"
   defp policy_label(_ask), do: "Ask"
 
-  defp policy_scope_label(scopes) when is_list(scopes) and scopes != [],
-    do: Enum.join(scopes, ", ")
+  defp policy_scope_items(scopes) when is_list(scopes) and scopes != [], do: scopes
+  defp policy_scope_items(_scopes), do: ["All workspace paths"]
 
-  defp policy_scope_label(_scopes), do: "All workspace paths"
+  defp policy_scope_class(scopes) when is_list(scopes) and scopes != [] do
+    "inline-flex max-w-full items-center rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-700"
+  end
+
+  defp policy_scope_class(_scopes) do
+    "inline-flex max-w-full items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700"
+  end
+
+  defp policy_scope_id(scope) do
+    scope
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/, "-")
+    |> String.trim("-")
+    |> case do
+      "" -> "scope"
+      id -> id
+    end
+  end
 
   defp policy_badge_class(decision) do
     [
@@ -1186,8 +1203,12 @@ defmodule HavenWeb.RunLive do
                       <span class={policy_badge_class(@capability_policy["file_read"])}>
                         {policy_label(@capability_policy["file_read"])}
                       </span>
-                      <span class="break-all text-zinc-600">
-                        {policy_scope_label(@capability_policy["file_read_paths"])}
+                      <span
+                        :for={scope <- policy_scope_items(@capability_policy["file_read_paths"])}
+                        id={"pending-permission-read-scope-#{policy_scope_id(scope)}"}
+                        class={policy_scope_class(@capability_policy["file_read_paths"])}
+                      >
+                        <span class="truncate">{scope}</span>
                       </span>
                     </dd>
                   </div>
@@ -1197,8 +1218,12 @@ defmodule HavenWeb.RunLive do
                       <span class={policy_badge_class(@capability_policy["file_write"])}>
                         {policy_label(@capability_policy["file_write"])}
                       </span>
-                      <span class="break-all text-zinc-600">
-                        {policy_scope_label(@capability_policy["file_write_paths"])}
+                      <span
+                        :for={scope <- policy_scope_items(@capability_policy["file_write_paths"])}
+                        id={"pending-permission-write-scope-#{policy_scope_id(scope)}"}
+                        class={policy_scope_class(@capability_policy["file_write_paths"])}
+                      >
+                        <span class="truncate">{scope}</span>
                       </span>
                     </dd>
                   </div>
@@ -1579,8 +1604,14 @@ defmodule HavenWeb.RunLive do
                   </div>
                   <div id="run-policy-file-read-paths" class="grid gap-1">
                     <dt class="text-zinc-500">Read paths</dt>
-                    <dd class="break-all text-zinc-700">
-                      {policy_scope_label(@capability_policy["file_read_paths"])}
+                    <dd class="flex flex-wrap gap-1">
+                      <span
+                        :for={scope <- policy_scope_items(@capability_policy["file_read_paths"])}
+                        id={"run-policy-file-read-scope-#{policy_scope_id(scope)}"}
+                        class={policy_scope_class(@capability_policy["file_read_paths"])}
+                      >
+                        <span class="truncate">{scope}</span>
+                      </span>
                     </dd>
                   </div>
                   <div id="run-policy-file-write" class="flex items-center justify-between gap-3">
@@ -1591,8 +1622,14 @@ defmodule HavenWeb.RunLive do
                   </div>
                   <div id="run-policy-file-write-paths" class="grid gap-1">
                     <dt class="text-zinc-500">Write paths</dt>
-                    <dd class="break-all text-zinc-700">
-                      {policy_scope_label(@capability_policy["file_write_paths"])}
+                    <dd class="flex flex-wrap gap-1">
+                      <span
+                        :for={scope <- policy_scope_items(@capability_policy["file_write_paths"])}
+                        id={"run-policy-file-write-scope-#{policy_scope_id(scope)}"}
+                        class={policy_scope_class(@capability_policy["file_write_paths"])}
+                      >
+                        <span class="truncate">{scope}</span>
+                      </span>
                     </dd>
                   </div>
                   <div id="run-policy-terminal-create" class="flex items-center justify-between gap-3">

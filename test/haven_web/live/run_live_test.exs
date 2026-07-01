@@ -84,13 +84,30 @@ defmodule HavenWeb.RunLiveTest do
 
     assert has_element?(view, "#run-capability-policy")
     assert has_element?(view, "#run-policy-file-read", "Allow")
-    assert has_element?(view, "#run-policy-file-read-paths", "README.md, docs")
+    assert has_element?(view, "#run-policy-file-read-scope-readme-md", "README.md")
+    assert has_element?(view, "#run-policy-file-read-scope-docs", "docs")
+    assert has_element?(view, "#run-policy-file-read-paths span", "README.md")
+    assert has_element?(view, "#run-policy-file-read-paths span", "docs")
     assert has_element?(view, "#run-policy-file-write", "Ask")
-    assert has_element?(view, "#run-policy-file-write-paths", "notes")
+    assert has_element?(view, "#run-policy-file-write-scope-notes", "notes")
+    assert has_element?(view, "#run-policy-file-write-paths span", "notes")
     assert has_element?(view, "#run-policy-terminal-create", "Deny")
     assert has_element?(view, "#run-terminal-sessions")
     assert has_element?(view, "#run-terminal-session-count", "0")
     assert has_element?(view, "#run-terminal-sessions-empty", "No terminal sessions recorded.")
+  end
+
+  test "renders unrestricted capability scopes as explicit policy chips", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Unrestricted policy run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-policy-file-read-scope-all-workspace-paths")
+    assert has_element?(view, "#run-policy-file-write-scope-all-workspace-paths")
+    assert has_element?(view, "#run-policy-file-read-paths span", "All workspace paths")
+    assert has_element?(view, "#run-policy-file-write-paths span", "All workspace paths")
   end
 
   test "viewing disconnected idle history does not spawn a new agent process", %{conn: conn} do
@@ -747,9 +764,13 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#pending-permission-options", "Deny (deny)")
     assert has_element?(view, "#pending-permission-authority")
     assert has_element?(view, "#pending-permission-authority-read", "Allow")
-    assert has_element?(view, "#pending-permission-authority-read", "README.md, docs")
+    assert has_element?(view, "#pending-permission-read-scope-readme-md", "README.md")
+    assert has_element?(view, "#pending-permission-read-scope-docs", "docs")
+    assert has_element?(view, "#pending-permission-authority-read span", "README.md")
+    assert has_element?(view, "#pending-permission-authority-read span", "docs")
     assert has_element?(view, "#pending-permission-authority-write", "Ask")
-    assert has_element?(view, "#pending-permission-authority-write", "notes")
+    assert has_element?(view, "#pending-permission-write-scope-notes", "notes")
+    assert has_element?(view, "#pending-permission-authority-write span", "notes")
     assert has_element?(view, "#pending-permission-authority-terminal", "Deny")
     assert has_element?(view, "#run-control-notice", "Waiting for your decision")
 

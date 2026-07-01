@@ -412,8 +412,8 @@ Not yet proven:
   resubmitting the last prompt.
 - Backpressure, log compaction, and transcript projection performance.
 - Security boundaries around workspace access, especially product-grade UI for
-  richer configurable capability grants beyond the current comma-separated
-  workspace-relative path scopes.
+  richer configurable capability grants beyond the current create-form comma
+  fields plus post-creation scope chips.
 - Authentication flows and product-grade agent/workspace configuration,
   including OS-native workspace browse affordances; persisted workspace
   name/path records, persisted agent command definitions, basic inbox

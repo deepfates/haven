@@ -483,7 +483,9 @@ Evidence:
   effective policy, with LiveView and browser coverage verifying the
   post-creation inspection path. Inbox and run-detail LiveView tests verify
   file path scopes can be entered during run creation, normalized into
-  workspace-relative policy lists, and inspected after creation.
+  workspace-relative policy lists, and inspected after creation. Run detail
+  tests also verify scoped and unrestricted path grants render as explicit
+  policy chips in both the facts panel and pending decision card.
 - `mix haven.agent_probe` now exercises a configured ACP agent through Haven's
   real run lifecycle, including run creation, ACP boot/session setup, prompting,
   optional permission resolution, per-run capability policy, durable event
@@ -638,7 +640,8 @@ Still missing:
   projections, and grouped compact `tool_call` projections for real
   `codex-acp` file/terminal activity.
 - PTY-style interactive terminal sessions.
-- More expressive scoped-policy UI beyond comma-separated path fields.
+- More expressive scoped-policy editing and grant modeling beyond the current
+  create-form comma fields plus post-creation scope chips.
 
 ## Not Proven Yet
 
