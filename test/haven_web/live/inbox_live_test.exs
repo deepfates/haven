@@ -204,6 +204,8 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#inbox-attention-label", "2 runs need you")
+    assert has_element?(view, "#inbox-attention-detail", "1 decision")
+    assert has_element?(view, "#inbox-attention-detail", "1 recovery")
     assert has_element?(view, "#inbox-attention-detail", "1 running")
     assert has_element?(view, "#inbox-attention-detail", "1 history")
 
@@ -226,6 +228,7 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#inbox-attention-label", "1 run needs you")
+    assert has_element?(view, "#inbox-attention-detail", "1 recovery")
     assert has_element?(view, "#inbox-attention-detail", "1 running")
     assert has_element?(view, "#inbox-attention-detail", "1 history")
 
@@ -243,6 +246,7 @@ defmodule HavenWeb.InboxLiveTest do
   test "renders a tappable queue summary for many-run triage", %{conn: conn} do
     waiting = insert_run!("Approve deploy", "waiting")
     failed = insert_run!("Fix failed probe", "failed")
+    failed_recovery = insert_run!("Restart failed worker", "failed")
     running = insert_run!("Index repository", "running")
     history = insert_run!("Answered question", "idle")
     archived = insert_run!("Old incident", "failed")
@@ -251,8 +255,10 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#inbox-queue-summary")
-    assert has_element?(view, "#inbox-queue-all", "4")
-    assert has_element?(view, "#inbox-queue-needs_you", "2")
+    assert has_element?(view, "#inbox-queue-all", "5")
+    assert has_element?(view, "#inbox-queue-needs_you", "3")
+    assert has_element?(view, "#inbox-queue-needs_you", "1 decision")
+    assert has_element?(view, "#inbox-queue-needs_you", "2 recoveries")
     assert has_element?(view, "#inbox-queue-running", "1")
     assert has_element?(view, "#inbox-queue-history", "1")
     assert has_element?(view, "#inbox-queue-archived", "1")
@@ -277,6 +283,7 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#inbox-needs-you-section")
     assert has_element?(view, "#run-#{waiting.id}")
     assert has_element?(view, "#run-#{failed.id}")
+    assert has_element?(view, "#run-#{failed_recovery.id}")
     refute has_element?(view, "#run-#{running.id}")
     refute has_element?(view, "#run-#{history.id}")
 

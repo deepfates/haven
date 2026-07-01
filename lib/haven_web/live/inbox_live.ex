@@ -247,6 +247,8 @@ defmodule HavenWeb.InboxLive do
     diagnostics = Enum.filter(visible_runs, &diagnostic_run?/1)
 
     needs_you = Enum.filter(work_runs, &(&1.status in ["waiting", "failed"]))
+    needs_you_decisions = Enum.count(needs_you, &(&1.status == "waiting"))
+    needs_you_recoveries = Enum.count(needs_you, &(&1.status == "failed"))
     running = Enum.filter(work_runs, &(&1.status in ["initializing", "running"]))
 
     history =
@@ -272,6 +274,8 @@ defmodule HavenWeb.InboxLive do
     |> assign(:run_filter_counts, %{
       "all" => length(work_runs),
       "needs_you" => length(needs_you),
+      "needs_you_decisions" => needs_you_decisions,
+      "needs_you_recoveries" => needs_you_recoveries,
       "running" => length(running),
       "history" => length(history),
       "diagnostics" => length(diagnostics),
@@ -815,6 +819,7 @@ defmodule HavenWeb.InboxLive do
   end
 
   defp pluralize_count(1, singular), do: "1 #{singular}"
+  defp pluralize_count(count, "recovery"), do: "#{count} recoveries"
   defp pluralize_count(count, singular), do: "#{count} #{singular}s"
 
   defp reset_workspace_form(socket) do
@@ -1186,15 +1191,36 @@ defmodule HavenWeb.InboxLive do
     ]
   end
 
-  defp run_queue_caption("all"), do: "Open work"
-  defp run_queue_caption("needs_you"), do: "Action"
-  defp run_queue_caption("running"), do: "In flight"
-  defp run_queue_caption("history"), do: "Readable"
-  defp run_queue_caption("diagnostics"), do: "Setup"
-  defp run_queue_caption("archived"), do: "Stored"
+  defp run_queue_caption("all", _counts), do: "Open work"
+
+  defp run_queue_caption("needs_you", counts) do
+    decisions = Map.get(counts, "needs_you_decisions", 0)
+    recoveries = Map.get(counts, "needs_you_recoveries", 0)
+
+    cond do
+      decisions > 0 and recoveries > 0 ->
+        "#{pluralize_count(decisions, "decision")} · #{pluralize_count(recoveries, "recovery")}"
+
+      decisions > 0 ->
+        pluralize_count(decisions, "decision")
+
+      recoveries > 0 ->
+        pluralize_count(recoveries, "recovery")
+
+      true ->
+        "Action"
+    end
+  end
+
+  defp run_queue_caption("running", _counts), do: "In flight"
+  defp run_queue_caption("history", _counts), do: "Readable"
+  defp run_queue_caption("diagnostics", _counts), do: "Setup"
+  defp run_queue_caption("archived", _counts), do: "Stored"
 
   defp inbox_attention_summary(%{
          "needs_you" => count,
+         "needs_you_decisions" => decisions,
+         "needs_you_recoveries" => recoveries,
          "running" => running,
          "history" => history
        })
@@ -1203,7 +1229,15 @@ defmodule HavenWeb.InboxLive do
       filter: "needs_you",
       icon: "hero-exclamation-circle",
       label: needs_you_label(count),
-      detail: "#{running} running · #{history} history"
+      detail:
+        [
+          attention_detail(decisions, "decision"),
+          attention_detail(recoveries, "recovery"),
+          "#{running} running",
+          "#{history} history"
+        ]
+        |> Enum.reject(&is_nil/1)
+        |> Enum.join(" · ")
     }
   end
 
@@ -1236,6 +1270,9 @@ defmodule HavenWeb.InboxLive do
 
   defp pluralize_word(1, word), do: word
   defp pluralize_word(_count, word), do: "#{word}s"
+
+  defp attention_detail(0, _word), do: nil
+  defp attention_detail(count, word), do: pluralize_count(count, word)
 
   defp needs_you_label(1), do: "1 run needs you"
   defp needs_you_label(count), do: "#{count} runs need you"
@@ -2098,7 +2135,7 @@ defmodule HavenWeb.InboxLive do
                   @run_filter == filter && "text-zinc-300",
                   @run_filter != filter && "text-zinc-500"
                 ]}>
-                  {run_queue_caption(filter)}
+                  {run_queue_caption(filter, @run_filter_counts)}
                 </span>
               </button>
             </nav>
