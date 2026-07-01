@@ -31,6 +31,8 @@ defmodule HavenWeb.InboxLive do
      |> assign(:workspace_error, nil)
      |> assign(:editing_workspace_id, nil)
      |> refresh_workspace_assigns()
+     |> assign(:retention_form, to_form(%{"cutoff_date" => ""}, as: :retention))
+     |> assign(:retention_error, nil)
      |> assign(:agent_config_form, to_form(default_agent_config_params(), as: :agent_config))
      |> assign(:agent_config_error, nil)
      |> assign(:editing_agent_config_id, nil)
@@ -58,6 +60,26 @@ defmodule HavenWeb.InboxLive do
   def handle_event("archive_run", %{"id" => id}, socket) do
     _ = Runs.archive_run(id)
     {:noreply, assign_runs(socket)}
+  end
+
+  def handle_event("prune_archived", %{"retention" => %{"cutoff_date" => cutoff_date}}, socket) do
+    case archived_retention_cutoff(cutoff_date) do
+      {:ok, cutoff} ->
+        count = Runs.prune_archived_before(cutoff)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Pruned #{count} archived #{run_count_label(count)}")
+         |> assign(:retention_form, to_form(%{"cutoff_date" => ""}, as: :retention))
+         |> assign(:retention_error, nil)
+         |> assign_runs()}
+
+      {:error, message} ->
+        {:noreply,
+         socket
+         |> assign(:retention_form, to_form(%{"cutoff_date" => cutoff_date}, as: :retention))
+         |> assign(:retention_error, message)}
+    end
   end
 
   def handle_event("filter_runs", %{"filter" => filter}, socket) do
@@ -283,6 +305,21 @@ defmodule HavenWeb.InboxLive do
   defp valid_run_filter?(filter) do
     Enum.any?(@run_filters, fn {value, _label} -> value == filter end)
   end
+
+  defp archived_retention_cutoff(cutoff_date) when is_binary(cutoff_date) do
+    cutoff_date
+    |> String.trim()
+    |> Date.from_iso8601()
+    |> case do
+      {:ok, date} -> {:ok, DateTime.new!(date, ~T[00:00:00], "Etc/UTC")}
+      {:error, _reason} -> {:error, "Enter a cutoff date."}
+    end
+  end
+
+  defp archived_retention_cutoff(_cutoff_date), do: {:error, "Enter a cutoff date."}
+
+  defp run_count_label(1), do: "run"
+  defp run_count_label(_count), do: "runs"
 
   defp attach_latest_events(runs) do
     latest_events =
@@ -1836,6 +1873,44 @@ defmodule HavenWeb.InboxLive do
             class="space-y-2"
           >
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Archived</h2>
+            <section
+              id="archived-retention-panel"
+              class="rounded-lg border border-zinc-200 bg-zinc-50 p-3"
+            >
+              <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div class="min-w-0">
+                  <h3 class="text-sm font-semibold text-zinc-950">Retention</h3>
+                  <p class="mt-1 text-xs text-zinc-600">
+                    Delete archived runs older than the selected date. Active and recent archived runs are preserved.
+                  </p>
+                </div>
+                <.form
+                  id="archived-retention-form"
+                  for={@retention_form}
+                  phx-submit="prune_archived"
+                  class="grid gap-2 sm:min-w-80 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
+                >
+                  <.input
+                    field={@retention_form[:cutoff_date]}
+                    type="date"
+                    label="Archived before"
+                  />
+                  <button
+                    id="archived-retention-submit"
+                    class="mb-2 h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    Prune
+                  </button>
+                </.form>
+              </div>
+              <p
+                :if={@retention_error}
+                id="archived-retention-error"
+                class="mt-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
+              >
+                {@retention_error}
+              </p>
+            </section>
             <div
               :if={@archived == []}
               class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"

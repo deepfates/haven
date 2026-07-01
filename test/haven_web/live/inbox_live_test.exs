@@ -1373,6 +1373,43 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{run.id}-archived-at", "Archived")
   end
 
+  test "prunes archived runs older than a cutoff from the archived lane", %{conn: conn} do
+    old_archived =
+      "Old archived incident"
+      |> insert_run!("failed")
+      |> archive_and_set_time!(~U[2026-01-01 00:00:00Z])
+
+    recent_archived =
+      "Recent archived incident"
+      |> insert_run!("failed")
+      |> archive_and_set_time!(~U[2026-03-01 00:00:00Z])
+
+    active = insert_run!("Active incident should stay", "failed")
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#inbox-filter-archived")
+    |> render_click()
+
+    assert has_element?(view, "#archived-retention-panel")
+    assert has_element?(view, "#run-#{old_archived.id}")
+    assert has_element?(view, "#run-#{recent_archived.id}")
+
+    view
+    |> form("#archived-retention-form", %{"retention" => %{"cutoff_date" => "2026-02-01"}})
+    |> render_submit()
+
+    refute Repo.get(Run, old_archived.id)
+    assert [] == Events.list_for_run(old_archived.id)
+    assert Runs.get_run!(recent_archived.id).archived_at
+    refute Runs.get_run!(active.id).archived_at
+
+    refute has_element?(view, "#run-#{old_archived.id}")
+    assert has_element?(view, "#run-#{recent_archived.id}")
+    assert has_element?(view, "#inbox-filter-archived", "1")
+  end
+
   defp insert_run!(title, status, attrs \\ %{}) do
     run =
       %Run{}
@@ -1396,6 +1433,14 @@ defmodule HavenWeb.InboxLiveTest do
     })
 
     run
+  end
+
+  defp archive_and_set_time!(%Run{} = run, archived_at) do
+    assert {:ok, archived} = Runs.archive_run(run.id)
+
+    archived
+    |> Ecto.Changeset.change(archived_at: archived_at, updated_at: archived_at)
+    |> Repo.update!()
   end
 
   defp row_index(html, title), do: html |> :binary.match(title) |> elem(0)

@@ -537,12 +537,16 @@ Evidence:
   for archived records. Data-layer tests verify it deletes only archived runs
   older than a cutoff and cascades their event history while preserving active
   and recent archived runs.
+- LiveView integration tests verify the Archived inbox lane exposes an explicit
+  retention form, prunes only archived runs older than the selected cutoff, and
+  preserves active plus recent archived history.
 
 Still missing:
 
 - ACP session resume semantics; current reconnect starts a fresh process/session.
 - Broader concurrent multi-run behavior under realistic external-agent load.
-- Product-level retention policy, scheduling, and UI around archived run pruning.
+- Product-level retention scheduling and policy defaults around archived run
+  pruning.
 
 ### Workspace Capabilities
 
