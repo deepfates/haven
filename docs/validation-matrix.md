@@ -719,8 +719,11 @@ Evidence:
   scoped file policy deny, and terminal-create policy deny stories, and against
   the configured test-only fake ACP harness for file-read, terminal-command,
   and approval-gated terminal-command stories.
-  Real-agent proof still requires running the same probe against a non-test
-  configured ACP command with expectations for the specific story being
+  The committed `haven-capability-probe` reports now run the same probe path
+  against a local external stdio ACP process outside the built-in stub and fake
+  test harness, with expectations for the specific file and terminal stories.
+  Third-party production-agent proof still requires running the same probe
+  against a production ACP adapter with expectations for the story being
   validated.
 - Probe reports support literal and environment-derived redaction before
   printing or writing JSON, which lowers the risk of committing real-agent
@@ -898,6 +901,36 @@ Evidence:
   `unsupported_client_capabilities`, so this counts as explicit unsupported
   evidence for Haven-mediated proof with this agent class, not positive
   `terminal/*` proof.
+- `docs/probes/haven-capability-probe-basic.json` is a committed passing
+  `--require-real-agent` report against the local external
+  `haven-capability-probe` stdio ACP process. It proves initialization, session
+  start, a prompted turn, an agent message chunk, and `turn_finished` through
+  Haven's durable run lifecycle without using the built-in stub.
+- `docs/probes/haven-capability-probe-file-read.json` is a committed passing
+  report against the same local external ACP process proving Haven-mediated
+  `fs/read_text_file`: `file_read_requested`, policy application,
+  `file_read_succeeded`, the agent response, and `turn_finished`, with
+  field-level checks for `README.md`.
+- `docs/probes/haven-capability-probe-file-write-approval.json` is a committed
+  passing report proving approval-gated Haven-mediated `fs/write_text_file`
+  against the local external ACP process. It records the file-write request,
+  permission request and resolution, successful write to
+  `notes/haven-probe.txt`, and final turn completion.
+- `docs/probes/haven-capability-probe-terminal-approval.json` is a committed
+  passing report proving approval-gated Haven-mediated terminal execution
+  against the local external ACP process. It records terminal create, wait,
+  output, release, exit status `0`, and final turn completion for `mix
+  --version`.
+- `docs/probes/haven-capability-probe-terminal-denied.json` is a committed
+  passing report proving deny-policy handling for a local external ACP
+  `terminal/create` request. It records the request, the automatic deny
+  decision, `terminal_create_denied`, and final turn completion without opening
+  a terminal process.
+- These `haven-capability-probe-*` reports prove Haven's direct client
+  capability handlers with a committed external process. They are deliberately
+  narrower than ecosystem proof: `codex-acp` still shows direct file and
+  terminal work through generic `tool_call` / `tool_call_update`, with explicit
+  negative reports for Haven-mediated `fs/*` and `terminal/*` requests.
 - Haven now wraps the upstream Elixir ACP client-side decoder so newer/unknown
   `session/update` variants are persisted as raw protocol events instead of
   crashing the connection. This was required by `codex-acp`, which currently
@@ -967,11 +1000,15 @@ Evidence:
 
 Still missing:
 
-- Real non-test external agent coverage for Haven-mediated file requests
-  (`fs/read_text_file` / `fs/write_text_file`).
-- Real non-test external agent coverage for Haven-mediated terminal requests
+- Third-party production-agent coverage for Haven-mediated file requests
+  (`fs/read_text_file` / `fs/write_text_file`). Current positive coverage is a
+  committed local external ACP probe process; current `codex-acp` evidence
+  explicitly exercises generic tool calls instead.
+- Third-party production-agent coverage for Haven-mediated terminal requests
   (`terminal/create`, `terminal/output`, `terminal/wait_for_exit`,
-  `terminal/release`, and `terminal/kill`).
+  `terminal/release`, and `terminal/kill`). Current positive coverage is a
+  committed local external ACP probe process for create/wait/output/release and
+  denial, plus local stub coverage for kill.
 - Product-grade file artifact review; current evidence is a durable bounded
   `file_changes` projection with review counts/outcome hints for
   Haven-mediated writes, structured Haven-mediated client capability event
@@ -991,10 +1028,13 @@ Still missing:
 These are not cosmetic gaps. They are core to the production-grade Haven telos
 and should not be counted as complete until there is executable evidence.
 
-- Haven-mediated file read/write capability requests from a real non-test
-  external agent.
-- Haven-mediated terminal capability requests from a real non-test external
-  agent.
+- Haven-mediated file read/write capability requests from a third-party
+  production ACP agent. A local external ACP probe now proves Haven's side of
+  the protocol, but not production-agent ecosystem behavior.
+- Haven-mediated terminal capability requests from a third-party production
+  ACP agent. A local external ACP probe now proves create/wait/output/release
+  and deny behavior, but not production-agent ecosystem behavior or interactive
+  terminal use.
 - Interactive terminal behavior.
 - Authentication flows for agents that require auth; configured env can pass
   secrets to launched agents, but no interactive auth flow is proven.
@@ -1006,8 +1046,8 @@ and should not be counted as complete until there is executable evidence.
 
 ## Next Best Validation Work
 
-1. Find or build a non-test ACP-speaking adapter that exercises Haven-mediated
-   `fs/*` and `terminal/*` client requests, then commit passing
-   `--require-real-agent` reports for those stories.
+1. Find or configure a third-party production ACP-speaking adapter that
+   exercises Haven-mediated `fs/*` and `terminal/*` client requests, then
+   commit passing `--require-real-agent` reports for those stories.
 2. Add interactive-terminal evidence once the terminal model moves beyond
    bounded non-interactive command execution.

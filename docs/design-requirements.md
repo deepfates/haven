@@ -396,6 +396,11 @@ Proven:
 - The configured test-only fake ACP harness can exercise file-read and
   terminal-command ACP client callbacks through `mix haven.agent_probe`,
   reducing reliance on the built-in stub for capability validation.
+- The committed local external `haven-capability-probe` ACP process can
+  exercise file-read, permission-gated file-write, permission-gated terminal,
+  and terminal-denial callbacks through `mix haven.agent_probe`, proving
+  Haven's direct client-capability plumbing outside the built-in stub and fake
+  test harness.
 - Timeline events expose a visible and machine-readable provenance marker
   (`app`, `user`, `agent`, `client`, `protocol`, or `runtime`) so users can
   distinguish app decisions from protocol and runtime activity.
@@ -406,12 +411,12 @@ Proven:
 
 Not yet proven:
 
-- Real external agents beyond the local stub and configured test-only fake
-  harness.
-- File capability handling against real non-test external agents.
+- Third-party production ACP agents beyond the local stub, configured test-only
+  fake harness, and committed local capability probe.
+- File capability handling against third-party production ACP agents.
 - Product-grade file artifact review beyond the current bounded file-change
   projections and review-state summaries.
-- Terminal capability handling against real non-test external agents.
+- Terminal capability handling against third-party production ACP agents.
 - Interactive terminal sessions and process-tree kill behavior.
 - ACP-native session resume policy.
 - Multi-run load behavior beyond latest-event lookup.
@@ -463,8 +468,9 @@ Known implementation limitations:
 
 ## Recommended Next Milestone
 
-The next milestone should connect one real ACP-speaking agent and harden the
-client capability callbacks for file and terminal operations.
+The next milestone should connect one third-party production ACP-speaking agent
+and harden or explicitly bound the client capability callbacks for file and
+terminal operations.
 
 Acceptance criteria:
 

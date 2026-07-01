@@ -1,0 +1,188 @@
+{
+  "status": "idle",
+  "events": [
+    {
+      "type": "run_created",
+      "seq": 1,
+      "payload": {
+        "agent": "haven-capability-probe",
+        "capability_policy": {
+          "file_read": "ask",
+          "file_write": "ask",
+          "file_write_paths": [
+            "notes"
+          ],
+          "terminal_create": "allow"
+        },
+        "title": "Agent probe: haven-capability-probe",
+        "workspace": "/Users/deepfates/Hacking/github/deepfates/haven/docs/probe-workspaces/haven-capability"
+      }
+    },
+    {
+      "type": "agent_process_started",
+      "seq": 2,
+      "payload": {
+        "agent": "haven-capability-probe",
+        "args": [
+          "run",
+          "--no-start",
+          "--no-compile",
+          "--no-deps-check",
+          "priv/acp_agents/haven_capability_probe_agent.exs"
+        ],
+        "command": "haven-capability-probe",
+        "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
+        "env": [],
+        "executable": "/opt/homebrew/bin/mix"
+      }
+    },
+    {
+      "type": "agent_initialized",
+      "seq": 3,
+      "payload": {}
+    },
+    {
+      "type": "agent_session_started",
+      "seq": 4,
+      "payload": {
+        "agent_session_id": "haven-capability-probe-4802"
+      }
+    },
+    {
+      "type": "turn_started",
+      "seq": 5,
+      "payload": {
+        "prompt": "write Haven probe sentinel to notes/haven-probe.txt through the client file-write capability"
+      }
+    },
+    {
+      "type": "user_message",
+      "seq": 6,
+      "payload": {
+        "text": "write Haven probe sentinel to notes/haven-probe.txt through the client file-write capability"
+      }
+    },
+    {
+      "type": "file_write_requested",
+      "seq": 7,
+      "payload": {
+        "bytes": 21,
+        "change_id": "file-write-4131",
+        "path": "notes/haven-probe.txt",
+        "session_id": "haven-capability-probe-4802"
+      }
+    },
+    {
+      "type": "permission_requested",
+      "seq": 8,
+      "payload": {
+        "options": [
+          {
+            "kind": "allow_once",
+            "name": "Allow write",
+            "optionId": "allow"
+          },
+          {
+            "kind": "reject_once",
+            "name": "Deny",
+            "optionId": "deny"
+          }
+        ],
+        "request_id": 1,
+        "toolCall": {
+          "rawInput": {
+            "bytes": 21,
+            "change_id": "file-write-4131",
+            "content_preview": "Haven probe sentinel\n",
+            "content_preview_limit": 4000,
+            "content_truncated": false,
+            "diff_kind": "create",
+            "diff_preview": "--- /dev/null\n+++ notes/haven-probe.txt\n+Haven probe sentinel\n",
+            "diff_preview_limit": 8000,
+            "diff_truncated": false,
+            "existing_bytes": 0,
+            "path": "notes/haven-probe.txt",
+            "session_id": "haven-capability-probe-4802"
+          },
+          "status": "pending",
+          "title": "Write file",
+          "toolCallId": "file_write_1"
+        }
+      }
+    },
+    {
+      "type": "permission_resolved",
+      "seq": 9,
+      "payload": {
+        "actor": "local_user",
+        "option_id": "allow",
+        "outcome": "selected",
+        "request_id": 1
+      }
+    },
+    {
+      "type": "file_write_succeeded",
+      "seq": 10,
+      "payload": {
+        "change_id": "file-write-4131",
+        "path": "notes/haven-probe.txt",
+        "resolved_path": "/Users/deepfates/Hacking/github/deepfates/haven/docs/probe-workspaces/haven-capability/notes/haven-probe.txt",
+        "session_id": "haven-capability-probe-4802"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 11,
+      "payload": {
+        "text": "Wrote file through Haven: notes/haven-probe.txt"
+      }
+    },
+    {
+      "type": "turn_finished",
+      "seq": 12,
+      "payload": {
+        "request_id": 1,
+        "result": {
+          "stopReason": "end_turn"
+        }
+      }
+    }
+  ],
+  "prompt": "write Haven probe sentinel to notes/haven-probe.txt through the client file-write capability",
+  "diagnostics": [],
+  "agent": "haven-capability-probe",
+  "workspace": "/Users/deepfates/Hacking/github/deepfates/haven/docs/probe-workspaces/haven-capability",
+  "run_id": "4f6ae9f0-00dd-4790-b3f5-070e2da7cfac",
+  "expected_events": [
+    "file_write_requested",
+    "permission_requested",
+    "permission_resolved",
+    "file_write_succeeded",
+    "turn_finished"
+  ],
+  "agent_output_metrics": {
+    "text_char_count": 47,
+    "message_chunk_count": 1
+  },
+  "expected_output": {},
+  "expected_event_fields": [
+    {
+      "value": "notes/haven-probe.txt",
+      "field": "path",
+      "event": "file_write_requested"
+    },
+    {
+      "value": "notes/haven-probe.txt",
+      "field": "path",
+      "event": "file_write_succeeded"
+    }
+  ],
+  "missing_expected_events": [],
+  "missing_expected_event_fields": [],
+  "missing_expected_output": [],
+  "redactions": [],
+  "real_agent_evidence": {
+    "required": true,
+    "accepted": true
+  }
+}

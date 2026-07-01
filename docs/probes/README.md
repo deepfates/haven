@@ -266,6 +266,28 @@ that story.
   of Haven-mediated `terminal/*` client request handling. The corresponding
   failed mediated-capability probe is recorded in
   `docs/probe-failures/codex-acp-terminal-mediated-negative.json`.
+- `haven-capability-probe-basic.json`: positive local external-process ACP
+  probe evidence for the basic turn lifecycle. This uses the committed
+  `priv/acp_agents/haven_capability_probe_agent.exs` stdio agent, not the
+  built-in stub and not a production coding agent.
+- `haven-capability-probe-file-read.json`: positive local external-process ACP
+  proof that a non-stub agent can request Haven-mediated
+  `fs/read_text_file`, receive the response, and finish the turn.
+- `haven-capability-probe-file-write-approval.json`: positive local
+  external-process ACP proof that a non-stub agent can request Haven-mediated
+  `fs/write_text_file`, pause on a permission decision, receive approval, write
+  inside the workspace, and finish the turn.
+- `haven-capability-probe-terminal-approval.json`: positive local
+  external-process ACP proof that a non-stub agent can request Haven-mediated
+  `terminal/create`, `terminal/wait_for_exit`, `terminal/output`, and
+  `terminal/release` through an approval-gated terminal command.
+- `haven-capability-probe-terminal-denied.json`: positive local
+  external-process ACP proof that Haven denies a non-stub agent's
+  `terminal/create` request under deny policy without spawning a terminal.
+  Together these `haven-capability-probe-*` reports prove Haven's direct
+  client-capability plumbing against a committed external stdio ACP process.
+  They do not prove that a third-party production agent such as `codex-acp`
+  exercises those direct `fs/*` or `terminal/*` client requests.
 - `docs/probe-load/codex-acp-basic-load.json`: positive sequential multi-run
   real-agent evidence for the basic turn lifecycle through saved `codex-acp`.
 - `docs/probe-load/codex-acp-basic-concurrent-load.json`: positive concurrent

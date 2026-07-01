@@ -13,9 +13,10 @@ the local ACP harness, retained history, probe artifacts, and a serious
 validation matrix.
 
 Haven is not yet production-grade in the literal sense. The main missing proof
-is not another local UI polish pass. The main missing proof is real non-test ACP
-agent evidence through the important stories, especially Haven-mediated file
-and terminal client capabilities.
+is not another local UI polish pass. Haven now has local external-process proof
+for its direct file and terminal client-capability handlers, but the main
+remaining proof is third-party production ACP agent evidence through those same
+important stories.
 
 ## Stop Rule
 
@@ -88,16 +89,20 @@ or run thread, and one obvious primary action on each core screen.
 Status: no.
 
 Production grade requires evidence that Haven works with real external ACP
-agents, not only the stub and configured fake harness.
+agents, not only the stub, configured fake harness, and local capability probe.
 
 Production blockers:
 
 - At least one real non-test ACP agent must pass committed probe reports for
   each production-critical story, not only the basic turn story.
-- Haven-mediated file read/write capability requests must be proven against a
-  real non-test agent or explicitly declared unsupported for that agent class.
-- Haven-mediated terminal capability requests must be proven against a real
-  non-test agent or explicitly declared unsupported for that agent class.
+- Haven-mediated file read/write capability requests are now proven against a
+  committed local external ACP probe process, but must still be proven against a
+  third-party production agent or explicitly declared unsupported for that agent
+  class.
+- Haven-mediated terminal capability requests are now proven against a
+  committed local external ACP probe process for create/wait/output/release and
+  denial, but must still be proven against a third-party production agent or
+  explicitly declared unsupported for that agent class.
 - Longer-duration output and larger-fan-out multi-run behavior need evidence
   under realistic external-agent load. Bounded long-output and three-run
   concurrent real-agent basic evidence now exist for `codex-acp`, but they do
@@ -132,8 +137,9 @@ Less worth porting directly:
 
 The next best work is not another broad polish pass. It is one of:
 
-1. For production-grade work, target real-agent file/terminal mediation proof or
-   a named negative report for unsupported agent classes.
+1. For production-grade work, target third-party production-agent
+   file/terminal mediation proof or a named negative report for unsupported
+   agent classes.
 2. Add longer-duration or larger-fan-out external-agent evidence only when it
    uses a real configured ACP agent, not the local stub alone.
 3. Tighten auth/credential proof only when an agent actually requires
@@ -146,6 +152,7 @@ The active production-grade telos should not be marked complete yet.
 The honest current claim is:
 
 Haven has an internal-alpha cut with current browser smoke, runtime smoke,
-tests, and positive basic real-agent evidence. Production-grade status remains
-unproven until real non-test ACP agents pass the critical file, terminal,
-decision, persistence, and inspection stories.
+tests, positive basic real-agent evidence, and local external-process proof for
+Haven-mediated file and terminal callbacks. Production-grade status remains
+unproven until third-party production ACP agents pass or explicitly fail the
+critical file, terminal, decision, persistence, and inspection stories.
