@@ -153,6 +153,7 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "not connected"
     assert has_element?(view, "#pending-permission-card", "Write file")
     assert has_element?(view, ~s|#pending-permission-card button[disabled]|)
+    assert has_element?(view, "#run-control-notice", "not connected")
     assert has_element?(view, "#reconnect-run-button", "Reconnect")
     refute Runs.started?(run.id)
 
@@ -200,6 +201,8 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "not connected"
     assert has_element?(view, "#reconnect-run-button", "Reconnect")
     assert has_element?(view, "#send-prompt-button[disabled]")
+    assert has_element?(view, "#run-control-notice", "not connected")
+    refute has_element?(view, "#run-control-notice", "A turn is already in progress")
     refute Runs.started?(run.id)
 
     view
@@ -290,6 +293,19 @@ defmodule HavenWeb.RunLiveTest do
     assert render(view) =~ "connected"
   end
 
+  test "closed runs render as read-only history with disabled controls", %{conn: conn} do
+    run = insert_disconnected_run!("Closed history", "closed")
+
+    {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert html =~ "closed"
+    assert has_element?(view, "#send-prompt-button[disabled]")
+    assert has_element?(view, "#cancel-run-button[disabled]")
+    assert has_element?(view, "#run-control-notice", "closed")
+    refute has_element?(view, "#reconnect-run-button")
+    refute Runs.started?(run.id)
+  end
+
   test "sends a prompt and appends user and agent turn events", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Prompt run"})
     stop_run_server_on_exit(run.id)
@@ -297,6 +313,8 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    refute has_element?(view, "#run-control-notice")
 
     view
     |> form("#run-prompt-form", %{"prompt" => "hello from LiveView"})
@@ -1141,6 +1159,7 @@ defmodule HavenWeb.RunLiveTest do
     assert render(view) =~ "running"
     assert has_element?(view, "#send-prompt-button[disabled]")
     assert has_element?(view, "#sample-echo-button[disabled]")
+    assert has_element?(view, "#run-control-notice", "A turn is already in progress")
     assert Runs.send_prompt(run.id, "second prompt") == {:error, :busy}
 
     view
