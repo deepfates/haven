@@ -246,6 +246,10 @@ Evidence:
 - Saved workspace rows now show derived readiness and run usage, including
   missing-on-disk folders plus active and archived run counts, so multi-folder
   triage exposes operational state without opening each run.
+- LiveView tests verify runs whose workspace path disappears move into Needs
+  You even when the run is otherwise idle, with explicit workspace counts and
+  restore-folder guidance, so missing folders are not hidden in ordinary
+  history.
 - Saved workspace rows now also show a lightweight Git branch identity when a
   workspace has a `.git/HEAD`, giving multi-folder agent work a clearer repo
   context without shelling out during LiveView refreshes.

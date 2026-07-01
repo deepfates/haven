@@ -287,6 +287,7 @@ defmodule HavenWeb.InboxLive do
     needs_you_decisions = Enum.count(needs_you, &(&1.status == "waiting"))
     needs_you_recoveries = Enum.count(needs_you, &(&1.status == "failed"))
     needs_you_interruptions = Enum.count(needs_you, &interrupted_run?/1)
+    needs_you_workspaces = Enum.count(needs_you, &workspace_missing_run?/1)
     unread_runs = Enum.count(work_runs, &(Map.get(&1, :unread_event_count, 0) > 0))
     unread_events = Enum.reduce(work_runs, 0, &(Map.get(&1, :unread_event_count, 0) + &2))
     updated = Enum.filter(work_runs, &(Map.get(&1, :unread_event_count, 0) > 0))
@@ -314,6 +315,7 @@ defmodule HavenWeb.InboxLive do
       decisions: needs_you_decisions,
       recoveries: needs_you_recoveries,
       interruptions: needs_you_interruptions,
+      workspaces: needs_you_workspaces,
       unread_runs: unread_runs,
       unread_events: unread_events
     }
@@ -339,6 +341,7 @@ defmodule HavenWeb.InboxLive do
       "needs_you_decisions" => needs_you_decisions,
       "needs_you_recoveries" => needs_you_recoveries,
       "needs_you_interruptions" => needs_you_interruptions,
+      "needs_you_workspaces" => needs_you_workspaces,
       "unread_runs" => unread_runs,
       "unread_events" => unread_events,
       "running" => length(running),
@@ -454,8 +457,12 @@ defmodule HavenWeb.InboxLive do
   defp diagnostic_run?(%{purpose: "diagnostic"}), do: true
   defp diagnostic_run?(_run), do: false
 
+  defp run_needs_attention?(%{workspace_summary: %{path_state: :missing}}), do: true
   defp run_needs_attention?(%{status: status}) when status in ["waiting", "failed"], do: true
   defp run_needs_attention?(run), do: interrupted_run?(run)
+
+  defp workspace_missing_run?(%{workspace_summary: %{path_state: :missing}}), do: true
+  defp workspace_missing_run?(_run), do: false
 
   defp interrupted_run?(%{status: status, live?: false})
        when status in ["initializing", "running"],
@@ -1409,11 +1416,13 @@ defmodule HavenWeb.InboxLive do
     decisions = Map.get(counts, "needs_you_decisions", 0)
     recoveries = Map.get(counts, "needs_you_recoveries", 0)
     interruptions = Map.get(counts, "needs_you_interruptions", 0)
+    workspaces = Map.get(counts, "needs_you_workspaces", 0)
 
     [
       if(decisions > 0, do: pluralize_count(decisions, "decision")),
       if(recoveries > 0, do: pluralize_count(recoveries, "recovery")),
-      if(interruptions > 0, do: pluralize_count(interruptions, "interruption"))
+      if(interruptions > 0, do: pluralize_count(interruptions, "interruption")),
+      if(workspaces > 0, do: pluralize_count(workspaces, "workspace"))
     ]
     |> Enum.reject(&is_nil/1)
     |> case do
@@ -1432,6 +1441,7 @@ defmodule HavenWeb.InboxLive do
          "needs_you_decisions" => decisions,
          "needs_you_recoveries" => recoveries,
          "needs_you_interruptions" => interruptions,
+         "needs_you_workspaces" => workspaces,
          "unread_events" => unread_events,
          "running" => running,
          "history" => history
@@ -1446,6 +1456,7 @@ defmodule HavenWeb.InboxLive do
           attention_detail(decisions, "decision"),
           attention_detail(recoveries, "recovery"),
           attention_detail(interruptions, "interruption"),
+          attention_detail(workspaces, "workspace"),
           attention_detail(unread_events, "new event"),
           "#{running} running",
           "#{history} history"
@@ -1548,6 +1559,7 @@ defmodule HavenWeb.InboxLive do
           attention_detail(counts.decisions, "decision"),
           attention_detail(counts.recoveries, "recovery"),
           attention_detail(counts.interruptions, "interruption"),
+          attention_detail(counts.workspaces, "workspace"),
           attention_detail(counts.unread_events, "new event")
         ]
         |> Enum.reject(&is_nil/1)

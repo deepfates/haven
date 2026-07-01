@@ -433,6 +433,38 @@ defmodule HavenWeb.InboxLiveTest do
     refute has_element?(view, "#run-#{run.id}-primary-action", "Recover")
   end
 
+  @tag :tmp_dir
+  test "moves idle runs with missing workspaces into needs-you", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    workspace = Path.join(tmp_dir, "vanished-idle-workspace")
+    File.mkdir_p!(workspace)
+    missing = insert_run!("Quiet run with missing folder", "idle", %{workspace: workspace})
+    history = insert_run!("Ordinary history", "idle")
+    File.rm_rf!(workspace)
+
+    {:ok, view, html} = live(conn, ~p"/")
+
+    assert html =~ "(1) Haven"
+    assert has_element?(view, "#inbox-attention-label", "1 run needs you")
+    assert has_element?(view, "#inbox-attention-detail", "1 workspace")
+    assert has_element?(view, "#inbox-queue-needs_you", "1 workspace")
+    assert has_element?(view, "#inbox-queue-history", "1")
+    assert has_element?(view, "#inbox-needs-you-section")
+    assert has_element?(view, "#run-#{missing.id}-attention", "Workspace missing")
+    assert has_element?(view, "#run-#{missing.id}-next-step", "Restore workspace")
+    assert has_element?(view, "#inbox-history-section")
+    assert has_element?(view, "#run-#{history.id}", "Ordinary history")
+
+    view
+    |> element("#inbox-queue-needs_you")
+    |> render_click()
+
+    assert has_element?(view, "#run-#{missing.id}", "Quiet run with missing folder")
+    refute has_element?(view, "#run-#{history.id}")
+  end
+
   test "shows new activity until the run thread is viewed", %{conn: conn} do
     run = insert_run!("Unread conversation", "idle")
     assert {:ok, _run} = Runs.mark_viewed(run.id, 1)
