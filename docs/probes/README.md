@@ -60,6 +60,7 @@ Examples:
 
 ```bash
 mix haven.agent_probe --list-agents --workspace /path/to/repo
+mix haven.agent_probe --list-agents --proof-commands --workspace /path/to/repo
 mix haven.agent_probe --list-agents --preflight --workspace /path/to/repo
 mix haven.agent_probe --list-agents --registry --workspace /path/to/repo
 
@@ -135,8 +136,17 @@ mix haven.agent_probe \
 
 Use `--list-agents` first when preparing real-agent evidence. It prints every
 configured agent, whether its command resolves on this machine, whether it can
-count as a `--require-real-agent` candidate, and an example basic probe command.
-The inventory shows environment variable names but not their values.
+count as a `--require-real-agent` candidate, and whether full proof commands
+are available on demand. The inventory shows environment variable names but not
+their values.
+
+Use `--list-agents --proof-commands` when you want the full acceptance-command
+set for a candidate. It prints basic boot, Haven-mediated file read,
+permission-approved file write, permission-approved terminal, and denied
+terminal guard probes. These commands are intentionally stricter than launch
+readiness: they include expected event and field checks so missing `fs/*` or
+`terminal/*` client-capability stories fail as evidence instead of passing as
+generic agent activity.
 
 Use `--list-agents --preflight` when a command is only a probe candidate. The
 preflight creates a short durable run and verifies ACP initialization plus

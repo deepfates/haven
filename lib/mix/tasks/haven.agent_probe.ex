@@ -11,6 +11,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       mix haven.agent_probe --agent my-agent --workspace . --prompt "write a long summary" --expect-min-agent-output-chars 2000 --expect-min-agent-message-chunks 5 --require-real-agent --report docs/probes/my-agent-long-output.json
       mix haven.agent_probe --list-agents --workspace .
       mix haven.agent_probe --list-agents --preflight --workspace .
+      mix haven.agent_probe --list-agents --proof-commands --workspace .
       mix haven.agent_probe --list-agents --registry --workspace .
       mix haven.agent_probe --save-registry-agent codex-acp --workspace .
 
@@ -19,6 +20,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   `--require-real-agent` evidence.
   Add `--preflight` to `--list-agents` to try ACP initialization/session
   creation for each eligible probe candidate before attempting a full report.
+  Add `--proof-commands` to `--list-agents` to print the basic, file, terminal,
+  and policy-guard probe commands for each candidate.
   Add `--registry` to `--list-agents` to show npx-backed ACP agent suggestions
   from the public ACP registry.
   Use `--save-registry-agent AGENT_ID` to persist one public registry suggestion
@@ -83,6 +86,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     require_real_agent: :boolean,
     list_agents: :boolean,
     preflight: :boolean,
+    proof_commands: :boolean,
     registry: :boolean,
     save_registry_agent: :string,
     verbose: :boolean,
@@ -111,6 +115,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
           print_agent_inventory(
             Keyword.fetch!(opts, :workspace),
             Keyword.get(opts, :preflight, false),
+            Keyword.get(opts, :proof_commands, false),
             Keyword.get(opts, :timeout, 5_000),
             Keyword.get(opts, :registry, false)
           )
@@ -242,7 +247,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     end
   end
 
-  defp print_agent_inventory(workspace, preflight?, preflight_timeout, registry?) do
+  defp print_agent_inventory(workspace, preflight?, proof_commands?, preflight_timeout, registry?) do
     inventory = Haven.AgentProbe.agent_inventory(workspace)
 
     Mix.shell().info("Workspace: #{workspace}")
@@ -275,9 +280,13 @@ defmodule Mix.Tasks.Haven.AgentProbe do
         end
 
         if agent.real_agent_candidate do
-          Mix.shell().info(
-            "  example: mix haven.agent_probe --agent #{agent.agent} --workspace #{workspace} --require-real-agent --expect-event agent_initialized --expect-event agent_session_started --expect-event turn_finished --report docs/probes/#{agent.agent}-basic.json"
-          )
+          if proof_commands? do
+            print_agent_proof_commands(agent.agent, workspace)
+          else
+            Mix.shell().info(
+              "  proof commands: hidden (add --proof-commands to print basic/file/terminal acceptance commands)"
+            )
+          end
 
           if preflight? do
             [print_agent_preflight(agent.agent, workspace, preflight_timeout) | results]
@@ -322,6 +331,144 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   end
 
   defp inspect_args(args), do: inspect(args)
+
+  defp print_agent_proof_commands(agent, workspace) do
+    Mix.shell().info("  proof commands:")
+
+    Enum.each(agent_proof_commands(agent, workspace), fn {label, command} ->
+      Mix.shell().info("    #{label}: #{command}")
+    end)
+  end
+
+  defp agent_proof_commands(agent, workspace) do
+    [
+      {"basic",
+       probe_command(agent, workspace, [
+         "--expect-event",
+         "agent_initialized",
+         "--expect-event",
+         "agent_session_started",
+         "--expect-event",
+         "turn_finished",
+         "--report",
+         "docs/probes/#{agent}-basic.json"
+       ])},
+      {"file-read",
+       probe_command(agent, workspace, [
+         "--prompt",
+         "read README.md through the client file-read capability",
+         "--file-read-policy",
+         "allow",
+         "--file-read-paths",
+         "README.md,docs",
+         "--expect-event",
+         "file_read_requested",
+         "--expect-event",
+         "capability_policy_applied",
+         "--expect-event",
+         "file_read_succeeded",
+         "--expect-event",
+         "turn_finished",
+         "--expect-event-field",
+         "file_read_requested:payload.path=README.md",
+         "--expect-event-field",
+         "file_read_succeeded:payload.path=README.md",
+         "--report",
+         "docs/probes/#{agent}-file-read.json"
+       ])},
+      {"file-write-approval",
+       probe_command(agent, workspace, [
+         "--prompt",
+         "write Haven probe sentinel to notes/haven-probe.txt through the client file-write capability",
+         "--file-write-policy",
+         "ask",
+         "--file-write-paths",
+         "notes",
+         "--resolve-permissions",
+         "allow",
+         "--expect-event",
+         "file_write_requested",
+         "--expect-event",
+         "permission_requested",
+         "--expect-event",
+         "permission_resolved",
+         "--expect-event",
+         "file_write_succeeded",
+         "--expect-event",
+         "turn_finished",
+         "--expect-event-field",
+         "file_write_requested:payload.path=notes/haven-probe.txt",
+         "--expect-event-field",
+         "file_write_succeeded:payload.path=notes/haven-probe.txt",
+         "--report",
+         "docs/probes/#{agent}-file-write-approval.json"
+       ])},
+      {"terminal-approval",
+       probe_command(agent, workspace, [
+         "--prompt",
+         "run mix --version through the client terminal capability",
+         "--terminal-create-policy",
+         "ask",
+         "--resolve-permissions",
+         "allow",
+         "--expect-event",
+         "terminal_create_requested",
+         "--expect-event",
+         "permission_requested",
+         "--expect-event",
+         "permission_resolved",
+         "--expect-event",
+         "terminal_created",
+         "--expect-event",
+         "terminal_output_succeeded",
+         "--expect-event",
+         "terminal_released",
+         "--expect-event",
+         "turn_finished",
+         "--expect-event-field",
+         "terminal_create_requested:payload.command=mix",
+         "--expect-event-field",
+         "terminal_output_succeeded:payload.exit_status=0",
+         "--report",
+         "docs/probes/#{agent}-terminal-approval.json"
+       ])},
+      {"terminal-denied",
+       probe_command(agent, workspace, [
+         "--prompt",
+         "try to open a terminal",
+         "--terminal-create-policy",
+         "deny",
+         "--expect-event",
+         "terminal_create_requested",
+         "--expect-event",
+         "capability_policy_applied",
+         "--expect-event",
+         "terminal_create_denied",
+         "--expect-event",
+         "turn_finished",
+         "--expect-event-field",
+         "terminal_create_requested:payload.command=mix",
+         "--expect-event-field",
+         "capability_policy_applied:payload.decision=deny",
+         "--report",
+         "docs/probes/#{agent}-terminal-denied.json"
+       ])}
+    ]
+  end
+
+  defp probe_command(agent, workspace, args) do
+    [
+      "mix",
+      "haven.agent_probe",
+      "--agent",
+      agent,
+      "--workspace",
+      workspace,
+      "--require-real-agent"
+      | args
+    ]
+    |> Enum.map_join(" ", &shell_arg/1)
+  end
 
   defp print_agent_preflight(agent, workspace, timeout) do
     case Haven.AgentProbe.preflight(

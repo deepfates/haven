@@ -241,6 +241,54 @@ defmodule Haven.AgentProbeTest do
     assert Logger.level() == :debug
   end
 
+  test "agent probe inventory prints production proof commands for candidates" do
+    Application.put_env(:haven, :agents, %{
+      "candidate" => %{executable: "sh", args: ["-c", "cat"]}
+    })
+
+    output =
+      capture_io(fn ->
+        AgentProbeTask.run(["--list-agents", "--proof-commands", "--workspace", File.cwd!()])
+      end)
+
+    assert output =~ "proof commands:"
+    assert output =~ "basic: mix haven.agent_probe --agent candidate"
+    assert output =~ "--report docs/probes/candidate-basic.json"
+
+    assert output =~ "file-read: mix haven.agent_probe --agent candidate"
+    assert output =~ "--file-read-policy allow"
+    assert output =~ "file_read_succeeded:payload.path=README.md"
+    assert output =~ "--report docs/probes/candidate-file-read.json"
+
+    assert output =~ "file-write-approval: mix haven.agent_probe --agent candidate"
+    assert output =~ "--file-write-policy ask"
+    assert output =~ "--resolve-permissions allow"
+    assert output =~ "file_write_requested:payload.path=notes/haven-probe.txt"
+
+    assert output =~ "terminal-approval: mix haven.agent_probe --agent candidate"
+    assert output =~ "--terminal-create-policy ask"
+    assert output =~ "terminal_output_succeeded:payload.exit_status=0"
+
+    assert output =~ "terminal-denied: mix haven.agent_probe --agent candidate"
+    assert output =~ "--terminal-create-policy deny"
+    assert output =~ "capability_policy_applied:payload.decision=deny"
+  end
+
+  test "agent probe inventory keeps production proof commands on demand" do
+    Application.put_env(:haven, :agents, %{
+      "candidate" => %{executable: "sh", args: ["-c", "cat"]}
+    })
+
+    output =
+      capture_io(fn ->
+        AgentProbeTask.run(["--list-agents", "--workspace", File.cwd!()])
+      end)
+
+    assert output =~ "proof commands: hidden (add --proof-commands"
+    refute output =~ "file-read: mix haven.agent_probe --agent candidate"
+    refute output =~ "terminal-approval: mix haven.agent_probe --agent candidate"
+  end
+
   test "agent probe inventory preflight prints a concise candidate summary" do
     Application.put_env(:haven, :agents, %{
       "not-acp" => %{executable: "sh", args: ["-c", "cat"]}
