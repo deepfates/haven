@@ -25,7 +25,8 @@ defmodule Haven.AgentsTest do
     assert Enum.slice(command.args, -2, 2) == ["priv/agent_stub.exs", "/tmp/work"]
   end
 
-  test "resolves configured agents and substitutes workspace" do
+  @tag :tmp_dir
+  test "resolves configured agents and substitutes workspace", %{tmp_dir: tmp_dir} do
     executable = System.find_executable("sh")
 
     Application.put_env(:haven, :agents, %{
@@ -37,12 +38,12 @@ defmodule Haven.AgentsTest do
       }
     })
 
-    assert {:ok, command} = Agents.command("external", "/repo")
+    assert {:ok, command} = Agents.command("external", tmp_dir)
     assert command.label == "external"
     assert command.executable == executable
-    assert command.args == ["--workspace", "/repo"]
-    assert command.cwd == "/repo"
-    assert command.env == [{"MODE", "smoke"}, {"WORKSPACE", "/repo"}]
+    assert command.args == ["--workspace", tmp_dir]
+    assert command.cwd == tmp_dir
+    assert command.env == [{"MODE", "smoke"}, {"WORKSPACE", tmp_dir}]
   end
 
   test "resolves configured absolute executable paths" do
@@ -73,6 +74,17 @@ defmodule Haven.AgentsTest do
     assert {:error, {:invalid_agent_field, :cwd}} = Agents.command("external", "/repo")
   end
 
+  test "rejects configured agents with missing cwd" do
+    missing_cwd = Path.join(System.tmp_dir!(), "haven-missing-agent-cwd")
+    File.rm_rf!(missing_cwd)
+
+    Application.put_env(:haven, :agents, %{
+      "external" => %{executable: "sh", cwd: missing_cwd}
+    })
+
+    assert {:error, {:missing_cwd, ^missing_cwd}} = Agents.command("external", "/repo")
+  end
+
   test "rejects invalid configured agent env" do
     Application.put_env(:haven, :agents, %{
       "external" => %{executable: "sh", env: [{"TOKEN", 123}]}
@@ -95,7 +107,8 @@ defmodule Haven.AgentsTest do
            ]
   end
 
-  test "resolves persisted agent configs" do
+  @tag :tmp_dir
+  test "resolves persisted agent configs", %{tmp_dir: tmp_dir} do
     executable = System.find_executable("sh")
 
     assert {:ok, _agent_config} =
@@ -109,12 +122,12 @@ defmodule Haven.AgentsTest do
 
     assert Agents.available() == [{"stub-acp", "stub-acp"}, {"persisted", "persisted"}]
 
-    assert {:ok, command} = Agents.command("persisted", "/repo")
+    assert {:ok, command} = Agents.command("persisted", tmp_dir)
     assert command.label == "persisted"
     assert command.executable == executable
-    assert command.args == ["-c", "echo /repo"]
-    assert command.cwd == "/repo"
-    assert command.env == [{"WORKSPACE", "/repo"}]
+    assert command.args == ["-c", "echo #{tmp_dir}"]
+    assert command.cwd == tmp_dir
+    assert command.env == [{"WORKSPACE", tmp_dir}]
   end
 
   test "runtime env configured agents override persisted configs with the same key" do

@@ -269,10 +269,22 @@ defmodule Haven.Agents do
         {:ok, nil}
 
       cwd when is_binary(cwd) and cwd != "" ->
-        {:ok, String.replace(cwd, "{workspace}", workspace)}
+        cwd
+        |> String.replace("{workspace}", workspace)
+        |> validate_cwd()
 
       _ ->
         {:error, {:invalid_agent_field, :cwd}}
+    end
+  end
+
+  defp validate_cwd(cwd) do
+    cwd = Path.expand(cwd)
+
+    if File.dir?(cwd) do
+      {:ok, cwd}
+    else
+      {:error, {:missing_cwd, cwd}}
     end
   end
 

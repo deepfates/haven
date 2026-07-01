@@ -369,6 +369,9 @@ Evidence:
 - Configured agent executables are resolved either as absolute executable paths
   or via `PATH`, and missing executables fail as explicit
   `{:missing_executable, command}` errors before the port bridge starts.
+- Configured agent working directories are resolved after `{workspace}`
+  substitution and must exist before the command is considered launch-ready,
+  so a bad `cwd` is visible as `{:missing_cwd, path}` before a run starts.
 - `HAVEN_AGENTS_JSON` can configure real ACP agent commands at runtime without
   editing Elixir source/config files.
 - `Haven.Agents.create_agent_config/1` persists ACP agent command definitions

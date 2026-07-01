@@ -735,7 +735,8 @@ defmodule HavenWeb.InboxLiveTest do
     assert Agents.list_agent_configs() == []
   end
 
-  test "edits and deletes an agent config from the inbox", %{conn: conn} do
+  @tag :tmp_dir
+  test "edits and deletes an agent config from the inbox", %{conn: conn, tmp_dir: tmp_dir} do
     assert {:ok, agent_config} =
              Agents.create_agent_config(%{
                key: "editable-stub",
@@ -772,10 +773,10 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#agent-config-edited-stub")
     assert has_element?(view, ~s|#agent option[value="edited-stub"]|)
 
-    assert {:ok, command} = Agents.command("edited-stub", "/repo")
-    assert command.args == ["after", "/repo"]
-    assert command.cwd == "/repo"
-    assert command.env == [{"WORKSPACE", "/repo"}]
+    assert {:ok, command} = Agents.command("edited-stub", tmp_dir)
+    assert command.args == ["after", tmp_dir]
+    assert command.cwd == tmp_dir
+    assert command.env == [{"WORKSPACE", tmp_dir}]
 
     view
     |> element("#delete-agent-config-edited-stub")
