@@ -18,6 +18,7 @@ defmodule Haven.Events.Event do
   def changeset(event, attrs) do
     event
     |> cast(attrs, [:run_id, :seq, :type, :payload])
+    |> update_change(:type, &String.trim/1)
     |> validate_required([:run_id, :seq, :type, :payload])
     |> validate_change(:payload, fn :payload, payload ->
       if json_payload?(payload) do

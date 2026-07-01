@@ -74,12 +74,49 @@ defmodule Haven.EventsTest do
     assert {"must contain only JSON-compatible values", _meta} = changeset.errors[:payload]
   end
 
+  test "changeset trims event type and rejects blank types" do
+    trimmed =
+      Event.changeset(%Event{}, %{
+        run_id: Ecto.UUID.generate(),
+        seq: 1,
+        type: " run_created ",
+        payload: %{}
+      })
+
+    assert trimmed.valid?
+    assert Ecto.Changeset.get_change(trimmed, :type) == "run_created"
+
+    blank =
+      Event.changeset(%Event{}, %{
+        run_id: Ecto.UUID.generate(),
+        seq: 1,
+        type: "   ",
+        payload: %{}
+      })
+
+    refute blank.valid?
+    assert {"can't be blank", _meta} = blank.errors[:type]
+  end
+
   test "append rejects non-json-compatible payload values before storage" do
     run = insert_run!("Invalid payload run")
 
     assert_raise Ecto.InvalidChangesetError, ~r/must contain only JSON-compatible values/, fn ->
       Events.append!(run.id, "invalid_payload", %{bad: self()})
     end
+
+    assert Events.list_for_run(run.id) == []
+  end
+
+  test "append rejects blank event types before storage" do
+    run = insert_run!("Blank event type run")
+
+    error =
+      assert_raise Ecto.InvalidChangesetError, fn ->
+        Events.append!(run.id, "   ", %{})
+      end
+
+    assert %{type: ["can't be blank"]} = errors_on(error.changeset)
 
     assert Events.list_for_run(run.id) == []
   end
