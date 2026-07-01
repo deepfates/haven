@@ -1807,6 +1807,26 @@ defmodule HavenWeb.RunLive do
     "#{option["name"] || "Unnamed option"} (#{option["optionId"]})"
   end
 
+  defp permission_option_title(option, decision_summary) do
+    label = permission_option_label(option)
+    kind = option["kind"] || option["optionId"] || ""
+
+    cond do
+      String.starts_with?(to_string(kind), "allow") ->
+        "#{label}: #{decision_summary.consequence}"
+
+      String.starts_with?(to_string(kind), "reject") or
+          String.starts_with?(to_string(kind), "deny") ->
+        "#{label}: block this request and return the denial to the agent."
+
+      String.starts_with?(to_string(kind), "cancel") ->
+        "#{label}: cancel this request and unblock the run."
+
+      true ->
+        "#{label}: choose this option for the pending agent request."
+    end
+  end
+
   defp permission_decision_summary(permission) do
     raw_input = get_in(permission.payload, ["toolCall", "rawInput"]) || %{}
     title = get_in(permission.payload, ["toolCall", "title"]) || ""
@@ -2727,6 +2747,8 @@ defmodule HavenWeb.RunLive do
                     phx-click="resolve_permission"
                     phx-value-request-id={@pending_permission.payload["request_id"]}
                     phx-value-option-id={option["optionId"]}
+                    title={permission_option_title(option, decision_summary)}
+                    aria-label={permission_option_title(option, decision_summary)}
                     disabled={!@live?}
                   >
                     {option["name"] || option["optionId"] || "Choose option"}
@@ -2743,6 +2765,8 @@ defmodule HavenWeb.RunLive do
                     type="button"
                     class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                     phx-click="cancel"
+                    title="Cancel the current turn and resolve outstanding decisions as cancelled."
+                    aria-label="Cancel the current turn and resolve outstanding decisions as cancelled."
                     disabled={!@can_cancel?}
                   >
                     Cancel turn

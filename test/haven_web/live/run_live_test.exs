@@ -1474,7 +1474,29 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#pending-permission-primary-actions")
     assert has_element?(view, "#pending-permission-primary-actions button", "Allow once")
     assert has_element?(view, "#pending-permission-primary-actions button", "Deny")
+
+    assert has_element?(
+             view,
+             ~s|#pending-permission-primary-actions button[phx-value-option-id="allow"][title="Allow once (allow): Allow lets the agent proceed with this write request; deny blocks it."]|
+           )
+
+    assert has_element?(
+             view,
+             ~s|#pending-permission-primary-actions button[phx-value-option-id="allow"][aria-label="Allow once (allow): Allow lets the agent proceed with this write request; deny blocks it."]|
+           )
+
+    assert has_element?(
+             view,
+             ~s|#pending-permission-primary-actions button[phx-value-option-id="deny"][title="Deny (deny): block this request and return the denial to the agent."]|
+           )
+
     assert has_element?(view, "#pending-permission-primary-actions", "Cancel turn")
+
+    assert has_element?(
+             view,
+             ~s|#pending-permission-cancel-button[title="Cancel the current turn and resolve outstanding decisions as cancelled."]|
+           )
+
     assert has_element?(view, "#pending-permission-details:not([open])")
     assert has_element?(view, "#pending-permission-details summary", "Review details")
 
