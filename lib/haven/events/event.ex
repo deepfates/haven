@@ -27,7 +27,85 @@ defmodule Haven.Events.Event do
         [payload: "must contain only JSON-compatible values"]
       end
     end)
+    |> validate_payload_schema()
     |> unique_constraint([:run_id, :seq])
+  end
+
+  defp validate_payload_schema(changeset) do
+    type = get_field(changeset, :type)
+
+    validate_change(changeset, :payload, fn :payload, payload ->
+      payload_schema_errors(type, payload)
+    end)
+  end
+
+  defp payload_schema_errors(type, payload) when is_map(payload) do
+    required_string_fields(type)
+    |> Enum.flat_map(&required_string_error(payload, &1))
+    |> Kernel.++(required_id_errors(type, payload))
+    |> Kernel.++(required_map_errors(type, payload))
+    |> Kernel.++(required_list_errors(type, payload))
+  end
+
+  defp payload_schema_errors(_type, _payload), do: []
+
+  defp required_string_fields("run_created"), do: ["title", "workspace", "agent"]
+  defp required_string_fields("user_message"), do: ["text"]
+  defp required_string_fields("agent_message_chunk"), do: ["text"]
+  defp required_string_fields("turn_started"), do: ["prompt"]
+  defp required_string_fields("agent_session_started"), do: ["agent_session_id"]
+  defp required_string_fields("permission_resolved"), do: ["outcome"]
+  defp required_string_fields("capability_policy_applied"), do: ["capability", "decision"]
+  defp required_string_fields(_type), do: []
+
+  defp required_id_fields(type) when type in ["permission_requested", "permission_resolved"],
+    do: ["request_id"]
+
+  defp required_id_fields(_type), do: []
+
+  defp required_map_fields("permission_requested"), do: ["toolCall"]
+  defp required_map_fields(_type), do: []
+
+  defp required_list_fields(_type), do: []
+
+  defp required_string_error(payload, field) do
+    case Map.get(payload, field) do
+      value when is_binary(value) and value != "" -> []
+      _value -> [payload: "for this event type, #{field} must be a non-empty string"]
+    end
+  end
+
+  defp required_id_errors(type, payload) do
+    Enum.flat_map(required_id_fields(type), fn field ->
+      case Map.get(payload, field) do
+        value when is_binary(value) and value != "" ->
+          []
+
+        value when is_integer(value) ->
+          []
+
+        _value ->
+          [payload: "for this event type, #{field} must be a non-empty string or integer"]
+      end
+    end)
+  end
+
+  defp required_map_errors(type, payload) do
+    Enum.flat_map(required_map_fields(type), fn field ->
+      case Map.get(payload, field) do
+        value when is_map(value) -> []
+        _value -> [payload: "for this event type, #{field} must be an object"]
+      end
+    end)
+  end
+
+  defp required_list_errors(type, payload) do
+    Enum.flat_map(required_list_fields(type), fn field ->
+      case Map.get(payload, field) do
+        value when is_list(value) -> []
+        _value -> [payload: "for this event type, #{field} must be a list"]
+      end
+    end)
   end
 
   defp json_payload?(value)

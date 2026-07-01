@@ -17,7 +17,7 @@ defmodule Haven.EventsTest do
       })
       |> Repo.insert!()
 
-    Events.append!(run.id, "run_created", %{"title" => run.title})
+    Events.append!(run.id, "run_created", run_created_payload(run))
     Events.append!(run.id, "user_message", %{"text" => "hello"})
 
     assert [
@@ -75,12 +75,14 @@ defmodule Haven.EventsTest do
   end
 
   test "changeset trims event type and rejects blank types" do
+    run_id = Ecto.UUID.generate()
+
     trimmed =
       Event.changeset(%Event{}, %{
-        run_id: Ecto.UUID.generate(),
+        run_id: run_id,
         seq: 1,
         type: " run_created ",
-        payload: %{}
+        payload: %{"title" => "Run", "workspace" => File.cwd!(), "agent" => "stub-acp"}
       })
 
     assert trimmed.valid?
@@ -121,6 +123,50 @@ defmodule Haven.EventsTest do
     assert Events.list_for_run(run.id) == []
   end
 
+  test "append rejects malformed core event payloads before storage" do
+    run = insert_run!("Malformed core event run")
+
+    error =
+      assert_raise Ecto.InvalidChangesetError, fn ->
+        Events.append!(run.id, "user_message", %{"message" => "wrong key"})
+      end
+
+    assert %{payload: ["for this event type, text must be a non-empty string"]} =
+             errors_on(error.changeset)
+
+    error =
+      assert_raise Ecto.InvalidChangesetError, fn ->
+        Events.append!(run.id, "permission_requested", %{
+          "request_id" => %{"bad" => "shape"},
+          "toolCall" => %{"title" => "Write file"}
+        })
+      end
+
+    assert %{payload: ["for this event type, request_id must be a non-empty string or integer"]} =
+             errors_on(error.changeset)
+
+    error =
+      assert_raise Ecto.InvalidChangesetError, fn ->
+        Events.append!(run.id, "permission_requested", %{"request_id" => 1})
+      end
+
+    assert %{payload: ["for this event type, toolCall must be an object"]} =
+             errors_on(error.changeset)
+
+    assert Events.list_for_run(run.id) == []
+  end
+
+  test "unknown json event payloads remain accepted for protocol evolution" do
+    run = insert_run!("Unknown event run")
+
+    event =
+      Events.append!(run.id, "agent_experimental_update", %{
+        "anything" => %{"nested" => ["still", "json"]}
+      })
+
+    assert event.payload["anything"]["nested"] == ["still", "json"]
+  end
+
   test "concurrent appends preserve contiguous per-run sequence numbers" do
     run = insert_run!("Concurrent event run")
 
@@ -128,7 +174,7 @@ defmodule Haven.EventsTest do
       1..25
       |> Task.async_stream(
         fn index ->
-          Events.append!(run.id, "agent_message_chunk", %{index: index})
+          Events.append!(run.id, "agent_message_chunk", %{"text" => "chunk #{index}"})
         end,
         max_concurrency: 25,
         timeout: :infinity
@@ -140,7 +186,9 @@ defmodule Haven.EventsTest do
     events = Events.list_for_run(run.id)
 
     assert Enum.map(events, & &1.seq) == Enum.to_list(1..25)
-    assert events |> Enum.map(& &1.payload["index"]) |> Enum.sort() == Enum.to_list(1..25)
+
+    assert events |> Enum.map(& &1.payload["text"]) |> Enum.sort() ==
+             Enum.map(1..25, &"chunk #{&1}") |> Enum.sort()
   end
 
   test "latest_by_run_id returns only the newest event for each requested run" do
@@ -148,9 +196,9 @@ defmodule Haven.EventsTest do
     beta = insert_run!("Beta")
     missing = Ecto.UUID.generate()
 
-    Events.append!(alpha.id, "run_created", %{"title" => "Alpha"})
+    Events.append!(alpha.id, "run_created", run_created_payload(alpha))
     alpha_latest = Events.append!(alpha.id, "agent_message_chunk", %{"text" => "latest alpha"})
-    Events.append!(beta.id, "run_created", %{"title" => "Beta"})
+    Events.append!(beta.id, "run_created", run_created_payload(beta))
     beta_latest = Events.append!(beta.id, "turn_finished", %{"result" => "done"})
 
     latest = Events.latest_by_run_id([alpha.id, beta.id, alpha.id, missing])
@@ -175,5 +223,9 @@ defmodule Haven.EventsTest do
       status: "idle"
     })
     |> Repo.insert!()
+  end
+
+  defp run_created_payload(%Run{} = run) do
+    %{"title" => run.title, "workspace" => run.workspace, "agent" => run.agent}
   end
 end

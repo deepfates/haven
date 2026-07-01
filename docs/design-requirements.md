@@ -435,9 +435,10 @@ Known implementation limitations:
 
 - Permission request ids are app-level ids, not exposed protocol ids.
 - Event types are trimmed and rejected if blank; event payloads are normalized
-  to string-keyed JSON-style maps at append time and rejected if they contain
-  non-JSON-compatible values, but formal per-event payload schemas are still
-  missing.
+  to string-keyed JSON-style maps at append time, rejected if they contain
+  non-JSON-compatible values, and bounded schema checks exist for core
+  user-facing events, but formal schemas for every protocol/client event are
+  still missing.
 - Archived runs can be pruned through an explicit tested context API and inbox
   UI, but there is no product retention schedule yet.
 - The UI is operational but not yet product-quality.

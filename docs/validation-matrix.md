@@ -266,6 +266,11 @@ Evidence:
 - Event type values are trimmed and must remain nonblank before storage.
   Data-layer tests verify blank event types are rejected without appending an
   uninterpretable timeline row.
+- Event append now applies bounded payload schemas for UX-critical event types
+  such as run creation, user/agent messages, turn start, permission request and
+  resolution, session start, and capability policy decisions. Data-layer tests
+  verify malformed core events fail before storage while unknown JSON protocol
+  events remain accepted for ACP evolution.
 - Event append serializes sequence allocation per run in-process and retries the
   database unique-index conflict path. Data-layer tests verify concurrent
   append pressure preserves contiguous per-run sequence numbers without losing
@@ -274,8 +279,8 @@ Evidence:
 Still missing:
 
 - Rich protocol event normalization.
-- Formal per-event payload schemas beyond the current durable string-key
-  JSON-compatible payload contract.
+- Formal payload schemas for every protocol/client event beyond the bounded
+  core event schema checks.
 - Rich protocol grouping beyond the compact persisted turn summary and
   provenance/search facets.
 
