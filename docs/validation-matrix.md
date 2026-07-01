@@ -151,6 +151,9 @@ Evidence:
 - LiveView tests verify stale saved-workspace and saved-agent edit, submit, and
   delete actions show user-visible errors and refresh setup rows instead of
   crashing when the setup record has already been deleted elsewhere.
+- LiveView tests verify stale saved-workspace selections are rejected at run
+  creation instead of silently falling back to a manual path when the saved
+  workspace has been deleted elsewhere.
 - Data-layer and LiveView tests verify run creation rejects missing workspace
   directories before any run process starts.
 - The same test verifies waiting, running, and idle runs render in separate

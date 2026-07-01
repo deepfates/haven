@@ -675,6 +675,45 @@ defmodule HavenWeb.InboxLiveTest do
     assert_redirect(view, ~p"/runs/#{run.id}")
   end
 
+  @tag :tmp_dir
+  test "stale saved workspace selection does not silently start a manual-path run", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    assert {:ok, workspace} =
+             Workspaces.create_workspace(%{
+               "name" => "Launch gone",
+               "path" => tmp_dir
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> form("#new-run-form", %{
+      "title" => "Should not launch silently",
+      "workspace_id" => workspace.id,
+      "workspace" => "/ignored/manual/path"
+    })
+    |> render_change()
+
+    assert has_element?(view, "#new-run-selected-workspace", "Launch gone")
+    assert {:ok, _workspace} = Workspaces.delete_workspace(workspace)
+
+    view
+    |> form("#new-run-form", %{
+      "title" => "Should not launch silently",
+      "workspace_id" => workspace.id,
+      "workspace" => tmp_dir
+    })
+    |> render_submit()
+
+    assert render(view) =~ "That saved workspace was deleted before the run started."
+    assert has_element?(view, "#new-run-panel[open]")
+    refute has_element?(view, ~s|#workspace_id option[value="#{workspace.id}"]|)
+    assert Runs.list_runs() == []
+    refute_redirected(view)
+  end
+
   test "shows validation errors for invalid saved workspaces", %{conn: conn} do
     missing_workspace = Path.join(System.tmp_dir!(), "haven-missing-saved-workspace")
     File.rm_rf!(missing_workspace)

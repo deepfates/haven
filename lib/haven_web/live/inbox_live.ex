@@ -47,17 +47,29 @@ defmodule HavenWeb.InboxLive do
 
   @impl true
   def handle_event("create_run", params, socket) do
-    attrs = run_attrs(params)
+    case validate_run_selection(params) do
+      :ok ->
+        attrs = run_attrs(params)
 
-    case Runs.create_run(attrs) do
-      {:ok, run} ->
-        {:noreply, push_navigate(socket, to: ~p"/runs/#{run.id}")}
+        case Runs.create_run(attrs) do
+          {:ok, run} ->
+            {:noreply, push_navigate(socket, to: ~p"/runs/#{run.id}")}
 
-      {:error, changeset} ->
+          {:error, changeset} ->
+            {:noreply,
+             socket
+             |> assign(:new_run_open?, true)
+             |> assign(:form, to_form(changeset))
+             |> assign_runs()}
+        end
+
+      {:error, message, form_params} ->
         {:noreply,
          socket
+         |> put_flash(:error, message)
          |> assign(:new_run_open?, true)
-         |> assign(:form, to_form(changeset))
+         |> assign(:form, to_form(form_params))
+         |> refresh_workspace_assigns()
          |> assign_runs()}
     end
   end
@@ -791,6 +803,26 @@ defmodule HavenWeb.InboxLive do
     case selected_workspace_path(String.trim(form_params["workspace_id"])) do
       nil -> form_params
       path -> Map.put(form_params, "workspace", path)
+    end
+  end
+
+  defp validate_run_selection(params) do
+    workspace_id =
+      params
+      |> Map.get("workspace_id", "")
+      |> String.trim()
+
+    if workspace_id != "" and is_nil(Workspaces.get_workspace(workspace_id)) do
+      form_params =
+        params
+        |> run_form_params()
+        |> Map.put("workspace_id", "")
+
+      {:error,
+       "That saved workspace was deleted before the run started. Review the workspace path before starting again.",
+       form_params}
+    else
+      :ok
     end
   end
 
