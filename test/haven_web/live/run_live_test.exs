@@ -847,6 +847,7 @@ defmodule HavenWeb.RunLiveTest do
     assert_receive {:event_appended,
                     %{
                       type: "permission_resolved",
+                      seq: decision_seq,
                       payload: %{
                         "request_id" => ^request_id,
                         "option_id" => "allow",
@@ -869,6 +870,26 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "idle"
     assert html =~ "Permission audit"
     assert has_element?(view, "#run-permission-audit-count", "1")
+    assert has_element?(view, "#permission-decision-#{decision_seq}", "Decision recorded")
+    assert has_element?(view, "#permission-decision-#{decision_seq}", "allow for Write file")
+
+    assert has_element?(
+             view,
+             "#permission-decision-#{decision_seq}-request",
+             to_string(request_id)
+           )
+
+    assert has_element?(view, "#permission-decision-#{decision_seq}-selected", "allow")
+    assert has_element?(view, "#permission-decision-#{decision_seq}-kind", "Agent permission")
+
+    assert has_element?(
+             view,
+             "#permission-decision-#{decision_seq}-tool-call",
+             "tool_#{request_id}"
+           )
+
+    assert has_element?(view, "#permission-decision-#{decision_seq}-actor", "local_user")
+    assert has_element?(view, "#permission-decision-#{decision_seq}-outcome", "selected")
 
     [audit] = PermissionAudits.list_for_run(run.id)
     assert audit.request_id == request_id

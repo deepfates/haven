@@ -362,6 +362,7 @@ defmodule HavenWeb.RunLive do
       |> assign(:event_kind, event_kind(assigns.event.type))
       |> assign(:event_kind_label, event_kind_label(assigns.event.type))
       |> assign_new(:result_event, fn -> nil end)
+      |> assign_new(:permission_audits, fn -> [] end)
 
     ~H"""
     <article
@@ -410,6 +411,11 @@ defmodule HavenWeb.RunLive do
               {get_in(@event.payload, ["toolCall", "title"]) || "Permission requested"}
             </p>
             <pre class="mt-2 overflow-x-auto rounded-md bg-zinc-100 p-3 text-xs text-zinc-700"><%= Jason.encode!(get_in(@event.payload, ["toolCall", "rawInput"]) || %{}, pretty: true) %></pre>
+          <% type when type in ["permission_resolved", "permission_resolution_ignored"] -> %>
+            <.permission_resolution_event
+              event={@event}
+              audit={permission_audit_for_event(@permission_audits, @event)}
+            />
           <% type
              when type in [
                     "file_read_requested",
@@ -498,6 +504,39 @@ defmodule HavenWeb.RunLive do
       <p :if={@error} id={"client-event-#{@seq}-error"} class="text-sm font-medium text-rose-700">
         {@error}
       </p>
+    </div>
+    """
+  end
+
+  defp permission_resolution_event(assigns) do
+    assigns =
+      assigns
+      |> assign(:title, permission_resolution_title(assigns.event, assigns.audit))
+      |> assign(:status, permission_resolution_status(assigns.event, assigns.audit))
+      |> assign(:fields, permission_resolution_fields(assigns.event, assigns.audit))
+
+    ~H"""
+    <div id={"permission-decision-#{@event.seq}"} class="space-y-2">
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
+        <span class="rounded-md bg-amber-600 px-2 py-1 text-xs font-semibold uppercase text-white">
+          Decision
+        </span>
+        <p class="min-w-0 font-semibold text-zinc-900">{@title}</p>
+        <span class={permission_status_class(@status)}>
+          {@status}
+        </span>
+      </div>
+
+      <dl class="grid gap-2 text-sm text-zinc-700 sm:grid-cols-2">
+        <div
+          :for={field <- @fields}
+          id={"permission-decision-#{@event.seq}-#{field.id}"}
+          class="min-w-0"
+        >
+          <dt class="text-xs font-semibold uppercase text-zinc-500">{field.label}</dt>
+          <dd class="truncate font-mono text-xs">{field.value}</dd>
+        </div>
+      </dl>
     </div>
     """
   end
@@ -600,6 +639,8 @@ defmodule HavenWeb.RunLive do
   defp event_kind(type)
        when type in [
               "permission_requested",
+              "permission_resolved",
+              "permission_resolution_ignored",
               "capability_policy_applied",
               "file_read_requested",
               "file_read_succeeded",
@@ -1055,6 +1096,63 @@ defmodule HavenWeb.RunLive do
   end
 
   defp permission_options_label(_options), do: "none"
+
+  defp permission_audit_for_event(audits, event) do
+    request_id = to_string(event.payload["request_id"])
+
+    Enum.find(audits, fn audit ->
+      to_string(audit.request_id) == request_id
+    end)
+  end
+
+  defp permission_resolution_title(
+         %{type: "permission_resolution_ignored", payload: payload},
+         _audit
+       ) do
+    "Stale decision ignored: #{payload["option_id"] || "unknown"}"
+  end
+
+  defp permission_resolution_title(%{payload: payload}, audit) do
+    title =
+      if audit do
+        audit.title || permission_kind_label(audit.kind)
+      else
+        "permission request"
+      end
+
+    "Decision recorded: #{payload["option_id"] || "unknown"} for #{title}"
+  end
+
+  defp permission_resolution_status(%{type: "permission_resolution_ignored"}, _audit),
+    do: "ignored"
+
+  defp permission_resolution_status(_event, %{status: status}), do: status
+
+  defp permission_resolution_status(%{payload: %{"outcome" => "cancelled"}}, _audit),
+    do: "cancelled"
+
+  defp permission_resolution_status(_event, _audit), do: "resolved"
+
+  defp permission_resolution_fields(event, audit) do
+    payload = event.payload
+
+    [
+      %{id: "request", label: "Request", value: payload["request_id"]},
+      %{id: "selected", label: "Selected", value: payload["option_id"]},
+      audit && %{id: "kind", label: "Kind", value: permission_kind_label(audit.kind)},
+      audit && audit.tool_call_id &&
+        %{id: "tool-call", label: "Tool call", value: audit.tool_call_id},
+      %{id: "actor", label: "Actor", value: payload["actor"]},
+      %{id: "outcome", label: "Outcome", value: payload["outcome"]},
+      %{id: "reason", label: "Reason", value: payload["reason"]}
+    ]
+    |> Enum.reject(fn
+      nil -> true
+      %{value: nil} -> true
+      %{value: ""} -> true
+      _field -> false
+    end)
+  end
 
   defp terminal_status_class(status) do
     [
@@ -1785,6 +1883,7 @@ defmodule HavenWeb.RunLive do
                 :for={entry <- @timeline_entries}
                 event={entry.event}
                 result_event={entry.result_event}
+                permission_audits={@permission_audits}
               />
             </section>
           </div>
