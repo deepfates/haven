@@ -54,4 +54,27 @@ defmodule Haven.AgentRegistryTest do
              ]
            }) == []
   end
+
+  test "builds a preflight and proof-command trial command for registry suggestions" do
+    suggestion = %{
+      id: "codex-acp",
+      name: "Codex",
+      version: "1.0.1",
+      description: "ACP adapter",
+      executable: "npx",
+      args: ["-y", "@agentclientprotocol/codex-acp@1.0.1"],
+      env: %{"CODEX_HOME" => "{workspace}/.codex"},
+      package: "@agentclientprotocol/codex-acp@1.0.1"
+    }
+
+    command = AgentRegistry.trial_command(suggestion, "/tmp/workspace with space")
+
+    assert command =~ "HAVEN_AGENTS_JSON="
+    assert command =~ "mix haven.agent_probe --list-agents --preflight --proof-commands"
+    assert command =~ "--workspace '/tmp/workspace with space'"
+    assert command =~ ~s|"codex-acp"|
+    assert command =~ ~s|"executable":"npx"|
+    assert command =~ ~s|"args":["-y","@agentclientprotocol/codex-acp@1.0.1"]|
+    assert command =~ ~s|"env":{"CODEX_HOME":"{workspace}/.codex"}|
+  end
 end

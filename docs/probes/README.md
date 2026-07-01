@@ -164,8 +164,8 @@ how many static real-agent candidates passed and which keys are ready for full
 evidence probes.
 
 Use `--list-agents --registry` to fetch the public ACP Registry and print
-npx-backed agent command suggestions, including the `HAVEN_AGENTS_JSON` shape
-needed to try each suggestion through Haven's preflight path. Registry commands
+npx-backed agent command suggestions, including a `HAVEN_AGENTS_JSON` command
+that preflights one suggestion and prints its proof commands. Registry commands
 download and run third-party code; use an approved workspace, approved auth
 scope, and redactions before attempting a full evidence report.
 

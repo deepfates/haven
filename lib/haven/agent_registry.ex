@@ -41,6 +41,32 @@ defmodule Haven.AgentRegistry do
 
   def suggestions(_registry), do: []
 
+  @spec trial_command(suggestion(), Path.t()) :: String.t()
+  def trial_command(suggestion, workspace) do
+    agent_json =
+      %{
+        suggestion.id => %{
+          executable: suggestion.executable,
+          args: suggestion.args,
+          cwd: "{workspace}",
+          env: suggestion.env
+        }
+      }
+      |> Jason.encode!()
+
+    [
+      "HAVEN_AGENTS_JSON=#{shell_arg(agent_json)}",
+      "mix",
+      "haven.agent_probe",
+      "--list-agents",
+      "--preflight",
+      "--proof-commands",
+      "--workspace",
+      shell_arg(workspace)
+    ]
+    |> Enum.join(" ")
+  end
+
   defp suggestion(%{"distribution" => %{"npx" => %{"package" => package}}} = agent)
        when is_binary(package) and package != "" do
     args = ["-y", package] ++ string_list(get_in(agent, ["distribution", "npx", "args"]))
@@ -74,4 +100,14 @@ defmodule Haven.AgentRegistry do
   end
 
   defp string_map(_values), do: %{}
+
+  defp shell_arg(value) do
+    value = to_string(value)
+
+    if String.match?(value, ~r/^[A-Za-z0-9_.,:\/=@+-]+$/) do
+      value
+    else
+      "'#{String.replace(value, "'", "'\"'\"'")}'"
+    end
+  end
 end

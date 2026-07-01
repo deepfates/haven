@@ -563,7 +563,9 @@ defmodule Mix.Tasks.Haven.AgentProbe do
             "  - #{suggestion.id} (#{suggestion.name} #{suggestion.version || "unknown"})"
           )
 
-          Mix.shell().info("    config: #{registry_config_command(suggestion)}")
+          Mix.shell().info(
+            "    try: #{Haven.AgentRegistry.trial_command(suggestion, File.cwd!())}"
+          )
         end)
 
         if length(suggestions) > 12 do
@@ -603,21 +605,6 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       {:error, reason} ->
         Mix.raise("Registry unavailable: #{inspect(reason)}")
     end
-  end
-
-  defp registry_config_command(suggestion) do
-    agent_json =
-      %{
-        suggestion.id => %{
-          executable: suggestion.executable,
-          args: suggestion.args,
-          cwd: "{workspace}",
-          env: suggestion.env
-        }
-      }
-      |> Jason.encode!()
-
-    "HAVEN_AGENTS_JSON=#{shell_arg(agent_json)} mix haven.agent_probe --list-agents --preflight --workspace #{shell_arg(File.cwd!())}"
   end
 
   defp shell_arg(value) do
