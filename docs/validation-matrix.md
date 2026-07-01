@@ -118,6 +118,9 @@ Evidence:
 - LiveView tests verify inbox rows project the latest meaningful run event and
   refresh that activity when a new event arrives without requiring a run status
   change.
+- LiveView tests verify failed runtime activity rows include bounded failure
+  reasons such as missing cwd/startup errors, and that those reasons are
+  searchable from the inbox.
 - Data-layer tests verify latest inbox activity is resolved as one newest event
   per requested run, including duplicate and missing run ids, instead of
   requiring callers to scan full run event histories.

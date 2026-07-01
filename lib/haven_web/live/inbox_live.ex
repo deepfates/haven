@@ -931,14 +931,40 @@ defmodule HavenWeb.InboxLive do
   end
 
   defp latest_activity(%{type: "turn_finished"}, _request), do: "Turn finished"
-  defp latest_activity(%{type: "turn_failed"}, _request), do: "Turn failed"
+
+  defp latest_activity(%{type: "turn_failed", payload: payload}, _request),
+    do: failure_activity("Turn failed", payload)
+
   defp latest_activity(%{type: "turn_cancelled"}, _request), do: "Turn cancelled"
   defp latest_activity(%{type: "agent_process_exited"}, _request), do: "Agent process exited"
-  defp latest_activity(%{type: "agent_protocol_failed"}, _request), do: "Agent protocol failed"
+
+  defp latest_activity(%{type: "agent_start_failed", payload: payload}, _request),
+    do: failure_activity("Agent start failed", payload)
+
+  defp latest_activity(%{type: "agent_protocol_failed", payload: payload}, _request),
+    do: failure_activity("Agent protocol failed", payload)
+
   defp latest_activity(%{type: "agent_session_started"}, _request), do: "Agent session started"
   defp latest_activity(%{type: "agent_initialized"}, _request), do: "Agent initialized"
   defp latest_activity(%{type: "run_created"}, _request), do: "Run created"
   defp latest_activity(%{type: type}, _request), do: event_label(type)
+
+  defp failure_activity(label, payload) do
+    case failure_reason(payload) do
+      nil -> label
+      reason -> "#{label}: #{reason}"
+    end
+  end
+
+  defp failure_reason(payload) when is_map(payload) do
+    case payload["reason"] || payload["error"] do
+      reason when is_binary(reason) -> one_line(reason)
+      nil -> nil
+      reason -> inspect(reason)
+    end
+  end
+
+  defp failure_reason(_payload), do: nil
 
   defp permission_request_suffix(nil), do: ""
 

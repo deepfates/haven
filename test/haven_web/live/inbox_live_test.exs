@@ -1075,9 +1075,14 @@ defmodule HavenWeb.InboxLiveTest do
 
   test "renders latest run activity in inbox rows", %{conn: conn} do
     run = insert_run!("Activity row", "idle")
+    failed = insert_run!("Failed activity row", "failed")
 
     Events.append!(run.id, "agent_message_chunk", %{
       "text" => "Reviewed the workspace\nand found one issue."
+    })
+
+    Events.append!(failed.id, "agent_start_failed", %{
+      "reason" => "{:missing_cwd, \"/tmp/vanished\"}"
     })
 
     {:ok, view, _html} = live(conn, ~p"/")
@@ -1087,6 +1092,19 @@ defmodule HavenWeb.InboxLiveTest do
              "#run-#{run.id}-latest-activity",
              "Agent: Reviewed the workspace and found one issue."
            )
+
+    assert has_element?(
+             view,
+             "#run-#{failed.id}-latest-activity",
+             "Agent start failed: {:missing_cwd, \"/tmp/vanished\"}"
+           )
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "missing_cwd"})
+    |> render_change()
+
+    assert has_element?(view, "#run-#{failed.id}", "Failed activity row")
+    refute has_element?(view, "#run-#{run.id}", "Activity row")
   end
 
   test "renders and searches latest permission decisions with request context", %{conn: conn} do
