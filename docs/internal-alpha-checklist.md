@@ -43,6 +43,10 @@ Evidence:
 - Current maintenance result: `mix precommit` passed after the
   `cbbfaa8d` evidence refresh with 262 tests; `mix haven.probe_reports`
   validated 5 positive probe reports, 2 failure reports, and 2 load reports.
+- Current evidence result: `mix precommit` passed with 265 tests; `mix
+  haven.probe_reports` validates 5 positive probe reports, 3 failure reports,
+  and 2 load reports after adding the `codex-acp` file-write mediated negative
+  artifact.
 
 ### 2. Dev Database Gate
 
@@ -157,7 +161,8 @@ Evidence:
   `docs/probes/codex-acp-long-output.json`, plus sequential and concurrent
   two-run real-agent load reports in `docs/probe-load/`.
 - Negative artifact paths:
-  `docs/probe-failures/codex-acp-file-mediated-negative.json` and
+  `docs/probe-failures/codex-acp-file-mediated-negative.json`,
+  `docs/probe-failures/codex-acp-file-write-mediated-negative.json`, and
   `docs/probe-failures/codex-acp-terminal-mediated-negative.json`
 - Notes: `codex-acp` file and terminal stories remain visibility evidence via
   ACP `tool_call` / `tool_call_update`, not proof of Haven-mediated `fs/*` or

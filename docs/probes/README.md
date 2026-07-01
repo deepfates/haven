@@ -247,8 +247,10 @@ that story.
 - `codex-acp-file-tool-call.json`: positive real-agent visibility evidence for
   file inspection through ACP `tool_call` / `tool_call_update`, not proof of
   Haven-mediated `fs/*` client request handling. The corresponding failed
-  mediated-capability probe is recorded in
-  `docs/probe-failures/codex-acp-file-mediated-negative.json`.
+  mediated read-capability probe is recorded in
+  `docs/probe-failures/codex-acp-file-mediated-negative.json`; the corresponding
+  mediated write-capability probe is recorded in
+  `docs/probe-failures/codex-acp-file-write-mediated-negative.json`.
 - `codex-acp-terminal-tool-call.json`: positive real-agent visibility evidence
   for terminal execution through ACP `tool_call` / `tool_call_update`, not proof
   of Haven-mediated `terminal/*` client request handling. The corresponding

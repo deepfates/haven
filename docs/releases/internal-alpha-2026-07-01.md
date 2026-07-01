@@ -104,6 +104,7 @@ mix haven.agent_probe \
 Current negative mediated-capability evidence:
 
 - `docs/probe-failures/codex-acp-file-mediated-negative.json`
+- `docs/probe-failures/codex-acp-file-write-mediated-negative.json`
 - `docs/probe-failures/codex-acp-terminal-mediated-negative.json`
 
 Both reports show useful real `codex-acp` work through ACP `tool_call` /

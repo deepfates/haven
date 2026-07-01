@@ -278,7 +278,7 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{run.id}-agent", "codex-acp")
     assert has_element?(view, "#run-#{run.id}-agent-launch", "Launch ready")
     assert has_element?(view, "#run-#{run.id}-agent-trust", "5 accepted probes")
-    assert has_element?(view, "#run-#{run.id}-agent-capability-gaps", "2 capability gaps")
+    assert has_element?(view, "#run-#{run.id}-agent-capability-gaps", "3 capability gaps")
   end
 
   @tag :tmp_dir
@@ -845,13 +845,19 @@ defmodule HavenWeb.InboxLiveTest do
              "validated committed reports"
            )
 
-    assert has_element?(view, "#agent-config-codex-acp-capability-gap-count", "2 gaps")
+    assert has_element?(view, "#agent-config-codex-acp-capability-gap-count", "3 gaps")
     assert has_element?(view, "#agent-config-codex-acp-capability-gaps", "Capability gaps")
 
     assert has_element?(
              view,
              "#agent-config-codex-acp-capability-gap-codex-acp-file-mediated-negative",
              "docs/probe-failures/codex-acp-file-mediated-negative.json"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-codex-acp-capability-gap-codex-acp-file-write-mediated-negative",
+             "file_write_requested"
            )
 
     assert has_element?(

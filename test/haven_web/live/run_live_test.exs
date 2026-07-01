@@ -190,7 +190,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-facts-agent", "codex-acp")
     assert has_element?(view, "#run-facts-agent-launch", "Launch ready")
     assert has_element?(view, "#run-facts-agent-trust", "5 accepted probes")
-    assert has_element?(view, "#run-facts-agent-capability-gaps", "2 capability gaps")
+    assert has_element?(view, "#run-facts-agent-capability-gaps", "3 capability gaps")
 
     assert has_element?(
              view,
@@ -223,6 +223,12 @@ defmodule HavenWeb.RunLiveTest do
              view,
              "#run-agent-capability-gap-codex-acp-file-mediated-negative",
              "docs/probe-failures/codex-acp-file-mediated-negative.json"
+           )
+
+    assert has_element?(
+             view,
+             "#run-agent-capability-gap-codex-acp-file-write-mediated-negative",
+             "file_write_requested"
            )
 
     assert has_element?(

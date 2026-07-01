@@ -30,6 +30,14 @@ recorded.
   `tool_call_update`; the report records `tool_call_only_capability_gap`,
   declares `fs/read_text_file` unsupported for Haven-mediated proof with this
   agent class, and includes accepted real-agent metadata.
+- `codex-acp-file-write-mediated-negative.json`: generated on 2026-07-01
+  against saved `codex-acp`. The probe required `permission_requested`,
+  `permission_resolved`, `file_write_requested`, and `file_write_succeeded`.
+  The agent wrote `notes/haven-probe.txt`, but did so through ACP `tool_call` /
+  `tool_call_update` rather than Haven's direct `fs/write_text_file` client
+  handler. The report records `tool_call_only_capability_gap`, declares
+  `fs/write_text_file` unsupported for Haven-mediated proof with this agent
+  class, and includes accepted real-agent metadata.
 - `codex-acp-terminal-mediated-negative.json`: regenerated on 2026-07-01
   against saved `codex-acp`. The probe required `permission_requested`,
   `permission_resolved`, `terminal_create_requested`, `terminal_created`, and
@@ -39,6 +47,6 @@ recorded.
   capability family unsupported for this agent class, and includes accepted
   real-agent metadata.
 
-These reports mean Haven currently has real-agent visibility for Codex file and
-terminal work, but not proof that Codex exercises Haven's direct `fs/*` or
-`terminal/*` client request handlers.
+These reports mean Haven currently has real-agent visibility for Codex file read,
+file write, and terminal work, but not proof that Codex exercises Haven's direct
+`fs/*` or `terminal/*` client request handlers.

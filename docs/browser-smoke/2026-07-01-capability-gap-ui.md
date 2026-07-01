@@ -10,7 +10,8 @@ product UI instead of living only in documentation.
 Inbox at `http://127.0.0.1:4000/`:
 
 - `codex-acp` run rows render `4 accepted probes`.
-- The same rows render `2 capability gaps`.
+- The same rows now render `3 capability gaps` after the file-write mediated
+  negative report was added.
 - The capability-gap reason reads: `real-agent probes observed generic ACP tool
   calls, not Haven-mediated file/terminal handling`.
 - Default and `390x844` mobile viewport checks had no horizontal overflow.
@@ -22,9 +23,10 @@ Run detail at
 
 - Run title rendered as `Agent probe: codex-acp`.
 - Run facts render `4 accepted probes`.
-- Run facts render `2 capability gaps`.
+- Run facts render `3 capability gaps`.
 - Capability gap details list:
   - `docs/probe-failures/codex-acp-file-mediated-negative.json`
+  - `docs/probe-failures/codex-acp-file-write-mediated-negative.json`
   - `docs/probe-failures/codex-acp-terminal-mediated-negative.json`
 - The `390x844` mobile viewport had no horizontal overflow.
 - No pending migration page, server error page, or browser console

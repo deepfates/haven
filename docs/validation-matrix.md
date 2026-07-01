@@ -823,6 +823,14 @@ Evidence:
   `fs/read_text_file` in `unsupported_client_capabilities`, so this counts as
   explicit unsupported evidence for Haven-mediated proof with this agent class,
   not positive `fs/*` proof.
+- `docs/probe-failures/codex-acp-file-write-mediated-negative.json` is a named
+  failed 2026-07-01 attempt to require `permission_requested`,
+  `permission_resolved`, `file_write_requested`, and `file_write_succeeded`
+  against saved `codex-acp`. The agent wrote the sentinel file via generic ACP
+  `tool_call` / `tool_call_update`; the report declares `fs/write_text_file` in
+  `unsupported_client_capabilities`, so this is explicit unsupported evidence
+  for Haven-mediated write proof with this agent class, not positive `fs/*`
+  proof.
 - Failed probe reports now include diagnostics when missing Haven-mediated
   client capability events coincide with observed ACP `tool_call` /
   `tool_call_update` activity. The current saved `codex-acp` file and terminal
