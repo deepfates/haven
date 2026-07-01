@@ -2,6 +2,7 @@ defmodule Haven.EventsTest do
   use Haven.DataCase
 
   alias Haven.Events
+  alias Haven.Events.Event
   alias Haven.Repo
   alias Haven.Runs.Run
 
@@ -58,6 +59,29 @@ defmodule Haven.EventsTest do
 
     assert [%{payload: stored_payload}] = Events.list_for_run(run.id)
     assert stored_payload == event.payload
+  end
+
+  test "changeset rejects non-json-compatible payload values" do
+    changeset =
+      Event.changeset(%Event{}, %{
+        run_id: Ecto.UUID.generate(),
+        seq: 1,
+        type: "invalid_payload",
+        payload: %{"bad" => {:tuple, "value"}}
+      })
+
+    refute changeset.valid?
+    assert {"must contain only JSON-compatible values", _meta} = changeset.errors[:payload]
+  end
+
+  test "append rejects non-json-compatible payload values before storage" do
+    run = insert_run!("Invalid payload run")
+
+    assert_raise Ecto.InvalidChangesetError, ~r/must contain only JSON-compatible values/, fn ->
+      Events.append!(run.id, "invalid_payload", %{bad: self()})
+    end
+
+    assert Events.list_for_run(run.id) == []
   end
 
   test "latest_by_run_id returns only the newest event for each requested run" do

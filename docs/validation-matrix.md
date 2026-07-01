@@ -185,14 +185,15 @@ Evidence:
   activity by event type and payload content without mutating the event log,
   including paired tool-call result evidence.
 - Event append now normalizes nested payload keys to strings before storage and
-  PubSub broadcast. Data-layer tests verify atom-keyed nested maps and lists are
-  persisted and delivered as JSON-shaped payloads.
+  PubSub broadcast, then rejects non-JSON-compatible values. Data-layer tests
+  verify atom-keyed nested maps and lists are persisted and delivered as
+  JSON-shaped payloads, and invalid terms fail before storage.
 
 Still missing:
 
 - Rich protocol event normalization.
 - Formal per-event payload schemas beyond the current durable string-key
-  payload contract.
+  JSON-compatible payload contract.
 - Rich grouping beyond provenance/search facets.
 
 ### Prompting And Control
