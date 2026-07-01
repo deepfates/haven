@@ -1497,7 +1497,7 @@ defmodule HavenWeb.InboxLive do
         command:
           probe_command(agent, [
             "--prompt",
-            "write Grei probe sentinel to notes/haven-probe.txt through the client file-write capability",
+            "write Haven probe sentinel to notes/haven-probe.txt through the client file-write capability",
             "--file-write-policy",
             "ask",
             "--file-write-paths",

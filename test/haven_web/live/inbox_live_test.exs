@@ -712,6 +712,12 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(
              view,
              "#agent-config-candidate-agent-probe-file-write-approval-command",
+             "write Haven probe sentinel to notes/haven-probe.txt"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-file-write-approval-command",
              "--resolve-permissions allow"
            )
 
