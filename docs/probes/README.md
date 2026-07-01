@@ -25,6 +25,9 @@ production-grade Haven real-agent evidence when all of the following are true:
 - `expected_event_fields`, when present, names payload facts required by the
   story being validated, such as requested paths, terminal commands, exit
   statuses, and permission decisions.
+- Expected event field paths may use either the generated report form
+  (`path`) or the CLI/documentation form (`payload.path`); both refer to the
+  event payload.
 - `missing_expected_event_fields` is empty.
 - Reports that claim Haven-mediated `file_*` or `terminal_*` capability events
   in `expected_events` must include matching `expected_event_fields` entries

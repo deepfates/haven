@@ -111,6 +111,16 @@ defmodule Haven.AgentProbeReportTest do
     assert :ok = AgentProbeReport.validate(report)
   end
 
+  test "accepts documented payload-prefixed expected event fields" do
+    report =
+      valid_report()
+      |> Map.put("expected_event_fields", [
+        %{"event" => "turn_finished", "field" => "payload.stopReason", "value" => "end_turn"}
+      ])
+
+    assert :ok = AgentProbeReport.validate(report)
+  end
+
   test "rejects reports with missing expected event fields" do
     report =
       valid_report()
@@ -125,6 +135,21 @@ defmodule Haven.AgentProbeReportTest do
     assert "missing_expected_event_fields must be empty" in errors
 
     assert "expected event fields are absent from events: turn_finished:stopReason=interrupted" in errors
+  end
+
+  test "reports missing payload-prefixed expected event fields using the original field" do
+    report =
+      valid_report()
+      |> Map.put("expected_event_fields", [
+        %{"event" => "turn_finished", "field" => "payload.stopReason", "value" => "interrupted"}
+      ])
+      |> Map.put("missing_expected_event_fields", [
+        %{"event" => "turn_finished", "field" => "payload.stopReason", "value" => "interrupted"}
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+
+    assert "expected event fields are absent from events: turn_finished:payload.stopReason=interrupted" in errors
   end
 
   test "accepts client capability reports with matching expected event fields" do

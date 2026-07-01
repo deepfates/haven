@@ -743,7 +743,8 @@ Evidence:
   type-only capability evidence is not accepted. Report validation also rejects
   blank expected event names, blank expected event-field names, and blank
   persisted event types, matching the durable event envelope enforced by the
-  app.
+  app. Report validation accepts both generated payload field paths such as
+  `path` and documented CLI paths such as `payload.path`.
 
 Still missing:
 

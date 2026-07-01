@@ -338,7 +338,7 @@ defmodule Haven.AgentProbeReport do
   end
 
   defp event_field_present?(events, %{"event" => event_type, "field" => field, "value" => value}) do
-    path = String.split(field, ".", trim: true)
+    path = field_path(field)
 
     Enum.any?(events, fn
       %{"type" => ^event_type, "payload" => payload} when is_map(payload) ->
@@ -348,6 +348,17 @@ defmodule Haven.AgentProbeReport do
         false
     end)
   end
+
+  defp field_path(field) do
+    field
+    |> String.split(".", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> strip_payload_prefix()
+  end
+
+  defp strip_payload_prefix(["payload" | rest]), do: rest
+  defp strip_payload_prefix(path), do: path
 
   defp event_field_label(%{"event" => event, "field" => field, "value" => value}) do
     "#{event}:#{field}=#{value}"
