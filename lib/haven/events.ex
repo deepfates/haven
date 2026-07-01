@@ -5,6 +5,8 @@ defmodule Haven.Events do
   alias Haven.Repo
 
   def append!(run_id, type, payload \\ %{}) do
+    payload = normalize_payload(payload)
+
     seq =
       Repo.one(
         from e in Event,
@@ -44,4 +46,16 @@ defmodule Haven.Events do
   end
 
   defp topic(run_id), do: "runs:#{run_id}"
+
+  defp normalize_payload(payload) when is_map(payload) do
+    Map.new(payload, fn {key, value} -> {to_string(key), normalize_payload_value(value)} end)
+  end
+
+  defp normalize_payload_value(value) when is_map(value), do: normalize_payload(value)
+
+  defp normalize_payload_value(value) when is_list(value) do
+    Enum.map(value, &normalize_payload_value/1)
+  end
+
+  defp normalize_payload_value(value), do: value
 end

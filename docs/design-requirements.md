@@ -425,7 +425,8 @@ Not yet proven:
 Known implementation limitations:
 
 - Permission request ids are app-level ids, not exposed protocol ids.
-- Event payload schema is informal.
+- Event payloads are normalized to string-keyed JSON-style maps at append time,
+  but formal per-event payload schemas are still missing.
 - The UI is operational but not yet product-quality.
 - The stub agent is useful for deterministic tests but not representative of a
   full agent.
