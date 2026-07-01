@@ -263,6 +263,8 @@ defmodule HavenWeb.InboxLive do
     needs_you = Enum.filter(work_runs, &(&1.status in ["waiting", "failed"]))
     needs_you_decisions = Enum.count(needs_you, &(&1.status == "waiting"))
     needs_you_recoveries = Enum.count(needs_you, &(&1.status == "failed"))
+    unread_runs = Enum.count(work_runs, &(Map.get(&1, :unread_event_count, 0) > 0))
+    unread_events = Enum.reduce(work_runs, 0, &(Map.get(&1, :unread_event_count, 0) + &2))
     running = Enum.filter(work_runs, &(&1.status in ["initializing", "running"]))
 
     history =
@@ -290,6 +292,8 @@ defmodule HavenWeb.InboxLive do
       "needs_you" => length(needs_you),
       "needs_you_decisions" => needs_you_decisions,
       "needs_you_recoveries" => needs_you_recoveries,
+      "unread_runs" => unread_runs,
+      "unread_events" => unread_events,
       "running" => length(running),
       "history" => length(history),
       "diagnostics" => length(diagnostics),
@@ -1293,6 +1297,10 @@ defmodule HavenWeb.InboxLive do
     ]
   end
 
+  defp run_queue_caption("all", %{"unread_events" => unread_events}) when unread_events > 0 do
+    pluralize_count(unread_events, "new event")
+  end
+
   defp run_queue_caption("all", _counts), do: "Open work"
 
   defp run_queue_caption("needs_you", counts) do
@@ -1323,6 +1331,7 @@ defmodule HavenWeb.InboxLive do
          "needs_you" => count,
          "needs_you_decisions" => decisions,
          "needs_you_recoveries" => recoveries,
+         "unread_events" => unread_events,
          "running" => running,
          "history" => history
        })
@@ -1335,6 +1344,29 @@ defmodule HavenWeb.InboxLive do
         [
           attention_detail(decisions, "decision"),
           attention_detail(recoveries, "recovery"),
+          attention_detail(unread_events, "new event"),
+          "#{running} running",
+          "#{history} history"
+        ]
+        |> Enum.reject(&is_nil/1)
+        |> Enum.join(" · ")
+    }
+  end
+
+  defp inbox_attention_summary(%{
+         "unread_runs" => unread_runs,
+         "unread_events" => unread_events,
+         "running" => running,
+         "history" => history
+       })
+       when unread_runs > 0 do
+    %{
+      filter: "all",
+      icon: "hero-bell-alert",
+      label: "#{unread_runs} #{pluralize_word(unread_runs, "run")} updated",
+      detail:
+        [
+          attention_detail(unread_events, "new event"),
           "#{running} running",
           "#{history} history"
         ]

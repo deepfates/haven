@@ -207,8 +207,10 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#inbox-attention-label", "2 runs need you")
     assert has_element?(view, "#inbox-attention-detail", "1 decision")
     assert has_element?(view, "#inbox-attention-detail", "1 recovery")
+    assert has_element?(view, "#inbox-attention-detail", "4 new events")
     assert has_element?(view, "#inbox-attention-detail", "1 running")
     assert has_element?(view, "#inbox-attention-detail", "1 history")
+    assert has_element?(view, "#inbox-queue-all", "4 new events")
 
     view
     |> element("#inbox-attention-primary")
@@ -230,6 +232,7 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(view, "#inbox-attention-label", "1 run needs you")
     assert has_element?(view, "#inbox-attention-detail", "1 recovery")
+    assert has_element?(view, "#inbox-attention-detail", "3 new events")
     assert has_element?(view, "#inbox-attention-detail", "1 running")
     assert has_element?(view, "#inbox-attention-detail", "1 history")
 
@@ -242,6 +245,26 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{failed.id}")
     refute has_element?(view, "#run-#{running.id}")
     refute has_element?(view, "#run-#{history.id}")
+  end
+
+  test "surfaces unread updates before ordinary running and history summaries", %{conn: conn} do
+    unread = insert_run!("Fresh answer", "idle")
+    assert {:ok, _run} = Runs.mark_viewed(unread.id, 1)
+    Events.append!(unread.id, "agent_message_chunk", %{"text" => "fresh note"})
+
+    running = insert_run!("Still working", "running")
+    assert {:ok, _run} = Runs.mark_viewed(running.id, 1)
+    history = insert_run!("Read history", "idle")
+    assert {:ok, _run} = Runs.mark_viewed(history.id, 1)
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#inbox-attention-label", "1 run updated")
+    assert has_element?(view, "#inbox-attention-detail", "1 new event")
+    assert has_element?(view, "#inbox-attention-detail", "1 running")
+    assert has_element?(view, "#inbox-attention-detail", "2 history")
+    assert has_element?(view, "#inbox-queue-all", "1 new event")
+    assert has_element?(view, "#run-#{unread.id}-unread", "1 new event")
   end
 
   test "renders a tappable queue summary for many-run triage", %{conn: conn} do
