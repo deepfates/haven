@@ -1197,7 +1197,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(
              view,
              ~s|#run-nav-decisions[href="#pending-permission-card"]|,
-             "Decisions"
+             "Needs you"
            )
 
     assert has_element?(view, "#run-nav-decisions-count", "1")
@@ -1263,6 +1263,13 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#pending-permission-authority-write span", "notes")
     assert has_element?(view, "#pending-permission-authority-terminal", "Deny")
     assert has_element?(view, "#run-control-notice", "Waiting for your decision")
+
+    assert has_element?(
+             view,
+             ~s|#run-control-review-decision-link[href="#pending-permission-card"]|,
+             "Review decision"
+           )
+
     refute has_element?(view, "#run-control-panel.sticky")
 
     view
@@ -1429,6 +1436,7 @@ defmodule HavenWeb.RunLiveTest do
                    1_000
 
     assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+    wait_for_idle_session!(run.id)
 
     [audit] = PermissionAudits.list_for_run(run.id)
     assert audit.status == "resolved"

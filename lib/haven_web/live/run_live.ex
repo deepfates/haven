@@ -2122,13 +2122,25 @@ defmodule HavenWeb.RunLive do
                       else: "#run-permission-audit"
                     )
                   }
-                  class="inline-flex h-10 items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                  class={[
+                    "inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold transition",
+                    if(@pending_permission,
+                      do: "border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100",
+                      else: "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                    )
+                  ]}
                 >
                   <.icon name="hero-hand-raised" class="size-4 text-amber-600" />
-                  <span>Decisions</span>
+                  <span>{if @pending_permission, do: "Needs you", else: "Decisions"}</span>
                   <span
                     id="run-nav-decisions-count"
-                    class="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600"
+                    class={[
+                      "rounded px-1.5 py-0.5 text-[11px]",
+                      if(@pending_permission,
+                        do: "bg-amber-100 text-amber-900",
+                        else: "bg-zinc-100 text-zinc-600"
+                      )
+                    ]}
                   >
                     {@run_nav_counts.decisions}
                   </span>
@@ -2578,13 +2590,21 @@ defmodule HavenWeb.RunLive do
                 ]}
               >
                 <h2 class="text-sm font-semibold text-zinc-950">Message</h2>
-                <p
+                <div
                   :if={@control_notice}
                   id="run-control-notice"
-                  class="mt-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600"
+                  class="mt-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600 sm:flex sm:items-center sm:justify-between sm:gap-3"
                 >
-                  {@control_notice}
-                </p>
+                  <p>{@control_notice}</p>
+                  <a
+                    :if={@pending_permission}
+                    id="run-control-review-decision-link"
+                    href="#pending-permission-card"
+                    class="mt-2 inline-flex h-8 items-center justify-center rounded-md border border-amber-300 bg-amber-50 px-3 font-semibold text-amber-950 transition hover:bg-amber-100 sm:mt-0"
+                  >
+                    Review decision
+                  </a>
+                </div>
                 <.form
                   id="run-prompt-form"
                   for={to_form(%{})}
