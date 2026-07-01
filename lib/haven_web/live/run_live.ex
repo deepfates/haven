@@ -62,14 +62,23 @@ defmodule HavenWeb.RunLive do
         %{"request-id" => request_id, "option-id" => option_id},
         socket
       ) do
-    Runs.resolve_permission(socket.assigns.run.id, request_id, option_id)
+    socket =
+      socket.assigns.run.id
+      |> Runs.resolve_permission(request_id, option_id)
+      |> assign_action_result(socket)
+
     {:noreply, assign_run(socket, socket.assigns.run.id)}
   end
 
   def handle_event("cancel", _params, socket) do
-    if socket.assigns.can_cancel? do
-      Runs.cancel(socket.assigns.run.id)
-    end
+    socket =
+      if socket.assigns.can_cancel? do
+        socket.assigns.run.id
+        |> Runs.cancel()
+        |> assign_action_result(socket)
+      else
+        socket
+      end
 
     {:noreply, assign_run(socket, socket.assigns.run.id)}
   end
@@ -133,6 +142,30 @@ defmodule HavenWeb.RunLive do
   def handle_info({:run_updated, _run}, socket) do
     {:noreply, assign_inbox_attention_summary(socket)}
   end
+
+  defp assign_action_result(:ok, socket), do: socket
+  defp assign_action_result({:ok, _result}, socket), do: socket
+
+  defp assign_action_result({:error, reason}, socket) do
+    put_flash(socket, :error, action_error_message(reason))
+  end
+
+  defp assign_action_result(_result, socket), do: socket
+
+  defp action_error_message(:not_connected) do
+    "This run is not connected. Use Reconnect to attach a fresh ACP session before deciding or cancelling."
+  end
+
+  defp action_error_message(:archived_run),
+    do: "This run is archived and cannot accept new actions."
+
+  defp action_error_message(:terminal_run),
+    do: "This run is no longer active. Use the recovery controls if they are available."
+
+  defp action_error_message({:missing_workspace, workspace}),
+    do: "Restore the missing workspace before continuing: #{workspace}"
+
+  defp action_error_message(_reason), do: "That action could not be completed."
 
   defp assign_run(socket, id) do
     run = Runs.get_run!(id)

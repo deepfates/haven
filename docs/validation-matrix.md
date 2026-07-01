@@ -552,6 +552,10 @@ Evidence:
 - Data-layer tests verify direct permission resolution and cancel calls refuse
   disconnected waiting runs without starting a fresh agent process or rewriting
   the stale decision history.
+- LiveView integration tests verify a decision click that races with a run
+  disconnect shows a user-visible not-connected error, refreshes into stale
+  decision state, and does not record a fake resolution or ignored-resolution
+  event.
 - LiveView integration tests and browser smoke verify disconnected running runs
   with an unterminated turn offer Reconnect, append a system `turn_failed`
   event for the stale turn, start a fresh ACP process, and reopen prompt

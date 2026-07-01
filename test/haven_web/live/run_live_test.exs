@@ -1742,6 +1742,47 @@ defmodule HavenWeb.RunLiveTest do
     assert audit.selected_option_id == "allow"
   end
 
+  test "decision click racing with disconnect shows an error without resolving stale permission",
+       %{
+         conn: conn
+       } do
+    {:ok, run} = Runs.create_run(%{"title" => "Decision race run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+    submit_prompt(view, "permission")
+
+    assert_receive {:event_appended,
+                    %{type: "permission_requested", payload: %{"request_id" => request_id}}},
+                   1_000
+
+    assert has_element?(view, ~s|#pending-permission-card button[phx-value-option-id="allow"]|)
+    :ok = Runs.stop_run(run.id)
+    refute Runs.started?(run.id)
+
+    view
+    |> element(~s|#pending-permission-card button[phx-value-option-id="allow"]|)
+    |> render_click()
+
+    html = render(view)
+    assert html =~ "This run is not connected"
+    assert has_element?(view, "#pending-permission-stale-notice", "Reconnect will cancel")
+    assert has_element?(view, ~s|#pending-permission-card button[disabled]|)
+
+    refute Enum.any?(Events.list_for_run(run.id), fn
+             %{type: "permission_resolved", payload: %{"request_id" => ^request_id}} ->
+               true
+
+             %{type: "permission_resolution_ignored", payload: %{"request_id" => ^request_id}} ->
+               true
+
+             _event ->
+               false
+           end)
+  end
+
   test "cancel resolves outstanding permission as cancelled", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Cancel permission run"})
     stop_run_server_on_exit(run.id)
