@@ -46,8 +46,8 @@ defmodule Haven.Runs do
     end
   end
 
-  def start_run(run_id) do
-    spec = {RunServer, run_id: run_id}
+  def start_run(run_id, opts \\ []) do
+    spec = {RunServer, Keyword.put(opts, :run_id, run_id)}
 
     case DynamicSupervisor.start_child(Haven.Runs.Supervisor, spec) do
       {:ok, pid} -> {:ok, pid}
@@ -73,7 +73,7 @@ defmodule Haven.Runs do
     end
   end
 
-  def reconnect_run(run_id) do
+  def reconnect_run(run_id, opts \\ []) do
     run = get_run!(run_id)
 
     cond do
@@ -93,7 +93,22 @@ defmodule Haven.Runs do
         fail_unresolved_turn!(run_id, "run_reconnect_requested")
         cancel_unresolved_permissions!(run_id, "run_reconnect_requested")
         update_status!(run_id, %{status: "idle", agent_session_id: nil})
-        start_run(run_id)
+        start_run(run_id, opts)
+    end
+  end
+
+  def retry_last_prompt(run_id) do
+    run = get_run!(run_id)
+
+    cond do
+      run.status != "failed" ->
+        {:error, :not_failed}
+
+      true ->
+        case last_user_prompt(run_id) do
+          nil -> {:error, :no_prompt}
+          prompt -> reconnect_run(run_id, retry_prompt: prompt)
+        end
     end
   end
 
@@ -172,6 +187,16 @@ defmodule Haven.Runs do
   end
 
   def subscribe, do: Phoenix.PubSub.subscribe(Haven.PubSub, "runs")
+
+  defp last_user_prompt(run_id) do
+    run_id
+    |> Events.list_for_run()
+    |> Enum.reverse()
+    |> Enum.find_value(fn
+      %{type: "user_message", payload: %{"text" => text}} when is_binary(text) -> text
+      _event -> nil
+    end)
+  end
 
   defp fail_unresolved_turn!(run_id, reason) do
     events = Events.list_for_run(run_id)

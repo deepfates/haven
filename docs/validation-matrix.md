@@ -207,6 +207,10 @@ Evidence:
 - LiveView integration tests verify recoverable disconnected and failed states
   expose the next Reconnect/Restart action in the conversation path, not only in
   secondary controls.
+- LiveView integration tests verify failed runs with a previous user prompt
+  expose `Retry last prompt`; clicking it starts a fresh ACP session, records
+  `turn_retry_requested`, resubmits the prompt, receives the agent response, and
+  returns the run to `idle` while preserving the prior failed transcript.
 - LiveView integration tests verify stale/direct prompt submission while a turn
   is already running is rejected as `{:error, :busy}` instead of starting a
   second concurrent turn.
@@ -221,9 +225,8 @@ Still missing:
 
 - Prompt-id-level correlation of late chunks when agents provide enough
   metadata; current suppression is session-level after cancellation.
-- Retry or continue after recoverable failure.
-- Clearer retry/continue semantics for failed turns beyond full session
-  restart.
+- Continue semantics for recoverable failures where the next user intent is not
+  simply resubmitting the last prompt.
 
 ### Permissions
 

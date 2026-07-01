@@ -77,6 +77,14 @@ defmodule HavenWeb.RunLive do
     {:noreply, assign_run(socket, socket.assigns.run.id)}
   end
 
+  def handle_event("retry_last_prompt", _params, socket) do
+    if socket.assigns.can_retry_last_prompt? do
+      Runs.retry_last_prompt(socket.assigns.run.id)
+    end
+
+    {:noreply, assign_run(socket, socket.assigns.run.id)}
+  end
+
   def handle_event("filter_events", %{"kind" => kind}, socket) do
     kind = if valid_event_filter?(kind), do: kind, else: "all"
 
@@ -133,6 +141,8 @@ defmodule HavenWeb.RunLive do
     |> assign(:control_notice, control_notice(run, live?))
     |> assign(:prompt_disabled_reason, prompt_disabled_reason(run, live?))
     |> assign(:cancel_disabled_reason, cancel_disabled_reason(run, live?))
+    |> assign(:last_user_prompt, last_user_prompt(events))
+    |> assign(:can_retry_last_prompt?, can_retry_last_prompt?(run, events))
     |> assign(:recovery_attention, recovery_attention(run, live?))
     |> assign(:pending_permission, latest_pending_permission(events))
   end
@@ -247,6 +257,11 @@ defmodule HavenWeb.RunLive do
     run.status == "failed" or (not live? and run.status != "closed")
   end
 
+  defp can_retry_last_prompt?(%{status: "failed"}, events),
+    do: is_binary(last_user_prompt(events))
+
+  defp can_retry_last_prompt?(_run, _events), do: false
+
   defp control_notice(%{status: "failed"}, _live?) do
     "This run failed. Restart it before sending another prompt."
   end
@@ -320,6 +335,15 @@ defmodule HavenWeb.RunLive do
     |> Enum.filter(&(&1.type == "permission_requested"))
     |> Enum.reject(&MapSet.member?(resolved, to_string(&1.payload["request_id"])))
     |> List.last()
+  end
+
+  defp last_user_prompt(events) do
+    events
+    |> Enum.reverse()
+    |> Enum.find_value(fn
+      %{type: "user_message", payload: %{"text" => text}} when is_binary(text) -> text
+      _event -> nil
+    end)
   end
 
   defp event(assigns) do
@@ -408,6 +432,11 @@ defmodule HavenWeb.RunLive do
             <p class="font-semibold text-zinc-900">Reconnect requested</p>
             <p class="mt-1 text-sm text-zinc-600">
               Previous status: {@event.payload["previous_status"] || "unknown"}
+            </p>
+          <% "turn_retry_requested" -> %>
+            <p class="font-semibold text-zinc-900">Retry requested</p>
+            <p class="mt-1 whitespace-pre-wrap text-sm text-zinc-600">
+              {@event.payload["prompt"] || "Last prompt"}
             </p>
           <% "turn_failed" -> %>
             <p class="font-semibold text-rose-700">Turn failed</p>
@@ -1011,14 +1040,32 @@ defmodule HavenWeb.RunLive do
                 <p class="mt-2 text-sm text-zinc-700">
                   {@recovery_attention.body}
                 </p>
-                <button
-                  id="run-recovery-action-button"
-                  type="button"
-                  class="mt-3 h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
-                  phx-click="reconnect"
+                <p
+                  :if={@can_retry_last_prompt?}
+                  id="retry-last-prompt-preview"
+                  class="mt-3 line-clamp-3 rounded-md border border-rose-200 bg-white px-3 py-2 text-sm text-zinc-700"
                 >
-                  {@recovery_attention.action}
-                </button>
+                  {@last_user_prompt}
+                </p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <button
+                    :if={@can_retry_last_prompt?}
+                    id="retry-last-prompt-button"
+                    type="button"
+                    class="h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                    phx-click="retry_last_prompt"
+                  >
+                    Retry last prompt
+                  </button>
+                  <button
+                    id="run-recovery-action-button"
+                    type="button"
+                    class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    phx-click="reconnect"
+                  >
+                    {@recovery_attention.action}
+                  </button>
+                </div>
               </section>
 
               <section

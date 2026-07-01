@@ -277,6 +277,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-recovery-action-button", "Restart")
     assert has_element?(view, "#reconnect-run-button", "Restart")
     assert has_element?(view, "#run-control-notice", "Restart it before sending another prompt.")
+    refute has_element?(view, "#retry-last-prompt-button")
 
     view
     |> element("#run-recovery-action-button")
@@ -294,6 +295,59 @@ defmodule HavenWeb.RunLiveTest do
     wait_for_idle_session!(run.id)
 
     assert render(view) =~ "connected"
+  end
+
+  test "retry last prompt restarts a failed run and resubmits the prompt", %{conn: conn} do
+    run = insert_disconnected_run!("Retry failed history", "failed")
+    Events.append!(run.id, "turn_started", %{"prompt" => "retry me"})
+    Events.append!(run.id, "user_message", %{"text" => "retry me"})
+    Events.append!(run.id, "turn_failed", %{"error" => "agent_process_exited"})
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-recovery-card", "Run failed")
+    assert has_element?(view, "#retry-last-prompt-button", "Retry last prompt")
+    assert has_element?(view, "#retry-last-prompt-preview", "retry me")
+    assert has_element?(view, "#run-recovery-action-button", "Restart")
+
+    view
+    |> element("#retry-last-prompt-button")
+    |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "run_reconnect_requested",
+                      payload: %{"previous_status" => "failed"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+
+    assert_receive {:event_appended,
+                    %{type: "turn_retry_requested", payload: %{"prompt" => "retry me"}}},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_started", payload: %{"prompt" => "retry me"}}},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "user_message", payload: %{"text" => "retry me"}}},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{type: "agent_message_chunk", payload: %{"text" => "Echo: retry me"}}},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+    wait_for_idle_session!(run.id)
+
+    html = render(view)
+    assert html =~ "Retry requested"
+    assert html =~ "Echo: retry me"
+    assert html =~ "idle"
+    refute has_element?(view, "#retry-last-prompt-button")
   end
 
   test "closed runs render as read-only history with disabled controls", %{conn: conn} do

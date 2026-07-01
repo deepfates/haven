@@ -18,7 +18,7 @@ defmodule Haven.Runs.RunServer do
 
   def start_link(opts) do
     run_id = Keyword.fetch!(opts, :run_id)
-    GenServer.start_link(__MODULE__, run_id, name: via(run_id))
+    GenServer.start_link(__MODULE__, opts, name: via(run_id))
   end
 
   def child_spec(opts) do
@@ -48,7 +48,8 @@ defmodule Haven.Runs.RunServer do
   defp via(run_id), do: {:via, Registry, {Haven.Runs.Registry, run_id}}
 
   @impl true
-  def init(run_id) do
+  def init(opts) do
+    run_id = Keyword.fetch!(opts, :run_id)
     Process.flag(:trap_exit, true)
     send(self(), :boot_agent)
 
@@ -64,6 +65,7 @@ defmodule Haven.Runs.RunServer do
        pending_permissions: %{},
        cancelled_session_ids: MapSet.new(),
        agent_thought_redacted?: false,
+       retry_prompt: Keyword.get(opts, :retry_prompt),
        terminals: %{}
      }}
   end
@@ -255,7 +257,12 @@ defmodule Haven.Runs.RunServer do
 
         Runs.update_status!(state.run_id, %{status: "idle", agent_session_id: session.session_id})
 
-        {:noreply, %{state | agent_session_id: session.session_id}}
+        state =
+          state
+          |> Map.put(:agent_session_id, session.session_id)
+          |> maybe_retry_prompt()
+
+        {:noreply, state}
       else
         {:error, reason} ->
           fail_agent_boot(state, "agent_protocol_failed", reason)
@@ -272,6 +279,44 @@ defmodule Haven.Runs.RunServer do
     :exit, reason -> {:error, {:protocol_exit, reason}}
   end
 
+  defp maybe_retry_prompt(%{retry_prompt: prompt} = state) when is_binary(prompt) do
+    Events.append!(state.run_id, "turn_retry_requested", %{"prompt" => prompt})
+
+    state
+    |> Map.put(:retry_prompt, nil)
+    |> start_prompt(prompt)
+  end
+
+  defp maybe_retry_prompt(state), do: state
+
+  defp start_prompt(state, text) do
+    id = state.next_id
+
+    Events.append!(state.run_id, "turn_started", %{"prompt" => text})
+    Events.append!(state.run_id, "user_message", %{"text" => text})
+    Runs.update_status!(state.run_id, %{status: "running"})
+
+    prompt =
+      state.agent_session_id
+      |> ACP.PromptRequest.new([ACP.ContentBlock.from_string(text)])
+
+    run_server = self()
+    conn = state.conn
+
+    spawn(fn ->
+      result = ACP.ClientSideConnection.prompt(conn, prompt)
+      send(run_server, {:prompt_finished, id, result})
+    end)
+
+    %{
+      state
+      | next_id: id + 1,
+        pending_prompts: Map.put(state.pending_prompts, id, text),
+        agent_thought_redacted?: false,
+        cancelled_session_ids: MapSet.delete(state.cancelled_session_ids, state.agent_session_id)
+    }
+  end
+
   defp fail_agent_boot(state, event_type, reason) do
     Events.append!(state.run_id, event_type, %{"reason" => inspect(reason)})
     Runs.update_status!(state.run_id, %{status: "failed"})
@@ -284,33 +329,7 @@ defmodule Haven.Runs.RunServer do
     run = Runs.get_run!(state.run_id)
 
     if can_start_prompt?(run, state) do
-      id = state.next_id
-
-      Events.append!(state.run_id, "turn_started", %{"prompt" => text})
-      Events.append!(state.run_id, "user_message", %{"text" => text})
-      Runs.update_status!(state.run_id, %{status: "running"})
-
-      prompt =
-        state.agent_session_id
-        |> ACP.PromptRequest.new([ACP.ContentBlock.from_string(text)])
-
-      run_server = self()
-      conn = state.conn
-
-      spawn(fn ->
-        result = ACP.ClientSideConnection.prompt(conn, prompt)
-        send(run_server, {:prompt_finished, id, result})
-      end)
-
-      {:reply, :ok,
-       %{
-         state
-         | next_id: id + 1,
-           pending_prompts: Map.put(state.pending_prompts, id, text),
-           agent_thought_redacted?: false,
-           cancelled_session_ids:
-             MapSet.delete(state.cancelled_session_ids, state.agent_session_id)
-       }}
+      {:reply, :ok, start_prompt(state, text)}
     else
       {:reply, {:error, :busy}, state}
     end
