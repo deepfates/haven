@@ -877,6 +877,23 @@ defmodule HavenWeb.InboxLiveTest do
     matched = insert_run!("Docs cleanup", "idle", %{workspace: matching_workspace})
     insert_run!("Payment bug", "waiting", %{workspace: other_workspace, agent: "other-acp"})
 
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "codex-acp",
+               executable: "sh",
+               args: ["-c", "cat"]
+             })
+
+    evidence_backed = insert_run!("Evidence backed", "idle", %{agent: "codex-acp"})
+
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "missing-agent",
+               executable: "definitely-not-a-real-haven-agent"
+             })
+
+    blocked_agent = insert_run!("Broken command", "idle", %{agent: "missing-agent"})
+
     Events.append!(matched.id, "file_write_succeeded", %{"path" => "notes/result.md"})
 
     {:ok, view, _html} = live(conn, ~p"/")
@@ -899,6 +916,22 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "article", "Payment bug")
     refute has_element?(view, "article", "Docs cleanup")
     assert has_element?(view, "#inbox-filter-needs_you", "1")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "accepted probes"})
+    |> render_change()
+
+    assert has_element?(view, "#run-#{evidence_backed.id}", "Evidence backed")
+    refute has_element?(view, "#run-#{blocked_agent.id}", "Broken command")
+    refute has_element?(view, "article", "Docs cleanup")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "launch blocked"})
+    |> render_change()
+
+    assert has_element?(view, "#run-#{blocked_agent.id}", "Broken command")
+    refute has_element?(view, "#run-#{evidence_backed.id}", "Evidence backed")
+    refute has_element?(view, "article", "Payment bug")
 
     view
     |> form("#inbox-search-form", %{"run_search" => "needs decision"})

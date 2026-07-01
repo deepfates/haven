@@ -186,13 +186,18 @@ defmodule HavenWeb.InboxLive do
   def handle_info({:run_event_appended, _event}, socket), do: {:noreply, assign_runs(socket)}
 
   defp assign_runs(socket) do
+    agent_inventory = socket.assigns[:agent_inventory] || %{}
+    agent_probe_reports = socket.assigns[:agent_probe_reports] || %{}
+
     runs =
       Runs.list_runs()
       |> attach_latest_events()
+      |> attach_agent_evidence(agent_inventory, agent_probe_reports)
 
     archived_runs =
       Runs.list_archived_runs()
       |> attach_latest_events()
+      |> attach_agent_evidence(agent_inventory, agent_probe_reports)
 
     run_search = socket.assigns[:run_search] || ""
     agent_filter = socket.assigns[:agent_filter] || ""
@@ -284,6 +289,14 @@ defmodule HavenWeb.InboxLive do
     end)
   end
 
+  defp attach_agent_evidence(runs, agent_inventory, agent_probe_reports) do
+    Enum.map(runs, fn run ->
+      run
+      |> Map.put(:agent_readiness, Map.get(agent_inventory, run.agent, %{}))
+      |> Map.put(:agent_reports, Map.get(agent_probe_reports, run.agent, []))
+    end)
+  end
+
   defp normalize_search_query(query) when is_binary(query), do: String.trim(query)
   defp normalize_search_query(_query), do: ""
 
@@ -336,6 +349,12 @@ defmodule HavenWeb.InboxLive do
       run_operational_label(run),
       run_operational_hint(run),
       run_next_step_label(run),
+      agent_launch_label(Map.get(run, :agent_readiness, %{})),
+      agent_evidence_label(Map.get(run, :agent_readiness, %{}), Map.get(run, :agent_reports, [])),
+      agent_evidence_reason(
+        Map.get(run, :agent_readiness, %{}),
+        Map.get(run, :agent_reports, [])
+      ),
       latest_activity(run.latest_event)
     ]
     |> Enum.reject(&is_nil/1)
