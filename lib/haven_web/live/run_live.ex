@@ -799,6 +799,45 @@ defmodule HavenWeb.RunLive do
     "#{option["name"]} (#{option["optionId"]})"
   end
 
+  defp permission_decision_summary(permission) do
+    raw_input = get_in(permission.payload, ["toolCall", "rawInput"]) || %{}
+    title = get_in(permission.payload, ["toolCall", "title"]) || ""
+
+    cond do
+      raw_input["content_preview"] || raw_input["diff_preview"] ->
+        %{
+          action: "Review the proposed file change.",
+          consequence: "Allow writes this content to the workspace; deny leaves files unchanged."
+        }
+
+      raw_input["command"] && is_nil(raw_input["content_preview"]) &&
+          is_nil(raw_input["diff_preview"]) ->
+        %{
+          action: "Review the terminal command.",
+          consequence:
+            "Allow starts this process in the workspace; deny prevents it from running."
+        }
+
+      String.downcase(title) =~ "read file" ->
+        %{
+          action: "Review the requested file read.",
+          consequence: "Allow sends the file contents to the agent; deny keeps them unavailable."
+        }
+
+      String.downcase(title) =~ "write file" ->
+        %{
+          action: "Review the requested file write.",
+          consequence: "Allow lets the agent proceed with this write request; deny blocks it."
+        }
+
+      true ->
+        %{
+          action: "Review the requested agent action.",
+          consequence: "Allow returns approval to the agent; deny blocks this action."
+        }
+    end
+  end
+
   defp event_sequence_label(event, %{seq: result_seq}), do: "##{event.seq}-#{result_seq}"
   defp event_sequence_label(event, _result_event), do: "##{event.seq}"
 
@@ -1186,6 +1225,7 @@ defmodule HavenWeb.RunLive do
                 id="pending-permission-card"
                 class="rounded-2xl border border-zinc-300 bg-white p-4"
               >
+                <% decision_summary = permission_decision_summary(@pending_permission) %>
                 <p class="text-xs font-semibold uppercase text-zinc-500">Needs approval</p>
                 <h2 class="mt-1 text-base font-semibold text-zinc-950">
                   {get_in(@pending_permission.payload, ["toolCall", "title"]) || "Approve request?"}
@@ -1193,6 +1233,17 @@ defmodule HavenWeb.RunLive do
                 <p class="mt-2 text-sm text-zinc-600">
                   The agent is blocked until you choose an option.
                 </p>
+                <div
+                  id="pending-permission-decision-summary"
+                  class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
+                >
+                  <p id="pending-permission-decision-action" class="font-semibold">
+                    {decision_summary.action}
+                  </p>
+                  <p id="pending-permission-decision-consequence" class="mt-1 text-amber-900">
+                    {decision_summary.consequence}
+                  </p>
+                </div>
                 <dl
                   id="pending-permission-authority"
                   class="mt-3 grid gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 sm:grid-cols-3"

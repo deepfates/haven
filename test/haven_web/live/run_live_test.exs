@@ -765,6 +765,20 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Needs approval"
     assert html =~ "Write file"
     assert has_element?(view, "#pending-permission-card")
+    assert has_element?(view, "#pending-permission-decision-summary")
+
+    assert has_element?(
+             view,
+             "#pending-permission-decision-action",
+             "Review the requested file write."
+           )
+
+    assert has_element?(
+             view,
+             "#pending-permission-decision-consequence",
+             "Allow lets the agent proceed with this write request; deny blocks it."
+           )
+
     assert has_element?(view, "#pending-permission-request-id", to_string(request_id))
     assert has_element?(view, "#pending-permission-tool-call-id", "tool_#{request_id}")
     assert has_element?(view, "#pending-permission-tool-status", "pending")
@@ -1469,6 +1483,19 @@ defmodule HavenWeb.RunLiveTest do
                    1_000
 
     assert has_element?(view, "#pending-permission-card", "Read file")
+
+    assert has_element?(
+             view,
+             "#pending-permission-decision-action",
+             "Review the requested file read."
+           )
+
+    assert has_element?(
+             view,
+             "#pending-permission-decision-consequence",
+             "Allow sends the file contents to the agent; deny keeps them unavailable."
+           )
+
     assert has_element?(view, "#pending-permission-request-id", to_string(request_id))
     assert has_element?(view, "#pending-permission-tool-call-id", "file_read_#{request_id}")
     assert has_element?(view, "#pending-permission-tool-status", "pending")
@@ -1758,6 +1785,19 @@ defmodule HavenWeb.RunLiveTest do
     assert diff_preview =~ "+++ haven-written.txt"
     assert diff_preview =~ "+written by Haven ACP\n"
     assert has_element?(view, "#pending-permission-card", "Write file")
+
+    assert has_element?(
+             view,
+             "#pending-permission-decision-action",
+             "Review the proposed file change."
+           )
+
+    assert has_element?(
+             view,
+             "#pending-permission-decision-consequence",
+             "Allow writes this content to the workspace; deny leaves files unchanged."
+           )
+
     assert has_element?(view, "#pending-permission-proposed-file-change", "Proposed file change")
     assert has_element?(view, "#pending-permission-proposed-file-path", "haven-written.txt")
     assert has_element?(view, "#pending-permission-proposed-file-kind", "create")
@@ -2391,6 +2431,19 @@ defmodule HavenWeb.RunLiveTest do
 
     assert has_element?(view, "#pending-permission-card", "Create terminal")
     assert has_element?(view, "#pending-permission-card", "Allow terminal")
+
+    assert has_element?(
+             view,
+             "#pending-permission-decision-action",
+             "Review the terminal command."
+           )
+
+    assert has_element?(
+             view,
+             "#pending-permission-decision-consequence",
+             "Allow starts this process in the workspace; deny prevents it from running."
+           )
+
     assert has_element?(view, "#pending-permission-request-id", to_string(request_id))
     assert has_element?(view, "#pending-permission-tool-call-id", "terminal_create_#{request_id}")
     assert has_element?(view, "#pending-permission-tool-status", "pending")

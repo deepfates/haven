@@ -300,6 +300,10 @@ Evidence:
 - LiveView integration tests verify active permission cards also expose the
   run's effective read, write, terminal, and path-scope authority, so decisions
   can be made with policy context in the same surface.
+- LiveView integration tests verify active permission cards state the
+  plain-language consequence of allow/deny decisions for generic file writes,
+  file reads, proposed file changes, and terminal commands before exposing raw
+  protocol details.
 - Browser smoke verifies the same allow flow through the real rendered UI,
   including a rendered `permission_resolved` payload with
   `"actor": "local_user"`.
