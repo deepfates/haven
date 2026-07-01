@@ -734,6 +734,12 @@ Evidence:
   basic real external ACP turn: initialization, session start, user prompt,
   streamed agent message chunks, an unknown `usage_update` session update
   preserved as `agent_update_unknown`, and `turn_finished`.
+- `docs/probes/codex-acp-basic-current.json` is the current committed positive
+  real-agent basic probe from 2026-07-01. It was generated against saved
+  `codex-acp` with `--require-real-agent`, produced durable run
+  `e77fa898-d57c-40d5-a9e1-355f72c221bd`, passed
+  `agent_initialized`, `agent_session_started`, and `turn_finished`
+  expectations, and is accepted by `mix haven.probe_reports`.
 - `docs/probes/codex-acp-file-tool-call.json` is a committed passing
   `--require-real-agent` report showing `codex-acp` can inspect a disposable
   workspace file and return a sentinel, but it does so through ACP

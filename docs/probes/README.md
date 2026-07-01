@@ -165,3 +165,19 @@ test harness scripts used by automated coverage.
 
 Committed `*.json` reports in this directory are validated by
 `mix haven.probe_reports`, which also runs as part of `mix precommit`.
+
+## Committed Evidence
+
+- `codex-acp-basic-current.json`: current positive real-agent basic probe from
+  2026-07-01. It uses saved `codex-acp`
+  (`npx @agentclientprotocol/codex-acp@1.0.1`) with `--require-real-agent` and
+  proves initialization, session start, a prompted turn, streamed agent output,
+  and `turn_finished` through Haven's durable run lifecycle.
+- `codex-acp-basic.json`: earlier positive real-agent basic probe for the same
+  adapter.
+- `codex-acp-file-tool-call.json`: positive real-agent visibility evidence for
+  file inspection through ACP `tool_call` / `tool_call_update`, not proof of
+  Haven-mediated `fs/*` client request handling.
+- `codex-acp-terminal-tool-call.json`: positive real-agent visibility evidence
+  for terminal execution through ACP `tool_call` / `tool_call_update`, not proof
+  of Haven-mediated `terminal/*` client request handling.

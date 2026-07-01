@@ -188,7 +188,7 @@ defmodule HavenWeb.RunLiveTest do
     refute has_element?(view, "#run-header-agent")
     assert has_element?(view, "#run-facts-agent", "codex-acp")
     assert has_element?(view, "#run-facts-agent-launch", "Launch ready")
-    assert has_element?(view, "#run-facts-agent-trust", "3 accepted probes")
+    assert has_element?(view, "#run-facts-agent-trust", "4 accepted probes")
 
     assert has_element?(
              view,

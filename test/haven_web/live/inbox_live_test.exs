@@ -90,7 +90,7 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(view, "#new-run-agent-key", "codex-acp")
     assert has_element?(view, "#new-run-agent-launch", "Launch ready")
-    assert has_element?(view, "#new-run-agent-trust", "3 accepted probes")
+    assert has_element?(view, "#new-run-agent-trust", "4 accepted probes")
 
     assert has_element?(
              view,
@@ -239,7 +239,7 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(view, "#run-#{run.id}-agent", "codex-acp")
     assert has_element?(view, "#run-#{run.id}-agent-launch", "Launch ready")
-    assert has_element?(view, "#run-#{run.id}-agent-trust", "3 accepted probes")
+    assert has_element?(view, "#run-#{run.id}-agent-trust", "4 accepted probes")
   end
 
   @tag :tmp_dir
@@ -755,7 +755,7 @@ defmodule HavenWeb.InboxLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/")
 
-    assert has_element?(view, "#agent-config-codex-acp-evidence", "3 accepted probes")
+    assert has_element?(view, "#agent-config-codex-acp-evidence", "4 accepted probes")
     assert has_element?(view, "#agent-config-codex-acp-accepted-probes")
 
     assert has_element?(
