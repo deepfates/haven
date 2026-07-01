@@ -78,6 +78,7 @@ defmodule Haven.AgentProbeReport do
       |> require_expected_event_fields(report)
       |> require_expected_output(report)
       |> require_capability_event_field_expectations(report)
+      |> reject_negative_boundary_declarations(report)
       |> require_no_missing_events(report)
       |> require_no_missing_event_fields(report)
       |> require_no_missing_output(report)
@@ -515,6 +516,48 @@ defmodule Haven.AgentProbeReport do
       ]
     else
       errors
+    end
+  end
+
+  defp reject_negative_boundary_declarations(errors, report) do
+    errors
+    |> reject_tool_call_gap_diagnostics(report)
+    |> reject_unsupported_client_capabilities(report)
+  end
+
+  defp reject_tool_call_gap_diagnostics(errors, report) do
+    case Map.get(report, "diagnostics", []) do
+      diagnostics when is_list(diagnostics) ->
+        if Enum.any?(diagnostics, &match?(%{"type" => "tool_call_only_capability_gap"}, &1)) do
+          [
+            "positive reports must not include tool_call_only_capability_gap diagnostics"
+            | errors
+          ]
+        else
+          errors
+        end
+
+      _diagnostics ->
+        errors
+    end
+  end
+
+  defp reject_unsupported_client_capabilities(errors, report) do
+    case Map.get(report, "unsupported_client_capabilities", []) do
+      [] ->
+        errors
+
+      capabilities when is_list(capabilities) ->
+        [
+          "positive reports must not declare unsupported_client_capabilities"
+          | errors
+        ]
+
+      _capabilities ->
+        [
+          "positive reports must not declare unsupported_client_capabilities"
+          | errors
+        ]
     end
   end
 

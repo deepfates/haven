@@ -37,6 +37,9 @@ production-grade Haven real-agent evidence when all of the following are true:
   for those event types; type-only capability evidence is not accepted.
 - `status` is `idle` or `closed`; a failed run cannot count as positive
   production-grade evidence even if it contains some expected events.
+- Positive reports must not include `tool_call_only_capability_gap` diagnostics
+  or `unsupported_client_capabilities`; those declarations belong in named
+  negative boundary reports under `docs/probe-failures`.
 - The ordered `events` list shows the relevant ACP lifecycle, prompt, permission,
   file, terminal, failure, or recovery events.
 

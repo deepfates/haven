@@ -105,6 +105,39 @@ defmodule Haven.AgentProbeReportTest do
     assert "expected events are absent from events: terminal_created" in errors
   end
 
+  test "rejects positive reports with negative capability-boundary diagnostics" do
+    report =
+      valid_report()
+      |> Map.put("diagnostics", [
+        %{
+          "type" => "tool_call_only_capability_gap",
+          "message" => "Generic ACP tool calls were observed instead.",
+          "missing_events" => ["file_read_requested"],
+          "observed_events" => ["tool_call"]
+        }
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+
+    assert "positive reports must not include tool_call_only_capability_gap diagnostics" in errors
+  end
+
+  test "rejects positive reports with unsupported client capability declarations" do
+    report =
+      valid_report()
+      |> Map.put("unsupported_client_capabilities", [
+        %{
+          "capability" => "fs/read_text_file",
+          "reason" => "Observed generic ACP tool calls instead.",
+          "missing_events" => ["file_read_requested"],
+          "observed_events" => ["tool_call"]
+        }
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+    assert "positive reports must not declare unsupported_client_capabilities" in errors
+  end
+
   test "rejects reports without the full Haven run lifecycle" do
     report =
       valid_report()
