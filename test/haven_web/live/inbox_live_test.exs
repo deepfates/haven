@@ -240,6 +240,7 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{run.id}-agent", "codex-acp")
     assert has_element?(view, "#run-#{run.id}-agent-launch", "Launch ready")
     assert has_element?(view, "#run-#{run.id}-agent-trust", "4 accepted probes")
+    assert has_element?(view, "#run-#{run.id}-agent-capability-gaps", "2 capability gaps")
   end
 
   @tag :tmp_dir
@@ -775,6 +776,27 @@ defmodule HavenWeb.InboxLiveTest do
              "#agent-config-codex-acp-evidence-reason",
              "validated committed reports"
            )
+
+    assert has_element?(view, "#agent-config-codex-acp-capability-gap-count", "2 gaps")
+    assert has_element?(view, "#agent-config-codex-acp-capability-gaps", "Capability gaps")
+
+    assert has_element?(
+             view,
+             "#agent-config-codex-acp-capability-gap-codex-acp-file-mediated-negative",
+             "docs/probe-failures/codex-acp-file-mediated-negative.json"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-codex-acp-capability-gap-codex-acp-terminal-mediated-negative",
+             "terminal_create_requested"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-codex-acp-capability-gap-reason",
+             "not Haven-mediated file/terminal handling"
+           )
   end
 
   test "shows blocked launch readiness for saved agent configs with missing executables", %{
@@ -1126,6 +1148,14 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{evidence_backed.id}", "Evidence backed")
     refute has_element?(view, "#run-#{blocked_agent.id}", "Broken command")
     refute has_element?(view, "article", "Docs cleanup")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "capability gap"})
+    |> render_change()
+
+    assert has_element?(view, "#run-#{evidence_backed.id}", "Evidence backed")
+    refute has_element?(view, "#run-#{blocked_agent.id}", "Broken command")
+    refute has_element?(view, "article", "Payment bug")
 
     view
     |> form("#inbox-search-form", %{"run_search" => "launch blocked"})

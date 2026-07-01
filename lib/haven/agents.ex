@@ -63,6 +63,23 @@ defmodule Haven.Agents do
     |> Map.get(agent_key, [])
   end
 
+  def capability_gap_reports_by_agent(agent_keys, opts \\ []) when is_list(agent_keys) do
+    agent_keys = MapSet.new(agent_keys)
+
+    opts
+    |> capability_gap_report_paths()
+    |> Enum.flat_map(&capability_gap_report_summary/1)
+    |> Enum.filter(&MapSet.member?(agent_keys, &1.agent))
+    |> Enum.group_by(& &1.agent)
+  end
+
+  def capability_gap_reports(agent_key, opts \\ []) when is_binary(agent_key) do
+    agent_key
+    |> List.wrap()
+    |> capability_gap_reports_by_agent(opts)
+    |> Map.get(agent_key, [])
+  end
+
   def create_agent_config(attrs) do
     %AgentConfig{}
     |> AgentConfig.changeset(attrs)
@@ -88,6 +105,13 @@ defmodule Haven.Agents do
     |> Enum.sort()
   end
 
+  defp capability_gap_report_paths(opts) do
+    opts
+    |> Keyword.get(:path, "docs/probe-failures/*.json")
+    |> Path.wildcard()
+    |> Enum.sort()
+  end
+
   defp accepted_probe_report_summary(path) do
     with {:ok, content} <- File.read(path),
          {:ok, report} <- Jason.decode(content),
@@ -107,6 +131,42 @@ defmodule Haven.Agents do
       _ -> []
     end
   end
+
+  defp capability_gap_report_summary(path) do
+    with {:ok, content} <- File.read(path),
+         {:ok, report} <- Jason.decode(content),
+         true <- capability_gap_report?(report) do
+      [
+        %{
+          agent: report["agent"],
+          path: path,
+          run_id: report["run_id"],
+          status: report["status"],
+          prompt: report["prompt"],
+          expected_events: report["expected_events"] || [],
+          missing_expected_events: report["missing_expected_events"] || [],
+          diagnostics: report["diagnostics"] || []
+        }
+      ]
+    else
+      _ -> []
+    end
+  end
+
+  defp capability_gap_report?(%{
+         "agent" => agent,
+         "missing_expected_events" => missing,
+         "diagnostics" => diagnostics
+       })
+       when is_binary(agent) and is_list(missing) and missing != [] and is_list(diagnostics) do
+    agent != "stub-acp" and
+      Enum.any?(diagnostics, fn
+        %{"type" => "tool_call_only_capability_gap"} -> true
+        _diagnostic -> false
+      end)
+  end
+
+  defp capability_gap_report?(_report), do: false
 
   def upsert_agent_config_from_registry_suggestion(%{
         id: key,

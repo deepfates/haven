@@ -221,6 +221,33 @@ defmodule Haven.AgentsTest do
              Agents.accepted_probe_reports("codex-acp", path: Path.join(tmp_dir, "*.json"))
   end
 
+  @tag :tmp_dir
+  test "summarizes capability gap reports by configured agent", %{tmp_dir: tmp_dir} do
+    write_probe_report!(tmp_dir, "codex-gap.json", capability_gap_report("codex-acp"))
+    write_probe_report!(tmp_dir, "other-gap.json", capability_gap_report("other-acp"))
+    write_probe_report!(tmp_dir, "positive.json", valid_probe_report("codex-acp"))
+
+    reports_by_agent =
+      Agents.capability_gap_reports_by_agent(["codex-acp"], path: Path.join(tmp_dir, "*.json"))
+
+    assert %{
+             agent: "codex-acp",
+             path: path,
+             missing_expected_events: ["file_read_requested", "file_read_succeeded"]
+           } = reports_by_agent["codex-acp"] |> List.first()
+
+    assert Path.basename(path) == "codex-gap.json"
+    refute Map.has_key?(reports_by_agent, "other-acp")
+  end
+
+  @tag :tmp_dir
+  test "lists capability gap reports for one agent", %{tmp_dir: tmp_dir} do
+    write_probe_report!(tmp_dir, "codex-gap.json", capability_gap_report("codex-acp"))
+
+    assert [%{agent: "codex-acp", status: "idle", run_id: "gap-codex-acp"}] =
+             Agents.capability_gap_reports("codex-acp", path: Path.join(tmp_dir, "*.json"))
+  end
+
   test "deletes persisted agent configs" do
     assert {:ok, agent_config} =
              Agents.create_agent_config(%{
@@ -273,5 +300,37 @@ defmodule Haven.AgentsTest do
         %{"seq" => 7, "type" => "turn_finished", "payload" => %{}}
       ]
     }
+  end
+
+  defp capability_gap_report(agent) do
+    agent
+    |> valid_probe_report()
+    |> Map.merge(%{
+      "run_id" => "gap-#{agent}",
+      "expected_events" => ["file_read_requested", "file_read_succeeded"],
+      "missing_expected_events" => ["file_read_requested", "file_read_succeeded"],
+      "diagnostics" => [
+        %{
+          "type" => "tool_call_only_capability_gap",
+          "missing_events" => ["file_read_requested", "file_read_succeeded"],
+          "observed_events" => ["tool_call", "tool_call_update"]
+        }
+      ],
+      "events" => [
+        %{
+          "seq" => 1,
+          "type" => "run_created",
+          "payload" => %{"agent" => agent, "workspace" => "/tmp/workspace"}
+        },
+        %{"seq" => 2, "type" => "agent_process_started", "payload" => %{}},
+        %{"seq" => 3, "type" => "agent_initialized", "payload" => %{}},
+        %{"seq" => 4, "type" => "agent_session_started", "payload" => %{}},
+        %{"seq" => 5, "type" => "turn_started", "payload" => %{}},
+        %{"seq" => 6, "type" => "user_message", "payload" => %{"text" => "prove #{agent}"}},
+        %{"seq" => 7, "type" => "tool_call", "payload" => %{}},
+        %{"seq" => 8, "type" => "tool_call_update", "payload" => %{}},
+        %{"seq" => 9, "type" => "turn_finished", "payload" => %{}}
+      ]
+    })
   end
 end

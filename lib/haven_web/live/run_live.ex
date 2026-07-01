@@ -135,11 +135,13 @@ defmodule HavenWeb.RunLive do
     live? = Runs.started?(run)
     agent_readiness = agent_readiness(run.agent, run.workspace)
     agent_probe_reports = Agents.accepted_probe_reports(run.agent)
+    agent_capability_gap_reports = Agents.capability_gap_reports(run.agent)
 
     socket
     |> assign(:run, run)
     |> assign(:agent_readiness, agent_readiness)
     |> assign(:agent_probe_reports, agent_probe_reports)
+    |> assign(:agent_capability_gap_reports, agent_capability_gap_reports)
     |> assign(:capability_policy, Run.capability_policy(run.capability_policy))
     |> assign(:file_changes, file_changes)
     |> assign(:file_change_counts, file_change_counts(file_changes))
@@ -1285,6 +1287,55 @@ defmodule HavenWeb.RunLive do
       "#{path} · #{pluralize_count(length(report.expected_events), "event")} · #{pluralize_count(length(report.expected_event_fields), "field")}"
     end)
   end
+
+  defp capability_gap_class do
+    badge_class("border-amber-200 bg-amber-50 text-amber-800")
+  end
+
+  defp capability_gap_reason([]), do: nil
+
+  defp capability_gap_reason(reports) do
+    missing =
+      reports
+      |> Enum.flat_map(& &1.missing_expected_events)
+      |> Enum.filter(&client_capability_event?/1)
+      |> Enum.uniq()
+
+    "real-agent probes observed generic ACP tool calls, not Haven-mediated #{capability_gap_family_label(missing)} handling"
+  end
+
+  defp capability_gap_family_label(events) do
+    families =
+      events
+      |> Enum.map(fn
+        "file_" <> _rest -> "file"
+        "terminal_" <> _rest -> "terminal"
+        _event -> nil
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    case families do
+      ["file", "terminal"] -> "file/terminal"
+      [family] -> family
+      _families -> "capability"
+    end
+  end
+
+  defp capability_gap_report_label(report) do
+    report.path
+    |> Path.relative_to(File.cwd!())
+    |> then(fn path ->
+      "#{path} · missing #{Enum.join(report.missing_expected_events, ", ")}"
+    end)
+  end
+
+  defp client_capability_event?(type) when is_binary(type) do
+    String.starts_with?(type, "file_") or String.starts_with?(type, "terminal_")
+  end
+
+  defp client_capability_event?(_type), do: false
 
   defp agent_launch_label(%{status: "ready"}), do: "Launch ready"
   defp agent_launch_label(%{status: "invalid"}), do: "Launch blocked"
@@ -2477,12 +2528,26 @@ defmodule HavenWeb.RunLive do
                     >
                       {agent_evidence_label(@agent_readiness, @agent_probe_reports)}
                     </span>
+                    <span
+                      :if={@agent_capability_gap_reports != []}
+                      id="run-facts-agent-capability-gaps"
+                      class={capability_gap_class()}
+                    >
+                      {pluralize_count(length(@agent_capability_gap_reports), "capability gap")}
+                    </span>
                   </dd>
                   <dd
                     id="run-facts-agent-evidence-reason"
                     class="mt-1 text-xs text-zinc-500"
                   >
                     {agent_evidence_reason(@agent_readiness, @agent_probe_reports)}
+                  </dd>
+                  <dd
+                    :if={@agent_capability_gap_reports != []}
+                    id="run-facts-agent-capability-gap-reason"
+                    class="mt-1 text-xs text-amber-700"
+                  >
+                    {capability_gap_reason(@agent_capability_gap_reports)}
                   </dd>
                 </div>
                 <div id="run-facts-agent-cwd">
@@ -2530,6 +2595,25 @@ defmodule HavenWeb.RunLive do
                     title={report.prompt}
                   >
                     {agent_probe_report_label(report)}
+                  </li>
+                </ul>
+              </details>
+              <details
+                :if={@agent_capability_gap_reports != []}
+                id="run-agent-capability-gap-evidence"
+                class="mt-4 border-t border-zinc-200 pt-3 text-xs"
+              >
+                <summary class="cursor-pointer font-semibold uppercase text-amber-700">
+                  Capability gap reports
+                </summary>
+                <ul class="mt-2 space-y-1">
+                  <li
+                    :for={report <- @agent_capability_gap_reports}
+                    id={"run-agent-capability-gap-#{Path.basename(report.path, ".json")}"}
+                    class="truncate text-amber-800"
+                    title={report.prompt}
+                  >
+                    {capability_gap_report_label(report)}
                   </li>
                 </ul>
               </details>

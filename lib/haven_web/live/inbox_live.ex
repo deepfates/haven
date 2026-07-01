@@ -210,17 +210,18 @@ defmodule HavenWeb.InboxLive do
   defp assign_runs(socket) do
     agent_inventory = socket.assigns[:agent_inventory] || %{}
     agent_probe_reports = socket.assigns[:agent_probe_reports] || %{}
+    agent_capability_gap_reports = socket.assigns[:agent_capability_gap_reports] || %{}
 
     runs =
       Runs.list_runs()
       |> attach_latest_events()
-      |> attach_agent_evidence(agent_inventory, agent_probe_reports)
+      |> attach_agent_evidence(agent_inventory, agent_probe_reports, agent_capability_gap_reports)
       |> sort_runs_by_activity()
 
     archived_runs =
       Runs.list_archived_runs()
       |> attach_latest_events()
-      |> attach_agent_evidence(agent_inventory, agent_probe_reports)
+      |> attach_agent_evidence(agent_inventory, agent_probe_reports, agent_capability_gap_reports)
 
     run_search = socket.assigns[:run_search] || ""
     agent_filter = socket.assigns[:agent_filter] || ""
@@ -384,11 +385,20 @@ defmodule HavenWeb.InboxLive do
 
   defp latest_permission_request(_permission_requests, _event), do: nil
 
-  defp attach_agent_evidence(runs, agent_inventory, agent_probe_reports) do
+  defp attach_agent_evidence(
+         runs,
+         agent_inventory,
+         agent_probe_reports,
+         agent_capability_gap_reports
+       ) do
     Enum.map(runs, fn run ->
       run
       |> Map.put(:agent_readiness, Map.get(agent_inventory, run.agent, %{}))
       |> Map.put(:agent_reports, Map.get(agent_probe_reports, run.agent, []))
+      |> Map.put(
+        :agent_capability_gap_reports,
+        Map.get(agent_capability_gap_reports, run.agent, [])
+      )
     end)
   end
 
@@ -450,6 +460,8 @@ defmodule HavenWeb.InboxLive do
         Map.get(run, :agent_readiness, %{}),
         Map.get(run, :agent_reports, [])
       ),
+      capability_gap_label(Map.get(run, :agent_capability_gap_reports, [])),
+      capability_gap_reason(Map.get(run, :agent_capability_gap_reports, [])),
       latest_activity(run)
     ]
     |> Enum.reject(&is_nil/1)
@@ -728,6 +740,7 @@ defmodule HavenWeb.InboxLive do
     |> assign(:agent_configs, agent_configs)
     |> assign(:agent_inventory, agent_inventory_by_key())
     |> assign(:agent_probe_reports, Agents.accepted_probe_reports_by_agent(agent_keys))
+    |> assign(:agent_capability_gap_reports, Agents.capability_gap_reports_by_agent(agent_keys))
   end
 
   defp agent_inventory_by_key do
@@ -1244,6 +1257,61 @@ defmodule HavenWeb.InboxLive do
     end)
   end
 
+  defp capability_gap_class do
+    badge_class("border-amber-200 bg-amber-50 text-amber-800")
+  end
+
+  defp capability_gap_label([]), do: nil
+
+  defp capability_gap_label(reports) do
+    pluralize_count(length(reports), "capability gap")
+  end
+
+  defp capability_gap_reason([]), do: nil
+
+  defp capability_gap_reason(reports) do
+    missing =
+      reports
+      |> Enum.flat_map(& &1.missing_expected_events)
+      |> Enum.filter(&client_capability_event?/1)
+      |> Enum.uniq()
+
+    "real-agent probes observed generic ACP tool calls, not Haven-mediated #{capability_gap_family_label(missing)} handling"
+  end
+
+  defp capability_gap_family_label(events) do
+    families =
+      events
+      |> Enum.map(fn
+        "file_" <> _rest -> "file"
+        "terminal_" <> _rest -> "terminal"
+        _event -> nil
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    case families do
+      ["file", "terminal"] -> "file/terminal"
+      [family] -> family
+      _families -> "capability"
+    end
+  end
+
+  defp capability_gap_report_label(report) do
+    report.path
+    |> Path.relative_to(File.cwd!())
+    |> then(fn path ->
+      "#{path} · missing #{Enum.join(report.missing_expected_events, ", ")}"
+    end)
+  end
+
+  defp client_capability_event?(type) when is_binary(type) do
+    String.starts_with?(type, "file_") or String.starts_with?(type, "terminal_")
+  end
+
+  defp client_capability_event?(_type), do: false
+
   defp agent_launch_label(%{status: "ready"}), do: "Launch ready"
   defp agent_launch_label(%{status: "invalid"}), do: "Launch blocked"
   defp agent_launch_label(_inventory), do: "Launch unknown"
@@ -1480,6 +1548,7 @@ defmodule HavenWeb.InboxLive do
   defp run_card(assigns) do
     agent_inventory = Map.get(assigns, :agent_inventory, %{})
     agent_probe_reports = Map.get(assigns, :agent_probe_reports, %{})
+    agent_capability_gap_reports = Map.get(assigns, :agent_capability_gap_reports, %{})
 
     assigns =
       assigns
@@ -1489,6 +1558,10 @@ defmodule HavenWeb.InboxLive do
       |> assign(:operational_hint, run_operational_hint(assigns.run))
       |> assign(:agent_readiness, Map.get(agent_inventory, assigns.run.agent, %{}))
       |> assign(:agent_reports, Map.get(agent_probe_reports, assigns.run.agent, []))
+      |> assign(
+        :agent_capability_gap_reports,
+        Map.get(agent_capability_gap_reports, assigns.run.agent, [])
+      )
 
     ~H"""
     <article
@@ -1552,6 +1625,14 @@ defmodule HavenWeb.InboxLive do
               title={agent_evidence_reason(@agent_readiness, @agent_reports)}
             >
               {agent_evidence_label(@agent_readiness, @agent_reports)}
+            </span>
+            <span
+              :if={@agent_capability_gap_reports != []}
+              id={"run-#{@run.id}-agent-capability-gaps"}
+              class={capability_gap_class()}
+              title={capability_gap_reason(@agent_capability_gap_reports)}
+            >
+              {pluralize_count(length(@agent_capability_gap_reports), "capability gap")}
             </span>
           </p>
           <p
@@ -1702,6 +1783,7 @@ defmodule HavenWeb.InboxLive do
               <% selected_agent = form_value(@form, :agent) %>
               <% selected_readiness = Map.get(@agent_inventory, selected_agent, %{}) %>
               <% selected_reports = Map.get(@agent_probe_reports, selected_agent, []) %>
+              <% selected_gap_reports = Map.get(@agent_capability_gap_reports, selected_agent, []) %>
               <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem]">
                 <.input
                   field={@form[:title]}
@@ -1764,9 +1846,23 @@ defmodule HavenWeb.InboxLive do
                       >
                         {agent_evidence_label(selected_readiness, selected_reports)}
                       </span>
+                      <span
+                        :if={selected_gap_reports != []}
+                        id="new-run-agent-capability-gaps"
+                        class={capability_gap_class()}
+                      >
+                        {pluralize_count(length(selected_gap_reports), "capability gap")}
+                      </span>
                     </div>
                     <p id="new-run-agent-evidence-reason" class="mt-1 truncate">
                       {agent_evidence_reason(selected_readiness, selected_reports)}
+                    </p>
+                    <p
+                      :if={selected_gap_reports != []}
+                      id="new-run-agent-capability-gap-reason"
+                      class="mt-1 truncate text-amber-700"
+                    >
+                      {capability_gap_reason(selected_gap_reports)}
                     </p>
                   </div>
                   <section id="new-run-capability-policy" class="grid gap-3">
@@ -1881,6 +1977,7 @@ defmodule HavenWeb.InboxLive do
                 run={run}
                 agent_inventory={@agent_inventory}
                 agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
               />
             </div>
           </section>
@@ -1893,6 +1990,7 @@ defmodule HavenWeb.InboxLive do
                 run={run}
                 agent_inventory={@agent_inventory}
                 agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
               />
             </div>
           </section>
@@ -1923,6 +2021,7 @@ defmodule HavenWeb.InboxLive do
                 show_archive={true}
                 agent_inventory={@agent_inventory}
                 agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
               />
             </div>
           </section>
@@ -1986,6 +2085,7 @@ defmodule HavenWeb.InboxLive do
                 run={run}
                 agent_inventory={@agent_inventory}
                 agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
               />
             </div>
           </section>
@@ -2172,6 +2272,7 @@ defmodule HavenWeb.InboxLive do
                     <% readiness = Map.get(@agent_inventory, agent_config.key, %{}) %>
                     <% probe_commands = agent_probe_commands(readiness) %>
                     <% accepted_reports = Map.get(@agent_probe_reports, agent_config.key, []) %>
+                    <% gap_reports = Map.get(@agent_capability_gap_reports, agent_config.key, []) %>
                     <div class="flex items-start justify-between gap-3">
                       <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-zinc-950">{agent_config.key}</p>
@@ -2243,6 +2344,25 @@ defmodule HavenWeb.InboxLive do
                             </li>
                           </ul>
                         </div>
+                        <div
+                          :if={gap_reports != []}
+                          id={"agent-config-#{agent_config.key}-capability-gaps"}
+                          class="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2"
+                        >
+                          <p class="text-[11px] font-semibold uppercase text-amber-800">
+                            Capability gaps
+                          </p>
+                          <ul class="mt-1 space-y-1">
+                            <li
+                              :for={report <- gap_reports}
+                              id={"agent-config-#{agent_config.key}-capability-gap-#{Path.basename(report.path, ".json")}"}
+                              class="truncate text-xs text-amber-900"
+                              title={report.prompt}
+                            >
+                              {capability_gap_report_label(report)}
+                            </li>
+                          </ul>
+                        </div>
                         <div :if={probe_commands != []} class="mt-2 space-y-2">
                           <div
                             :for={probe <- probe_commands}
@@ -2270,6 +2390,13 @@ defmodule HavenWeb.InboxLive do
                         >
                           {agent_evidence_reason(readiness, accepted_reports)}
                         </p>
+                        <p
+                          :if={gap_reports != []}
+                          id={"agent-config-#{agent_config.key}-capability-gap-reason"}
+                          class="mt-2 truncate text-xs text-amber-700"
+                        >
+                          {capability_gap_reason(gap_reports)}
+                        </p>
                       </div>
                       <div class="flex shrink-0 items-center gap-2">
                         <span
@@ -2277,6 +2404,13 @@ defmodule HavenWeb.InboxLive do
                           class={agent_evidence_class(readiness, accepted_reports)}
                         >
                           {agent_evidence_label(readiness, accepted_reports)}
+                        </span>
+                        <span
+                          :if={gap_reports != []}
+                          id={"agent-config-#{agent_config.key}-capability-gap-count"}
+                          class={capability_gap_class()}
+                        >
+                          {pluralize_count(length(gap_reports), "gap")}
                         </span>
                         <span class="rounded-full border border-zinc-200 px-2 py-1 text-xs text-zinc-500">
                           {length(Map.get(agent_config.args || %{}, "items", []))} args

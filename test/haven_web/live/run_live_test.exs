@@ -189,6 +189,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-facts-agent", "codex-acp")
     assert has_element?(view, "#run-facts-agent-launch", "Launch ready")
     assert has_element?(view, "#run-facts-agent-trust", "4 accepted probes")
+    assert has_element?(view, "#run-facts-agent-capability-gaps", "2 capability gaps")
 
     assert has_element?(
              view,
@@ -196,7 +197,14 @@ defmodule HavenWeb.RunLiveTest do
              "validated committed reports"
            )
 
+    assert has_element?(
+             view,
+             "#run-facts-agent-capability-gap-reason",
+             "not Haven-mediated file/terminal handling"
+           )
+
     assert has_element?(view, "#run-agent-probe-evidence", "Accepted probe artifacts")
+    assert has_element?(view, "#run-agent-capability-gap-evidence", "Capability gap reports")
 
     assert has_element?(
              view,
@@ -208,6 +216,18 @@ defmodule HavenWeb.RunLiveTest do
              view,
              "#run-agent-probe-codex-acp-terminal-tool-call",
              "docs/probes/codex-acp-terminal-tool-call.json"
+           )
+
+    assert has_element?(
+             view,
+             "#run-agent-capability-gap-codex-acp-file-mediated-negative",
+             "docs/probe-failures/codex-acp-file-mediated-negative.json"
+           )
+
+    assert has_element?(
+             view,
+             "#run-agent-capability-gap-codex-acp-terminal-mediated-negative",
+             "terminal_create_requested"
            )
   end
 
