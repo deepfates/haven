@@ -31,7 +31,7 @@ recorded.
   `tool_call_only_capability_gap`, declares `fs/read_text_file` unsupported for
   Haven-mediated proof with this agent class, and includes accepted real-agent
   metadata.
-- `codex-acp-file-write-mediated-negative.json`: generated on 2026-07-01
+- `codex-acp-file-write-mediated-negative.json`: regenerated on 2026-07-01
   against saved `codex-acp`. The probe required `permission_requested`,
   `permission_resolved`, `file_write_requested`, and `file_write_succeeded`.
   The agent wrote `notes/haven-probe.txt`, but did so through ACP `tool_call` /
