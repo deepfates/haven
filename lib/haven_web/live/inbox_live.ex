@@ -1002,14 +1002,6 @@ defmodule HavenWeb.InboxLive do
 
   defp run_operational_hint(_run), do: nil
 
-  defp run_filter_button_class(filter, active_filter) do
-    [
-      "inline-flex h-9 items-center rounded-md border px-3 text-xs font-semibold transition",
-      filter == active_filter && "border-zinc-950 bg-zinc-950 text-white",
-      filter != active_filter && "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
-    ]
-  end
-
   defp run_queue_button_class(filter, active_filter) do
     [
       "min-w-28 rounded-lg border px-3 py-2 text-left transition",
@@ -1861,26 +1853,6 @@ defmodule HavenWeb.InboxLive do
               Clear
             </button>
           </form>
-
-          <nav
-            id="inbox-run-filters"
-            class="flex gap-2 overflow-x-auto pb-1"
-            aria-label="Run filters"
-          >
-            <button
-              :for={{filter, label} <- @run_filters}
-              id={"inbox-filter-#{filter}"}
-              type="button"
-              class={run_filter_button_class(filter, @run_filter)}
-              phx-click="filter_runs"
-              phx-value-filter={filter}
-            >
-              {label}
-              <span class="ml-1 font-mono text-[11px] opacity-70">
-                {Map.get(@run_filter_counts, filter, 0)}
-              </span>
-            </button>
-          </nav>
 
           <div
             :if={@filtered_runs_empty?}

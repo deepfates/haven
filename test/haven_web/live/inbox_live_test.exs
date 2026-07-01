@@ -164,6 +164,7 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#inbox-queue-history", "1")
     assert has_element?(view, "#inbox-queue-archived", "1")
     assert has_element?(view, ~s|#inbox-queue-all[aria-current="page"]|)
+    refute has_element?(view, "#inbox-run-filters")
 
     view
     |> element("#inbox-queue-running")
@@ -212,7 +213,7 @@ defmodule HavenWeb.InboxLiveTest do
            )
 
     view
-    |> element("#inbox-filter-archived")
+    |> element("#inbox-queue-archived")
     |> render_click()
 
     assert has_element?(view, "#run-#{archived_failure.id}-next-step", "Review history")
@@ -987,13 +988,13 @@ defmodule HavenWeb.InboxLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/")
 
-    assert has_element?(view, "#inbox-filter-all", "3")
-    assert has_element?(view, "#inbox-filter-needs_you", "1")
-    assert has_element?(view, "#inbox-filter-running", "1")
-    assert has_element?(view, "#inbox-filter-history", "1")
+    assert has_element?(view, "#inbox-queue-all", "3")
+    assert has_element?(view, "#inbox-queue-needs_you", "1")
+    assert has_element?(view, "#inbox-queue-running", "1")
+    assert has_element?(view, "#inbox-queue-history", "1")
 
     view
-    |> element("#inbox-filter-running")
+    |> element("#inbox-queue-running")
     |> render_click()
 
     assert has_element?(view, "#inbox-running-section")
@@ -1002,7 +1003,7 @@ defmodule HavenWeb.InboxLiveTest do
     refute has_element?(view, "article", "Quiet")
 
     view
-    |> element("#inbox-filter-history")
+    |> element("#inbox-queue-history")
     |> render_click()
 
     assert has_element?(view, "#inbox-history-section")
@@ -1037,9 +1038,9 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "article", "Alpha docs")
     refute has_element?(view, "article", "Alpha tests")
     refute has_element?(view, "article", "Beta docs")
-    assert has_element?(view, "#inbox-filter-all", "1")
-    assert has_element?(view, "#inbox-filter-needs_you", "1")
-    assert has_element?(view, "#inbox-filter-running", "0")
+    assert has_element?(view, "#inbox-queue-all", "1")
+    assert has_element?(view, "#inbox-queue-needs_you", "1")
+    assert has_element?(view, "#inbox-queue-running", "0")
 
     view
     |> form("#inbox-search-form", %{
@@ -1104,7 +1105,7 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(view, "article", "Docs cleanup")
     refute has_element?(view, "article", "Payment bug")
-    assert has_element?(view, "#inbox-filter-all", "1")
+    assert has_element?(view, "#inbox-queue-all", "1")
 
     view
     |> form("#inbox-search-form", %{"run_search" => "other-acp"})
@@ -1112,7 +1113,7 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(view, "article", "Payment bug")
     refute has_element?(view, "article", "Docs cleanup")
-    assert has_element?(view, "#inbox-filter-needs_you", "1")
+    assert has_element?(view, "#inbox-queue-needs_you", "1")
 
     view
     |> form("#inbox-search-form", %{"run_search" => "accepted probes"})
@@ -1165,7 +1166,7 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     view
-    |> element("#inbox-filter-needs_you")
+    |> element("#inbox-queue-needs_you")
     |> render_click()
 
     assert has_element?(view, "#inbox-filter-empty", "No runs in this view.")
@@ -1402,10 +1403,10 @@ defmodule HavenWeb.InboxLiveTest do
     assert payload["actor"] == "local_user"
     assert payload["previous_status"] == "failed"
 
-    assert has_element?(view, "#inbox-filter-archived", "1")
+    assert has_element?(view, "#inbox-queue-archived", "1")
 
     view
-    |> element("#inbox-filter-archived")
+    |> element("#inbox-queue-archived")
     |> render_click()
 
     assert has_element?(view, "#inbox-archived-section")
@@ -1429,7 +1430,7 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     view
-    |> element("#inbox-filter-archived")
+    |> element("#inbox-queue-archived")
     |> render_click()
 
     assert has_element?(view, "#archived-retention-panel")
@@ -1447,7 +1448,7 @@ defmodule HavenWeb.InboxLiveTest do
 
     refute has_element?(view, "#run-#{old_archived.id}")
     assert has_element?(view, "#run-#{recent_archived.id}")
-    assert has_element?(view, "#inbox-filter-archived", "1")
+    assert has_element?(view, "#inbox-queue-archived", "1")
   end
 
   defp insert_run!(title, status, attrs \\ %{}) do
