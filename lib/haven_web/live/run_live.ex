@@ -2302,40 +2302,6 @@ defmodule HavenWeb.RunLive do
                     #event-{@pending_permission.seq}
                   </span>
                 </a>
-                <div id="pending-permission-primary-actions" class="mt-3 flex flex-wrap gap-2">
-                  <button
-                    :for={option <- permission_options(@pending_permission)}
-                    class={[
-                      "h-10 rounded-md px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
-                      if(String.starts_with?(to_string(option["kind"]), "allow"),
-                        do: "bg-zinc-950 text-white hover:bg-zinc-800",
-                        else: "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
-                      )
-                    ]}
-                    phx-click="resolve_permission"
-                    phx-value-request-id={@pending_permission.payload["request_id"]}
-                    phx-value-option-id={option["optionId"]}
-                    disabled={!@live?}
-                  >
-                    {option["name"] || option["optionId"] || "Choose option"}
-                  </button>
-                  <p
-                    :if={permission_options(@pending_permission) == []}
-                    id="pending-permission-missing-options"
-                    class="w-full rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
-                  >
-                    This permission request did not include any valid decision options.
-                  </p>
-                  <button
-                    id="pending-permission-cancel-button"
-                    type="button"
-                    class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    phx-click="cancel"
-                    disabled={!@can_cancel?}
-                  >
-                    Cancel turn
-                  </button>
-                </div>
                 <% proposed_change = proposed_file_change(@pending_permission) %>
                 <section
                   :if={proposed_change}
@@ -2436,6 +2402,40 @@ defmodule HavenWeb.RunLive do
                     </div>
                   </dl>
                 </section>
+                <div id="pending-permission-primary-actions" class="mt-3 flex flex-wrap gap-2">
+                  <button
+                    :for={option <- permission_options(@pending_permission)}
+                    class={[
+                      "h-10 rounded-md px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
+                      if(String.starts_with?(to_string(option["kind"]), "allow"),
+                        do: "bg-zinc-950 text-white hover:bg-zinc-800",
+                        else: "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                      )
+                    ]}
+                    phx-click="resolve_permission"
+                    phx-value-request-id={@pending_permission.payload["request_id"]}
+                    phx-value-option-id={option["optionId"]}
+                    disabled={!@live?}
+                  >
+                    {option["name"] || option["optionId"] || "Choose option"}
+                  </button>
+                  <p
+                    :if={permission_options(@pending_permission) == []}
+                    id="pending-permission-missing-options"
+                    class="w-full rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
+                  >
+                    This permission request did not include any valid decision options.
+                  </p>
+                  <button
+                    id="pending-permission-cancel-button"
+                    type="button"
+                    class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    phx-click="cancel"
+                    disabled={!@can_cancel?}
+                  >
+                    Cancel turn
+                  </button>
+                </div>
                 <details
                   id="pending-permission-details"
                   class="mt-3 rounded-md border border-zinc-200 px-3 py-2"

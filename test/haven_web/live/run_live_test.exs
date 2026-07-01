@@ -2291,6 +2291,14 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#pending-permission-proposed-file-bytes", to_string(bytes))
     assert has_element?(view, "#pending-permission-proposed-file-existing-bytes", "0")
 
+    html = render(view)
+
+    proposed_index =
+      :binary.match(html, ~s|id="pending-permission-proposed-file-change"|) |> elem(0)
+
+    actions_index = :binary.match(html, ~s|id="pending-permission-primary-actions"|) |> elem(0)
+    assert proposed_index < actions_index
+
     assert has_element?(
              view,
              "#pending-permission-proposed-file-content",
@@ -2921,6 +2929,12 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#pending-permission-proposed-terminal-args", "hello")
     assert has_element?(view, "#pending-permission-proposed-terminal-cwd", run.workspace)
     assert has_element?(view, "#pending-permission-proposed-terminal-env", "none")
+
+    html = render(view)
+    proposed_index = :binary.match(html, ~s|id="pending-permission-proposed-terminal"|) |> elem(0)
+    actions_index = :binary.match(html, ~s|id="pending-permission-primary-actions"|) |> elem(0)
+    assert proposed_index < actions_index
+
     refute_receive {:event_appended, %{type: "terminal_created"}}, 100
 
     view
