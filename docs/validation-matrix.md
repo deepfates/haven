@@ -676,7 +676,8 @@ Evidence:
   file path scopes can be entered during run creation, normalized into
   workspace-relative policy lists, and inspected after creation. Run detail
   tests also verify scoped and unrestricted path grants render as explicit
-  policy chips in both the facts panel and pending decision card.
+  policy chips in the facts panel and inside the pending decision card's
+  on-demand review details.
 - The run creation advanced panel now renders a compact Workspace authority
   preview before launch. LiveView tests verify the default unrestricted file
   scopes render as `All workspace paths`, scoped paths render as individual

@@ -2110,49 +2110,6 @@ defmodule HavenWeb.RunLive do
                     Cancel turn
                   </button>
                 </div>
-                <dl
-                  id="pending-permission-authority"
-                  class="mt-3 grid gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 sm:grid-cols-3"
-                >
-                  <div id="pending-permission-authority-read" class="min-w-0">
-                    <dt class="font-semibold uppercase text-zinc-500">Reads</dt>
-                    <dd class="mt-1 flex flex-wrap items-center gap-1">
-                      <span class={policy_badge_class(@capability_policy["file_read"])}>
-                        {policy_label(@capability_policy["file_read"])}
-                      </span>
-                      <span
-                        :for={scope <- policy_scope_items(@capability_policy["file_read_paths"])}
-                        id={"pending-permission-read-scope-#{policy_scope_id(scope)}"}
-                        class={policy_scope_class(@capability_policy["file_read_paths"])}
-                      >
-                        <span class="truncate">{scope}</span>
-                      </span>
-                    </dd>
-                  </div>
-                  <div id="pending-permission-authority-write" class="min-w-0">
-                    <dt class="font-semibold uppercase text-zinc-500">Writes</dt>
-                    <dd class="mt-1 flex flex-wrap items-center gap-1">
-                      <span class={policy_badge_class(@capability_policy["file_write"])}>
-                        {policy_label(@capability_policy["file_write"])}
-                      </span>
-                      <span
-                        :for={scope <- policy_scope_items(@capability_policy["file_write_paths"])}
-                        id={"pending-permission-write-scope-#{policy_scope_id(scope)}"}
-                        class={policy_scope_class(@capability_policy["file_write_paths"])}
-                      >
-                        <span class="truncate">{scope}</span>
-                      </span>
-                    </dd>
-                  </div>
-                  <div id="pending-permission-authority-terminal" class="min-w-0">
-                    <dt class="font-semibold uppercase text-zinc-500">Terminals</dt>
-                    <dd class="mt-1">
-                      <span class={policy_badge_class(@capability_policy["terminal_create"])}>
-                        {policy_label(@capability_policy["terminal_create"])}
-                      </span>
-                    </dd>
-                  </div>
-                </dl>
                 <% proposed_change = proposed_file_change(@pending_permission) %>
                 <section
                   :if={proposed_change}
@@ -2253,30 +2210,80 @@ defmodule HavenWeb.RunLive do
                     </div>
                   </dl>
                 </section>
-                <dl class="mt-3 grid gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 sm:grid-cols-2">
-                  <div id="pending-permission-request-id" class="min-w-0">
-                    <dt class="font-semibold uppercase text-zinc-500">Request</dt>
-                    <dd class="truncate font-mono">{@pending_permission.payload["request_id"]}</dd>
-                  </div>
-                  <div id="pending-permission-tool-call-id" class="min-w-0">
-                    <dt class="font-semibold uppercase text-zinc-500">Tool call</dt>
-                    <dd class="truncate font-mono">{permission_tool_call_id(@pending_permission)}</dd>
-                  </div>
-                  <div id="pending-permission-tool-status" class="min-w-0">
-                    <dt class="font-semibold uppercase text-zinc-500">Status</dt>
-                    <dd class="truncate font-mono">{permission_tool_status(@pending_permission)}</dd>
-                  </div>
-                  <div id="pending-permission-options" class="min-w-0">
-                    <dt class="font-semibold uppercase text-zinc-500">Options</dt>
-                    <dd class="truncate font-mono">
-                      {permission_options_summary(@pending_permission)}
-                    </dd>
-                  </div>
-                </dl>
-                <details class="mt-3 rounded-md border border-zinc-200 px-3 py-2">
+                <details
+                  id="pending-permission-details"
+                  class="mt-3 rounded-md border border-zinc-200 px-3 py-2"
+                >
                   <summary class="cursor-pointer text-sm font-medium text-zinc-700">
-                    Technical details
+                    Review details
                   </summary>
+                  <dl
+                    id="pending-permission-authority"
+                    class="mt-3 grid gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 sm:grid-cols-3"
+                  >
+                    <div id="pending-permission-authority-read" class="min-w-0">
+                      <dt class="font-semibold uppercase text-zinc-500">Reads</dt>
+                      <dd class="mt-1 flex flex-wrap items-center gap-1">
+                        <span class={policy_badge_class(@capability_policy["file_read"])}>
+                          {policy_label(@capability_policy["file_read"])}
+                        </span>
+                        <span
+                          :for={scope <- policy_scope_items(@capability_policy["file_read_paths"])}
+                          id={"pending-permission-read-scope-#{policy_scope_id(scope)}"}
+                          class={policy_scope_class(@capability_policy["file_read_paths"])}
+                        >
+                          <span class="truncate">{scope}</span>
+                        </span>
+                      </dd>
+                    </div>
+                    <div id="pending-permission-authority-write" class="min-w-0">
+                      <dt class="font-semibold uppercase text-zinc-500">Writes</dt>
+                      <dd class="mt-1 flex flex-wrap items-center gap-1">
+                        <span class={policy_badge_class(@capability_policy["file_write"])}>
+                          {policy_label(@capability_policy["file_write"])}
+                        </span>
+                        <span
+                          :for={scope <- policy_scope_items(@capability_policy["file_write_paths"])}
+                          id={"pending-permission-write-scope-#{policy_scope_id(scope)}"}
+                          class={policy_scope_class(@capability_policy["file_write_paths"])}
+                        >
+                          <span class="truncate">{scope}</span>
+                        </span>
+                      </dd>
+                    </div>
+                    <div id="pending-permission-authority-terminal" class="min-w-0">
+                      <dt class="font-semibold uppercase text-zinc-500">Terminals</dt>
+                      <dd class="mt-1">
+                        <span class={policy_badge_class(@capability_policy["terminal_create"])}>
+                          {policy_label(@capability_policy["terminal_create"])}
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
+                  <dl class="mt-3 grid gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 sm:grid-cols-2">
+                    <div id="pending-permission-request-id" class="min-w-0">
+                      <dt class="font-semibold uppercase text-zinc-500">Request</dt>
+                      <dd class="truncate font-mono">{@pending_permission.payload["request_id"]}</dd>
+                    </div>
+                    <div id="pending-permission-tool-call-id" class="min-w-0">
+                      <dt class="font-semibold uppercase text-zinc-500">Tool call</dt>
+                      <dd class="truncate font-mono">
+                        {permission_tool_call_id(@pending_permission)}
+                      </dd>
+                    </div>
+                    <div id="pending-permission-tool-status" class="min-w-0">
+                      <dt class="font-semibold uppercase text-zinc-500">Status</dt>
+                      <dd class="truncate font-mono">
+                        {permission_tool_status(@pending_permission)}
+                      </dd>
+                    </div>
+                    <div id="pending-permission-options" class="min-w-0">
+                      <dt class="font-semibold uppercase text-zinc-500">Options</dt>
+                      <dd class="truncate font-mono">
+                        {permission_options_summary(@pending_permission)}
+                      </dd>
+                    </div>
+                  </dl>
                   <pre class="mt-2 max-h-40 overflow-auto rounded-md bg-zinc-50 p-3 text-xs text-zinc-700"><%= Jason.encode!(get_in(@pending_permission.payload, ["toolCall", "rawInput"]) || %{}, pretty: true) %></pre>
                 </details>
               </section>

@@ -1157,13 +1157,17 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#pending-permission-primary-actions button", "Allow once")
     assert has_element?(view, "#pending-permission-primary-actions button", "Deny")
     assert has_element?(view, "#pending-permission-primary-actions", "Cancel turn")
+    assert has_element?(view, "#pending-permission-details:not([open])")
+    assert has_element?(view, "#pending-permission-details summary", "Review details")
 
     summary_index = :binary.match(html, ~s|id="pending-permission-decision-summary"|) |> elem(0)
     actions_index = :binary.match(html, ~s|id="pending-permission-primary-actions"|) |> elem(0)
+    details_index = :binary.match(html, ~s|id="pending-permission-details"|) |> elem(0)
     authority_index = :binary.match(html, ~s|id="pending-permission-authority"|) |> elem(0)
 
     assert summary_index < actions_index
-    assert actions_index < authority_index
+    assert actions_index < details_index
+    assert details_index < authority_index
 
     assert has_element?(view, "#pending-permission-request-id", to_string(request_id))
     assert has_element?(view, "#pending-permission-tool-call-id", "tool_#{request_id}")

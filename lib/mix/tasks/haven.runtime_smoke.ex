@@ -350,7 +350,7 @@ defmodule Mix.Tasks.Haven.RuntimeSmoke do
         end
       end)
 
-    assert_contains!(waiting_html, "Technical details", "permission technical disclosure")
+    assert_contains!(waiting_html, "Review details", "permission detail disclosure")
 
     case Regex.run(~r/phx-value-request-id="([^"]+)"/, waiting_html, capture: :all_but_first) do
       [request_id] -> request_id
