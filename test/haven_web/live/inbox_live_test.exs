@@ -1123,6 +1123,54 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(
              view,
+             "#agent-config-candidate-agent-probe-long-output",
+             "Long output proof"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-long-output-command",
+             "--expect-min-agent-output-chars 1200"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-long-output-command",
+             "--expect-min-agent-message-chunks 8"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-long-output-command",
+             "docs/probes/candidate-agent-long-output.json"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-load-basic",
+             "Load proof"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-load-basic-command",
+             "--load-runs 3"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-load-basic-command",
+             "--load-concurrency 2"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-load-basic-command",
+             "docs/probe-load/candidate-agent-basic-load.json"
+           )
+
+    assert has_element?(
+             view,
              "#agent-config-candidate-agent-evidence-reason",
              "not ACP evidence until preflight or a generated probe passes"
            )

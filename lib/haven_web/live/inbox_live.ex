@@ -2057,6 +2057,54 @@ defmodule HavenWeb.InboxLive do
               "docs/probe-failures/#{agent}-terminal-mediated-negative.json"
             ] ++ redaction_args
           )
+      },
+      %{
+        id: "long-output",
+        label: "Long output proof",
+        command:
+          probe_command(
+            agent,
+            [
+              "--prompt",
+              "write a structured summary of this workspace in at least 1200 characters",
+              "--expect-event",
+              "agent_initialized",
+              "--expect-event",
+              "agent_session_started",
+              "--expect-event",
+              "turn_finished",
+              "--expect-min-agent-output-chars",
+              "1200",
+              "--expect-min-agent-message-chunks",
+              "8",
+              "--report",
+              "docs/probes/#{agent}-long-output.json"
+            ] ++ redaction_args
+          )
+      },
+      %{
+        id: "load-basic",
+        label: "Load proof",
+        command:
+          probe_command(
+            agent,
+            [
+              "--prompt",
+              "summarize this workspace in one short sentence",
+              "--load-runs",
+              "3",
+              "--load-concurrency",
+              "2",
+              "--expect-event",
+              "agent_initialized",
+              "--expect-event",
+              "agent_session_started",
+              "--expect-event",
+              "turn_finished",
+              "--report",
+              "docs/probe-load/#{agent}-basic-load.json"
+            ] ++ redaction_args
+          )
       }
     ]
   end
