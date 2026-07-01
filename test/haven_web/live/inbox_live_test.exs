@@ -406,6 +406,11 @@ defmodule HavenWeb.InboxLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/")
 
+    assert has_element?(view, "#agent-config-candidate-agent-launch", "Launch ready")
+    assert has_element?(view, "#agent-config-candidate-agent-launch-summary", "exec sh")
+    assert has_element?(view, "#agent-config-candidate-agent-launch-summary", "2 args")
+    assert has_element?(view, "#agent-config-candidate-agent-launch-summary", "1 env key")
+
     assert has_element?(view, "#agent-config-candidate-agent-evidence", "Static candidate")
     assert has_element?(view, "#agent-config-candidate-agent-probe-basic", "Basic boot proof")
 
@@ -511,6 +516,25 @@ defmodule HavenWeb.InboxLiveTest do
              "not ACP evidence until preflight or a generated probe passes"
            )
 
+    refute render(view) =~ "hidden-value"
+  end
+
+  test "shows blocked launch readiness for saved agent configs with missing executables", %{
+    conn: conn
+  } do
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "missing-agent",
+               executable: "definitely-not-a-real-haven-agent",
+               args: ["--workspace", "{workspace}"],
+               env: %{"SECRET" => "hidden-value"}
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#agent-config-missing-agent-launch", "Launch blocked")
+    assert has_element?(view, "#agent-config-missing-agent-launch-summary", "missing_executable")
+    assert has_element?(view, "#agent-config-missing-agent-evidence", "Invalid command")
     refute render(view) =~ "hidden-value"
   end
 

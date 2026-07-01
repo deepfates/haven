@@ -822,6 +822,41 @@ defmodule HavenWeb.InboxLive do
 
   defp agent_evidence_reason(_inventory), do: "agent readiness unknown"
 
+  defp agent_launch_label(%{status: "ready"}), do: "Launch ready"
+  defp agent_launch_label(%{status: "invalid"}), do: "Launch blocked"
+  defp agent_launch_label(_inventory), do: "Launch unknown"
+
+  defp agent_launch_class(%{status: "ready"}),
+    do: badge_class("border-emerald-200 bg-emerald-50 text-emerald-700")
+
+  defp agent_launch_class(%{status: "invalid"}),
+    do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
+
+  defp agent_launch_class(_inventory),
+    do: badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+
+  defp agent_launch_summary(%{status: "ready"} = readiness) do
+    args = Map.get(readiness, :args, [])
+    env_keys = Map.get(readiness, :env_keys, [])
+
+    [
+      "exec #{Path.basename(Map.get(readiness, :executable, "unknown"))}",
+      pluralize_count(length(args), "arg"),
+      agent_launch_cwd_label(Map.get(readiness, :cwd)),
+      pluralize_count(length(env_keys), "env key")
+    ]
+    |> Enum.join(" · ")
+  end
+
+  defp agent_launch_summary(%{status: "invalid", error: error}) when is_binary(error) do
+    "Command cannot be resolved: #{error}"
+  end
+
+  defp agent_launch_summary(_inventory), do: "Command readiness has not been checked yet."
+
+  defp agent_launch_cwd_label(nil), do: "cwd app default"
+  defp agent_launch_cwd_label(cwd), do: "cwd #{Path.basename(cwd)}"
+
   defp agent_probe_commands(%{real_agent_candidate: true, agent: agent}) do
     [
       %{
@@ -1490,6 +1525,20 @@ defmodule HavenWeb.InboxLive do
                       <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-zinc-950">{agent_config.key}</p>
                         <p class="mt-1 truncate text-xs text-zinc-500">{agent_config.executable}</p>
+                        <div class="mt-2 flex flex-wrap items-center gap-2">
+                          <span
+                            id={"agent-config-#{agent_config.key}-launch"}
+                            class={agent_launch_class(readiness)}
+                          >
+                            {agent_launch_label(readiness)}
+                          </span>
+                          <p
+                            id={"agent-config-#{agent_config.key}-launch-summary"}
+                            class="min-w-0 text-xs text-zinc-500"
+                          >
+                            {agent_launch_summary(readiness)}
+                          </p>
+                        </div>
                         <div :if={probe_commands != []} class="mt-2 space-y-2">
                           <div
                             :for={probe <- probe_commands}

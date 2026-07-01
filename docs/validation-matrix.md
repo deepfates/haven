@@ -91,6 +91,10 @@ Evidence:
 - The inbox has a basic Agent Setup form for saving a persisted ACP command
   with key, executable, args, cwd, and env values; LiveView tests and browser
   smoke verify the saved key appears in the run picker and can create a run.
+- Saved agent setup rows separate launch readiness from ACP proof: LiveView
+  tests verify resolvable commands show executable/arg/env-key metadata without
+  leaking env values, while missing executables render as blocked before a run
+  is started.
 - The inbox can edit and delete persisted agent command definitions; LiveView
   tests verify updated keys replace old picker options and deleted keys
   disappear from run creation.
@@ -650,7 +654,7 @@ and should not be counted as complete until there is executable evidence.
   secrets to launched agents, but no interactive auth flow is proven.
 - Session load/resume/fork/list support when agents expose it.
 - Product-grade workspace and agent configuration UI beyond saved rows,
-  readiness summaries, and agent inventory.
+  workspace readiness summaries, agent launch readiness, and agent inventory.
 - Authenticated user identity for permission decisions.
 
 ## Next Best Validation Work
