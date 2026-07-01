@@ -328,7 +328,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     end
 
     if registry? do
-      print_registry_suggestions()
+      print_registry_suggestions(workspace)
     end
   end
 
@@ -535,7 +535,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   defp pluralize(1, singular), do: singular
   defp pluralize(_count, singular), do: singular <> "s"
 
-  defp print_registry_suggestions do
+  defp print_registry_suggestions(workspace) do
     Mix.shell().info("")
     Mix.shell().info("ACP registry npx suggestions:")
 
@@ -563,9 +563,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
             "  - #{suggestion.id} (#{suggestion.name} #{suggestion.version || "unknown"})"
           )
 
-          Mix.shell().info(
-            "    try: #{Haven.AgentRegistry.trial_command(suggestion, File.cwd!())}"
-          )
+          Mix.shell().info("    try: #{Haven.AgentRegistry.trial_command(suggestion, workspace)}")
         end)
 
         if length(suggestions) > 12 do
