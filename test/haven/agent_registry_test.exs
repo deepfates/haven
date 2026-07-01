@@ -49,6 +49,17 @@ defmodule Haven.AgentRegistryTest do
 
     assert AgentRegistry.suggestions(%{
              "agents" => [
+               %{
+                 "distribution" => %{
+                   "npx" => %{"package" => "@agentclientprotocol/missing-id@1.0.0"}
+                 }
+               },
+               %{
+                 "id" => "",
+                 "distribution" => %{
+                   "npx" => %{"package" => "@agentclientprotocol/blank-id@1.0.0"}
+                 }
+               },
                %{"id" => "missing-package", "distribution" => %{"npx" => %{}}},
                %{"id" => "bad-package", "distribution" => %{"npx" => %{"package" => ""}}}
              ]

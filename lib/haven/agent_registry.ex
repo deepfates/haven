@@ -76,14 +76,14 @@ defmodule Haven.AgentRegistry do
     |> Enum.join(" ")
   end
 
-  defp suggestion(%{"distribution" => %{"npx" => %{"package" => package}}} = agent)
-       when is_binary(package) and package != "" do
+  defp suggestion(%{"id" => id, "distribution" => %{"npx" => %{"package" => package}}} = agent)
+       when is_binary(id) and id != "" and is_binary(package) and package != "" do
     args = ["-y", package] ++ string_list(get_in(agent, ["distribution", "npx", "args"]))
 
     [
       %{
-        id: agent["id"],
-        name: agent["name"] || agent["id"],
+        id: id,
+        name: agent["name"] || id,
         version: agent["version"],
         description: agent["description"],
         executable: "npx",

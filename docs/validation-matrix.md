@@ -749,6 +749,9 @@ Evidence:
   prints npx-backed `HAVEN_AGENTS_JSON` proof commands, so Haven can guide users
   toward real ACP adapters such as `claude-acp`, `codex-acp`, and `gemini`
   instead of relying on local shell placeholders.
+- Registry suggestions require both a nonblank agent id and an npx package
+  before Haven turns them into trial or saved-agent commands, so malformed
+  registry entries cannot become trusted agent keys.
 - `mix haven.agent_probe --save-registry-agent AGENT_ID` persists one registry
   suggestion into the same Agent Setup table used by the UI, reducing the gap
   between discovery and a preflighted saved command without treating the saved
