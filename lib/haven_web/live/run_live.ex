@@ -125,6 +125,7 @@ defmodule HavenWeb.RunLive do
     run = Runs.get_run!(id)
     events = Events.list_for_run(id)
     file_changes = FileChanges.list_for_run(id)
+    terminal_sessions = TerminalSessions.list_for_run(id)
     live? = Runs.started?(id)
 
     socket
@@ -133,7 +134,8 @@ defmodule HavenWeb.RunLive do
     |> assign(:file_changes, file_changes)
     |> assign(:file_change_counts, file_change_counts(file_changes))
     |> assign(:permission_audits, PermissionAudits.list_for_run(id))
-    |> assign(:terminal_sessions, TerminalSessions.list_for_run(id))
+    |> assign(:terminal_sessions, terminal_sessions)
+    |> assign(:terminal_session_counts, terminal_session_counts(terminal_sessions))
     |> assign(:events, events)
     |> assign_event_projection(events)
     |> assign(:live?, live?)
@@ -898,6 +900,53 @@ defmodule HavenWeb.RunLive do
       end
     ]
   end
+
+  defp terminal_session_counts(sessions) do
+    counts = Enum.frequencies_by(sessions, & &1.status)
+
+    %{
+      "all" => length(sessions),
+      "running" => Map.get(counts, "running", 0),
+      "completed" => Map.get(counts, "exited", 0) + Map.get(counts, "released", 0),
+      "attention" => Map.get(counts, "killed", 0) + Map.get(counts, "failed", 0)
+    }
+  end
+
+  defp terminal_review_label(%{status: "running"}), do: "Running"
+
+  defp terminal_review_label(%{status: status}) when status in ["exited", "released"],
+    do: "Completed"
+
+  defp terminal_review_label(%{status: status}) when status in ["killed", "failed"],
+    do: "Needs attention"
+
+  defp terminal_review_label(_session), do: "Recorded"
+
+  defp terminal_review_hint(%{status: "running"}) do
+    "This terminal is still active or waiting for output."
+  end
+
+  defp terminal_review_hint(%{status: "exited", exit_status: 0}) do
+    "The command exited successfully."
+  end
+
+  defp terminal_review_hint(%{status: "exited", exit_status: status}) when not is_nil(status) do
+    "The command exited with status #{status}."
+  end
+
+  defp terminal_review_hint(%{status: "released"}) do
+    "The terminal was released without a captured exit status."
+  end
+
+  defp terminal_review_hint(%{status: "killed"}) do
+    "The terminal was killed before normal completion."
+  end
+
+  defp terminal_review_hint(%{status: "failed"}) do
+    "Terminal execution failed; inspect the timeline for the failure event."
+  end
+
+  defp terminal_review_hint(_session), do: "This terminal session is recorded for review."
 
   defp terminal_args_label(%{"items" => []}), do: "none"
   defp terminal_args_label(%{"items" => args}) when is_list(args), do: Enum.join(args, " ")
@@ -1783,6 +1832,31 @@ defmodule HavenWeb.RunLive do
                   No terminal sessions recorded.
                 </div>
 
+                <div
+                  :if={@terminal_sessions != []}
+                  id="run-terminal-session-summary"
+                  class="mt-3 grid grid-cols-3 gap-2 text-xs"
+                >
+                  <div class="rounded-md border border-sky-200 bg-sky-50 p-2">
+                    <p class="font-semibold uppercase text-sky-700">Running</p>
+                    <p id="run-terminal-session-running-count" class="mt-1 font-mono text-zinc-900">
+                      {@terminal_session_counts["running"]}
+                    </p>
+                  </div>
+                  <div class="rounded-md border border-emerald-200 bg-emerald-50 p-2">
+                    <p class="font-semibold uppercase text-emerald-700">Completed</p>
+                    <p id="run-terminal-session-completed-count" class="mt-1 font-mono text-zinc-900">
+                      {@terminal_session_counts["completed"]}
+                    </p>
+                  </div>
+                  <div class="rounded-md border border-rose-200 bg-rose-50 p-2">
+                    <p class="font-semibold uppercase text-rose-700">Needs attention</p>
+                    <p id="run-terminal-session-attention-count" class="mt-1 font-mono text-zinc-900">
+                      {@terminal_session_counts["attention"]}
+                    </p>
+                  </div>
+                </div>
+
                 <div class="mt-3 space-y-3">
                   <article
                     :for={session <- @terminal_sessions}
@@ -1805,6 +1879,15 @@ defmodule HavenWeb.RunLive do
                         {session.status}
                       </span>
                     </div>
+                    <p
+                      id={"terminal-session-#{session.terminal_id}-review-state"}
+                      class="mt-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600"
+                    >
+                      <span class="font-semibold text-zinc-900">
+                        {terminal_review_label(session)}
+                      </span>
+                      {" · "}{terminal_review_hint(session)}
+                    </p>
 
                     <dl class="mt-3 grid gap-2 text-xs text-zinc-700">
                       <div id={"terminal-session-#{session.terminal_id}-args"}>

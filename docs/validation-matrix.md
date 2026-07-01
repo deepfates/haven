@@ -599,6 +599,10 @@ Evidence:
   preview. Browser smoke creates a run, triggers the terminal sample, verifies
   the rendered terminal session, reloads the page, and verifies the same
   persisted projection remains visible.
+- LiveView integration tests verify the terminal session surface summarizes
+  running, completed, and attention-needed session counts, and labels each
+  terminal session with outcome-specific guidance for running, exited, and
+  failed states.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
   gate rather than only a documentation convention. Committed reports can now

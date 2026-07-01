@@ -2194,13 +2194,70 @@ defmodule HavenWeb.RunLiveTest do
     assert session.released_at
 
     assert has_element?(view, "#run-terminal-session-count", "1")
+    assert has_element?(view, "#run-terminal-session-summary")
+    assert has_element?(view, "#run-terminal-session-running-count", "0")
+    assert has_element?(view, "#run-terminal-session-completed-count", "1")
+    assert has_element?(view, "#run-terminal-session-attention-count", "0")
     assert has_element?(view, "#terminal-session-#{terminal_id}", "echo")
     assert has_element?(view, "#terminal-session-#{terminal_id}-status", "exited")
+    assert has_element?(view, "#terminal-session-#{terminal_id}-review-state", "Completed")
+
+    assert has_element?(
+             view,
+             "#terminal-session-#{terminal_id}-review-state",
+             "exited successfully"
+           )
+
     assert has_element?(view, "#terminal-session-#{terminal_id}-args", "hello")
     assert has_element?(view, "#terminal-session-#{terminal_id}-cwd", run.workspace)
     assert has_element?(view, "#terminal-session-#{terminal_id}-exit", "0")
     assert has_element?(view, "#terminal-session-#{terminal_id}-bytes", "6")
     assert has_element?(view, "#terminal-session-#{terminal_id}-output", "hello")
+  end
+
+  test "summarizes mixed persisted terminal session outcomes", %{conn: conn} do
+    run = insert_disconnected_run!("Mixed terminal sessions")
+
+    TerminalSessions.create_session!(run.id, %{
+      terminal_id: "term-running",
+      command: "mix",
+      args: %{"items" => ["test"]},
+      cwd: run.workspace,
+      env_keys: %{"items" => []},
+      status: "running"
+    })
+
+    TerminalSessions.create_session!(run.id, %{
+      terminal_id: "term-exited",
+      command: "echo",
+      args: %{"items" => ["ok"]},
+      cwd: run.workspace,
+      env_keys: %{"items" => []},
+      status: "exited",
+      exit_status: 2
+    })
+
+    TerminalSessions.create_session!(run.id, %{
+      terminal_id: "term-failed",
+      command: "bad",
+      args: %{"items" => []},
+      cwd: run.workspace,
+      env_keys: %{"items" => []},
+      status: "failed"
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-terminal-session-count", "3")
+    assert has_element?(view, "#run-terminal-session-running-count", "1")
+    assert has_element?(view, "#run-terminal-session-completed-count", "1")
+    assert has_element?(view, "#run-terminal-session-attention-count", "1")
+    assert has_element?(view, "#terminal-session-term-running-review-state", "Running")
+    assert has_element?(view, "#terminal-session-term-running-review-state", "still active")
+    assert has_element?(view, "#terminal-session-term-exited-review-state", "Completed")
+    assert has_element?(view, "#terminal-session-term-exited-review-state", "status 2")
+    assert has_element?(view, "#terminal-session-term-failed-review-state", "Needs attention")
+    assert has_element?(view, "#terminal-session-term-failed-review-state", "execution failed")
   end
 
   test "auto-denies ACP terminal creation when the run policy rejects it", %{conn: conn} do

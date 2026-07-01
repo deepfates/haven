@@ -346,6 +346,9 @@ Proven:
 - Deterministic non-interactive ACP terminal create/wait/output/release requests
   can be handled, logged, scoped to the selected workspace, and projected back
   to the agent.
+- The terminal-session review surface summarizes running, completed, and
+  attention-needed sessions and labels individual terminal outcomes with
+  inspectable guidance.
 - Terminal creation can be approval-gated by per-run policy: the rendered
   permission card can approve the request and continue terminal execution, or
   deny it before a terminal process is spawned.
