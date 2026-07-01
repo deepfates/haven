@@ -598,6 +598,47 @@ defmodule HavenWeb.RunLive do
 
   defp recovery_attention(_run, _live?, _workspace_missing?), do: nil
 
+  defp recovery_option_rows(assigns) do
+    [
+      assigns.can_continue_failed? &&
+        %{
+          id: "continue",
+          label: "Continue",
+          description: "Start a fresh ACP session and send a new instruction."
+        },
+      assigns.can_retry_last_prompt? &&
+        %{
+          id: "retry",
+          label: "Retry",
+          description: "Start a fresh ACP session and resend the last user prompt."
+        },
+      recovery_action_row(assigns.recovery_attention)
+    ]
+    |> Enum.reject(&(&1 in [nil, false]))
+  end
+
+  defp recovery_action_row(%{action: "Restart"}) do
+    %{
+      id: "restart",
+      label: "Restart",
+      description: "Start a fresh ACP session without sending a prompt yet."
+    }
+  end
+
+  defp recovery_action_row(%{action: "Reconnect"}) do
+    %{
+      id: "reconnect",
+      label: "Reconnect",
+      description: "Attach a fresh ACP session to this saved run history."
+    }
+  end
+
+  defp recovery_action_row(_attention), do: nil
+
+  defp recovery_action_title("Restart"), do: "Start a fresh ACP session without sending a prompt."
+  defp recovery_action_title("Reconnect"), do: "Attach a fresh ACP session to this run."
+  defp recovery_action_title(_action), do: nil
+
   defp latest_failure_summary(events) do
     events
     |> Enum.reverse()
@@ -2470,6 +2511,20 @@ defmodule HavenWeb.RunLive do
                   <p class="text-xs font-semibold uppercase text-rose-700">Last prompt</p>
                   <p class="mt-1 whitespace-pre-wrap">{@last_user_prompt}</p>
                 </div>
+                <ul
+                  :if={recovery_option_rows(assigns) != []}
+                  id="run-recovery-option-guide"
+                  class="mt-3 space-y-2 text-sm text-zinc-700"
+                >
+                  <li
+                    :for={option <- recovery_option_rows(assigns)}
+                    id={"run-recovery-option-#{option.id}"}
+                    class="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)]"
+                  >
+                    <span class="font-semibold text-zinc-950">{option.label}</span>
+                    <span>{option.description}</span>
+                  </li>
+                </ul>
                 <.form
                   :if={@can_continue_failed?}
                   id="continue-after-failure-form"
@@ -2495,6 +2550,7 @@ defmodule HavenWeb.RunLive do
                     :if={@can_retry_last_prompt?}
                     id="retry-last-prompt-button"
                     type="button"
+                    title="Restart this run and resend the last user prompt."
                     class="h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
                     phx-click="retry_last_prompt"
                   >
@@ -2504,6 +2560,7 @@ defmodule HavenWeb.RunLive do
                     :if={@recovery_attention.action}
                     id="run-recovery-action-button"
                     type="button"
+                    title={recovery_action_title(@recovery_attention.action)}
                     class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                     phx-click="reconnect"
                   >

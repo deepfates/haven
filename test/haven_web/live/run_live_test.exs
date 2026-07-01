@@ -541,6 +541,20 @@ defmodule HavenWeb.RunLiveTest do
 
     assert has_element?(view, "#run-recovery-card", "Run is not connected")
     assert has_element?(view, "#run-recovery-action-button", "Reconnect")
+    assert has_element?(view, "#run-recovery-option-guide")
+    assert has_element?(view, "#run-recovery-option-reconnect", "Reconnect")
+
+    assert has_element?(
+             view,
+             "#run-recovery-option-reconnect",
+             "Attach a fresh ACP session to this saved run history."
+           )
+
+    assert has_element?(
+             view,
+             ~s|#run-recovery-action-button[title="Attach a fresh ACP session to this run."]|
+           )
+
     assert has_element?(view, "#reconnect-run-button", "Reconnect")
 
     view
@@ -729,6 +743,30 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "failed"
     assert has_element?(view, "#run-recovery-card", "Run failed")
     assert has_element?(view, "#run-recovery-action-button", "Restart")
+    assert has_element?(view, "#run-recovery-option-guide")
+    assert has_element?(view, "#run-recovery-option-continue", "Continue")
+
+    assert has_element?(
+             view,
+             "#run-recovery-option-continue",
+             "Start a fresh ACP session and send a new instruction."
+           )
+
+    assert has_element?(view, "#run-recovery-option-restart", "Restart")
+
+    assert has_element?(
+             view,
+             "#run-recovery-option-restart",
+             "Start a fresh ACP session without sending a prompt yet."
+           )
+
+    refute has_element?(view, "#run-recovery-option-retry")
+
+    assert has_element?(
+             view,
+             ~s|#run-recovery-action-button[title="Start a fresh ACP session without sending a prompt."]|
+           )
+
     assert has_element?(view, "#reconnect-run-button", "Restart")
     assert has_element?(view, "#run-control-notice", "continue, retry, or restart")
     refute has_element?(view, "#retry-last-prompt-button")
@@ -774,6 +812,19 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#retry-last-prompt-button", "Retry last prompt")
     assert has_element?(view, "#retry-last-prompt-preview", "Last prompt")
     assert has_element?(view, "#retry-last-prompt-preview", "retry me")
+    assert has_element?(view, "#run-recovery-option-guide")
+
+    assert has_element?(
+             view,
+             "#run-recovery-option-retry",
+             "Start a fresh ACP session and resend the last user prompt."
+           )
+
+    assert has_element?(
+             view,
+             ~s|#retry-last-prompt-button[title="Restart this run and resend the last user prompt."]|
+           )
+
     assert has_element?(view, "#run-recovery-action-button", "Restart")
 
     view
@@ -841,6 +892,12 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-recovery-card", "Run failed")
     assert has_element?(view, "#continue-after-failure-form")
     assert has_element?(view, "#continue-after-failure-button", "Continue with new prompt")
+
+    assert has_element?(
+             view,
+             "#run-recovery-option-continue",
+             "Start a fresh ACP session and send a new instruction."
+           )
 
     view
     |> form("#continue-after-failure-form", %{"prompt" => "try a different approach"})
