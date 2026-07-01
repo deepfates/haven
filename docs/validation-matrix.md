@@ -118,6 +118,10 @@ Evidence:
   LiveView tests verify credential-like env keys are labeled, workspace
   substitutions are distinguished from static env, and env values are not
   rendered in setup rows.
+- The Start Run agent evidence panel mirrors saved-agent auth scope before
+  launch: LiveView tests verify credential-like env keys are labeled and env
+  values remain hidden while the user is choosing an agent; browser smoke
+  verifies the same behavior in the running app.
 - The inbox can edit and delete persisted agent command definitions; LiveView
   tests verify updated keys replace old picker options and deleted keys
   disappear from run creation.

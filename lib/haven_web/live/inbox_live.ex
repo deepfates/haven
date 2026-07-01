@@ -791,49 +791,107 @@ defmodule HavenWeb.InboxLive do
   defp agent_config_cwd_scope_label(%{cwd: cwd}), do: "cwd #{cwd}"
 
   defp agent_config_env_scope_label(agent_config) do
-    keys =
-      agent_config.env
-      |> case do
-        env when is_map(env) -> Map.keys(env)
-        _ -> []
-      end
-      |> Enum.map(&to_string/1)
-      |> Enum.sort()
+    agent_config.env
+    |> env_keys()
+    |> env_scope_label()
+  end
 
-    case keys do
-      [] -> "env none"
-      keys -> "env keys #{Enum.join(keys, ", ")}"
+  defp agent_readiness_env_scope_label(%{env_keys: keys}) when is_list(keys) do
+    keys
+    |> normalize_env_keys()
+    |> env_scope_label()
+  end
+
+  defp agent_readiness_env_scope_label(_readiness), do: "env unknown"
+
+  defp agent_config_env_auth_label(agent_config) do
+    agent_config
+    |> agent_config_env()
+    |> Map.keys()
+    |> env_auth_label()
+  end
+
+  defp agent_readiness_env_auth_label(%{env_keys: keys}) when is_list(keys) do
+    env_auth_label(keys)
+  end
+
+  defp agent_readiness_env_auth_label(_readiness), do: "Auth unknown"
+
+  defp agent_config_env_auth_class(agent_config) do
+    agent_config
+    |> agent_config_env()
+    |> Map.keys()
+    |> env_auth_class()
+  end
+
+  defp agent_readiness_env_auth_class(%{env_keys: keys}) when is_list(keys) do
+    env_auth_class(keys)
+  end
+
+  defp agent_readiness_env_auth_class(_readiness),
+    do: badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+
+  defp agent_config_env_auth_reason(agent_config) do
+    agent_config
+    |> agent_config_env()
+    |> Map.keys()
+    |> env_auth_reason("setup views and launch evidence")
+  end
+
+  defp agent_readiness_env_auth_reason(%{env_keys: keys}) when is_list(keys) do
+    env_auth_reason(keys, "launch evidence")
+  end
+
+  defp agent_readiness_env_auth_reason(_readiness), do: "Agent auth scope is unknown."
+
+  defp env_keys(env) when is_map(env), do: Map.keys(env) |> normalize_env_keys()
+  defp env_keys(_env), do: []
+
+  defp normalize_env_keys(keys) do
+    keys |> Enum.map(&to_string/1) |> Enum.sort()
+  end
+
+  defp env_scope_label([]), do: "env none"
+  defp env_scope_label(keys), do: "env keys #{Enum.join(keys, ", ")}"
+
+  defp env_auth_label(keys) do
+    keys = normalize_env_keys(keys)
+
+    cond do
+      keys == [] -> "No auth env"
+      Enum.any?(keys, &credential_env_key?/1) -> "Credential env"
+      true -> "Plain env"
     end
   end
 
-  defp agent_config_env_auth_label(agent_config) do
-    env = agent_config_env(agent_config)
-    keys = Map.keys(env)
+  defp env_auth_class(keys) do
+    keys = normalize_env_keys(keys)
 
     cond do
       keys == [] ->
-        "No auth env"
-
-      Enum.any?(keys, &credential_env_key?/1) ->
-        "Credential env"
-
-      true ->
-        "Plain env"
-    end
-  end
-
-  defp agent_config_env_auth_class(agent_config) do
-    env = agent_config_env(agent_config)
-
-    cond do
-      env == %{} ->
         badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
 
-      Enum.any?(Map.keys(env), &credential_env_key?/1) ->
+      Enum.any?(keys, &credential_env_key?/1) ->
         badge_class("border-amber-200 bg-amber-50 text-amber-700")
 
       true ->
         badge_class("border-sky-200 bg-sky-50 text-sky-700")
+    end
+  end
+
+  defp env_auth_reason(keys, hidden_surface) do
+    keys = normalize_env_keys(keys)
+    credential_keys = Enum.filter(keys, &credential_env_key?/1)
+
+    cond do
+      keys == [] ->
+        "No environment variables will be injected into this agent."
+
+      credential_keys != [] ->
+        "Credential-like keys will be injected: #{Enum.join(credential_keys, ", ")}. Values stay hidden in Haven's #{hidden_surface}."
+
+      true ->
+        "Environment variable names will be injected into this agent; values stay hidden in Haven's #{hidden_surface}."
     end
   end
 
@@ -849,23 +907,6 @@ defmodule HavenWeb.InboxLive do
 
       true ->
         "Static env"
-    end
-  end
-
-  defp agent_config_env_auth_reason(agent_config) do
-    env = agent_config_env(agent_config)
-    keys = env |> Map.keys() |> Enum.map(&to_string/1) |> Enum.sort()
-    credential_keys = Enum.filter(keys, &credential_env_key?/1)
-
-    cond do
-      keys == [] ->
-        "No environment variables will be injected into this agent."
-
-      credential_keys != [] ->
-        "Credential-like keys are present: #{Enum.join(credential_keys, ", ")}. Values stay hidden in Haven's setup views and launch evidence."
-
-      true ->
-        "Environment variables are configured; Haven shows key names only and keeps values out of setup and launch evidence."
     end
   end
 
@@ -1896,6 +1937,24 @@ defmodule HavenWeb.InboxLive do
                     <p id="new-run-agent-evidence-reason" class="mt-1 truncate">
                       {agent_evidence_reason(selected_readiness, selected_reports)}
                     </p>
+                    <div
+                      id="new-run-agent-auth-scope"
+                      class="mt-2 flex flex-wrap items-center gap-2"
+                      title={agent_readiness_env_auth_reason(selected_readiness)}
+                    >
+                      <span
+                        id="new-run-agent-auth-env"
+                        class={agent_readiness_env_auth_class(selected_readiness)}
+                      >
+                        {agent_readiness_env_auth_label(selected_readiness)}
+                      </span>
+                      <span
+                        id="new-run-agent-env-keys"
+                        class="inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-600"
+                      >
+                        {agent_readiness_env_scope_label(selected_readiness)}
+                      </span>
+                    </div>
                     <p
                       :if={selected_gap_reports != []}
                       id="new-run-agent-capability-gap-reason"

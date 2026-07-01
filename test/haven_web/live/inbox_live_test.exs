@@ -97,7 +97,8 @@ defmodule HavenWeb.InboxLiveTest do
              Agents.create_agent_config(%{
                key: "codex-acp",
                executable: "sh",
-               args: ["-c", "cat"]
+               args: ["-c", "cat"],
+               env: %{"API_TOKEN" => "super-secret", "MODE" => "dev"}
              })
 
     {:ok, view, _html} = live(conn, ~p"/")
@@ -116,12 +117,19 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#new-run-agent-key", "codex-acp")
     assert has_element?(view, "#new-run-agent-launch", "Launch ready")
     assert has_element?(view, "#new-run-agent-trust", "4 accepted probes")
+    assert has_element?(view, "#new-run-agent-auth-scope")
+    assert has_element?(view, "#new-run-agent-auth-env", "Credential env")
+    assert has_element?(view, "#new-run-agent-env-keys", "env keys API_TOKEN, MODE")
 
     assert has_element?(
              view,
              "#new-run-agent-evidence-reason",
              "validated committed reports"
            )
+
+    html = render(view)
+    assert html =~ "Credential-like keys will be injected: API_TOKEN"
+    refute html =~ "super-secret"
   end
 
   test "renders runs before setup panels in the mobile-first inbox hierarchy", %{conn: conn} do
@@ -622,7 +630,7 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#agent-config-candidate-agent-auth-scope")
     assert has_element?(view, "#agent-config-candidate-agent-auth-env", "Credential env")
     assert has_element?(view, "#agent-config-candidate-agent-env-substitution", "Static env")
-    assert render(view) =~ "Credential-like keys are present: SECRET"
+    assert render(view) =~ "Credential-like keys will be injected: SECRET"
     assert has_element?(view, "#agent-config-candidate-agent-launch-summary", "exec sh")
     assert has_element?(view, "#agent-config-candidate-agent-launch-summary", "2 args")
     assert has_element?(view, "#agent-config-candidate-agent-launch-summary", "1 env key")
@@ -766,7 +774,7 @@ defmodule HavenWeb.InboxLiveTest do
            )
 
     html = render(view)
-    assert html =~ "Environment variables are configured"
+    assert html =~ "Environment variable names will be injected into this agent"
     refute html =~ "MODE=local"
     refute html =~ "WORKSPACE={workspace}"
   end
