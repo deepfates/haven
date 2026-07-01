@@ -135,6 +135,9 @@ Evidence:
   LiveView tests verify credential-like env keys are labeled, workspace
   substitutions are distinguished from static env, and env values are not
   rendered in setup rows.
+- Runtime, saved, and registry-derived agent environment names must be
+  process-safe names such as `API_TOKEN`; malformed keys are rejected or ignored
+  before launch evidence or probe commands can make them look trustworthy.
 - The Start Run agent evidence panel mirrors saved-agent auth scope before
   launch: LiveView tests verify credential-like env keys are labeled and env
   values remain hidden while the user is choosing an agent; browser smoke

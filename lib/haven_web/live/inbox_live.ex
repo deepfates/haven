@@ -7,6 +7,8 @@ defmodule HavenWeb.InboxLive do
   alias Haven.Runs
   alias Haven.Workspaces
 
+  @env_name_regex ~r/^[A-Za-z_][A-Za-z0-9_]*$/
+
   @run_filters [
     {"all", "All"},
     {"needs_you", "Needs You"},
@@ -1141,10 +1143,10 @@ defmodule HavenWeb.InboxLive do
         [key, value] ->
           key = String.trim(key)
 
-          if key == "" do
-            {:halt, {:error, "Environment lines must use KEY=value"}}
-          else
+          if String.match?(key, @env_name_regex) do
             {:cont, {:ok, Map.put(env, key, String.trim(value))}}
+          else
+            {:halt, {:error, "Environment keys must use shell-safe names like API_TOKEN"}}
           end
 
         _ ->

@@ -1305,6 +1305,23 @@ defmodule HavenWeb.InboxLiveTest do
     assert html =~ "Environment lines must use KEY=value"
     assert has_element?(view, "#agent-config-error")
     assert Agents.list_agent_configs() == []
+
+    html =
+      view
+      |> form("#agent-config-form", %{
+        "agent_config" => %{
+          "key" => "unsafe-env-agent",
+          "executable" => "sh",
+          "args_text" => "",
+          "cwd" => "",
+          "env_text" => "BAD-NAME=value"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "Environment keys must use shell-safe names like API_TOKEN"
+    assert has_element?(view, "#agent-config-error")
+    assert Agents.list_agent_configs() == []
   end
 
   @tag :tmp_dir

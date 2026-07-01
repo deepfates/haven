@@ -2,6 +2,8 @@ defmodule Haven.Agents.AgentConfig do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @env_name_regex ~r/^[A-Za-z_][A-Za-z0-9_]*$/
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
@@ -94,10 +96,12 @@ defmodule Haven.Agents.AgentConfig do
     end)
     |> validate_change(:env, fn
       :env, env when is_map(env) ->
-        if Enum.all?(env, fn {key, value} -> is_binary(key) and key != "" and is_binary(value) end) do
+        if Enum.all?(env, fn {key, value} ->
+             is_binary(key) and String.match?(key, @env_name_regex) and is_binary(value)
+           end) do
           []
         else
-          [env: "must contain string keys and values"]
+          [env: "must contain process-safe string keys and values"]
         end
 
       :env, _env ->

@@ -4,6 +4,7 @@ defmodule Haven.AgentRegistry do
   """
 
   @registry_url "https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json"
+  @env_name_regex ~r/^[A-Za-z_][A-Za-z0-9_]*$/
 
   @type suggestion :: %{
           id: String.t(),
@@ -104,7 +105,9 @@ defmodule Haven.AgentRegistry do
 
   defp string_map(values) when is_map(values) do
     values
-    |> Enum.filter(fn {key, value} -> is_binary(key) and is_binary(value) end)
+    |> Enum.filter(fn {key, value} ->
+      is_binary(key) and String.match?(key, @env_name_regex) and is_binary(value)
+    end)
     |> Map.new()
   end
 

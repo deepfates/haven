@@ -15,7 +15,10 @@ defmodule Haven.AgentRegistryTest do
             "npx" => %{
               "package" => "@agentclientprotocol/codex-acp@1.0.1",
               "args" => ["--flag"],
-              "env" => %{"CODEX_HOME" => "{workspace}/.codex"}
+              "env" => %{
+                "CODEX_HOME" => "{workspace}/.codex",
+                "BAD-NAME" => "ignored"
+              }
             }
           }
         },

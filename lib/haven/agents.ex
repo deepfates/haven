@@ -22,6 +22,8 @@ defmodule Haven.Agents do
   alias Haven.AgentProbeReport
   alias Haven.Repo
 
+  @env_name_regex ~r/^[A-Za-z_][A-Za-z0-9_]*$/
+
   @type command :: %{
           executable: String.t(),
           args: [String.t()],
@@ -380,7 +382,7 @@ defmodule Haven.Agents do
   end
 
   defp valid_env_pair?({name, value}) when is_binary(value) do
-    (is_atom(name) or is_binary(name)) and to_string(name) != ""
+    (is_atom(name) or is_binary(name)) and String.match?(to_string(name), @env_name_regex)
   end
 
   defp valid_env_pair?(_pair), do: false

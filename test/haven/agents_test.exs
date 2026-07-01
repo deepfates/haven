@@ -91,6 +91,23 @@ defmodule Haven.AgentsTest do
     })
 
     assert {:error, {:invalid_agent_field, :env}} = Agents.command("external", "/repo")
+
+    Application.put_env(:haven, :agents, %{
+      "external" => %{executable: "sh", env: %{"BAD=KEY" => "value"}}
+    })
+
+    assert {:error, {:invalid_agent_field, :env}} = Agents.command("external", "/repo")
+  end
+
+  test "rejects persisted agent configs with unsafe env names" do
+    assert {:error, changeset} =
+             Agents.create_agent_config(%{
+               key: "bad-env-agent",
+               executable: "sh",
+               env: %{"1TOKEN" => "value"}
+             })
+
+    assert {"must contain process-safe string keys and values", _} = changeset.errors[:env]
   end
 
   test "lists the built-in stub and configured agent keys for run creation" do
