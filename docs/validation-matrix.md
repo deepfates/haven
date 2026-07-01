@@ -4,6 +4,10 @@ This document tracks whether the current Phoenix implementation actually serves
 the production-grade Haven product story: a non-IDE ACP client for durable,
 inspectable agent runs with explicit human decisions.
 
+For the current ship/no-ship cut line, see `docs/ship-readiness.md`. That
+document is the stop rule for avoiding endless local hardening before real-agent
+evidence exists.
+
 ## Current Evidence
 
 - Unit and integration tests: `mix test`
