@@ -774,12 +774,19 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#inbox-running-section")
     assert has_element?(view, "#inbox-history-section")
     assert has_element?(view, "article", "Needs approval")
+    assert has_element?(view, ~s|#run-#{waiting.id}-title-link[href="/runs/#{waiting.id}"]|)
     assert has_element?(view, "#run-#{waiting.id}-attention", "Needs decision")
-    assert has_element?(view, "a", "Decide")
+
+    assert has_element?(
+             view,
+             ~s|#run-#{waiting.id}-primary-action[href="/runs/#{waiting.id}"]|,
+             "Decide"
+           )
+
     assert has_element?(view, "article", "Still working")
     assert has_element?(view, "article", "Needs restart")
     assert has_element?(view, "#run-#{failed.id}-attention", "Needs recovery")
-    assert has_element?(view, "a", "Recover")
+    assert has_element?(view, "#run-#{failed.id}-primary-action", "Recover")
     assert has_element?(view, "article", "Quiet")
   end
 

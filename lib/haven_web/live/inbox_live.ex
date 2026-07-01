@@ -1217,7 +1217,15 @@ defmodule HavenWeb.InboxLive do
     >
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <h3 class="truncate text-sm font-semibold text-zinc-950">{@run.title}</h3>
+          <h3 class="truncate text-sm font-semibold text-zinc-950">
+            <.link
+              id={"run-#{@run.id}-title-link"}
+              navigate={~p"/runs/#{@run.id}"}
+              class="hover:text-zinc-700"
+            >
+              {@run.title}
+            </.link>
+          </h3>
           <p
             id={"run-#{@run.id}-workspace"}
             title={@run.workspace}
@@ -1298,6 +1306,7 @@ defmodule HavenWeb.InboxLive do
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <.link
+            id={"run-#{@run.id}-primary-action"}
             navigate={~p"/runs/#{@run.id}"}
             class="inline-flex h-8 items-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
           >
