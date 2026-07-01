@@ -143,6 +143,54 @@ defmodule Haven.RunsTest do
     assert [%{type: "run_created"}] = Events.list_for_run(closed.id)
   end
 
+  @tag :tmp_dir
+  test "direct start_run refuses missing historical workspaces without appending lifecycle events",
+       %{
+         tmp_dir: tmp_dir
+       } do
+    workspace = Path.join(tmp_dir, "vanished")
+    File.mkdir_p!(workspace)
+    run = insert_run!("Missing workspace start boundary", "idle", workspace)
+    File.rm_rf!(workspace)
+
+    assert {:error, {:missing_workspace, ^workspace}} = Runs.start_run(run.id)
+    assert [%{type: "run_created"}] = Events.list_for_run(run.id)
+    refute Runs.started?(run.id)
+  end
+
+  @tag :tmp_dir
+  test "reconnect refuses missing historical workspaces without rewriting run history", %{
+    tmp_dir: tmp_dir
+  } do
+    workspace = Path.join(tmp_dir, "vanished")
+    File.mkdir_p!(workspace)
+    run = insert_run!("Missing workspace reconnect boundary", "failed", workspace)
+    Events.append!(run.id, "user_message", %{"text" => "try again"})
+    File.rm_rf!(workspace)
+
+    assert {:error, {:missing_workspace, ^workspace}} = Runs.reconnect_run(run.id)
+    assert Runs.get_run!(run.id).status == "failed"
+
+    events = Events.list_for_run(run.id)
+    refute Enum.any?(events, &(&1.type == "run_reconnect_requested"))
+    refute Enum.any?(events, &(&1.type == "turn_failed"))
+    refute Runs.started?(run.id)
+  end
+
+  @tag :tmp_dir
+  test "send_prompt refuses missing historical workspaces before starting a process", %{
+    tmp_dir: tmp_dir
+  } do
+    workspace = Path.join(tmp_dir, "vanished")
+    File.mkdir_p!(workspace)
+    run = insert_run!("Missing workspace prompt boundary", "idle", workspace)
+    File.rm_rf!(workspace)
+
+    assert {:error, {:missing_workspace, ^workspace}} = Runs.send_prompt(run.id, "hello")
+    assert [%{type: "run_created"}] = Events.list_for_run(run.id)
+    refute Runs.started?(run.id)
+  end
+
   test "ensure_started trusts durable terminal state before stale registry liveness" do
     closed = insert_run!("Closed stale registry boundary", "closed")
     assert {:ok, _} = Registry.register(Haven.Runs.Registry, closed.id, :stale)
@@ -239,12 +287,12 @@ defmodule Haven.RunsTest do
            }
   end
 
-  defp insert_run!(title, status) do
+  defp insert_run!(title, status, workspace \\ File.cwd!()) do
     run =
       %Run{}
       |> Run.changeset(%{
         title: title,
-        workspace: File.cwd!(),
+        workspace: workspace,
         agent: "stub-acp",
         status: status
       })

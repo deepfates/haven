@@ -175,6 +175,33 @@ defmodule HavenWeb.RunLiveTest do
   end
 
   @tag :tmp_dir
+  test "blocks restart and prompt controls when a failed run workspace disappears", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    workspace = Path.join(tmp_dir, "vanishing-workspace")
+    File.mkdir_p!(workspace)
+    run = insert_disconnected_run!("Missing workspace restart", "failed", workspace)
+    Events.append!(run.id, "user_message", %{"text" => "try again"})
+    File.rm_rf!(workspace)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-header-workspace-state", "Missing")
+    assert has_element?(view, "#run-recovery-card", "Workspace is missing")
+    assert has_element?(view, "#run-recovery-card", workspace)
+    assert has_element?(view, "#run-control-notice", "workspace is missing")
+    assert has_element?(view, "#run-prompt[disabled]")
+    refute has_element?(view, "#run-recovery-action-button")
+    refute has_element?(view, "#reconnect-run-button")
+    refute has_element?(view, "#retry-last-prompt-button")
+    refute has_element?(view, "#continue-after-failure-form")
+
+    events = Events.list_for_run(run.id)
+    refute Enum.any?(events, &(&1.type == "run_reconnect_requested"))
+  end
+
+  @tag :tmp_dir
   test "renders run-specific configured agent launch scope without env values", %{
     conn: conn,
     tmp_dir: tmp_dir
@@ -3854,12 +3881,12 @@ defmodule HavenWeb.RunLiveTest do
     run
   end
 
-  defp insert_disconnected_run!(title, status \\ "idle") do
+  defp insert_disconnected_run!(title, status \\ "idle", workspace \\ File.cwd!()) do
     run =
       %Run{}
       |> Run.changeset(%{
         title: title,
-        workspace: File.cwd!(),
+        workspace: workspace,
         agent: "stub-acp",
         status: status,
         agent_session_id: "old-session"

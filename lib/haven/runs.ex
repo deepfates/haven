@@ -103,6 +103,9 @@ defmodule Haven.Runs do
       run.status in ["closed", "failed"] ->
         {:error, :terminal_run}
 
+      missing_workspace?(run) ->
+        {:error, {:missing_workspace, run.workspace}}
+
       true ->
         start_unarchived_run(run_id, opts)
     end
@@ -126,10 +129,17 @@ defmodule Haven.Runs do
       %{status: status} when status in ["closed", "failed"] ->
         {:error, :terminal_run}
 
-      _run ->
+      run ->
         case Registry.lookup(Haven.Runs.Registry, run_id) do
-          [{pid, _}] -> {:ok, pid}
-          [] -> start_unarchived_run(run_id, [])
+          [{pid, _}] ->
+            {:ok, pid}
+
+          [] ->
+            if missing_workspace?(run) do
+              {:error, {:missing_workspace, run.workspace}}
+            else
+              start_unarchived_run(run_id, [])
+            end
         end
     end
   end
@@ -146,6 +156,9 @@ defmodule Haven.Runs do
 
       registry_started?(run_id) and run.status != "failed" ->
         {:error, :live_run}
+
+      missing_workspace?(run) ->
+        {:error, {:missing_workspace, run.workspace}}
 
       true ->
         if registry_started?(run_id), do: stop_run(run_id)
@@ -286,6 +299,12 @@ defmodule Haven.Runs do
   end
 
   defp archived?(%Run{archived_at: archived_at}), do: not is_nil(archived_at)
+
+  defp missing_workspace?(%Run{workspace: workspace}) when is_binary(workspace) do
+    not File.dir?(workspace)
+  end
+
+  defp missing_workspace?(_run), do: true
 
   defp registry_started?(run_id) do
     match?([{_pid, _}], Registry.lookup(Haven.Runs.Registry, run_id))

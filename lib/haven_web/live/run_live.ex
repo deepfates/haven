@@ -138,10 +138,12 @@ defmodule HavenWeb.RunLive do
     agent_readiness = agent_readiness(run.agent, run.workspace)
     agent_probe_reports = Agents.accepted_probe_reports(run.agent)
     agent_capability_gap_reports = Agents.capability_gap_reports(run.agent)
+    workspace_missing? = workspace_missing?(workspace_summary)
 
     socket
     |> assign(:run, run)
     |> assign(:workspace_summary, workspace_summary)
+    |> assign(:workspace_missing?, workspace_missing?)
     |> assign(:agent_readiness, agent_readiness)
     |> assign(:agent_probe_reports, agent_probe_reports)
     |> assign(:agent_capability_gap_reports, agent_capability_gap_reports)
@@ -166,16 +168,19 @@ defmodule HavenWeb.RunLive do
     )
     |> assign_event_projection(events)
     |> assign(:live?, live?)
-    |> assign(:can_prompt?, live? and run.status == "idle")
+    |> assign(:can_prompt?, live? and run.status == "idle" and not workspace_missing?)
     |> assign(:can_cancel?, live? and run.status in ["initializing", "running", "waiting"])
-    |> assign(:can_reconnect?, can_reconnect?(run, live?))
-    |> assign(:control_notice, control_notice(run, live?))
-    |> assign(:prompt_disabled_reason, prompt_disabled_reason(run, live?))
+    |> assign(:can_reconnect?, can_reconnect?(run, live?, workspace_missing?))
+    |> assign(:control_notice, control_notice(run, live?, workspace_missing?))
+    |> assign(:prompt_disabled_reason, prompt_disabled_reason(run, live?, workspace_missing?))
     |> assign(:cancel_disabled_reason, cancel_disabled_reason(run, live?))
     |> assign(:last_user_prompt, last_user_prompt(events))
-    |> assign(:can_retry_last_prompt?, can_retry_last_prompt?(run, events))
-    |> assign(:can_continue_failed?, can_continue_failed?(run))
-    |> assign(:recovery_attention, recovery_attention(run, live?))
+    |> assign(
+      :can_retry_last_prompt?,
+      can_retry_last_prompt?(run, events) and not workspace_missing?
+    )
+    |> assign(:can_continue_failed?, can_continue_failed?(run) and not workspace_missing?)
+    |> assign(:recovery_attention, recovery_attention(run, live?, workspace_missing?))
     |> assign(:latest_failure_summary, latest_failure_summary(events))
     |> assign(:pending_permission, pending_permission)
   end
@@ -410,7 +415,9 @@ defmodule HavenWeb.RunLive do
     end)
   end
 
-  defp can_reconnect?(run, live?) do
+  defp can_reconnect?(_run, _live?, true), do: false
+
+  defp can_reconnect?(run, live?, false) do
     is_nil(run.archived_at) and (run.status == "failed" or (not live? and run.status != "closed"))
   end
 
@@ -422,34 +429,45 @@ defmodule HavenWeb.RunLive do
   defp can_continue_failed?(%{status: "failed", archived_at: nil}), do: true
   defp can_continue_failed?(_run), do: false
 
-  defp control_notice(%{archived_at: archived_at}, _live?) when not is_nil(archived_at) do
+  defp control_notice(%{archived_at: archived_at}, _live?, _workspace_missing?)
+       when not is_nil(archived_at) do
     "This run is archived. Its history is review-only and cannot accept prompts, reconnects, restarts, or cancellation."
   end
 
-  defp control_notice(%{status: "failed"}, _live?) do
+  defp control_notice(_run, _live?, true) do
+    "This run's workspace is missing. Restore the folder before sending prompts, reconnecting, or restarting."
+  end
+
+  defp control_notice(%{status: "failed"}, _live?, _workspace_missing?) do
     "This run failed. Use the recovery options above to continue, retry, or restart."
   end
 
-  defp control_notice(%{status: "closed"}, _live?) do
+  defp control_notice(%{status: "closed"}, _live?, _workspace_missing?) do
     "This run is closed. Its history is available, but it cannot accept prompts."
   end
 
-  defp control_notice(_run, false) do
+  defp control_notice(_run, false, _workspace_missing?) do
     "This run is not connected. Reconnect it before sending another prompt."
   end
 
-  defp control_notice(%{status: "waiting"}, _live?) do
+  defp control_notice(%{status: "waiting"}, _live?, _workspace_missing?) do
     "Waiting for your decision before this run can accept another prompt."
   end
 
-  defp control_notice(%{status: status}, _live?) when status in ["initializing", "running"] do
+  defp control_notice(%{status: status}, _live?, _workspace_missing?)
+       when status in ["initializing", "running"] do
     "A turn is already in progress. You can cancel it, then send a new prompt."
   end
 
-  defp control_notice(_run, _live?), do: nil
+  defp control_notice(_run, _live?, _workspace_missing?), do: nil
 
-  defp prompt_disabled_reason(%{status: "idle"}, true), do: nil
-  defp prompt_disabled_reason(run, live?), do: control_notice(run, live?)
+  defp prompt_disabled_reason(_run, _live?, true),
+    do: "Restore the missing workspace before messaging this run."
+
+  defp prompt_disabled_reason(%{status: "idle"}, true, false), do: nil
+
+  defp prompt_disabled_reason(run, live?, workspace_missing?),
+    do: control_notice(run, live?, workspace_missing?)
 
   defp cancel_disabled_reason(%{status: status}, true)
        when status in ["initializing", "running", "waiting"],
@@ -473,10 +491,20 @@ defmodule HavenWeb.RunLive do
 
   defp cancel_disabled_reason(_run, _live?), do: "There is no active turn to cancel."
 
-  defp recovery_attention(%{archived_at: archived_at}, _live?) when not is_nil(archived_at),
-    do: nil
+  defp recovery_attention(%{archived_at: archived_at}, _live?, _workspace_missing?)
+       when not is_nil(archived_at),
+       do: nil
 
-  defp recovery_attention(%{status: "failed"}, _live?) do
+  defp recovery_attention(run, _live?, true) do
+    %{
+      title: "Workspace is missing",
+      body:
+        "Haven can still show the saved history, but it cannot safely reconnect this run until the workspace exists again at #{run.workspace}.",
+      action: nil
+    }
+  end
+
+  defp recovery_attention(%{status: "failed"}, _live?, _workspace_missing?) do
     %{
       title: "Run failed",
       body:
@@ -485,7 +513,8 @@ defmodule HavenWeb.RunLive do
     }
   end
 
-  defp recovery_attention(%{status: status}, false) when status != "closed" do
+  defp recovery_attention(%{status: status}, false, _workspace_missing?)
+       when status != "closed" do
     %{
       title: "Run is not connected",
       body:
@@ -494,7 +523,7 @@ defmodule HavenWeb.RunLive do
     }
   end
 
-  defp recovery_attention(_run, _live?), do: nil
+  defp recovery_attention(_run, _live?, _workspace_missing?), do: nil
 
   defp latest_failure_summary(events) do
     events
@@ -1315,6 +1344,9 @@ defmodule HavenWeb.RunLive do
 
   defp workspace_saved?(%{saved?: true}), do: true
   defp workspace_saved?(_workspace_summary), do: false
+
+  defp workspace_missing?(%{path_state: :missing}), do: true
+  defp workspace_missing?(_workspace_summary), do: false
 
   defp workspace_identity_label(%{saved?: true, name: name}) when is_binary(name), do: name
   defp workspace_identity_label(_workspace_summary), do: "Manual path"
@@ -2384,6 +2416,7 @@ defmodule HavenWeb.RunLive do
                     Retry last prompt
                   </button>
                   <button
+                    :if={@recovery_attention.action}
                     id="run-recovery-action-button"
                     type="button"
                     class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
