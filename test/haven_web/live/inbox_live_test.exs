@@ -728,6 +728,7 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#agent-config-candidate-agent-launch-summary", "1 env key")
 
     assert has_element?(view, "#agent-config-candidate-agent-evidence", "Static candidate")
+    assert has_element?(view, "#agent-config-candidate-agent-preflight", "ACP preflight not run")
     assert has_element?(view, "#agent-config-candidate-agent-probe-basic", "Basic boot proof")
     assert has_element?(view, "#agent-config-candidate-agent-evidence-details:not([open])")
 
@@ -864,6 +865,42 @@ defmodule HavenWeb.InboxLiveTest do
            )
 
     refute render(view) =~ "hidden-value"
+  end
+
+  test "surfaces durable ACP preflight state for saved agent configs", %{conn: conn} do
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "candidate-agent",
+               executable: "sh",
+               args: ["-c", "cat"]
+             })
+
+    failed_preflight =
+      insert_run!("Agent preflight: candidate-agent", "failed", %{agent: "candidate-agent"})
+
+    Events.append!(failed_preflight.id, "agent_protocol_failed", %{
+      "reason" => "Method not found"
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-preflight",
+             "ACP preflight failed"
+           )
+
+    view
+    |> form("#new-run-form", %{"agent" => "candidate-agent"})
+    |> render_change()
+
+    assert has_element?(view, "#new-run-agent-preflight", "ACP preflight failed")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "ACP preflight failed"})
+    |> render_change()
+
+    assert has_element?(view, "#run-#{failed_preflight.id}", "Agent preflight: candidate-agent")
   end
 
   test "classifies saved agent env auth and workspace substitution without exposing values", %{

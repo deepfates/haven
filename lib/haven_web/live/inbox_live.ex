@@ -457,6 +457,8 @@ defmodule HavenWeb.InboxLive do
       run_operational_hint(run),
       run_next_step_label(run),
       agent_launch_label(Map.get(run, :agent_readiness, %{})),
+      agent_preflight_label(Map.get(run, :agent_readiness, %{})),
+      agent_preflight_reason(Map.get(run, :agent_readiness, %{})),
       agent_evidence_label(Map.get(run, :agent_readiness, %{}), Map.get(run, :agent_reports, [])),
       agent_evidence_reason(
         Map.get(run, :agent_readiness, %{}),
@@ -1305,6 +1307,55 @@ defmodule HavenWeb.InboxLive do
 
   defp agent_evidence_reason(_inventory, _reports), do: "agent readiness unknown"
 
+  defp agent_preflight_label(%{latest_preflight: %{status: "passed"}}),
+    do: "ACP preflight passed"
+
+  defp agent_preflight_label(%{latest_preflight: %{status: "failed"}}),
+    do: "ACP preflight failed"
+
+  defp agent_preflight_label(%{latest_preflight: %{status: "unknown"}}),
+    do: "ACP preflight unclear"
+
+  defp agent_preflight_label(%{real_agent_candidate: true}), do: "ACP preflight not run"
+  defp agent_preflight_label(_inventory), do: nil
+
+  defp agent_preflight_class(%{latest_preflight: %{status: "passed"}}),
+    do: badge_class("border-emerald-200 bg-emerald-50 text-emerald-700")
+
+  defp agent_preflight_class(%{latest_preflight: %{status: "failed"}}),
+    do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
+
+  defp agent_preflight_class(%{latest_preflight: %{status: "unknown"}}),
+    do: badge_class("border-amber-200 bg-amber-50 text-amber-800")
+
+  defp agent_preflight_class(_inventory),
+    do: badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+
+  defp agent_preflight_reason(%{latest_preflight: %{status: "passed", run_id: run_id}}) do
+    "Latest durable preflight passed ACP initialize/session handshake in run #{run_id}."
+  end
+
+  defp agent_preflight_reason(%{
+         latest_preflight: %{status: "failed", run_id: run_id, failure_reason: reason}
+       })
+       when is_binary(reason) do
+    "Latest durable preflight failed in run #{run_id}: #{reason}"
+  end
+
+  defp agent_preflight_reason(%{latest_preflight: %{status: "failed", run_id: run_id}}) do
+    "Latest durable preflight failed in run #{run_id}."
+  end
+
+  defp agent_preflight_reason(%{latest_preflight: %{status: "unknown", run_id: run_id}}) do
+    "Latest durable preflight run #{run_id} did not clearly pass or fail."
+  end
+
+  defp agent_preflight_reason(%{real_agent_candidate: true}) do
+    "Run mix haven.agent_probe --list-agents --preflight before treating this command as ACP-ready."
+  end
+
+  defp agent_preflight_reason(_inventory), do: nil
+
   defp agent_probe_report_label(report) do
     report.path
     |> Path.relative_to(File.cwd!())
@@ -2115,6 +2166,14 @@ defmodule HavenWeb.InboxLive do
                     {agent_launch_label(selected_readiness)}
                   </span>
                   <span
+                    :if={agent_preflight_label(selected_readiness)}
+                    id="new-run-agent-preflight"
+                    class={agent_preflight_class(selected_readiness)}
+                    title={agent_preflight_reason(selected_readiness)}
+                  >
+                    {agent_preflight_label(selected_readiness)}
+                  </span>
+                  <span
                     id="new-run-agent-trust"
                     class={agent_evidence_class(selected_readiness, selected_reports)}
                   >
@@ -2609,6 +2668,14 @@ defmodule HavenWeb.InboxLive do
                             class={agent_launch_class(readiness)}
                           >
                             {agent_launch_label(readiness)}
+                          </span>
+                          <span
+                            :if={agent_preflight_label(readiness)}
+                            id={"agent-config-#{agent_config.key}-preflight"}
+                            class={agent_preflight_class(readiness)}
+                            title={agent_preflight_reason(readiness)}
+                          >
+                            {agent_preflight_label(readiness)}
                           </span>
                           <p
                             id={"agent-config-#{agent_config.key}-launch-summary"}

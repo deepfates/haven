@@ -291,6 +291,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
             if preflight? do
               print_agent_preflight(agent.agent, workspace, preflight_timeout)
             else
+              print_latest_durable_preflight(agent)
+
               Mix.shell().info(
                 "  preflight: not run (add --preflight to verify ACP initialize/session handshake before treating this as evidence)"
               )
@@ -344,6 +346,16 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   end
 
   defp inspect_args(args), do: inspect(args)
+
+  defp print_latest_durable_preflight(%{latest_preflight: preflight}) do
+    Mix.shell().info("  latest durable preflight: #{preflight.status} (run #{preflight.run_id})")
+
+    if is_binary(preflight.failure_reason) do
+      Mix.shell().info("  latest durable preflight reason: #{preflight.failure_reason}")
+    end
+  end
+
+  defp print_latest_durable_preflight(_agent), do: :ok
 
   defp print_agent_proof_command_status(agent, workspace, true, nil) do
     print_agent_proof_commands(agent, workspace)

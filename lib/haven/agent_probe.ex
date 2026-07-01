@@ -337,9 +337,16 @@ defmodule Haven.AgentProbe do
     |> apply_redactions(redactions(opts))
   end
 
-  @spec agent_inventory(String.t()) :: [map()]
-  def agent_inventory(workspace \\ File.cwd!()) do
+  @spec agent_inventory(String.t(), keyword()) :: [map()]
+  def agent_inventory(workspace \\ File.cwd!(), opts \\ []) do
     workspace = Path.expand(workspace)
+
+    latest_preflights =
+      if Keyword.get(opts, :include_preflight, true) do
+        latest_preflights_by_agent(workspace)
+      else
+        %{}
+      end
 
     Agents.available()
     |> Enum.map(fn {agent, _label} ->
@@ -357,6 +364,7 @@ defmodule Haven.AgentProbe do
             real_agent_candidate: rejection_reasons == [],
             real_agent_rejection_reasons: rejection_reasons
           }
+          |> maybe_put_latest_preflight(Map.get(latest_preflights, agent))
 
         {:error, reason} ->
           %{
@@ -366,9 +374,57 @@ defmodule Haven.AgentProbe do
             real_agent_candidate: false,
             real_agent_rejection_reasons: [agent_command_rejection_reason(reason)]
           }
+          |> maybe_put_latest_preflight(Map.get(latest_preflights, agent))
       end
     end)
   end
+
+  defp latest_preflights_by_agent(workspace) do
+    runs =
+      Runs.list_runs()
+      |> Enum.filter(fn run ->
+        run.workspace == workspace and String.starts_with?(run.title || "", "Agent preflight: ")
+      end)
+
+    latest_events =
+      runs
+      |> Enum.map(& &1.id)
+      |> Events.latest_by_run_id()
+
+    Enum.reduce(runs, %{}, fn run, acc ->
+      Map.put_new(acc, run.agent, preflight_summary(run, Map.get(latest_events, run.id)))
+    end)
+  end
+
+  defp maybe_put_latest_preflight(inventory, nil), do: inventory
+
+  defp maybe_put_latest_preflight(inventory, latest_preflight) do
+    Map.put(inventory, :latest_preflight, latest_preflight)
+  end
+
+  defp preflight_summary(run, latest_event) do
+    %{
+      run_id: run.id,
+      status: preflight_status(run),
+      run_status: run.status,
+      checked_at: DateTime.to_iso8601(run.updated_at),
+      last_event_type: latest_event && latest_event.type,
+      failure_reason: preflight_failure_reason(run, latest_event)
+    }
+  end
+
+  defp preflight_status(%{status: "idle", agent_session_id: session_id})
+       when is_binary(session_id),
+       do: "passed"
+
+  defp preflight_status(%{status: "failed"}), do: "failed"
+  defp preflight_status(_run), do: "unknown"
+
+  defp preflight_failure_reason(%{status: "failed"}, %{payload: payload}) when is_map(payload) do
+    payload["reason"] || payload["error"]
+  end
+
+  defp preflight_failure_reason(_run, _latest_event), do: nil
 
   defp agent_command_error_summary({:missing_executable, executable}) do
     "Missing executable: #{executable}"

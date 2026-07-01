@@ -636,6 +636,59 @@ defmodule Haven.AgentProbeTest do
            end)
   end
 
+  test "agent inventory includes the latest durable preflight result for the workspace" do
+    Application.put_env(:haven, :agents, %{
+      "not-acp" => %{executable: "sh", args: ["-c", "cat"]}
+    })
+
+    assert {:error, :boot_failed, report} =
+             AgentProbe.preflight(
+               agent: "not-acp",
+               workspace: File.cwd!(),
+               timeout: 1_000,
+               require_real_agent: true
+             )
+
+    inventory =
+      File.cwd!()
+      |> AgentProbe.agent_inventory()
+      |> Map.new(&{&1.agent, &1})
+
+    assert %{
+             status: "failed",
+             run_id: run_id,
+             run_status: "failed",
+             last_event_type: "agent_protocol_failed",
+             failure_reason: reason
+           } = inventory["not-acp"].latest_preflight
+
+    assert run_id == report.run_id
+    assert reason =~ "Method not found"
+  end
+
+  test "agent probe inventory prints the latest durable preflight before rerun" do
+    Application.put_env(:haven, :agents, %{
+      "not-acp" => %{executable: "sh", args: ["-c", "cat"]}
+    })
+
+    assert {:error, :boot_failed, report} =
+             AgentProbe.preflight(
+               agent: "not-acp",
+               workspace: File.cwd!(),
+               timeout: 1_000,
+               require_real_agent: true
+             )
+
+    output =
+      capture_io(fn ->
+        AgentProbeTask.run(["--list-agents", "--workspace", File.cwd!()])
+      end)
+
+    assert output =~ "latest durable preflight: failed (run #{report.run_id})"
+    assert output =~ "latest durable preflight reason:"
+    assert output =~ "preflight: not run"
+  end
+
   test "can create probe runs with file capability policy" do
     assert {:ok, report} =
              AgentProbe.run(

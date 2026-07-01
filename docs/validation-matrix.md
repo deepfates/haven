@@ -748,6 +748,10 @@ Evidence:
   candidates. Those generated commands mirror the missing production-grade
   evidence stories, explicitly warn that they are not ACP evidence until
   preflight or a generated probe passes, and never render environment values.
+- Agent inventory now also attaches the latest durable preflight run for the
+  selected workspace, so both the CLI inventory and inbox Agent Setup can show
+  `ACP preflight passed`, `ACP preflight failed`, or `ACP preflight not run`
+  separately from executable launch readiness.
 - Browser smoke verifies the Agent Setup panel also surfaces the public
   registry discovery command with `--registry` and warns that registry commands
   download and run third-party code before probing.

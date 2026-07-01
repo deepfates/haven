@@ -1248,7 +1248,7 @@ defmodule HavenWeb.RunLive do
 
   defp agent_readiness(agent, workspace) do
     workspace
-    |> AgentProbe.agent_inventory()
+    |> AgentProbe.agent_inventory(include_preflight: false)
     |> Enum.find(&(&1.agent == agent))
     |> case do
       nil -> %{}
