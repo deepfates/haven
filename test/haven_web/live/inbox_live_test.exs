@@ -2128,6 +2128,27 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{run.id}-archived-at", "Archived")
   end
 
+  test "stale archive clicks show an error instead of silently refreshing", %{conn: conn} do
+    run = insert_run!("Recovered before archive", "failed")
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#archive-run-#{run.id}")
+
+    run
+    |> Ecto.Changeset.change(status: "running")
+    |> Repo.update!()
+
+    view
+    |> element("#archive-run-#{run.id}")
+    |> render_click()
+
+    assert render(view) =~ "Only failed or closed runs can be archived"
+    refute Runs.get_run!(run.id).archived_at
+    assert has_element?(view, "#run-#{run.id}", "Recovered before archive")
+    refute Enum.any?(Events.list_for_run(run.id), &(&1.type == "run_archived"))
+  end
+
   test "prunes archived runs older than a cutoff from the archived lane", %{conn: conn} do
     old_archived =
       "Old archived incident"

@@ -70,7 +70,11 @@ defmodule HavenWeb.InboxLive do
   end
 
   def handle_event("archive_run", %{"id" => id}, socket) do
-    _ = Runs.archive_run(id)
+    socket =
+      id
+      |> Runs.archive_run()
+      |> assign_action_result(socket)
+
     {:noreply, assign_runs(socket)}
   end
 
@@ -229,6 +233,19 @@ defmodule HavenWeb.InboxLive do
   def handle_info({:run_updated, _run}, socket), do: {:noreply, assign_runs(socket)}
 
   def handle_info({:run_event_appended, _event}, socket), do: {:noreply, assign_runs(socket)}
+
+  defp assign_action_result({:ok, _result}, socket), do: socket
+
+  defp assign_action_result({:error, reason}, socket) do
+    put_flash(socket, :error, action_error_message(reason))
+  end
+
+  defp assign_action_result(_result, socket), do: socket
+
+  defp action_error_message(:not_archivable),
+    do: "Only failed or closed runs can be archived. This run is active now."
+
+  defp action_error_message(_reason), do: "That action could not be completed."
 
   defp assign_runs(socket) do
     agent_inventory = socket.assigns[:agent_inventory] || %{}
