@@ -215,7 +215,7 @@ defmodule HavenWeb.RunLive do
   defp run_page_title(run, _summary), do: "#{run.title} - Haven"
 
   defp inbox_attention_badge(%{needs_you: needs_you}) when needs_you > 0 do
-    "#{needs_you} need you"
+    needs_you_label(needs_you)
   end
 
   defp inbox_attention_badge(%{unread_runs: unread_runs}) when unread_runs > 0 do
@@ -223,6 +223,34 @@ defmodule HavenWeb.RunLive do
   end
 
   defp inbox_attention_badge(_summary), do: nil
+
+  defp inbox_attention_title(%{needs_you: needs_you} = summary) when needs_you > 0 do
+    [
+      attention_count(Map.get(summary, :decisions, 0), "decision"),
+      attention_count(Map.get(summary, :recoveries, 0), "recovery"),
+      attention_count(Map.get(summary, :unread_events, 0), "new event")
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  defp inbox_attention_title(%{unread_runs: unread_runs, unread_events: unread_events})
+       when unread_runs > 0 do
+    [
+      pluralize_count(unread_runs, "updated run"),
+      attention_count(unread_events, "new event")
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  defp inbox_attention_title(_summary), do: nil
+
+  defp attention_count(0, _word), do: nil
+  defp attention_count(count, word), do: pluralize_count(count, word)
+
+  defp needs_you_label(1), do: "1 run needs you"
+  defp needs_you_label(count), do: "#{count} runs need you"
 
   defp latest_event_seq(events) do
     events
@@ -1656,6 +1684,7 @@ defmodule HavenWeb.RunLive do
   end
 
   defp pluralize_count(1, singular), do: "1 #{singular}"
+  defp pluralize_count(count, "recovery"), do: "#{count} recoveries"
   defp pluralize_count(count, singular), do: "#{count} #{singular}s"
 
   defp client_event_error(payload) do
@@ -2200,6 +2229,8 @@ defmodule HavenWeb.RunLive do
                     <span
                       :if={inbox_attention_badge(@inbox_attention_summary)}
                       id="run-header-inbox-attention"
+                      title={inbox_attention_title(@inbox_attention_summary)}
+                      aria-label={inbox_attention_title(@inbox_attention_summary)}
                       class="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-sky-700"
                     >
                       {inbox_attention_badge(@inbox_attention_summary)}

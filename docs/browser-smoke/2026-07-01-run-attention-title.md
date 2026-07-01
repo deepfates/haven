@@ -15,9 +15,11 @@ user's attention through ordinary browser/app idioms.
 - Confirmed the document title was `(10) Browser missing workspace check -
   Haven`.
 - Confirmed the inbox link badge rendered `10 need you`.
+- Confirmed the badge title and aria label explained the mix as
+  `5 decisions · 5 recoveries`.
 
 ## Result
 
 Passed. The run detail page no longer only surfaces unread updates from other
 runs; it also surfaces other waiting/failed runs that already need a decision or
-recovery.
+recovery, with an accessible breakdown.

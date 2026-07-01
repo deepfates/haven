@@ -410,7 +410,39 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, view, html} = live(conn, ~p"/runs/#{current.id}")
 
     assert html =~ "(1) Current conversation - Haven"
-    assert has_element?(view, "#run-header-inbox-attention", "1 need you")
+    assert has_element?(view, "#run-header-inbox-attention", "1 run needs you")
+    assert has_element?(view, ~s|#run-header-inbox-attention[title="1 decision"]|)
+  end
+
+  test "pluralizes other runs needing attention in the run header", %{conn: conn} do
+    current = insert_disconnected_run!("Current conversation")
+    waiting = insert_disconnected_run!("Waiting elsewhere", "waiting")
+    failed = insert_disconnected_run!("Failed elsewhere", "failed")
+    assert {:ok, _run} = Runs.mark_latest_viewed(waiting.id)
+    assert {:ok, _run} = Runs.mark_latest_viewed(failed.id)
+
+    {:ok, view, html} = live(conn, ~p"/runs/#{current.id}")
+
+    assert html =~ "(2) Current conversation - Haven"
+    assert has_element?(view, "#run-header-inbox-attention", "2 runs need you")
+
+    assert has_element?(
+             view,
+             ~s|#run-header-inbox-attention[title="1 decision · 1 recovery"]|
+           )
+  end
+
+  test "pluralizes multiple other recoveries in the run attention detail", %{conn: conn} do
+    current = insert_disconnected_run!("Current conversation")
+    first_failed = insert_disconnected_run!("First failed elsewhere", "failed")
+    second_failed = insert_disconnected_run!("Second failed elsewhere", "failed")
+    assert {:ok, _run} = Runs.mark_latest_viewed(first_failed.id)
+    assert {:ok, _run} = Runs.mark_latest_viewed(second_failed.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{current.id}")
+
+    assert has_element?(view, "#run-header-inbox-attention", "2 runs need you")
+    assert has_element?(view, ~s|#run-header-inbox-attention[title="2 recoveries"]|)
   end
 
   test "includes other unread run activity in the run page title", %{conn: conn} do
@@ -423,6 +455,11 @@ defmodule HavenWeb.RunLiveTest do
 
     assert html =~ "(1) Current conversation - Haven"
     assert has_element?(view, "#run-header-inbox-attention", "1 updated run")
+
+    assert has_element?(
+             view,
+             ~s|#run-header-inbox-attention[title="1 updated run · 1 new event"]|
+           )
   end
 
   test "renders the run capability policy in the facts panel", %{conn: conn} do
