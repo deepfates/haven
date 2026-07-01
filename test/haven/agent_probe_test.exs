@@ -314,6 +314,65 @@ defmodule Haven.AgentProbeTest do
     refute output =~ "Use --show-events"
   end
 
+  test "load probe task prints aggregate summaries by default" do
+    output =
+      capture_io(fn ->
+        AgentProbeTask.run([
+          "--agent",
+          "stub-acp",
+          "--workspace",
+          File.cwd!(),
+          "--prompt",
+          "hello from load task",
+          "--load-runs",
+          "2",
+          "--load-concurrency",
+          "2",
+          "--expect-event",
+          "agent_initialized",
+          "--expect-event",
+          "turn_finished",
+          "--timeout",
+          "5000"
+        ])
+      end)
+
+    assert output =~ "Load probe: 2 run(s)"
+    assert output =~ "Run summary: idle=2"
+    assert output =~ "Child event summary:"
+    assert output =~ "agent_initialized=2"
+    assert output =~ "turn_finished=2"
+    assert output =~ "Use --show-events to print full child event payloads."
+    refute output =~ "  1. run_created"
+  end
+
+  test "load probe task can print full child event payloads on request" do
+    output =
+      capture_io(fn ->
+        AgentProbeTask.run([
+          "--agent",
+          "stub-acp",
+          "--workspace",
+          File.cwd!(),
+          "--prompt",
+          "hello from load task",
+          "--load-runs",
+          "2",
+          "--load-concurrency",
+          "2",
+          "--expect-event",
+          "turn_finished",
+          "--show-events",
+          "--timeout",
+          "5000"
+        ])
+      end)
+
+    assert output =~ "Load probe: 2 run(s)"
+    assert output =~ "  1. run_created"
+    assert output =~ "turn_finished"
+  end
+
   test "preflights an ACP agent without sending a prompt" do
     assert {:ok, report} =
              AgentProbe.preflight(

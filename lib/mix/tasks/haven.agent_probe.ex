@@ -493,12 +493,15 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     end
 
     print_output_expectations(report)
+    print_load_summary(report)
 
     Mix.shell().info("")
     Mix.shell().info("Runs:")
 
     Enum.each(report.reports, fn child ->
-      Mix.shell().info("- #{child.run_id || "(not created)"}: #{child.status}")
+      Mix.shell().info(
+        "- #{child.run_id || "(not created)"}: #{child.status} (#{length(child.events)} events)"
+      )
 
       if show_events? do
         print_event_lines(child.events, "  ")
@@ -515,6 +518,26 @@ defmodule Mix.Tasks.Haven.AgentProbe do
         )
       end)
     end
+  end
+
+  defp print_load_summary(report) do
+    status_counts =
+      report.reports
+      |> Enum.map(& &1.status)
+      |> Enum.frequencies()
+      |> Enum.sort_by(fn {status, _count} -> status end)
+
+    event_counts =
+      report.reports
+      |> Enum.flat_map(& &1.events)
+      |> Enum.map(& &1.type)
+      |> Enum.frequencies()
+      |> Enum.sort_by(fn {type, _count} -> type end)
+
+    Mix.shell().info("")
+    Mix.shell().info("Run summary: #{format_counts(status_counts)}")
+    Mix.shell().info("Child event summary: #{format_counts(event_counts)}")
+    Mix.shell().info("Use --show-events to print full child event payloads.")
   end
 
   defp print_report(report, show_events?) do
@@ -592,6 +615,12 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     )
 
     Mix.shell().info("Use --show-events to print full event payloads.")
+  end
+
+  defp format_counts([]), do: "none"
+
+  defp format_counts(counts) do
+    Enum.map_join(counts, ", ", fn {label, count} -> "#{label}=#{count}" end)
   end
 
   defp print_event_lines(events, prefix) do
