@@ -183,6 +183,31 @@ defmodule Haven.AgentsTest do
     assert updated_config.args == %{"items" => ["-y", "@agentclientprotocol/codex-acp@1.0.2"]}
   end
 
+  @tag :tmp_dir
+  test "summarizes accepted probe reports by configured agent", %{tmp_dir: tmp_dir} do
+    write_probe_report!(tmp_dir, "codex-basic.json", valid_probe_report("codex-acp"))
+    write_probe_report!(tmp_dir, "other-basic.json", valid_probe_report("other-acp"))
+    write_probe_report!(tmp_dir, "invalid.json", %{"agent" => "codex-acp"})
+
+    reports_by_agent =
+      Agents.accepted_probe_reports_by_agent(["codex-acp"], path: Path.join(tmp_dir, "*.json"))
+
+    assert %{agent: "codex-acp", path: path, expected_events: expected_events} =
+             reports_by_agent["codex-acp"] |> List.first()
+
+    assert Path.basename(path) == "codex-basic.json"
+    assert expected_events == ["agent_initialized", "agent_session_started", "turn_finished"]
+    refute Map.has_key?(reports_by_agent, "other-acp")
+  end
+
+  @tag :tmp_dir
+  test "lists accepted probe reports for one agent", %{tmp_dir: tmp_dir} do
+    write_probe_report!(tmp_dir, "codex-basic.json", valid_probe_report("codex-acp"))
+
+    assert [%{agent: "codex-acp", status: "idle", run_id: "run-codex-acp"}] =
+             Agents.accepted_probe_reports("codex-acp", path: Path.join(tmp_dir, "*.json"))
+  end
+
   test "deletes persisted agent configs" do
     assert {:ok, agent_config} =
              Agents.create_agent_config(%{
@@ -199,5 +224,32 @@ defmodule Haven.AgentsTest do
 
   test "unknown agents are explicit errors" do
     assert {:error, {:unknown_agent, "missing"}} = Agents.command("missing", "/repo")
+  end
+
+  defp write_probe_report!(tmp_dir, filename, report) do
+    path = Path.join(tmp_dir, filename)
+    File.write!(path, Jason.encode!(report, pretty: true))
+    path
+  end
+
+  defp valid_probe_report(agent) do
+    %{
+      "run_id" => "run-#{agent}",
+      "agent" => agent,
+      "workspace" => "/tmp/workspace",
+      "prompt" => "prove #{agent}",
+      "status" => "idle",
+      "real_agent_evidence" => %{"required" => true, "accepted" => true},
+      "expected_events" => ["agent_initialized", "agent_session_started", "turn_finished"],
+      "expected_event_fields" => [],
+      "missing_expected_events" => [],
+      "missing_expected_event_fields" => [],
+      "errors" => %{},
+      "events" => [
+        %{"seq" => 1, "type" => "agent_initialized", "payload" => %{}},
+        %{"seq" => 2, "type" => "agent_session_started", "payload" => %{}},
+        %{"seq" => 3, "type" => "turn_finished", "payload" => %{}}
+      ]
+    }
   end
 end

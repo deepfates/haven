@@ -567,6 +567,38 @@ defmodule HavenWeb.InboxLiveTest do
     refute render(view) =~ "hidden-value"
   end
 
+  test "surfaces accepted committed probe reports for saved agent configs", %{conn: conn} do
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "codex-acp",
+               executable: "sh",
+               args: ["-c", "cat"]
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#agent-config-codex-acp-evidence", "3 accepted probes")
+    assert has_element?(view, "#agent-config-codex-acp-accepted-probes")
+
+    assert has_element?(
+             view,
+             "#agent-config-codex-acp-accepted-probe-codex-acp-basic",
+             "docs/probes/codex-acp-basic.json"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-codex-acp-accepted-probe-codex-acp-terminal-tool-call",
+             "docs/probes/codex-acp-terminal-tool-call.json"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-codex-acp-evidence-reason",
+             "validated committed reports"
+           )
+  end
+
   test "shows blocked launch readiness for saved agent configs with missing executables", %{
     conn: conn
   } do

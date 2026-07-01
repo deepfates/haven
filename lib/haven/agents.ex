@@ -19,6 +19,7 @@ defmodule Haven.Agents do
   import Ecto.Query
 
   alias Haven.Agents.AgentConfig
+  alias Haven.AgentProbeReport
   alias Haven.Repo
 
   @type command :: %{
@@ -45,6 +46,23 @@ defmodule Haven.Agents do
     Repo.all(from agent in AgentConfig, order_by: [asc: agent.key])
   end
 
+  def accepted_probe_reports_by_agent(agent_keys, opts \\ []) when is_list(agent_keys) do
+    agent_keys = MapSet.new(agent_keys)
+
+    opts
+    |> probe_report_paths()
+    |> Enum.flat_map(&accepted_probe_report_summary/1)
+    |> Enum.filter(&MapSet.member?(agent_keys, &1.agent))
+    |> Enum.group_by(& &1.agent)
+  end
+
+  def accepted_probe_reports(agent_key, opts \\ []) when is_binary(agent_key) do
+    agent_key
+    |> List.wrap()
+    |> accepted_probe_reports_by_agent(opts)
+    |> Map.get(agent_key, [])
+  end
+
   def create_agent_config(attrs) do
     %AgentConfig{}
     |> AgentConfig.changeset(attrs)
@@ -61,6 +79,33 @@ defmodule Haven.Agents do
 
   def delete_agent_config(%AgentConfig{} = agent_config) do
     Repo.delete(agent_config)
+  end
+
+  defp probe_report_paths(opts) do
+    opts
+    |> Keyword.get(:path, "docs/probes/*.json")
+    |> Path.wildcard()
+    |> Enum.sort()
+  end
+
+  defp accepted_probe_report_summary(path) do
+    with {:ok, content} <- File.read(path),
+         {:ok, report} <- Jason.decode(content),
+         :ok <- AgentProbeReport.validate(report) do
+      [
+        %{
+          agent: report["agent"],
+          path: path,
+          run_id: report["run_id"],
+          status: report["status"],
+          prompt: report["prompt"],
+          expected_events: report["expected_events"] || [],
+          expected_event_fields: report["expected_event_fields"] || []
+        }
+      ]
+    else
+      _ -> []
+    end
   end
 
   def upsert_agent_config_from_registry_suggestion(%{

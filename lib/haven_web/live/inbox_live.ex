@@ -564,10 +564,14 @@ defmodule HavenWeb.InboxLive do
   defp save_agent_config(_params, attrs), do: Agents.create_agent_config(attrs)
 
   defp refresh_agent_config_assigns(socket) do
+    agent_configs = Agents.list_agent_configs()
+    agent_keys = Enum.map(agent_configs, & &1.key)
+
     socket
     |> assign(:agent_options, Agents.available())
-    |> assign(:agent_configs, Agents.list_agent_configs())
+    |> assign(:agent_configs, agent_configs)
     |> assign(:agent_inventory, agent_inventory_by_key())
+    |> assign(:agent_probe_reports, Agents.accepted_probe_reports_by_agent(agent_keys))
   end
 
   defp agent_inventory_by_key do
@@ -820,27 +824,47 @@ defmodule HavenWeb.InboxLive do
     |> String.capitalize()
   end
 
-  defp agent_evidence_label(%{real_agent_candidate: true}), do: "Static candidate"
-  defp agent_evidence_label(%{status: "invalid"}), do: "Invalid command"
-  defp agent_evidence_label(_inventory), do: "Local harness"
+  defp agent_evidence_label(_inventory, reports) when reports != [] do
+    pluralize_count(length(reports), "accepted probe")
+  end
 
-  defp agent_evidence_class(%{real_agent_candidate: true}),
+  defp agent_evidence_label(%{real_agent_candidate: true}, _reports), do: "Static candidate"
+  defp agent_evidence_label(%{status: "invalid"}, _reports), do: "Invalid command"
+  defp agent_evidence_label(_inventory, _reports), do: "Local harness"
+
+  defp agent_evidence_class(_inventory, reports) when reports != [],
     do: badge_class("border-emerald-200 bg-emerald-50 text-emerald-700")
 
-  defp agent_evidence_class(%{status: "invalid"}),
+  defp agent_evidence_class(%{real_agent_candidate: true}, _reports),
+    do: badge_class("border-sky-200 bg-sky-50 text-sky-700")
+
+  defp agent_evidence_class(%{status: "invalid"}, _reports),
     do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
 
-  defp agent_evidence_class(_inventory),
+  defp agent_evidence_class(_inventory, _reports),
     do: badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
 
-  defp agent_evidence_reason(%{real_agent_rejection_reasons: []}) do
+  defp agent_evidence_reason(_inventory, reports) when reports != [] do
+    "validated committed reports prove accepted real-agent evidence"
+  end
+
+  defp agent_evidence_reason(%{real_agent_rejection_reasons: []}, _reports) do
     "command resolves; not ACP evidence until preflight or a generated probe passes"
   end
 
-  defp agent_evidence_reason(%{real_agent_rejection_reasons: reasons}) when is_list(reasons),
-    do: Enum.join(reasons, "; ")
+  defp agent_evidence_reason(%{real_agent_rejection_reasons: reasons}, _reports)
+       when is_list(reasons),
+       do: Enum.join(reasons, "; ")
 
-  defp agent_evidence_reason(_inventory), do: "agent readiness unknown"
+  defp agent_evidence_reason(_inventory, _reports), do: "agent readiness unknown"
+
+  defp agent_probe_report_label(report) do
+    report.path
+    |> Path.relative_to(File.cwd!())
+    |> then(fn path ->
+      "#{path} · #{pluralize_count(length(report.expected_events), "event")} · #{pluralize_count(length(report.expected_event_fields), "field")}"
+    end)
+  end
 
   defp agent_launch_label(%{status: "ready"}), do: "Launch ready"
   defp agent_launch_label(%{status: "invalid"}), do: "Launch blocked"
@@ -1605,6 +1629,7 @@ defmodule HavenWeb.InboxLive do
                   >
                     <% readiness = Map.get(@agent_inventory, agent_config.key, %{}) %>
                     <% probe_commands = agent_probe_commands(readiness) %>
+                    <% accepted_reports = Map.get(@agent_probe_reports, agent_config.key, []) %>
                     <div class="flex items-start justify-between gap-3">
                       <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-zinc-950">{agent_config.key}</p>
@@ -1622,6 +1647,25 @@ defmodule HavenWeb.InboxLive do
                           >
                             {agent_launch_summary(readiness)}
                           </p>
+                        </div>
+                        <div
+                          :if={accepted_reports != []}
+                          id={"agent-config-#{agent_config.key}-accepted-probes"}
+                          class="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2"
+                        >
+                          <p class="text-[11px] font-semibold uppercase text-emerald-800">
+                            Accepted probe evidence
+                          </p>
+                          <ul class="mt-1 space-y-1">
+                            <li
+                              :for={report <- accepted_reports}
+                              id={"agent-config-#{agent_config.key}-accepted-probe-#{Path.basename(report.path, ".json")}"}
+                              class="truncate text-xs text-emerald-900"
+                              title={report.prompt}
+                            >
+                              {agent_probe_report_label(report)}
+                            </li>
+                          </ul>
                         </div>
                         <div :if={probe_commands != []} class="mt-2 space-y-2">
                           <div
@@ -1644,19 +1688,19 @@ defmodule HavenWeb.InboxLive do
                           </div>
                         </div>
                         <p
-                          :if={agent_evidence_reason(readiness)}
+                          :if={agent_evidence_reason(readiness, accepted_reports)}
                           id={"agent-config-#{agent_config.key}-evidence-reason"}
                           class="mt-2 truncate text-xs text-zinc-500"
                         >
-                          {agent_evidence_reason(readiness)}
+                          {agent_evidence_reason(readiness, accepted_reports)}
                         </p>
                       </div>
                       <div class="flex shrink-0 items-center gap-2">
                         <span
                           id={"agent-config-#{agent_config.key}-evidence"}
-                          class={agent_evidence_class(readiness)}
+                          class={agent_evidence_class(readiness, accepted_reports)}
                         >
-                          {agent_evidence_label(readiness)}
+                          {agent_evidence_label(readiness, accepted_reports)}
                         </span>
                         <span class="rounded-full border border-zinc-200 px-2 py-1 text-xs text-zinc-500">
                           {length(Map.get(agent_config.args || %{}, "items", []))} args
