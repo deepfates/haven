@@ -39,6 +39,9 @@ defmodule HavenWeb.RunLiveTest do
     run = Runs.get_run!(run.id)
 
     assert has_element?(view, "#run-header-facts")
+    assert has_element?(view, ~s|#run-header-workspace[title="#{run.workspace}"]|)
+    assert has_element?(view, "#run-header-workspace", Path.basename(run.workspace))
+    assert has_element?(view, "#run-header-workspace-path", Path.dirname(run.workspace))
     assert has_element?(view, "#run-header-agent", "stub-acp")
     assert has_element?(view, "#run-header-session", run.agent_session_id)
     assert has_element?(view, "#run-header-created")

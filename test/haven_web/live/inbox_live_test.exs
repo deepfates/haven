@@ -116,6 +116,20 @@ defmodule HavenWeb.InboxLiveTest do
     refute has_element?(view, "#run-#{archived_failure.id} a", "Recover")
   end
 
+  @tag :tmp_dir
+  test "renders run rows with recognizable workspace identity", %{conn: conn, tmp_dir: tmp_dir} do
+    workspace = Path.join(tmp_dir, "project-alpha")
+    parent = Path.dirname(workspace)
+    File.mkdir_p!(workspace)
+    run = insert_run!("Folder-aware run", "idle", %{workspace: workspace})
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, ~s|#run-#{run.id}-workspace[title="#{workspace}"]|)
+    assert has_element?(view, "#run-#{run.id}-workspace", "project-alpha")
+    assert has_element?(view, "#run-#{run.id}-workspace-path", parent)
+  end
+
   test "rejects a run with a missing workspace", %{conn: conn} do
     missing_workspace = Path.join(System.tmp_dir!(), "haven-missing-workspace")
     File.rm_rf!(missing_workspace)

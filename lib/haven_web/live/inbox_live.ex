@@ -1051,6 +1051,30 @@ defmodule HavenWeb.InboxLive do
     end
   end
 
+  defp workspace_name(nil), do: "No workspace"
+  defp workspace_name(""), do: "No workspace"
+
+  defp workspace_name(path) do
+    case Path.basename(path) do
+      "" -> path
+      "/" -> path
+      name -> name
+    end
+  end
+
+  defp workspace_parent(nil), do: nil
+  defp workspace_parent(""), do: nil
+
+  defp workspace_parent(path) do
+    parent = Path.dirname(path)
+
+    if parent == path do
+      nil
+    else
+      parent
+    end
+  end
+
   defp run_card(assigns) do
     assigns =
       assigns
@@ -1067,7 +1091,21 @@ defmodule HavenWeb.InboxLive do
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <h3 class="truncate text-sm font-semibold text-zinc-950">{@run.title}</h3>
-          <p class="mt-1 truncate text-xs text-zinc-500">{@run.workspace}</p>
+          <p
+            id={"run-#{@run.id}-workspace"}
+            title={@run.workspace}
+            class="mt-1 flex min-w-0 items-center gap-1 truncate text-xs text-zinc-500"
+          >
+            <.icon name="hero-folder" class="size-3.5 shrink-0 text-zinc-400" />
+            <span class="truncate font-medium text-zinc-700">{workspace_name(@run.workspace)}</span>
+          </p>
+          <p
+            :if={workspace_parent(@run.workspace)}
+            id={"run-#{@run.id}-workspace-path"}
+            class="mt-0.5 truncate text-xs text-zinc-400"
+          >
+            {workspace_parent(@run.workspace)}
+          </p>
         </div>
         <div class="flex shrink-0 flex-col items-end gap-1">
           <span class={status_class(@run.status)}>{@run.status}</span>

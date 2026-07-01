@@ -737,6 +737,30 @@ defmodule HavenWeb.RunLive do
   defp format_client_value(value) when is_list(value), do: Enum.join(value, " ")
   defp format_client_value(value), do: to_string(value)
 
+  defp workspace_name(nil), do: "No workspace"
+  defp workspace_name(""), do: "No workspace"
+
+  defp workspace_name(path) do
+    case Path.basename(path) do
+      "" -> path
+      "/" -> path
+      name -> name
+    end
+  end
+
+  defp workspace_parent(nil), do: nil
+  defp workspace_parent(""), do: nil
+
+  defp workspace_parent(path) do
+    parent = Path.dirname(path)
+
+    if parent == path do
+      nil
+    else
+      parent
+    end
+  end
+
   defp client_event_error(payload) do
     case payload["error"] do
       %{"message" => message, "data" => %{"reason" => reason}} ->
@@ -1146,7 +1170,23 @@ defmodule HavenWeb.RunLive do
                     ← Inbox
                   </.link>
                   <h1 class="mt-2 truncate text-2xl font-semibold">{@run.title}</h1>
-                  <p class="mt-1 truncate text-sm text-zinc-500">{@run.workspace}</p>
+                  <p
+                    id="run-header-workspace"
+                    title={@run.workspace}
+                    class="mt-1 flex min-w-0 items-center gap-1 truncate text-sm text-zinc-500"
+                  >
+                    <.icon name="hero-folder" class="size-4 shrink-0 text-zinc-400" />
+                    <span class="truncate font-medium text-zinc-700">
+                      {workspace_name(@run.workspace)}
+                    </span>
+                  </p>
+                  <p
+                    :if={workspace_parent(@run.workspace)}
+                    id="run-header-workspace-path"
+                    class="mt-0.5 truncate text-xs text-zinc-500"
+                  >
+                    {workspace_parent(@run.workspace)}
+                  </p>
                   <dl
                     id="run-header-facts"
                     class="mt-3 grid gap-2 text-xs text-zinc-600 sm:grid-cols-2 lg:grid-cols-4"
