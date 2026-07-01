@@ -152,6 +152,12 @@ readiness: they include expected event and field checks so missing `fs/*` or
 `terminal/*` client-capability stories fail as evidence instead of passing as
 generic agent activity.
 
+When `--preflight` and `--proof-commands` are used together, proof commands are
+printed only for agents that pass ACP initialize/session preflight. Agents that
+resolve as shell commands but fail the ACP handshake print a withheld-command
+notice instead, because a full evidence probe would fail before reaching the
+story-specific file, terminal, or permission checks.
+
 Use `--list-agents --preflight` when a command is only a probe candidate. The
 preflight creates a short durable run and verifies ACP initialization plus
 session creation, surfacing failures such as a generic shell command that starts

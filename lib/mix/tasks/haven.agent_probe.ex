@@ -287,21 +287,27 @@ defmodule Mix.Tasks.Haven.AgentProbe do
         end
 
         if agent.real_agent_candidate do
-          if proof_commands? do
-            print_agent_proof_commands(agent.agent, workspace)
-          else
-            Mix.shell().info(
-              "  proof commands: hidden (add --proof-commands to print basic/file/terminal acceptance commands)"
-            )
-          end
+          preflight_result =
+            if preflight? do
+              print_agent_preflight(agent.agent, workspace, preflight_timeout)
+            else
+              Mix.shell().info(
+                "  preflight: not run (add --preflight to verify ACP initialize/session handshake before treating this as evidence)"
+              )
 
-          if preflight? do
-            [print_agent_preflight(agent.agent, workspace, preflight_timeout) | results]
-          else
-            Mix.shell().info(
-              "  preflight: not run (add --preflight to verify ACP initialize/session handshake before treating this as evidence)"
-            )
+              nil
+            end
 
+          print_agent_proof_command_status(
+            agent.agent,
+            workspace,
+            proof_commands?,
+            preflight_result
+          )
+
+          if preflight_result do
+            [preflight_result | results]
+          else
             results
           end
         else
@@ -338,6 +344,26 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   end
 
   defp inspect_args(args), do: inspect(args)
+
+  defp print_agent_proof_command_status(agent, workspace, true, nil) do
+    print_agent_proof_commands(agent, workspace)
+  end
+
+  defp print_agent_proof_command_status(agent, workspace, true, %{status: :ok}) do
+    print_agent_proof_commands(agent, workspace)
+  end
+
+  defp print_agent_proof_command_status(_agent, _workspace, true, %{status: :failed}) do
+    Mix.shell().info(
+      "  proof commands: withheld because preflight failed; fix ACP initialize/session before running full probes"
+    )
+  end
+
+  defp print_agent_proof_command_status(_agent, _workspace, false, _preflight_result) do
+    Mix.shell().info(
+      "  proof commands: hidden (add --proof-commands to print basic/file/terminal acceptance commands)"
+    )
+  end
 
   defp print_agent_proof_commands(agent, workspace) do
     Mix.shell().info("  proof commands:")

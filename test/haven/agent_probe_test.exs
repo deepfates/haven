@@ -325,6 +325,34 @@ defmodule Haven.AgentProbeTest do
     refute output =~ "Preflight-ready agents:"
   end
 
+  test "agent probe inventory withholds proof commands when preflight fails" do
+    Application.put_env(:haven, :agents, %{
+      "not-acp" => %{executable: "sh", args: ["-c", "cat"]}
+    })
+
+    output =
+      capture_io(fn ->
+        AgentProbeTask.run([
+          "--list-agents",
+          "--preflight",
+          "--proof-commands",
+          "--workspace",
+          File.cwd!(),
+          "--timeout",
+          "1000"
+        ])
+      end)
+
+    assert output =~ "not-acp"
+    assert output =~ "preflight: failed"
+
+    assert output =~
+             "proof commands: withheld because preflight failed; fix ACP initialize/session before running full probes"
+
+    refute output =~ "file-read: mix haven.agent_probe --agent not-acp"
+    refute output =~ "terminal-approval: mix haven.agent_probe --agent not-acp"
+  end
+
   test "agent probe task prints event summaries by default" do
     output =
       capture_io(fn ->
