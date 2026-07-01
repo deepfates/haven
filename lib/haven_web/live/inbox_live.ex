@@ -472,7 +472,21 @@ defmodule HavenWeb.InboxLive do
 
   defp attach_workspace_context(runs, workspace_index) do
     Enum.map(runs, fn run ->
-      Map.put(run, :workspace_summary, Map.get(workspace_index, run.workspace))
+      workspace_summary =
+        case Map.get(workspace_index, run.workspace) do
+          nil ->
+            %{
+              name: nil,
+              path: run.workspace,
+              path_state: workspace_path_state(run.workspace),
+              saved?: false
+            }
+
+          workspace ->
+            Map.put(workspace, :saved?, true)
+        end
+
+      Map.put(run, :workspace_summary, workspace_summary)
     end)
   end
 
@@ -837,8 +851,8 @@ defmodule HavenWeb.InboxLive do
     "#{pluralize_count(active_count, "active run")} · #{pluralize_count(archived_count, "archived run")}"
   end
 
-  defp run_workspace_identity_label(nil), do: "Manual path"
-  defp run_workspace_identity_label(_workspace), do: "Saved workspace"
+  defp run_workspace_identity_label(%{saved?: true}), do: "Saved workspace"
+  defp run_workspace_identity_label(_workspace), do: "Manual path"
 
   defp run_workspace_state_label(%{path_state: :ready}), do: "Ready"
   defp run_workspace_state_label(%{path_state: :missing}), do: "Missing"
@@ -846,8 +860,6 @@ defmodule HavenWeb.InboxLive do
 
   defp run_workspace_saved_name(%{name: name}) when is_binary(name), do: name
   defp run_workspace_saved_name(_workspace), do: nil
-
-  defp run_workspace_badge_label(nil), do: "Manual path"
 
   defp run_workspace_badge_label(workspace) do
     [run_workspace_identity_label(workspace), run_workspace_state_label(workspace)]
@@ -867,9 +879,11 @@ defmodule HavenWeb.InboxLive do
     "inline-flex shrink-0 items-center rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-600"
   end
 
-  defp run_workspace_badge_title(nil), do: "This run uses a manual workspace path."
+  defp run_workspace_badge_title(%{saved?: false, path: path}) do
+    "Manual path: #{path}"
+  end
 
-  defp run_workspace_badge_title(workspace) do
+  defp run_workspace_badge_title(%{saved?: true} = workspace) do
     "#{workspace.name}: #{workspace.path}"
   end
 

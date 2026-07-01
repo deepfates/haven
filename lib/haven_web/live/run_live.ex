@@ -1269,7 +1269,7 @@ defmodule HavenWeb.RunLive do
     end
   end
 
-  defp workspace_name(_path, %{name: name}), do: name
+  defp workspace_name(_path, %{saved?: true, name: name}) when is_binary(name), do: name
   defp workspace_name(path, _workspace_summary), do: workspace_name(path)
 
   defp workspace_parent(nil), do: nil
@@ -1291,14 +1291,20 @@ defmodule HavenWeb.RunLive do
   defp workspace_summary(path) do
     case Workspaces.get_workspace_by_path(path) do
       nil ->
-        nil
+        %{
+          name: nil,
+          path: Path.expand(path),
+          path_state: workspace_path_state(path),
+          saved?: false
+        }
 
       workspace ->
         %{
           id: workspace.id,
           name: workspace.name,
           path: workspace.path,
-          path_state: workspace_path_state(workspace.path)
+          path_state: workspace_path_state(workspace.path),
+          saved?: true
         }
     end
   end
@@ -1307,8 +1313,11 @@ defmodule HavenWeb.RunLive do
     if File.dir?(path), do: :ready, else: :missing
   end
 
-  defp workspace_identity_label(nil), do: "Manual path"
-  defp workspace_identity_label(%{name: name}), do: name
+  defp workspace_saved?(%{saved?: true}), do: true
+  defp workspace_saved?(_workspace_summary), do: false
+
+  defp workspace_identity_label(%{saved?: true, name: name}) when is_binary(name), do: name
+  defp workspace_identity_label(_workspace_summary), do: "Manual path"
 
   defp workspace_state_label(nil), do: "Manual path"
   defp workspace_state_label(%{path_state: :ready}), do: "Ready"
@@ -2135,7 +2144,7 @@ defmodule HavenWeb.RunLive do
                     {workspace_parent(@run.workspace)}
                   </p>
                   <p
-                    :if={@workspace_summary}
+                    :if={workspace_saved?(@workspace_summary)}
                     id="run-header-workspace-saved-path"
                     class="mt-0.5 truncate text-xs text-zinc-500"
                   >

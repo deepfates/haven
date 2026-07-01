@@ -50,6 +50,7 @@ defmodule HavenWeb.RunLiveTest do
 
     assert has_element?(view, ~s|#run-header-workspace[title="#{run.workspace}"]|)
     assert has_element?(view, "#run-header-workspace", Path.basename(run.workspace))
+    assert has_element?(view, "#run-header-workspace-state", "Ready")
     assert has_element?(view, "#run-header-workspace-path", Path.dirname(run.workspace))
     assert has_element?(view, "#run-header-identity")
     assert has_element?(view, "#run-header-agent", "stub-acp")
@@ -62,6 +63,8 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-facts-agent-trust", "Local harness")
     assert has_element?(view, "#run-facts-agent-evidence-reason", "built-in stub-acp")
     assert has_element?(view, "#run-facts-agent-cwd", "cwd app default")
+    assert has_element?(view, "#run-facts-workspace", "Manual path")
+    assert has_element?(view, "#run-facts-workspace-state", "Ready")
     assert has_element?(view, "#run-facts-agent-env-keys", "env none")
     assert has_element?(view, "#run-facts-session", run.agent_session_id)
     assert has_element?(view, "#run-facts-created")
@@ -143,6 +146,32 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-facts-workspace", "Haven App")
     assert has_element?(view, "#run-facts-workspace-state", "Ready")
     assert has_element?(view, "#run-facts-workspace", Path.expand(tmp_dir))
+  end
+
+  @tag :tmp_dir
+  test "shows missing state when a run workspace disappears", %{conn: conn, tmp_dir: tmp_dir} do
+    workspace = Path.join(tmp_dir, "vanishing-workspace")
+    File.mkdir_p!(workspace)
+
+    run =
+      %Run{}
+      |> Run.changeset(%{
+        title: "Missing workspace run",
+        agent: "stub-acp",
+        workspace: workspace,
+        status: "idle"
+      })
+      |> Repo.insert!()
+
+    File.rm_rf!(workspace)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-header-workspace", Path.basename(workspace))
+    assert has_element?(view, "#run-header-workspace-state", "Missing")
+    assert has_element?(view, "#run-facts-workspace", "Manual path")
+    assert has_element?(view, "#run-facts-workspace-state", "Missing")
+    assert has_element?(view, "#run-facts-workspace", Path.expand(workspace))
   end
 
   @tag :tmp_dir

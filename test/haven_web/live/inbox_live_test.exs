@@ -363,9 +363,11 @@ defmodule HavenWeb.InboxLiveTest do
   test "renders run rows with recognizable workspace identity", %{conn: conn, tmp_dir: tmp_dir} do
     workspace = Path.join(tmp_dir, "project-alpha")
     manual_workspace = Path.join(tmp_dir, "manual-project")
+    missing_manual_workspace = Path.join(tmp_dir, "missing-manual-project")
     parent = Path.dirname(workspace)
     File.mkdir_p!(workspace)
     File.mkdir_p!(manual_workspace)
+    File.mkdir_p!(missing_manual_workspace)
 
     assert {:ok, _saved_workspace} =
              Workspaces.create_workspace(%{
@@ -376,6 +378,11 @@ defmodule HavenWeb.InboxLiveTest do
     run = insert_run!("Folder-aware run", "idle", %{workspace: workspace})
     manual_run = insert_run!("Manual folder run", "idle", %{workspace: manual_workspace})
 
+    missing_manual_run =
+      insert_run!("Missing manual folder run", "idle", %{workspace: missing_manual_workspace})
+
+    File.rm_rf!(missing_manual_workspace)
+
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, ~s|#run-#{run.id}-workspace[title="#{workspace}"]|)
@@ -384,7 +391,15 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{run.id}-workspace-kind", "Saved workspace · Ready")
 
     assert has_element?(view, "#run-#{manual_run.id}-workspace", "manual-project")
-    assert has_element?(view, "#run-#{manual_run.id}-workspace-kind", "Manual path")
+    assert has_element?(view, "#run-#{manual_run.id}-workspace-kind", "Manual path · Ready")
+
+    assert has_element?(view, "#run-#{missing_manual_run.id}-workspace", "missing-manual-project")
+
+    assert has_element?(
+             view,
+             "#run-#{missing_manual_run.id}-workspace-kind",
+             "Manual path · Missing"
+           )
 
     view
     |> form("#inbox-search-form", %{"run_search" => "Alpha repo"})
@@ -399,6 +414,13 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(view, "article", "Manual folder run")
     refute has_element?(view, "article", "Folder-aware run")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "Missing"})
+    |> render_change()
+
+    assert has_element?(view, "article", "Missing manual folder run")
+    refute has_element?(view, "article", "Manual folder run")
   end
 
   test "rejects a run with a missing workspace", %{conn: conn} do
