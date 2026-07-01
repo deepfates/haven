@@ -815,6 +815,14 @@ defmodule HavenWeb.RunLive do
 
   defp agent_evidence_reason(_inventory, _reports), do: "agent readiness unknown"
 
+  defp agent_probe_report_label(report) do
+    report.path
+    |> Path.relative_to(File.cwd!())
+    |> then(fn path ->
+      "#{path} · #{pluralize_count(length(report.expected_events), "event")} · #{pluralize_count(length(report.expected_event_fields), "field")}"
+    end)
+  end
+
   defp agent_launch_label(%{status: "ready"}), do: "Launch ready"
   defp agent_launch_label(%{status: "invalid"}), do: "Launch blocked"
   defp agent_launch_label(_inventory), do: "Launch unknown"
@@ -1312,6 +1320,25 @@ defmodule HavenWeb.RunLive do
                       </dd>
                     </div>
                   </dl>
+                  <details
+                    :if={@agent_probe_reports != []}
+                    id="run-header-agent-probe-evidence"
+                    class="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900"
+                  >
+                    <summary class="cursor-pointer font-semibold">
+                      Accepted probe artifacts
+                    </summary>
+                    <ul class="mt-2 space-y-1">
+                      <li
+                        :for={report <- @agent_probe_reports}
+                        id={"run-header-agent-probe-#{Path.basename(report.path, ".json")}"}
+                        class="truncate"
+                        title={report.prompt}
+                      >
+                        {agent_probe_report_label(report)}
+                      </li>
+                    </ul>
+                  </details>
                 </div>
                 <span class="inline-flex shrink-0 items-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm font-medium text-zinc-700">
                   {@run.status}

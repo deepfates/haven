@@ -88,6 +88,20 @@ defmodule HavenWeb.RunLiveTest do
              "#run-header-agent-evidence-reason",
              "validated committed reports"
            )
+
+    assert has_element?(view, "#run-header-agent-probe-evidence", "Accepted probe artifacts")
+
+    assert has_element?(
+             view,
+             "#run-header-agent-probe-codex-acp-basic",
+             "docs/probes/codex-acp-basic.json"
+           )
+
+    assert has_element?(
+             view,
+             "#run-header-agent-probe-codex-acp-terminal-tool-call",
+             "docs/probes/codex-acp-terminal-tool-call.json"
+           )
   end
 
   test "ignores global inbox activity notifications while using run-scoped events", %{conn: conn} do
