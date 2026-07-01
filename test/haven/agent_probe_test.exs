@@ -323,6 +323,7 @@ defmodule Haven.AgentProbeTest do
              "Preflight summary: 0/1 candidate passed ACP initialize/session handshake; 1 failed."
 
     refute output =~ "Preflight-ready agents:"
+    assert output =~ "Preflight-failed agents: not-acp (boot_failed)"
   end
 
   test "agent probe inventory withholds proof commands when preflight fails" do

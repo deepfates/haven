@@ -556,10 +556,19 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     if ok != [] do
       Mix.shell().info("Preflight-ready agents: #{Enum.map_join(ok, ", ", & &1.agent)}")
     end
+
+    if failed != [] do
+      Mix.shell().info(
+        "Preflight-failed agents: #{Enum.map_join(failed, ", ", &preflight_failure_label/1)}"
+      )
+    end
   end
 
   defp pluralize(1, singular), do: singular
   defp pluralize(_count, singular), do: singular <> "s"
+
+  defp preflight_failure_label(%{agent: agent, reason: reason}), do: "#{agent} (#{reason})"
+  defp preflight_failure_label(%{agent: agent}), do: agent
 
   defp print_registry_suggestions(workspace) do
     Mix.shell().info("")
