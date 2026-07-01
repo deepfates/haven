@@ -41,6 +41,15 @@ defmodule Haven.AgentRegistry do
 
   def suggestions(_registry), do: []
 
+  @spec env_keys(suggestion()) :: [String.t()]
+  def env_keys(%{env: env}) when is_map(env) do
+    env
+    |> Map.keys()
+    |> Enum.sort()
+  end
+
+  def env_keys(_suggestion), do: []
+
   @spec trial_command(suggestion(), Path.t()) :: String.t()
   def trial_command(suggestion, workspace) do
     agent_json =

@@ -55,6 +55,16 @@ defmodule Haven.AgentRegistryTest do
            }) == []
   end
 
+  test "summarizes registry env keys without depending on env values" do
+    assert AgentRegistry.env_keys(%{env: %{"ZED_API_KEY" => "secret", "AUGMENT_TOKEN" => ""}}) ==
+             [
+               "AUGMENT_TOKEN",
+               "ZED_API_KEY"
+             ]
+
+    assert AgentRegistry.env_keys(%{env: %{}}) == []
+  end
+
   test "builds a preflight and proof-command trial command for registry suggestions" do
     suggestion = %{
       id: "codex-acp",

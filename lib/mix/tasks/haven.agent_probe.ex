@@ -563,6 +563,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
             "  - #{suggestion.id} (#{suggestion.name} #{suggestion.version || "unknown"})"
           )
 
+          Mix.shell().info("    package: #{suggestion.package}")
+          Mix.shell().info("    env keys: #{registry_env_keys(suggestion)}")
           Mix.shell().info("    try: #{Haven.AgentRegistry.trial_command(suggestion, workspace)}")
         end)
 
@@ -572,6 +574,13 @@ defmodule Mix.Tasks.Haven.AgentProbe do
 
       {:error, reason} ->
         Mix.shell().info("  registry unavailable: #{inspect(reason)}")
+    end
+  end
+
+  defp registry_env_keys(suggestion) do
+    case Haven.AgentRegistry.env_keys(suggestion) do
+      [] -> "none"
+      keys -> Enum.join(keys, ", ")
     end
   end
 
