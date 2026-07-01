@@ -1428,6 +1428,8 @@ defmodule HavenWeb.RunLiveTest do
                     }},
                    1_000
 
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
     [audit] = PermissionAudits.list_for_run(run.id)
     assert audit.status == "resolved"
     assert audit.selected_option_id == "allow"

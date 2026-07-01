@@ -576,9 +576,15 @@ defmodule HavenWeb.InboxLive do
   defp run_form_params(params) do
     defaults = default_run_params()
 
-    Map.new(defaults, fn {key, default} ->
-      {key, Map.get(params, key, default)}
-    end)
+    form_params =
+      Map.new(defaults, fn {key, default} ->
+        {key, Map.get(params, key, default)}
+      end)
+
+    case selected_workspace_path(String.trim(form_params["workspace_id"])) do
+      nil -> form_params
+      path -> Map.put(form_params, "workspace", path)
+    end
   end
 
   defp run_attrs(params) do

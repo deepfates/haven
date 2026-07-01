@@ -440,10 +440,14 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, ~s|#workspace_id option[value="#{workspace.id}"]|)
 
     view
-    |> form("#new-run-form", %{"workspace_id" => workspace.id})
+    |> form("#new-run-form", %{
+      "workspace_id" => workspace.id,
+      "workspace" => "/ignored/manual/path"
+    })
     |> render_change()
 
     assert has_element?(view, "#new-run-selected-workspace", "Scratch repo")
+    assert has_element?(view, ~s|#workspace[value="#{Path.expand(tmp_dir)}"]|)
     assert has_element?(view, "#new-run-selected-workspace-path-state", "Ready")
     assert has_element?(view, "#new-run-selected-workspace-branch", "No git branch")
     assert has_element?(view, "#new-run-selected-workspace-path", Path.expand(tmp_dir))
