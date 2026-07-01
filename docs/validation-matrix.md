@@ -545,6 +545,10 @@ Evidence:
   with stale durable permission requests render decision buttons disabled, offer
   Reconnect, system-cancel the stale permission during reconnect, and start a
   fresh ACP process without leaving the old permission card active.
+- LiveView integration tests verify stale permission cards explain that the
+  saved decision is no longer attached to a live agent process, that reconnect
+  cancels the stale request, and that the record remains in the permission
+  audit.
 - LiveView integration tests and browser smoke verify disconnected running runs
   with an unterminated turn offer Reconnect, append a system `turn_failed`
   event for the stale turn, start a fresh ACP process, and reopen prompt

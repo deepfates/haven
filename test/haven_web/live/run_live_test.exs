@@ -607,6 +607,9 @@ defmodule HavenWeb.RunLiveTest do
 
     assert html =~ "not connected"
     assert has_element?(view, "#pending-permission-card", "Write file")
+    assert has_element?(view, "#pending-permission-stale-notice", "no longer attached")
+    assert has_element?(view, "#pending-permission-stale-notice", "Reconnect will cancel")
+    assert has_element?(view, "#pending-permission-stale-notice", "permission audit")
     assert has_element?(view, ~s|#pending-permission-card button[disabled]|)
     assert has_element?(view, "#run-control-notice", "not connected")
     assert has_element?(view, "#reconnect-run-button", "Reconnect")
@@ -1466,6 +1469,7 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Needs approval"
     assert html =~ "Write file"
     assert has_element?(view, "#pending-permission-card")
+    refute has_element?(view, "#pending-permission-stale-notice")
 
     assert has_element?(
              view,

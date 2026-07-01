@@ -2696,6 +2696,15 @@ defmodule HavenWeb.RunLive do
                   The agent is blocked until you choose an option.
                 </p>
                 <div
+                  :if={!@live?}
+                  id="pending-permission-stale-notice"
+                  class="mt-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"
+                >
+                  This saved decision is no longer attached to a live agent process. Reconnect will
+                  cancel the stale request, start a fresh ACP session, and keep this record in the
+                  permission audit.
+                </div>
+                <div
                   :if={@last_user_prompt}
                   id="pending-permission-conversation-context"
                   class="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700"
