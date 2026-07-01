@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       mix haven.agent_probe --agent my-agent --workspace . --prompt "read README.md" --expect-event-field file_read_succeeded:path=README.md
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --terminal-create-policy deny --expect-event terminal_create_denied
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --report docs/probes/my-agent.json
-      mix haven.agent_probe --agent my-agent --workspace . --prompt "summarize this repo" --load-runs 3 --require-real-agent --report docs/probe-load/my-agent-load.json
+      mix haven.agent_probe --agent my-agent --workspace . --prompt "summarize this repo" --load-runs 3 --load-concurrency 2 --require-real-agent --report docs/probe-load/my-agent-load.json
       mix haven.agent_probe --list-agents --workspace .
       mix haven.agent_probe --list-agents --preflight --workspace .
       mix haven.agent_probe --list-agents --registry --workspace .
@@ -41,6 +41,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   Use `--report path.json` to write the full probe report as pretty JSON.
   Use `--load-runs N` with `--report` to write an aggregate report proving N
   separate durable runs completed through the same configured agent path.
+  Use `--load-concurrency N` with `--load-runs` to run up to N child probes at
+  the same time.
   """
 
   use Mix.Task
@@ -54,6 +56,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     prompt: :string,
     timeout: :integer,
     load_runs: :integer,
+    load_concurrency: :integer,
     resolve_permissions: :string,
     expect_event: :keep,
     expect_event_field: :keep,
@@ -117,6 +120,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     |> Keyword.update(:workspace, File.cwd!(), &Path.expand/1)
     |> Keyword.update(:report, nil, &Path.expand/1)
     |> normalize_load_runs()
+    |> normalize_load_concurrency()
     |> Keyword.update(:resolve_permissions, nil, &normalize_permission_resolution/1)
     |> normalize_path_scope(:file_read_paths)
     |> normalize_path_scope(:file_write_paths)
@@ -138,6 +142,25 @@ defmodule Mix.Tasks.Haven.AgentProbe do
         Mix.raise("Invalid --load-runs #{inspect(count)}; expected an integer >= 2")
 
       :error ->
+        opts
+    end
+  end
+
+  defp normalize_load_concurrency(opts) do
+    case {Keyword.fetch(opts, :load_concurrency), Keyword.fetch(opts, :load_runs)} do
+      {{:ok, concurrency}, {:ok, count}}
+      when is_integer(concurrency) and concurrency >= 1 and concurrency <= count ->
+        opts
+
+      {{:ok, concurrency}, {:ok, count}} ->
+        Mix.raise(
+          "Invalid --load-concurrency #{inspect(concurrency)}; expected an integer between 1 and #{count}"
+        )
+
+      {{:ok, _concurrency}, :error} ->
+        Mix.raise("--load-concurrency requires --load-runs")
+
+      {:error, _load_runs} ->
         opts
     end
   end
@@ -378,6 +401,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
 
   defp print_load_report(report) do
     Mix.shell().info("Load probe: #{report.run_count} run(s)")
+    Mix.shell().info("Concurrency: #{Map.get(report, :concurrency, 1)}")
     Mix.shell().info("Agent: #{report.agent}")
     Mix.shell().info("Workspace: #{report.workspace}")
     Mix.shell().info("Status: #{report.status}")

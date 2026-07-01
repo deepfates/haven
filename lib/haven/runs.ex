@@ -34,28 +34,37 @@ defmodule Haven.Runs do
       |> Map.put_new("agent", "stub-acp")
       |> Map.put_new("status", "idle")
 
+    changeset = %Run{} |> Run.changeset(attrs) |> validate_agent_launch()
+
     result =
-      Repo.transaction(fn ->
-        case %Run{} |> Run.changeset(attrs) |> validate_agent_launch() |> Repo.insert() do
-          {:ok, run} ->
-            Events.append!(run.id, "run_created", %{
-              "title" => run.title,
-              "workspace" => run.workspace,
-              "agent" => run.agent,
-              "capability_policy" => Run.capability_policy(run.capability_policy)
-            })
+      if changeset.valid? do
+        Repo.transaction(fn ->
+          case Repo.insert(changeset) do
+            {:ok, run} ->
+              append_run_created!(run)
+              run
 
-            run
-
-          {:error, changeset} ->
-            Repo.rollback(changeset)
-        end
-      end)
+            {:error, changeset} ->
+              Repo.rollback(changeset)
+          end
+        end)
+      else
+        {:error, %{changeset | action: :insert}}
+      end
 
     with {:ok, run} <- result do
       _ = start_run(run.id)
       {:ok, run}
     end
+  end
+
+  defp append_run_created!(run) do
+    Events.append!(run.id, "run_created", %{
+      "title" => run.title,
+      "workspace" => run.workspace,
+      "agent" => run.agent,
+      "capability_policy" => Run.capability_policy(run.capability_policy)
+    })
   end
 
   defp validate_agent_launch(%Ecto.Changeset{valid?: false} = changeset), do: changeset

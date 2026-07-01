@@ -74,7 +74,7 @@ mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "summa
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "read README.md" --resolve-permissions allow
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "run tests" --expect-event terminal_created --expect-event terminal_output_succeeded --expect-event-field terminal_output_succeeded:payload.exit_status=0
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "run tests" --report docs/probes/my-agent-terminal.json
-mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "summarize this repo" --load-runs 2 --require-real-agent --report docs/probe-load/my-agent-load.json
+mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "summarize this repo" --load-runs 2 --load-concurrency 2 --require-real-agent --report docs/probe-load/my-agent-load.json
 mix haven.agent_probe --list-agents --preflight --workspace /path/to/repo
 mix haven.agent_probe --list-agents --registry --workspace /path/to/repo
 ```
@@ -116,7 +116,8 @@ npx-backed agent command suggestions that can be supplied through
 preflight and evidence probes only with an approved workspace and auth scope.
 `--report path.json` writes the full report as pretty JSON for committed proof
 artifacts. `--load-runs N` repeats the same real-agent probe as distinct
-durable runs and writes an aggregate report when paired with `--report`.
+durable runs and writes an aggregate report when paired with `--report`;
+`--load-concurrency N` runs up to N child probes at the same time.
 Passing the probe with `stub-acp` proves the harness; passing it with a real
 configured ACP agent is the next integration milestone. See
 `docs/probes/README.md` and `docs/probe-load/README.md` for the report

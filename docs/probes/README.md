@@ -179,6 +179,7 @@ mix haven.agent_probe \
   --workspace /path/to/repo \
   --prompt "summarize this workspace" \
   --load-runs 2 \
+  --load-concurrency 2 \
   --require-real-agent \
   --expect-event agent_initialized \
   --expect-event agent_session_started \
@@ -186,8 +187,11 @@ mix haven.agent_probe \
   --report docs/probe-load/my-agent-basic-load.json
 ```
 
-Current load reports are sequential repeated-run evidence. They do not prove
-concurrent scheduling or long-running external-agent output.
+Load reports default to sequential repeated-run evidence. Use
+`--load-concurrency N` to produce concurrent evidence; committed concurrent
+reports must include overlapping child probe windows. Load reports do not prove
+long-running external-agent output unless the prompt and expected events cover
+that story.
 
 ## Committed Evidence
 
@@ -210,3 +214,6 @@ concurrent scheduling or long-running external-agent output.
   `docs/probe-failures/codex-acp-terminal-mediated-negative.json`.
 - `docs/probe-load/codex-acp-basic-load.json`: positive sequential multi-run
   real-agent evidence for the basic turn lifecycle through saved `codex-acp`.
+- `docs/probe-load/codex-acp-basic-concurrent-load.json`: positive concurrent
+  multi-run real-agent evidence for the basic turn lifecycle through saved
+  `codex-acp`, with two overlapping child probe windows.

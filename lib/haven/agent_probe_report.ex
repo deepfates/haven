@@ -133,6 +133,8 @@ defmodule Haven.AgentProbeReport do
       |> require_string(report, "prompt")
       |> require_real_agent_load(report)
       |> require_positive_integer(report, "run_count", 2)
+      |> require_optional_load_concurrency(report)
+      |> require_concurrent_child_windows(report)
       |> require_load_status(report)
       |> require_expected_events(report)
       |> require_expected_event_fields(report)
@@ -196,6 +198,97 @@ defmodule Haven.AgentProbeReport do
         ["#{key} must be an integer >= #{minimum}" | errors]
     end
   end
+
+  defp require_optional_load_concurrency(errors, report) do
+    case Map.fetch(report, "concurrency") do
+      {:ok, value} when is_integer(value) and value >= 1 ->
+        case Map.get(report, "run_count") do
+          count when is_integer(count) and value <= count ->
+            errors
+
+          count when is_integer(count) ->
+            ["concurrency must be <= run_count" | errors]
+
+          _count ->
+            errors
+        end
+
+      {:ok, _value} ->
+        ["concurrency must be an integer >= 1" | errors]
+
+      :error ->
+        errors
+    end
+  end
+
+  defp require_concurrent_child_windows(errors, %{"concurrency" => concurrency} = report)
+       when is_integer(concurrency) and concurrency > 1 do
+    windows = Map.get(report, "child_windows")
+    run_count = Map.get(report, "run_count")
+
+    cond do
+      not is_list(windows) or windows == [] ->
+        ["child_windows must be a non-empty list when concurrency > 1" | errors]
+
+      is_integer(run_count) and length(windows) != run_count ->
+        ["child_windows length must match run_count" | errors]
+
+      not Enum.all?(windows, &valid_child_window?/1) ->
+        [
+          "child_windows entries must include index, run_id, status, started_at, and finished_at"
+          | errors
+        ]
+
+      not overlapping_child_windows?(windows) ->
+        [
+          "child_windows must show at least two overlapping child probe windows when concurrency > 1"
+          | errors
+        ]
+
+      true ->
+        errors
+    end
+  end
+
+  defp require_concurrent_child_windows(errors, _report), do: errors
+
+  defp valid_child_window?(%{
+         "index" => index,
+         "run_id" => run_id,
+         "status" => status,
+         "started_at" => started_at,
+         "finished_at" => finished_at
+       }) do
+    is_integer(index) and non_blank_string?(run_id) and non_blank_string?(status) and
+      valid_datetime?(started_at) and valid_datetime?(finished_at)
+  end
+
+  defp valid_child_window?(_window), do: false
+
+  defp valid_datetime?(value) when is_binary(value) do
+    match?({:ok, _datetime, _offset}, DateTime.from_iso8601(value))
+  end
+
+  defp valid_datetime?(_value), do: false
+
+  defp overlapping_child_windows?(windows) do
+    parsed =
+      Enum.map(windows, fn window ->
+        {:ok, started_at, _offset} = DateTime.from_iso8601(window["started_at"])
+        {:ok, finished_at, _offset} = DateTime.from_iso8601(window["finished_at"])
+        {started_at, finished_at}
+      end)
+
+    parsed
+    |> pairs()
+    |> Enum.any?(fn {{start_a, finish_a}, {start_b, finish_b}} ->
+      DateTime.compare(start_a, finish_b) == :lt and DateTime.compare(start_b, finish_a) == :lt
+    end)
+  end
+
+  defp pairs([]), do: []
+  defp pairs([_one]), do: []
+  defp pairs([head | tail]), do: Enum.map(tail, &{head, &1}) ++ pairs(tail)
 
   defp require_real_agent_load(errors, report) do
     case Map.get(report, "reports") do

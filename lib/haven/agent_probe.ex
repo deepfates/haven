@@ -149,18 +149,31 @@ defmodule Haven.AgentProbe do
   @spec run_load(keyword()) :: {:ok, map()} | {:error, atom(), map()}
   def run_load(opts) do
     count = Keyword.get(opts, :load_runs, 1)
+    concurrency = Keyword.get(opts, :load_concurrency, 1)
 
-    if is_integer(count) and count >= 2 do
-      run_load_runs(opts, count)
-    else
-      report =
-        load_report(opts, count, [], [%{index: nil, reason: :invalid_load_runs, run_id: nil}])
+    cond do
+      not (is_integer(count) and count >= 2) ->
+        report =
+          load_report(opts, count, concurrency, [], [
+            %{index: nil, reason: :invalid_load_runs, run_id: nil}
+          ])
 
-      {:error, :invalid_load_runs, report}
+        {:error, :invalid_load_runs, report}
+
+      not (is_integer(concurrency) and concurrency >= 1 and concurrency <= count) ->
+        report =
+          load_report(opts, count, concurrency, [], [
+            %{index: nil, reason: :invalid_load_concurrency, run_id: nil}
+          ])
+
+        {:error, :invalid_load_concurrency, report}
+
+      true ->
+        run_load_runs(opts, count, concurrency)
     end
   end
 
-  defp run_load_runs(opts, count) do
+  defp run_load_runs(opts, count, concurrency) do
     expected_events =
       Keyword.get_values(opts, :expect_event) ++ Keyword.get(opts, :expect_events, [])
 
@@ -168,36 +181,37 @@ defmodule Haven.AgentProbe do
 
     reports =
       1..count
-      |> Enum.map(fn index ->
-        run_opts =
-          opts
-          |> Keyword.delete(:load_runs)
-          |> Keyword.put(
-            :title,
-            "#{Keyword.get(opts, :title, title(Keyword.get(opts, :agent, "stub-acp")))} #{index}/#{count}"
-          )
-
-        {index, run(run_opts)}
+      |> Task.async_stream(
+        fn index ->
+          run_load_child(opts, index, count)
+        end,
+        max_concurrency: concurrency,
+        timeout: :infinity
+      )
+      |> Enum.map(fn
+        {:ok, indexed_result} -> indexed_result
       end)
 
     child_reports =
       Enum.map(reports, fn
-        {_index, {:ok, report}} -> report
-        {_index, {:error, _reason, report}} -> report
+        {_index, {:ok, report}, _window} -> report
+        {_index, {:error, _reason, report}, _window} -> report
       end)
+
+    child_windows = Enum.map(reports, fn {_index, _result, window} -> window end)
 
     failures =
       reports
       |> Enum.flat_map(fn
-        {_index, {:ok, _report}} ->
+        {_index, {:ok, _report}, _window} ->
           []
 
-        {index, {:error, reason, report}} ->
+        {index, {:error, reason, report}, _window} ->
           [%{index: index, reason: reason, run_id: report.run_id}]
       end)
 
     report = %{
-      load_report(opts, count, child_reports, failures)
+      load_report(opts, count, concurrency, child_reports, failures, child_windows)
       | expected_events: Enum.uniq(expected_events),
         expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1)
     }
@@ -209,19 +223,91 @@ defmodule Haven.AgentProbe do
     end
   end
 
-  defp load_report(opts, count, child_reports, failures) do
+  defp run_load_child(opts, index, count) do
+    started_at = DateTime.utc_now()
+    result = safe_load_child_run(opts, index, count)
+    finished_at = DateTime.utc_now()
+
+    {index, result,
+     %{
+       index: index,
+       started_at: DateTime.to_iso8601(started_at),
+       finished_at: DateTime.to_iso8601(finished_at),
+       status: load_child_status(result),
+       run_id: load_child_run_id(result)
+     }}
+  end
+
+  defp safe_load_child_run(opts, index, count) do
+    run(load_run_opts(opts, index, count))
+  rescue
+    exception ->
+      {:error, :child_exception, load_child_exception_report(opts, exception)}
+  catch
+    kind, reason ->
+      {:error, :child_exception, load_child_exception_report(opts, kind, reason)}
+  end
+
+  defp load_child_status({:ok, report}), do: report.status
+  defp load_child_status({:error, reason, _report}), do: to_string(reason)
+
+  defp load_child_run_id({:ok, report}), do: report.run_id
+  defp load_child_run_id({:error, _reason, report}), do: report.run_id
+
+  defp load_run_opts(opts, index, count) do
+    opts
+    |> Keyword.delete(:load_runs)
+    |> Keyword.delete(:load_concurrency)
+    |> Keyword.put(
+      :title,
+      "#{Keyword.get(opts, :title, title(Keyword.get(opts, :agent, "stub-acp")))} #{index}/#{count}"
+    )
+  end
+
+  defp load_report(opts, count, concurrency, child_reports, failures, child_windows \\ []) do
     %{
       kind: "agent_probe_load",
       agent: Keyword.get(opts, :agent, "stub-acp"),
       workspace: Keyword.get(opts, :workspace, File.cwd!()),
       prompt: Keyword.get(opts, :prompt, "hello from Haven agent probe"),
       run_count: count,
+      concurrency: concurrency,
       status: if(failures == [], do: "passed", else: "failed"),
       expected_events: [],
       expected_event_fields: [],
       failures: failures,
+      child_windows: child_windows,
       reports: child_reports
     }
+  end
+
+  defp load_child_exception_report(opts, exception) do
+    load_child_exception_report(opts, :error, Exception.message(exception))
+  end
+
+  defp load_child_exception_report(opts, kind, reason) do
+    expected_events =
+      Keyword.get_values(opts, :expect_event) ++ Keyword.get(opts, :expect_events, [])
+
+    expected_event_fields = expected_event_fields(opts)
+
+    opts
+    |> Keyword.get(:agent, "stub-acp")
+    |> invalid_run_report(
+      Keyword.get(opts, :workspace, File.cwd!()),
+      Keyword.get(opts, :prompt, "hello from Haven agent probe"),
+      nil,
+      expected_events,
+      expected_event_fields
+    )
+    |> Map.put(:status, "failed")
+    |> Map.put(:diagnostics, [
+      %{
+        type: "load_child_exception",
+        message: "#{kind}: #{inspect(reason)}"
+      }
+    ])
+    |> apply_redactions(redactions(opts))
   end
 
   @spec agent_inventory(String.t()) :: [map()]

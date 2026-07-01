@@ -98,10 +98,10 @@ Production blockers:
   real non-test agent or explicitly declared unsupported for that agent class.
 - Haven-mediated terminal capability requests must be proven against a real
   non-test agent or explicitly declared unsupported for that agent class.
-- Long-running output and concurrent multi-run behavior need evidence under
-  realistic external-agent load. Sequential real-agent basic multi-run evidence
-  now exists for `codex-acp`, but it does not prove concurrency or long-output
-  behavior.
+- Long-running output and larger-fan-out multi-run behavior need evidence under
+  realistic external-agent load. Two-run concurrent real-agent basic evidence
+  now exists for `codex-acp`, but it does not prove long-output behavior or
+  production-scale fan-out.
 - Auth/auth-scope handling must be explicit enough that a user can understand
   which credentials are being used and where.
 - Security boundaries around workspace access must remain visible to users and
@@ -134,8 +134,8 @@ The next best work is not another broad polish pass. It is one of:
 
 1. For production-grade work, target real-agent file/terminal mediation proof or
    a named negative report for unsupported agent classes.
-2. Add concurrent or long-output external-agent evidence only when it uses a
-   real configured ACP agent, not the local stub alone.
+2. Add long-output or larger-fan-out external-agent evidence only when it uses
+   a real configured ACP agent, not the local stub alone.
 3. Tighten auth/credential proof only when an agent actually requires
    interactive authentication or scoped credentials.
 

@@ -11,6 +11,10 @@ config :haven,
   ecto_repos: [Haven.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :haven, Haven.Repo,
+  journal_mode: :wal,
+  busy_timeout: 15_000
+
 # Configure the endpoint
 config :haven, HavenWeb.Endpoint,
   url: [host: "localhost"],

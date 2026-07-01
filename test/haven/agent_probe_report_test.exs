@@ -430,6 +430,37 @@ defmodule Haven.AgentProbeReportTest do
     assert "child report 2: real_agent_evidence must have required=true and accepted=true" in errors
   end
 
+  test "rejects load reports with impossible concurrency" do
+    report = Map.put(valid_load_report(), "concurrency", 3)
+
+    assert {:error, errors} = AgentProbeReport.validate_load(report)
+    assert "concurrency must be <= run_count" in errors
+  end
+
+  test "rejects concurrent load reports without overlapping child windows" do
+    report =
+      Map.put(valid_load_report(), "child_windows", [
+        %{
+          "index" => 1,
+          "run_id" => "run-1",
+          "status" => "idle",
+          "started_at" => "2026-07-01T00:00:00Z",
+          "finished_at" => "2026-07-01T00:00:01Z"
+        },
+        %{
+          "index" => 2,
+          "run_id" => "run-2",
+          "status" => "idle",
+          "started_at" => "2026-07-01T00:00:02Z",
+          "finished_at" => "2026-07-01T00:00:03Z"
+        }
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate_load(report)
+
+    assert "child_windows must show at least two overlapping child probe windows when concurrency > 1" in errors
+  end
+
   test "validates load report files" do
     path = Path.join(System.tmp_dir!(), "haven-valid-probe-load-#{System.unique_integer()}.json")
 
@@ -537,10 +568,27 @@ defmodule Haven.AgentProbeReportTest do
       "workspace" => "/workspace",
       "prompt" => "summarize",
       "run_count" => 2,
+      "concurrency" => 2,
       "status" => "passed",
       "expected_events" => ["agent_initialized", "turn_finished"],
       "expected_event_fields" => [],
       "failures" => [],
+      "child_windows" => [
+        %{
+          "index" => 1,
+          "run_id" => "run-1",
+          "status" => "idle",
+          "started_at" => "2026-07-01T00:00:00Z",
+          "finished_at" => "2026-07-01T00:00:05Z"
+        },
+        %{
+          "index" => 2,
+          "run_id" => "run-2",
+          "status" => "idle",
+          "started_at" => "2026-07-01T00:00:01Z",
+          "finished_at" => "2026-07-01T00:00:06Z"
+        }
+      ],
       "reports" => [valid_report(), second]
     }
   end

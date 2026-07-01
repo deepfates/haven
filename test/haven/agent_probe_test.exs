@@ -240,16 +240,24 @@ defmodule Haven.AgentProbeTest do
                workspace: File.cwd!(),
                prompt: "hello from load probe",
                load_runs: 2,
+               load_concurrency: 2,
                expect_events: ["agent_initialized", "turn_finished"],
                timeout: 5_000
              )
 
+    on_exit(fn ->
+      Enum.each(report.reports, &Runs.stop_run(&1.run_id))
+    end)
+
     assert report.kind == "agent_probe_load"
     assert report.status == "passed"
     assert report.run_count == 2
+    assert report.concurrency == 2
     assert report.expected_events == ["agent_initialized", "turn_finished"]
     assert report.failures == []
     assert length(report.reports) == 2
+    assert length(report.child_windows) == 2
+    assert Enum.all?(report.child_windows, &(&1.status == "idle"))
 
     run_ids = Enum.map(report.reports, & &1.run_id)
     assert Enum.uniq(run_ids) == run_ids
@@ -265,6 +273,23 @@ defmodule Haven.AgentProbeTest do
     assert report.run_count == 1
     assert report.reports == []
     assert [%{reason: :invalid_load_runs}] = report.failures
+  end
+
+  test "rejects invalid load concurrency" do
+    assert {:error, :invalid_load_concurrency, report} =
+             AgentProbe.run_load(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               load_runs: 2,
+               load_concurrency: 3
+             )
+
+    assert report.kind == "agent_probe_load"
+    assert report.status == "failed"
+    assert report.run_count == 2
+    assert report.concurrency == 3
+    assert report.reports == []
+    assert [%{reason: :invalid_load_concurrency}] = report.failures
   end
 
   test "preflight surfaces non-ACP commands before full evidence probes" do

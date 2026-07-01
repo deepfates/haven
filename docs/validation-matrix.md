@@ -780,6 +780,17 @@ Evidence:
   `agent_session_started`, and `turn_finished` expectations for each child run,
   and is accepted by `mix haven.probe_reports`. This is repeated-run evidence,
   not concurrent-load or long-output proof.
+- `docs/probe-load/codex-acp-basic-concurrent-load.json` is the current
+  committed positive concurrent multi-run real-agent probe from 2026-07-01. It
+  was generated against saved `codex-acp` with `--require-real-agent`,
+  `--load-runs 2`, and `--load-concurrency 2`, produced distinct durable runs
+  `dc1d85ca-8249-4f36-8249-da3afdef6bc3` and
+  `eead68d8-5df7-43a2-8638-0403ece0ca33`, passed `agent_initialized`,
+  `agent_session_started`, and `turn_finished` expectations for each child
+  run, and is accepted by `mix haven.probe_reports`. The report's
+  `child_windows` prove overlapping child probe execution from
+  `2026-07-01T09:24:13.791789Z` to `2026-07-01T09:24:22.091270Z`. This is
+  basic concurrent real-agent evidence, not long-output or larger-fan-out proof.
 - `docs/probes/codex-acp-file-tool-call.json` is a committed passing
   `--require-real-agent` report showing `codex-acp` can inspect a disposable
   workspace file and return a sentinel, but it does so through ACP
@@ -875,7 +886,9 @@ Evidence:
   validation also requires explicit `unsupported_client_capabilities` for
   tool-call-only mediated capability gaps. Load report validation requires at
   least two real-agent child reports, distinct durable run ids, matching
-  aggregate child metadata, and a passing aggregate status.
+  aggregate child metadata, and a passing aggregate status. Concurrent load
+  reports with `concurrency > 1` must also include child probe windows that
+  show at least two overlapping runs.
 
 Still missing:
 
@@ -894,8 +907,8 @@ Still missing:
   create-form comma fields plus post-creation scope chips.
 - Authenticated user identity and interactive auth flows for agents that require
   credentials.
-- Concurrent or long-running-output real external agent load beyond the current
-  sequential `codex-acp` basic load report.
+- Long-running-output real external agent load and larger-fan-out concurrency
+  beyond the current two-run `codex-acp` basic concurrent load report.
 
 ## Not Proven Yet
 
@@ -910,7 +923,7 @@ and should not be counted as complete until there is executable evidence.
 - Authentication flows for agents that require auth; configured env can pass
   secrets to launched agents, but no interactive auth flow is proven.
 - Session load/resume/fork/list support when agents expose it.
-- Concurrent or long-running-output real external agent load.
+- Long-running-output real external agent load and larger-fan-out concurrency.
 - Product-grade workspace and agent configuration UI beyond saved rows,
   workspace readiness summaries, agent launch readiness, and agent inventory.
 - Authenticated user identity for permission decisions.
