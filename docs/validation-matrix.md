@@ -105,6 +105,9 @@ Evidence:
 - LiveView tests verify inbox rows expose explicit attention labels and primary
   actions for runs needing human decisions or recovery, so users can distinguish
   permission/failure work without opening each run.
+- LiveView tests verify inbox rows expose explicit next-step guidance derived
+  from durable status and current liveness, and archived failed runs are labeled
+  for review rather than recovery.
 - LiveView tests verify inbox rows project the latest meaningful run event and
   refresh that activity when a new event arrives without requiring a run status
   change.

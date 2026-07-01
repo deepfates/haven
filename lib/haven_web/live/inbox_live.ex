@@ -331,6 +331,7 @@ defmodule HavenWeb.InboxLive do
       run_attention_label(run),
       run_operational_label(run),
       run_operational_hint(run),
+      run_next_step_label(run),
       latest_activity(run.latest_event)
     ]
     |> Enum.reject(&is_nil/1)
@@ -666,11 +667,30 @@ defmodule HavenWeb.InboxLive do
   defp run_attention_class(%{status: "failed"}),
     do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
 
+  defp run_action_label(%{archived_at: archived_at}) when not is_nil(archived_at), do: "Review"
   defp run_action_label(%{status: "waiting"}), do: "Decide"
   defp run_action_label(%{status: "failed"}), do: "Recover"
   defp run_action_label(%{status: "closed"}), do: "Review"
-  defp run_action_label(%{archived_at: archived_at}) when not is_nil(archived_at), do: "Review"
   defp run_action_label(_run), do: "Open"
+
+  defp run_next_step_label(%{archived_at: archived_at}) when not is_nil(archived_at),
+    do: "Review history"
+
+  defp run_next_step_label(%{status: "waiting", live?: false}), do: "Reconnect before deciding"
+  defp run_next_step_label(%{status: "waiting"}), do: "Decide in thread"
+  defp run_next_step_label(%{status: "failed"}), do: "Restart or inspect failure"
+  defp run_next_step_label(%{status: "closed"}), do: "Review history"
+
+  defp run_next_step_label(%{status: status, live?: false})
+       when status in ["initializing", "running"],
+       do: "Reconnect run"
+
+  defp run_next_step_label(%{status: status}) when status in ["initializing", "running"],
+    do: "Watch or cancel"
+
+  defp run_next_step_label(%{status: "idle", live?: false}), do: "Reconnect to continue"
+  defp run_next_step_label(%{status: "idle"}), do: "Send next prompt"
+  defp run_next_step_label(_run), do: "Open thread"
 
   defp run_operational_label(%{archived_at: archived_at}) when not is_nil(archived_at),
     do: "Archived"
@@ -1080,6 +1100,14 @@ defmodule HavenWeb.InboxLive do
             <span :if={latest_activity_time(@run.latest_event)} class="text-zinc-400">
               · {latest_activity_time(@run.latest_event)}
             </span>
+          </p>
+          <p
+            id={"run-#{@run.id}-next-step"}
+            class="mt-1 flex min-w-0 items-center gap-1 truncate text-xs text-zinc-700"
+          >
+            <span class="font-semibold text-zinc-950">Next</span>
+            <span class="text-zinc-400">·</span>
+            <span class="truncate">{run_next_step_label(@run)}</span>
           </p>
           <p
             :if={@operational_label}

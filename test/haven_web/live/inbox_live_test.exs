@@ -83,6 +83,26 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#agent-config-form")
   end
 
+  test "renders run rows as next-action triage items", %{conn: conn} do
+    waiting = insert_run!("Review permissions", "waiting")
+    failed = insert_run!("Fix crash", "failed")
+    archived_failure = insert_run!("Old crash", "failed")
+    assert {:ok, _archived} = Runs.archive_run(archived_failure.id)
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#run-#{waiting.id}-next-step", "Reconnect before deciding")
+    assert has_element?(view, "#run-#{failed.id}-next-step", "Restart or inspect failure")
+
+    view
+    |> element("#inbox-filter-archived")
+    |> render_click()
+
+    assert has_element?(view, "#run-#{archived_failure.id}-next-step", "Review history")
+    assert has_element?(view, "#run-#{archived_failure.id} a", "Review")
+    refute has_element?(view, "#run-#{archived_failure.id} a", "Recover")
+  end
+
   test "rejects a run with a missing workspace", %{conn: conn} do
     missing_workspace = Path.join(System.tmp_dir!(), "haven-missing-workspace")
     File.rm_rf!(missing_workspace)
