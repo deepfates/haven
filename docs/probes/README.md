@@ -19,6 +19,9 @@ production-grade Haven real-agent evidence when all of the following are true:
 - The `run_created` event payload matches the report's `agent` and `workspace`,
   and the `user_message` event payload matches the report's `prompt`, so
   committed evidence cannot splice lifecycle rows from a different run story.
+- `redactions` is present as a list. Literal redactions record only
+  `{source: "literal"}`; environment-derived redactions record the environment
+  variable name but never the raw secret value.
 - `expected_events` names the lifecycle or capability events required by the
   story being validated.
 - `missing_expected_events` is empty.

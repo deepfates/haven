@@ -253,6 +253,7 @@ defmodule Haven.AgentsTest do
       "prompt" => "prove #{agent}",
       "status" => "idle",
       "real_agent_evidence" => %{"required" => true, "accepted" => true},
+      "redactions" => [%{"source" => "literal"}],
       "expected_events" => ["agent_initialized", "agent_session_started", "turn_finished"],
       "expected_event_fields" => [],
       "missing_expected_events" => [],

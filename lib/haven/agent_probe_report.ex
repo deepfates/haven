@@ -44,6 +44,7 @@ defmodule Haven.AgentProbeReport do
       |> require_string(report, "prompt")
       |> require_accepted_status(report)
       |> require_real_agent_evidence(report)
+      |> require_redactions(report)
       |> require_expected_events(report)
       |> require_expected_event_fields(report)
       |> require_capability_event_field_expectations(report)
@@ -95,6 +96,49 @@ defmodule Haven.AgentProbeReport do
     case Map.get(report, "real_agent_evidence") do
       %{"required" => true, "accepted" => true} -> errors
       _value -> ["real_agent_evidence must have required=true and accepted=true" | errors]
+    end
+  end
+
+  defp require_redactions(errors, report) do
+    case Map.get(report, "redactions") do
+      redactions when is_list(redactions) ->
+        Enum.reduce(Enum.with_index(redactions, 1), errors, fn {redaction, index}, acc ->
+          validate_redaction(acc, redaction, index)
+        end)
+
+      _redactions ->
+        ["redactions must be a list" | errors]
+    end
+  end
+
+  defp validate_redaction(errors, %{"source" => "literal"} = redaction, index) do
+    reject_redaction_value(errors, redaction, index)
+  end
+
+  defp validate_redaction(errors, %{"source" => "env", "name" => name} = redaction, index) do
+    errors
+    |> then(fn errors ->
+      if non_blank_string?(name) do
+        errors
+      else
+        ["redactions entry #{index} env name must be a non-empty string" | errors]
+      end
+    end)
+    |> reject_redaction_value(redaction, index)
+  end
+
+  defp validate_redaction(errors, _redaction, index) do
+    [
+      "redactions entry #{index} must be literal or env metadata without secret values"
+      | errors
+    ]
+  end
+
+  defp reject_redaction_value(errors, redaction, index) do
+    if Map.has_key?(redaction, "value") do
+      ["redactions entry #{index} must not include raw secret value" | errors]
+    else
+      errors
     end
   end
 

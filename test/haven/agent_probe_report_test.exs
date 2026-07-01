@@ -14,6 +14,50 @@ defmodule Haven.AgentProbeReportTest do
     assert "real_agent_evidence must have required=true and accepted=true" in errors
   end
 
+  test "rejects reports without redaction metadata" do
+    report = Map.delete(valid_report(), "redactions")
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+    assert "redactions must be a list" in errors
+  end
+
+  test "accepts safe literal and environment redaction metadata" do
+    report =
+      valid_report()
+      |> Map.put("redactions", [
+        %{"source" => "literal"},
+        %{"source" => "env", "name" => "ANTHROPIC_API_KEY"}
+      ])
+
+    assert :ok = AgentProbeReport.validate(report)
+  end
+
+  test "rejects redaction metadata that leaks raw values" do
+    report =
+      valid_report()
+      |> Map.put("redactions", [
+        %{"source" => "literal", "value" => "secret"},
+        %{"source" => "env", "name" => "TOKEN", "value" => "secret"}
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+    assert "redactions entry 1 must not include raw secret value" in errors
+    assert "redactions entry 2 must not include raw secret value" in errors
+  end
+
+  test "rejects malformed environment redaction metadata" do
+    report =
+      valid_report()
+      |> Map.put("redactions", [
+        %{"source" => "env", "name" => "   "},
+        %{"source" => "other"}
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+    assert "redactions entry 1 env name must be a non-empty string" in errors
+    assert "redactions entry 2 must be literal or env metadata without secret values" in errors
+  end
+
   test "rejects reports without a durable run id" do
     report = Map.delete(valid_report(), "run_id")
 
