@@ -74,6 +74,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-thread")
     assert has_element?(view, "#timeline-filters summary", "Filter activity")
     assert has_element?(view, "#run-control-panel", "Message")
+    assert has_element?(view, "#run-control-panel.sticky")
     assert has_element?(view, "#run-prompt-form")
     refute has_element?(view, "#sample-prompts-disclosure")
     assert has_element?(view, "#run-capability-policy summary", "Capability policy")
@@ -304,6 +305,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, ~s|#send-prompt-button[title*="not connected"]|)
     assert has_element?(view, ~s|#cancel-run-button[title*="no live turn"]|)
     assert has_element?(view, "#run-control-notice", "not connected")
+    refute has_element?(view, "#run-control-panel.sticky")
     refute Runs.started?(run.id)
 
     events = Events.list_for_run(run.id)
@@ -1179,6 +1181,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#pending-permission-authority-write span", "notes")
     assert has_element?(view, "#pending-permission-authority-terminal", "Deny")
     assert has_element?(view, "#run-control-notice", "Waiting for your decision")
+    refute has_element?(view, "#run-control-panel.sticky")
 
     view
     |> element(~s|#pending-permission-card button[phx-value-option-id="allow"]|)

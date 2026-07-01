@@ -2317,7 +2317,13 @@ defmodule HavenWeb.RunLive do
 
               <section
                 id="run-control-panel"
-                class="sticky bottom-0 z-20 -mx-4 border-y border-zinc-200 bg-white/95 px-4 py-3 shadow-[0_-12px_28px_rgba(255,255,255,0.92)] backdrop-blur md:static md:mx-0 md:rounded-lg md:border md:p-4 md:shadow-none md:backdrop-blur-none"
+                class={[
+                  "bg-white",
+                  @can_prompt? &&
+                    "sticky bottom-0 z-20 -mx-4 border-y border-zinc-200 bg-white/95 px-4 py-3 shadow-[0_-12px_28px_rgba(255,255,255,0.92)] backdrop-blur md:static md:mx-0 md:rounded-lg md:border md:p-4 md:shadow-none md:backdrop-blur-none",
+                  !@can_prompt? &&
+                    "rounded-lg border border-zinc-200 p-4"
+                ]}
               >
                 <h2 class="font-semibold">Message</h2>
                 <p
