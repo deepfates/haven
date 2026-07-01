@@ -12,7 +12,7 @@ agents with known limitations. It does not mean production-grade.
 - Verified application commit: `26de37b1`
 - Date: 2026-07-01
 - Operator: Codex
-- Last maintenance verification commit: `8d65a165`
+- Last maintenance verification commit: `cbbfaa8d`
 
 ## Required Gates
 
@@ -40,6 +40,9 @@ Evidence:
 - Latest maintenance result: `mix precommit` passed at commit `8d65a165` with
   254 tests; `mix haven.probe_reports` validated 5 positive probe reports, 2
   failure reports, and 2 load reports.
+- Current maintenance result: `mix precommit` passed after the
+  `cbbfaa8d` evidence refresh with 262 tests; `mix haven.probe_reports`
+  validated 5 positive probe reports, 2 failure reports, and 2 load reports.
 
 ### 2. Dev Database Gate
 
@@ -57,7 +60,7 @@ Evidence:
 
 - Result: `No pending migrations.`
 - Notes: latest maintenance verification passed at application commit
-  `8d65a165`.
+  `cbbfaa8d`.
 
 ### 3. Runtime Smoke Gate
 
@@ -81,6 +84,9 @@ Evidence:
 - Result: passed against `http://127.0.0.1:4000`.
 - Notes: alpha recorded run
   `3223240c-67e0-49dc-abf1-3be3e53bf353` at application commit `26de37b1`.
+- Current maintenance smoke passed against `http://127.0.0.1:4000` at
+  application commit `cbbfaa8d`, including `--load-runs 3`; primary smoke run
+  `faac147e-cf60-434f-b3a8-63b77a28d4a9`.
 
 ### 4. Browser Sanity Gate
 
@@ -101,6 +107,11 @@ Evidence:
 - Notes: see `docs/browser-smoke/2026-07-01-alpha-current.md`; earlier
   responsive evidence is in `docs/browser-smoke/2026-07-01-alpha-cut.md` and
   `docs/browser-smoke/2026-07-01-runtime-and-responsive.md`.
+- Current maintenance browser inspection passed at application commit
+  `cbbfaa8d`: the inbox and run detail had no horizontal overflow at `390x844`,
+  the inbox primary order remained attention/queue before setup disclosures,
+  and the run detail kept thread/decision/message/evidence hierarchy with
+  permission details closed by default.
 
 ### 5. Agent Probe Evidence Gate
 

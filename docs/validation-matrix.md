@@ -27,6 +27,11 @@ evidence exists.
   hierarchy, absence of duplicate/dev surfaces, inspectable evidence/details,
   and no page-level horizontal overflow at desktop/default and `390x844`
   mobile viewport sizes.
+- Current alpha browser smoke:
+  `docs/browser-smoke/2026-07-01-alpha-current.md` reruns the browser sanity
+  gate at commit `cbbfaa8d`, including `390x844` inbox/run detail overflow
+  checks, closed secondary disclosures, and the thread/decision/message/evidence
+  hierarchy.
 - Workspace security policy browser smoke:
   `docs/browser-smoke/2026-07-01-workspace-security-policy.md` verifies the
   product-visible root boundary, blank path scope semantics, and terminal
@@ -40,6 +45,9 @@ evidence exists.
 - Agent probe load harness: `mix haven.agent_probe --load-runs N --report` can
   produce aggregate repeated-run evidence artifacts; see
   `docs/probe-load/README.md`.
+- Runtime load smoke: `docs/runtime-smoke/2026-07-01-load-runs.md` records a
+  current dev-server `--load-runs 3` pass at commit `cbbfaa8d`, including
+  rendered page isolation across disposable runs.
 - LiveView integration: malformed ACP startup output records
   `agent_protocol_failed`, marks the run `failed`, and does not restart the
   agent process.
