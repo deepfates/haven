@@ -29,6 +29,7 @@ defmodule HavenWeb.InboxLive do
      |> assign(:run_search, "")
      |> assign(:agent_filter, "")
      |> assign(:workspace_filter, "")
+     |> assign(:new_run_open?, false)
      |> assign(:form, to_form(default_run_params()))
      |> assign(:workspace_form, to_form(default_workspace_params(), as: :workspace_config))
      |> assign(:workspace_error, nil)
@@ -52,12 +53,19 @@ defmodule HavenWeb.InboxLive do
         {:noreply, push_navigate(socket, to: ~p"/runs/#{run.id}")}
 
       {:error, changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset)) |> assign_runs()}
+        {:noreply,
+         socket
+         |> assign(:new_run_open?, true)
+         |> assign(:form, to_form(changeset))
+         |> assign_runs()}
     end
   end
 
   def handle_event("change_run", params, socket) do
-    {:noreply, assign(socket, :form, to_form(run_form_params(params)))}
+    {:noreply,
+     socket
+     |> assign(:new_run_open?, true)
+     |> assign(:form, to_form(run_form_params(params)))}
   end
 
   def handle_event("archive_run", %{"id" => id}, socket) do
@@ -1493,6 +1501,43 @@ defmodule HavenWeb.InboxLive do
     form[field].value || default_run_params()[Atom.to_string(field)] || ""
   end
 
+  defp new_run_start_block_reason(selected_workspace, workspace_value, selected_readiness) do
+    cond do
+      workspace_missing?(selected_workspace, workspace_value) ->
+        "Restore the workspace path before starting a run."
+
+      agent_launch_blocked?(selected_readiness) ->
+        agent_launch_summary(selected_readiness)
+
+      true ->
+        nil
+    end
+  end
+
+  defp workspace_missing?(%{path_state: :missing}, _workspace_value), do: true
+  defp workspace_missing?(%{path_state: :ready}, _workspace_value), do: false
+
+  defp workspace_missing?(_selected_workspace, workspace_value) do
+    workspace_value
+    |> workspace_path_from_form()
+    |> File.dir?()
+    |> Kernel.not()
+  end
+
+  defp workspace_path_from_form(workspace_value) when is_binary(workspace_value) do
+    workspace_value
+    |> String.trim()
+    |> case do
+      "" -> File.cwd!()
+      path -> Path.expand(path)
+    end
+  end
+
+  defp workspace_path_from_form(_workspace_value), do: File.cwd!()
+
+  defp agent_launch_blocked?(%{status: "invalid"}), do: true
+  defp agent_launch_blocked?(_readiness), do: false
+
   defp agent_evidence_label(_inventory, reports) when reports != [] do
     pluralize_count(length(reports), "accepted probe")
   end
@@ -2428,7 +2473,7 @@ defmodule HavenWeb.InboxLive do
 
           <details
             id="new-run-panel"
-            open={@form.errors != []}
+            open={@new_run_open? or @form.errors != []}
             class="rounded-lg border border-zinc-200 bg-white"
           >
             <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-zinc-800 marker:hidden">
@@ -2452,6 +2497,13 @@ defmodule HavenWeb.InboxLive do
               <% selected_gap_reports = Map.get(@agent_capability_gap_reports, selected_agent, []) %>
               <% selected_workspace =
                 selected_workspace_summary(@workspaces, form_value(@form, :workspace_id)) %>
+              <% workspace_value = form_value(@form, :workspace) %>
+              <% start_block_reason =
+                new_run_start_block_reason(
+                  selected_workspace,
+                  workspace_value,
+                  selected_readiness
+                ) %>
               <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem]">
                 <.input
                   field={@form[:title]}
@@ -2485,10 +2537,20 @@ defmodule HavenWeb.InboxLive do
                 <button
                   id="start-run-button"
                   class="mb-2 h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!is_nil(start_block_reason)}
+                  title={start_block_reason}
+                  aria-describedby={if(start_block_reason, do: "new-run-start-blocker")}
                 >
                   Start
                 </button>
               </div>
+              <p
+                :if={start_block_reason}
+                id="new-run-start-blocker"
+                class="-mt-1 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800"
+              >
+                {start_block_reason}
+              </p>
               <div
                 id="new-run-agent-evidence"
                 class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600"

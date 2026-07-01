@@ -67,6 +67,7 @@ defmodule HavenWeb.InboxLiveTest do
     })
     |> render_change()
 
+    assert has_element?(view, "#new-run-panel[open]")
     assert has_element?(view, "#new-run-read-authority", "Allow")
     assert has_element?(view, "#new-run-read-scope-readme-md", "README.md")
     assert has_element?(view, "#new-run-read-scope-docs", "docs")
@@ -429,6 +430,16 @@ defmodule HavenWeb.InboxLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/")
 
+    view
+    |> form("#new-run-form", %{
+      "title" => "Invalid workspace run",
+      "workspace" => missing_workspace
+    })
+    |> render_change()
+
+    assert has_element?(view, "#start-run-button[disabled]")
+    assert has_element?(view, "#new-run-start-blocker", "Restore the workspace path")
+
     html =
       view
       |> form("#new-run-form", %{
@@ -567,6 +578,15 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#new-run-selected-workspace-usage", "1 archived run")
 
     assert has_element?(view, "#workspace-#{missing_workspace.id}-path-state", "Missing")
+
+    view
+    |> form("#new-run-form", %{"workspace_id" => missing_workspace.id})
+    |> render_change()
+
+    assert has_element?(view, "#new-run-selected-workspace", "Missing repo")
+    assert has_element?(view, "#new-run-selected-workspace-path-state", "Missing")
+    assert has_element?(view, "#start-run-button[disabled]")
+    assert has_element?(view, "#new-run-start-blocker", "Restore the workspace path")
 
     assert has_element?(
              view,
@@ -1242,6 +1262,17 @@ defmodule HavenWeb.InboxLiveTest do
              })
 
     {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> form("#new-run-form", %{
+      "title" => "Blocked agent run",
+      "workspace" => tmp_dir,
+      "agent" => "blocked-agent"
+    })
+    |> render_change()
+
+    assert has_element?(view, "#start-run-button[disabled]")
+    assert has_element?(view, "#new-run-start-blocker", "working directory")
 
     html =
       view
