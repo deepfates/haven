@@ -1130,6 +1130,12 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(
              view,
              "#agent-config-candidate-agent-probe-long-output-command",
+             "--timeout 120000"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-long-output-command",
              "--expect-min-agent-output-chars 1200"
            )
 

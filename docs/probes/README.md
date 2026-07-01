@@ -253,8 +253,8 @@ that story.
 - `codex-acp-long-output.json`: positive bounded long-output real-agent probe
   for saved `codex-acp`. It requires at least 1,200 streamed output characters
   and at least 8 `agent_message_chunk` events; the committed report records
-  1,632 characters across 305 chunks for durable run
-  `95ab6336-8370-4422-9c4b-6997a011a18e`.
+  2,892 characters across 627 chunks for durable run
+  `1d3154b8-71aa-417a-ac94-4cf9d5f41a7c`.
 - `codex-acp-file-tool-call.json`: positive real-agent visibility evidence for
   file inspection through ACP `tool_call` / `tool_call_update`, not proof of
   Haven-mediated `fs/*` client request handling. The corresponding failed

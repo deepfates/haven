@@ -322,6 +322,7 @@ defmodule Haven.AgentProbeTest do
              "--failure-report docs/probe-failures/candidate-terminal-denied-mediated-negative.json"
 
     assert output =~ "long-output: mix haven.agent_probe --agent candidate"
+    assert output =~ "--timeout 120000"
     assert output =~ "--expect-min-agent-output-chars 1200"
     assert output =~ "--expect-min-agent-message-chunks 8"
     assert output =~ "--report docs/probes/candidate-long-output.json"

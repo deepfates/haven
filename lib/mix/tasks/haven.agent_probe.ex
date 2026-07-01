@@ -603,6 +603,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
            "agent_session_started",
            "--expect-event",
            "turn_finished",
+           "--timeout",
+           "120000",
            "--expect-min-agent-output-chars",
            "1200",
            "--expect-min-agent-message-chunks",

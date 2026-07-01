@@ -839,23 +839,23 @@ Evidence:
   committed positive concurrent multi-run real-agent probe from 2026-07-01. It
   was generated against saved `codex-acp` with `--require-real-agent`,
   `--load-runs 3`, and `--load-concurrency 3`, produced distinct durable runs
-  `e46087f3-fc3f-47e7-bb5c-2338d6bf5d72`,
-  `432a87d0-6ab1-4a07-add6-75367640d270`, and
-  `832bf628-8b27-4136-9fb9-6ca6b5d99a70`, passed `agent_initialized`,
+  `09afb9cc-484f-4bef-abf2-64ffd46b3d7f`,
+  `9e4455ec-f9a6-4cc2-b5a1-1b10d40e7071`, and
+  `51dd9c5a-4253-4ef8-b640-1b3c177959cf`, passed `agent_initialized`,
   `agent_session_started`, and `turn_finished` expectations for each child
   run, and is accepted by `mix haven.probe_reports`. The report's
   `child_windows` prove overlapping child probe execution from
-  `2026-07-01T12:45:21.765374Z` to `2026-07-01T12:45:35.214737Z`. This is
+  `2026-07-01T18:18:16.331641Z` to `2026-07-01T18:18:30.508071Z`. This is
   modest concurrent real-agent evidence, not long-output or production-scale
   fan-out proof.
 - `docs/probes/codex-acp-long-output.json` is the current committed positive
   bounded long-output real-agent probe from 2026-07-01. It was generated
   against saved `codex-acp` with `--require-real-agent`, produced durable run
-  `95ab6336-8370-4422-9c4b-6997a011a18e`, passed `agent_initialized`,
-  `agent_session_started`, `agent_message_chunk`, and `turn_finished`
-  expectations, and required at least 1,200 streamed output characters plus at
-  least 8 agent message chunks. The report records 1,632 characters across 305
-  `agent_message_chunk` events and is accepted by `mix haven.probe_reports`.
+  `1d3154b8-71aa-417a-ac94-4cf9d5f41a7c`, passed `agent_initialized`,
+  `agent_session_started`, and `turn_finished` expectations, and required at
+  least 1,200 streamed output characters plus at least 8 agent message chunks.
+  The report records 2,892 characters across 627 `agent_message_chunk` events
+  and is accepted by `mix haven.probe_reports`.
   This is bounded single-run streaming evidence, not arbitrary long-duration or
   larger-fan-out proof.
 - `docs/probes/codex-acp-file-tool-call.json` is a committed passing

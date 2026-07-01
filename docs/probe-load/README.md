@@ -53,4 +53,4 @@ text the agent read from the workspace.
   concurrent load probe from 2026-07-01. It uses saved `codex-acp` with
   `--require-real-agent`, creates three distinct durable Haven runs at
   `concurrency: 3`, and records overlapping child probe windows from
-  `2026-07-01T12:45:21.765374Z` to `2026-07-01T12:45:35.214737Z`.
+  `2026-07-01T18:18:16.331641Z` to `2026-07-01T18:18:30.508071Z`.
