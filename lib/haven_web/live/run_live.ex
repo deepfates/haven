@@ -128,7 +128,7 @@ defmodule HavenWeb.RunLive do
     events = Events.list_for_run(id)
     file_changes = FileChanges.list_for_run(id)
     terminal_sessions = TerminalSessions.list_for_run(id)
-    live? = Runs.started?(id)
+    live? = Runs.started?(run)
     agent_readiness = agent_readiness(run.agent)
     agent_probe_reports = Agents.accepted_probe_reports(run.agent)
 

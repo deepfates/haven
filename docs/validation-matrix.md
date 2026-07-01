@@ -213,6 +213,8 @@ Evidence:
   overflow from long run facts.
 - Browser inspection verifies a waiting run detail page has no horizontal
   overflow at a 656px viewport.
+- LiveView telemetry tests verify run detail reuses the already loaded run row
+  when checking process liveness, avoiding duplicate run fetches during mount.
 - Event append now normalizes nested payload keys to strings before storage and
   PubSub broadcast, then rejects non-JSON-compatible values. Data-layer tests
   verify atom-keyed nested maps and lists are persisted and delivered as

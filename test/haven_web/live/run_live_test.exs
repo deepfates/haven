@@ -74,6 +74,38 @@ defmodule HavenWeb.RunLiveTest do
     assert filters_index < facts_index
   end
 
+  test "mounting run detail reuses the loaded run when checking liveness", %{conn: conn} do
+    run = insert_disconnected_run!("Loaded detail liveness")
+    parent = self()
+    telemetry_id = "run-live-loaded-liveness-#{System.unique_integer([:positive])}"
+
+    :ok =
+      :telemetry.attach(
+        telemetry_id,
+        [:haven, :repo, :query],
+        fn _event, _measurements, metadata, _config ->
+          send(parent, {:repo_query, metadata})
+        end,
+        nil
+      )
+
+    try do
+      {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+      assert has_element?(view, "#haven-run")
+
+      run_selects =
+        collect_repo_queries()
+        |> Enum.filter(fn metadata ->
+          metadata[:source] == "runs" and String.starts_with?(metadata[:query], "SELECT")
+        end)
+
+      assert length(run_selects) <= 2
+    after
+      :telemetry.detach(telemetry_id)
+    end
+  end
+
   test "renders accepted real-agent evidence in the run header", %{conn: conn} do
     assert {:ok, _agent_config} =
              Agents.create_agent_config(%{
@@ -3315,6 +3347,14 @@ defmodule HavenWeb.RunLiveTest do
     on_exit(fn ->
       Runs.stop_run(run_id)
     end)
+  end
+
+  defp collect_repo_queries(acc \\ []) do
+    receive do
+      {:repo_query, metadata} -> collect_repo_queries([metadata | acc])
+    after
+      50 -> Enum.reverse(acc)
+    end
   end
 
   defp insert_run!(title, agent) do
