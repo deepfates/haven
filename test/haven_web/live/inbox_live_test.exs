@@ -114,11 +114,35 @@ defmodule HavenWeb.InboxLiveTest do
   test "renders a first-run empty state without opening setup panels", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
+    assert has_element?(view, "#inbox-attention-summary")
+    assert has_element?(view, "#inbox-attention-label", "No runs yet")
+    assert has_element?(view, "#inbox-attention-detail", "Ready when you are")
     assert has_element?(view, "#new-run-panel:not([open])")
     assert has_element?(view, "#inbox-first-run-empty", "No runs yet.")
     assert has_element?(view, "#inbox-first-run-empty", "Open Start a run")
     assert has_element?(view, "#workspaces-panel:not([open])")
     assert has_element?(view, "#agent-configs-panel:not([open])")
+  end
+
+  test "renders an attention summary that jumps to the most urgent lane", %{conn: conn} do
+    waiting = insert_run!("Needs approval", "waiting")
+    running = insert_run!("Working run", "running")
+    history = insert_run!("Done run", "idle")
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#inbox-attention-label", "1 decision")
+    assert has_element?(view, "#inbox-attention-detail", "1 running")
+    assert has_element?(view, "#inbox-attention-detail", "1 history")
+
+    view
+    |> element("#inbox-attention-primary")
+    |> render_click()
+
+    assert has_element?(view, "#inbox-needs-you-section")
+    assert has_element?(view, "#run-#{waiting.id}")
+    refute has_element?(view, "#run-#{running.id}")
+    refute has_element?(view, "#run-#{history.id}")
   end
 
   test "keeps setup surfaces behind secondary inbox disclosures", %{conn: conn} do

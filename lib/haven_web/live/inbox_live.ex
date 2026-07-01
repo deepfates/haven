@@ -240,6 +240,13 @@ defmodule HavenWeb.InboxLive do
       "history" => length(history),
       "archived" => length(archived_matches)
     })
+    |> then(fn socket ->
+      assign(
+        socket,
+        :inbox_attention_summary,
+        inbox_attention_summary(socket.assigns.run_filter_counts)
+      )
+    end)
     |> assign(:needs_you, visible_needs_you)
     |> assign(:running, visible_running)
     |> assign(:history, visible_history)
@@ -816,6 +823,50 @@ defmodule HavenWeb.InboxLive do
     ]
   end
 
+  defp inbox_attention_summary(%{
+         "needs_you" => count,
+         "running" => running,
+         "history" => history
+       })
+       when count > 0 do
+    %{
+      filter: "needs_you",
+      icon: "hero-exclamation-circle",
+      label: "#{count} #{pluralize_word(count, "decision")}",
+      detail: "#{running} running · #{history} history"
+    }
+  end
+
+  defp inbox_attention_summary(%{"running" => count, "history" => history}) when count > 0 do
+    %{
+      filter: "running",
+      icon: "hero-bolt",
+      label: "#{count} running",
+      detail: "#{history} history"
+    }
+  end
+
+  defp inbox_attention_summary(%{"history" => count}) when count > 0 do
+    %{
+      filter: "history",
+      icon: "hero-check-circle",
+      label: "Caught up",
+      detail: "#{count} #{pluralize_word(count, "run")} in history"
+    }
+  end
+
+  defp inbox_attention_summary(_counts) do
+    %{
+      filter: "all",
+      icon: "hero-inbox",
+      label: "No runs yet",
+      detail: "Ready when you are"
+    }
+  end
+
+  defp pluralize_word(1, word), do: word
+  defp pluralize_word(_count, word), do: "#{word}s"
+
   defp badge_class(tone) do
     "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium " <>
       tone
@@ -1342,6 +1393,34 @@ defmodule HavenWeb.InboxLive do
               <p class="mt-1 text-sm text-zinc-500">Agent work across your folders.</p>
             </div>
           </header>
+
+          <section id="inbox-attention-summary" class="border-b border-zinc-200 pb-4">
+            <button
+              id="inbox-attention-primary"
+              type="button"
+              class="flex w-full items-center justify-between gap-4 rounded-md px-1 py-2 text-left transition hover:bg-zinc-50"
+              phx-click="filter_runs"
+              phx-value-filter={@inbox_attention_summary.filter}
+            >
+              <span class="flex min-w-0 items-center gap-3">
+                <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-700">
+                  <.icon name={@inbox_attention_summary.icon} class="size-5" />
+                </span>
+                <span class="min-w-0">
+                  <span
+                    id="inbox-attention-label"
+                    class="block truncate text-base font-semibold text-zinc-950"
+                  >
+                    {@inbox_attention_summary.label}
+                  </span>
+                  <span id="inbox-attention-detail" class="block truncate text-sm text-zinc-500">
+                    {@inbox_attention_summary.detail}
+                  </span>
+                </span>
+              </span>
+              <.icon name="hero-chevron-right" class="size-5 shrink-0 text-zinc-400" />
+            </button>
+          </section>
 
           <details
             id="new-run-panel"

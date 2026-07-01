@@ -124,6 +124,9 @@ Evidence:
 - LiveView tests verify inbox rows expose operational process-state hints for
   connected, disconnected, stale-decision, interrupted, failed, and closed runs,
   so persisted status is not mistaken for current agent liveness.
+- LiveView tests verify the inbox renders a compact attention summary above run
+  creation and search, derived from the same lane counts, and that tapping it
+  jumps to the most urgent lane instead of forcing users to scan every run.
 - LiveView tests verify the inbox can filter the attention surface to All,
   Needs You, Running, or History while preserving lane counts and empty states.
 - LiveView tests verify the inbox can search visible run facts across title,
@@ -154,6 +157,8 @@ Evidence:
   of becoming invisible durable records.
 - Browser smoke verifies a failed run can be archived from History and
   disappears from the inbox without deleting its run record.
+- Browser inspection verifies the attention summary renders on desktop and a
+  390px mobile viewport without horizontal page overflow.
 - Saved workspace rows now show derived readiness and run usage, including
   missing-on-disk folders plus active and archived run counts, so multi-folder
   triage exposes operational state without opening each run.
