@@ -66,6 +66,18 @@ mix haven.probe_reports
 mix haven.agent_probe --list-agents --workspace /Users/deepfates/Hacking/github/deepfates/haven
 ```
 
+Latest application-candidate verification:
+
+- Verified application commit: `03657003`
+- `MIX_ENV=dev mix haven.pending_migrations`: passed with no pending
+  migrations.
+- `MIX_ENV=dev mix haven.runtime_smoke --base-url http://127.0.0.1:4000`:
+  passed with run id `e1d746a8-12f2-44f2-ac66-aa8e8686f0b5`.
+- Browser sanity: default and `390x844` mobile checks passed; see
+  `docs/browser-smoke/2026-07-01-alpha-current.md`.
+- `mix precommit`: passed at verified application commit `03657003` with 230
+  tests and 4 validated probe reports.
+
 Current basic real-agent probe shape:
 
 ```bash

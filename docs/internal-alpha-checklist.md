@@ -9,10 +9,10 @@ agents with known limitations. It does not mean production-grade.
 ## Release Candidate
 
 - Branch: `codex/elixir-cutover`
-- Commit:
+- Verified application commit: `03657003`
 - Date: 2026-07-01
-- Operator:
-- Last verified candidate commit: `ca272cd9`
+- Operator: Codex
+- Last verified application commit: `03657003`
 
 ## Required Gates
 
@@ -34,8 +34,9 @@ Pass condition:
 
 Evidence:
 
-- Result: last recorded run passed with 230 tests and 4 validated probe reports.
-- Notes: rerun at the exact release commit before cutting alpha.
+- Result: passed at verified application commit `03657003` with 230 tests and
+  4 validated probe reports.
+- Notes:
 
 ### 2. Dev Database Gate
 
@@ -52,7 +53,7 @@ Pass condition:
 Evidence:
 
 - Result: `No pending migrations.`
-- Notes:
+- Notes: verified at application commit `03657003`.
 
 ### 3. Runtime Smoke Gate
 
@@ -75,8 +76,7 @@ Evidence:
 
 - Result: passed against `http://127.0.0.1:4000`.
 - Notes: latest recorded run
-  `be122feb-0840-47ef-9307-c0b463559b0b`; rerun at the exact release commit
-  before cutting alpha.
+  `e1d746a8-12f2-44f2-ac66-aa8e8686f0b5` at application commit `03657003`.
 
 ### 4. Browser Sanity Gate
 
@@ -92,10 +92,11 @@ Manual browser check against `http://127.0.0.1:4000/`:
 
 Evidence:
 
-- Result: desktop/default and `390x844` mobile checks passed for the latest
-  alpha candidate.
-- Notes: see `docs/browser-smoke/2026-07-01-alpha-cut.md`; earlier responsive
-  evidence is in `docs/browser-smoke/2026-07-01-runtime-and-responsive.md`.
+- Result: default and `390x844` mobile checks passed for application commit
+  `03657003`.
+- Notes: see `docs/browser-smoke/2026-07-01-alpha-current.md`; earlier
+  responsive evidence is in `docs/browser-smoke/2026-07-01-alpha-cut.md` and
+  `docs/browser-smoke/2026-07-01-runtime-and-responsive.md`.
 
 ### 5. Agent Probe Evidence Gate
 
