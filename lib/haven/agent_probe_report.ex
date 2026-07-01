@@ -638,13 +638,20 @@ defmodule Haven.AgentProbeReport do
       reports
       |> Enum.with_index(1)
       |> Enum.flat_map(fn {report, index} ->
-        case validate(report) do
-          :ok ->
-            load_child_identity_errors(load_report, report, index)
+        child_validation_errors =
+          case validate(report) do
+            :ok -> []
+            {:error, errors} -> Enum.map(errors, &"child report #{index}: #{&1}")
+          end
 
-          {:error, errors} ->
-            Enum.map(errors, &"child report #{index}: #{&1}")
-        end
+        child_contract_errors =
+          if is_map(report) do
+            load_child_identity_errors(load_report, report, index)
+          else
+            []
+          end
+
+        child_validation_errors ++ child_contract_errors
       end)
 
     duplicate_errors = duplicate_run_id_errors(reports)
@@ -673,6 +680,28 @@ defmodule Haven.AgentProbeReport do
         errors
       else
         ["child report #{index}: prompt must match load report" | errors]
+      end
+    end)
+    |> then(fn errors ->
+      if Map.get(child, "expected_events", []) == Map.get(load_report, "expected_events", []) do
+        errors
+      else
+        ["child report #{index}: expected_events must match load report" | errors]
+      end
+    end)
+    |> then(fn errors ->
+      if Map.get(child, "expected_event_fields", []) ==
+           Map.get(load_report, "expected_event_fields", []) do
+        errors
+      else
+        ["child report #{index}: expected_event_fields must match load report" | errors]
+      end
+    end)
+    |> then(fn errors ->
+      if Map.get(child, "expected_output", %{}) == Map.get(load_report, "expected_output", %{}) do
+        errors
+      else
+        ["child report #{index}: expected_output must match load report" | errors]
       end
     end)
   end

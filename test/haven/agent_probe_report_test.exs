@@ -506,6 +506,27 @@ defmodule Haven.AgentProbeReportTest do
     assert "child report 2: real_agent_evidence must have required=true and accepted=true" in errors
   end
 
+  test "rejects load reports whose child acceptance contracts drift" do
+    report =
+      update_in(valid_load_report(), ["reports"], fn [first, second] ->
+        [
+          first,
+          second
+          |> Map.put("expected_events", ["agent_initialized", "turn_finished", "extra_event"])
+          |> Map.put("expected_event_fields", [
+            %{"event" => "turn_finished", "field" => "stopReason", "value" => "end_turn"}
+          ])
+          |> Map.put("expected_output", %{"min_agent_output_chars" => 10})
+        ]
+      end)
+
+    assert {:error, errors} = AgentProbeReport.validate_load(report)
+
+    assert "child report 2: expected_events must match load report" in errors
+    assert "child report 2: expected_event_fields must match load report" in errors
+    assert "child report 2: expected_output must match load report" in errors
+  end
+
   test "rejects load reports with impossible concurrency" do
     report = Map.put(valid_load_report(), "concurrency", 3)
 

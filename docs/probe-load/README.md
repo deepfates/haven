@@ -19,6 +19,8 @@ show:
 - Every child report has a distinct durable Haven `run_id`.
 - Every child report agrees with the aggregate `agent`, `workspace`, and
   `prompt`.
+- Every child report agrees with the aggregate acceptance contract:
+  `expected_events`, `expected_event_fields`, and `expected_output`.
 - `expected_events` names the lifecycle or capability events required by the
   story being validated.
 
