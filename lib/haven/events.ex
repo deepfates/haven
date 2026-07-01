@@ -4,9 +4,22 @@ defmodule Haven.Events do
   alias Haven.Events.Event
   alias Haven.Repo
 
+  @append_retries 20
+  @event_sequence_constraint "events_run_id_seq_index"
+
   def append!(run_id, type, payload \\ %{}) do
     payload = normalize_payload(payload)
 
+    :global.trans(
+      {{__MODULE__, :append, run_id}, self()},
+      fn ->
+        do_append!(run_id, type, payload, @append_retries)
+      end,
+      [node()]
+    )
+  end
+
+  defp do_append!(run_id, type, payload, retries_left) do
     seq =
       Repo.one(
         from e in Event,
@@ -14,13 +27,25 @@ defmodule Haven.Events do
           select: coalesce(max(e.seq), 0)
       ) + 1
 
-    %Event{}
-    |> Event.changeset(%{run_id: run_id, seq: seq, type: type, payload: payload})
-    |> Repo.insert!()
-    |> tap(fn event ->
-      broadcast(run_id, {:event_appended, event})
-      Phoenix.PubSub.broadcast(Haven.PubSub, "runs", {:run_event_appended, event})
-    end)
+    changeset =
+      Event.changeset(%Event{}, %{run_id: run_id, seq: seq, type: type, payload: payload})
+
+    case Repo.insert(changeset) do
+      {:ok, event} ->
+        broadcast(run_id, {:event_appended, event})
+        Phoenix.PubSub.broadcast(Haven.PubSub, "runs", {:run_event_appended, event})
+        event
+
+      {:error, changeset} when retries_left > 0 ->
+        if event_sequence_conflict?(changeset) do
+          do_append!(run_id, type, payload, retries_left - 1)
+        else
+          raise Ecto.InvalidChangesetError, action: :insert, changeset: changeset
+        end
+
+      {:error, changeset} ->
+        raise Ecto.InvalidChangesetError, action: :insert, changeset: changeset
+    end
   end
 
   def list_for_run(run_id) do
@@ -63,4 +88,11 @@ defmodule Haven.Events do
   end
 
   defp normalize_payload_value(value), do: value
+
+  defp event_sequence_conflict?(changeset) do
+    Enum.any?(changeset.errors, fn {_field, {_message, opts}} ->
+      Keyword.get(opts, :constraint) == :unique and
+        Keyword.get(opts, :constraint_name) == @event_sequence_constraint
+    end)
+  end
 end

@@ -188,6 +188,10 @@ Evidence:
   PubSub broadcast, then rejects non-JSON-compatible values. Data-layer tests
   verify atom-keyed nested maps and lists are persisted and delivered as
   JSON-shaped payloads, and invalid terms fail before storage.
+- Event append serializes sequence allocation per run in-process and retries the
+  database unique-index conflict path. Data-layer tests verify concurrent
+  append pressure preserves contiguous per-run sequence numbers without losing
+  payloads.
 
 Still missing:
 

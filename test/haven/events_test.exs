@@ -84,6 +84,28 @@ defmodule Haven.EventsTest do
     assert Events.list_for_run(run.id) == []
   end
 
+  test "concurrent appends preserve contiguous per-run sequence numbers" do
+    run = insert_run!("Concurrent event run")
+
+    appended =
+      1..25
+      |> Task.async_stream(
+        fn index ->
+          Events.append!(run.id, "agent_message_chunk", %{index: index})
+        end,
+        max_concurrency: 25,
+        timeout: :infinity
+      )
+      |> Enum.map(fn {:ok, event} -> event end)
+
+    assert length(appended) == 25
+
+    events = Events.list_for_run(run.id)
+
+    assert Enum.map(events, & &1.seq) == Enum.to_list(1..25)
+    assert events |> Enum.map(& &1.payload["index"]) |> Enum.sort() == Enum.to_list(1..25)
+  end
+
   test "latest_by_run_id returns only the newest event for each requested run" do
     alpha = insert_run!("Alpha")
     beta = insert_run!("Beta")
