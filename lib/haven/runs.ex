@@ -76,15 +76,17 @@ defmodule Haven.Runs do
   end
 
   def ensure_started(run_id) do
-    case Registry.lookup(Haven.Runs.Registry, run_id) do
-      [{pid, _}] ->
-        {:ok, pid}
+    case get_run!(run_id) do
+      %{archived_at: archived_at} when not is_nil(archived_at) ->
+        {:error, :archived_run}
 
-      [] ->
-        case get_run!(run_id) do
-          %{archived_at: archived_at} when not is_nil(archived_at) -> {:error, :archived_run}
-          %{status: status} when status in ["closed", "failed"] -> {:error, :terminal_run}
-          _run -> start_unarchived_run(run_id, [])
+      %{status: status} when status in ["closed", "failed"] ->
+        {:error, :terminal_run}
+
+      _run ->
+        case Registry.lookup(Haven.Runs.Registry, run_id) do
+          [{pid, _}] -> {:ok, pid}
+          [] -> start_unarchived_run(run_id, [])
         end
     end
   end

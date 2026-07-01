@@ -413,6 +413,10 @@ Evidence:
 - Direct `start_run/2` now refuses terminal `failed` and `closed` history with
   `{:error, :terminal_run}` and does not append lifecycle events. Data-layer
   tests preserve explicit reconnect/restart as the intentional recovery path.
+- `ensure_started/1` now checks durable run state before registry liveness, so
+  stale registered processes cannot make terminal history writable again.
+  Data-layer tests simulate stale registry liveness and verify no lifecycle
+  events are appended.
 - RunServer shutdown now explicitly tears down the ACP connection and port IO
   bridge.
 - Event ordering and persistence are covered by `test/haven/events_test.exs`.
