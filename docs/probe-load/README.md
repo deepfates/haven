@@ -12,6 +12,7 @@ show:
 - `run_count` is at least 2.
 - `concurrency`, when present, is between 1 and `run_count`.
 - `status` is `passed`.
+- `failures` is empty.
 - `reports` contains exactly `run_count` child reports.
 - Concurrent reports with `concurrency > 1` include `child_windows` whose
   timestamps show at least two overlapping child probe windows.

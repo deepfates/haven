@@ -144,6 +144,7 @@ defmodule Haven.AgentProbeReport do
       |> require_optional_load_concurrency(report)
       |> require_concurrent_child_windows(report)
       |> require_load_status(report)
+      |> require_no_load_failures(report)
       |> require_expected_events(report)
       |> require_expected_event_fields(report)
       |> require_expected_output(report)
@@ -208,6 +209,19 @@ defmodule Haven.AgentProbeReport do
     case Map.get(report, "status") do
       "passed" -> errors
       _status -> ["status must be passed" | errors]
+    end
+  end
+
+  defp require_no_load_failures(errors, report) do
+    case Map.get(report, "failures", []) do
+      [] ->
+        errors
+
+      failures when is_list(failures) ->
+        ["failures must be empty for passed load reports" | errors]
+
+      _failures ->
+        ["failures must be a list" | errors]
     end
   end
 

@@ -506,6 +506,22 @@ defmodule Haven.AgentProbeReportTest do
     assert "child report 2: real_agent_evidence must have required=true and accepted=true" in errors
   end
 
+  test "rejects passed load reports that still record child failures" do
+    report =
+      valid_load_report()
+      |> Map.put("failures", [%{"index" => 2, "reason" => "timeout", "run_id" => "run-2"}])
+
+    assert {:error, errors} = AgentProbeReport.validate_load(report)
+    assert "failures must be empty for passed load reports" in errors
+  end
+
+  test "rejects load reports with malformed failures metadata" do
+    report = Map.put(valid_load_report(), "failures", %{"index" => 2})
+
+    assert {:error, errors} = AgentProbeReport.validate_load(report)
+    assert "failures must be a list" in errors
+  end
+
   test "rejects load reports whose child acceptance contracts drift" do
     report =
       update_in(valid_load_report(), ["reports"], fn [first, second] ->
