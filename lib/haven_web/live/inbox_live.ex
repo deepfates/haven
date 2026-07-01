@@ -2083,8 +2083,8 @@ defmodule HavenWeb.InboxLive do
           )
       },
       %{
-        id: "load-basic",
-        label: "Load proof",
+        id: "load-concurrent",
+        label: "Concurrent load proof",
         command:
           probe_command(
             agent,
@@ -2094,7 +2094,7 @@ defmodule HavenWeb.InboxLive do
               "--load-runs",
               "3",
               "--load-concurrency",
-              "2",
+              "3",
               "--expect-event",
               "agent_initialized",
               "--expect-event",
@@ -2102,7 +2102,7 @@ defmodule HavenWeb.InboxLive do
               "--expect-event",
               "turn_finished",
               "--report",
-              "docs/probe-load/#{agent}-basic-load.json"
+              "docs/probe-load/#{agent}-basic-concurrent-load.json"
             ] ++ redaction_args
           )
       }

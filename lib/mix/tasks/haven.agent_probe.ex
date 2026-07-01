@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   Add `--preflight` to `--list-agents` to try ACP initialization/session
   creation for each eligible probe candidate before attempting a full report.
   Add `--proof-commands` to `--list-agents` to print the basic, file, terminal,
-  policy-guard, long-output, and small load probe commands for each candidate.
+  policy-guard, long-output, and small concurrent load probe commands for each candidate.
   Add `--registry` to `--list-agents` to show npx-backed ACP agent suggestions
   from the public ACP registry.
   Use `--save-registry-agent AGENT_ID` to persist one public registry suggestion
@@ -611,7 +611,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
            "docs/probes/#{agent_key}-long-output.json"
          ] ++ redaction_args
        )},
-      {"load-basic",
+      {"load-concurrent",
        probe_command(
          agent,
          workspace,
@@ -621,7 +621,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
            "--load-runs",
            "3",
            "--load-concurrency",
-           "2",
+           "3",
            "--expect-event",
            "agent_initialized",
            "--expect-event",
@@ -629,7 +629,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
            "--expect-event",
            "turn_finished",
            "--report",
-           "docs/probe-load/#{agent_key}-basic-load.json"
+           "docs/probe-load/#{agent_key}-basic-concurrent-load.json"
          ] ++ redaction_args
        )}
     ]

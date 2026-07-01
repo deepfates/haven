@@ -326,10 +326,10 @@ defmodule Haven.AgentProbeTest do
     assert output =~ "--expect-min-agent-message-chunks 8"
     assert output =~ "--report docs/probes/candidate-long-output.json"
 
-    assert output =~ "load-basic: mix haven.agent_probe --agent candidate"
+    assert output =~ "load-concurrent: mix haven.agent_probe --agent candidate"
     assert output =~ "--load-runs 3"
-    assert output =~ "--load-concurrency 2"
-    assert output =~ "--report docs/probe-load/candidate-basic-load.json"
+    assert output =~ "--load-concurrency 3"
+    assert output =~ "--report docs/probe-load/candidate-basic-concurrent-load.json"
   end
 
   test "agent probe inventory keeps production proof commands on demand" do

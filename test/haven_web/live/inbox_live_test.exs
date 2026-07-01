@@ -1147,26 +1147,26 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(
              view,
-             "#agent-config-candidate-agent-probe-load-basic",
-             "Load proof"
+             "#agent-config-candidate-agent-probe-load-concurrent",
+             "Concurrent load proof"
            )
 
     assert has_element?(
              view,
-             "#agent-config-candidate-agent-probe-load-basic-command",
+             "#agent-config-candidate-agent-probe-load-concurrent-command",
              "--load-runs 3"
            )
 
     assert has_element?(
              view,
-             "#agent-config-candidate-agent-probe-load-basic-command",
-             "--load-concurrency 2"
+             "#agent-config-candidate-agent-probe-load-concurrent-command",
+             "--load-concurrency 3"
            )
 
     assert has_element?(
              view,
-             "#agent-config-candidate-agent-probe-load-basic-command",
-             "docs/probe-load/candidate-agent-basic-load.json"
+             "#agent-config-candidate-agent-probe-load-concurrent-command",
+             "docs/probe-load/candidate-agent-basic-concurrent-load.json"
            )
 
     assert has_element?(
