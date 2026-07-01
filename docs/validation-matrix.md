@@ -99,9 +99,9 @@ Evidence:
   with key, executable, args, cwd, and env values; LiveView tests and browser
   smoke verify the saved key appears in the run picker and can create a run.
 - Saved agent setup rows separate launch readiness from ACP proof: LiveView
-  tests verify resolvable commands show executable/arg/env-key metadata without
-  leaking env values, while missing executables render as blocked before a run
-  is started.
+  tests verify resolvable commands show executable, arg count, working-directory
+  scope, and environment key names without leaking env values, while missing
+  executables render as blocked before a run is started.
 - The inbox can edit and delete persisted agent command definitions; LiveView
   tests verify updated keys replace old picker options and deleted keys
   disappear from run creation.

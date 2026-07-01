@@ -736,6 +736,26 @@ defmodule HavenWeb.InboxLive do
     |> Enum.map_join("\n", fn {key, value} -> "#{key}=#{value}" end)
   end
 
+  defp agent_config_cwd_scope_label(%{cwd: nil}), do: "cwd app default"
+  defp agent_config_cwd_scope_label(%{cwd: ""}), do: "cwd app default"
+  defp agent_config_cwd_scope_label(%{cwd: cwd}), do: "cwd #{cwd}"
+
+  defp agent_config_env_scope_label(agent_config) do
+    keys =
+      agent_config.env
+      |> case do
+        env when is_map(env) -> Map.keys(env)
+        _ -> []
+      end
+      |> Enum.map(&to_string/1)
+      |> Enum.sort()
+
+    case keys do
+      [] -> "env none"
+      keys -> "env keys #{Enum.join(keys, ", ")}"
+    end
+  end
+
   defp parse_args(text) do
     text
     |> String.split("\n")
@@ -1843,8 +1863,8 @@ defmodule HavenWeb.InboxLive do
               <span>Manage workspaces</span>
               <span class="font-mono text-xs text-zinc-500">{length(@workspaces)}</span>
             </summary>
-            <div class="grid gap-4 pt-3 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]">
-              <div>
+            <div class="grid grid-cols-[minmax(0,1fr)] gap-4 pt-3 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]">
+              <div class="min-w-0">
                 <h2 class="text-sm font-semibold uppercase text-zinc-500">Workspaces</h2>
                 <div
                   id="workspace-list"
@@ -1975,8 +1995,8 @@ defmodule HavenWeb.InboxLive do
               <span>Manage agents</span>
               <span class="font-mono text-xs text-zinc-500">{length(@agent_configs)}</span>
             </summary>
-            <div class="grid gap-4 pt-3 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]">
-              <div>
+            <div class="grid grid-cols-[minmax(0,1fr)] gap-4 pt-3 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]">
+              <div class="min-w-0">
                 <h2 class="text-sm font-semibold uppercase text-zinc-500">Agent Setup</h2>
                 <div
                   id="agent-registry-hint"
@@ -2021,6 +2041,22 @@ defmodule HavenWeb.InboxLive do
                       <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-zinc-950">{agent_config.key}</p>
                         <p class="mt-1 truncate text-xs text-zinc-500">{agent_config.executable}</p>
+                        <div class="mt-2 grid gap-1 text-xs text-zinc-500 sm:grid-cols-2">
+                          <p
+                            id={"agent-config-#{agent_config.key}-cwd"}
+                            class="min-w-0 truncate"
+                            title={agent_config_cwd_scope_label(agent_config)}
+                          >
+                            {agent_config_cwd_scope_label(agent_config)}
+                          </p>
+                          <p
+                            id={"agent-config-#{agent_config.key}-env-keys"}
+                            class="min-w-0 truncate"
+                            title={agent_config_env_scope_label(agent_config)}
+                          >
+                            {agent_config_env_scope_label(agent_config)}
+                          </p>
+                        </div>
                         <div class="mt-2 flex flex-wrap items-center gap-2">
                           <span
                             id={"agent-config-#{agent_config.key}-launch"}
@@ -2123,7 +2159,7 @@ defmodule HavenWeb.InboxLive do
                 for={@agent_config_form}
                 phx-submit="save_agent_config"
                 phx-update="replace"
-                class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
+                class="grid min-w-0 gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
               >
                 <.input field={@agent_config_form[:id]} type="hidden" />
                 <p

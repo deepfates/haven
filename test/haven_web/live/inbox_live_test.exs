@@ -586,6 +586,8 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#agent-config-candidate-agent-launch", "Launch ready")
+    assert has_element?(view, "#agent-config-candidate-agent-cwd", "cwd app default")
+    assert has_element?(view, "#agent-config-candidate-agent-env-keys", "env keys SECRET")
     assert has_element?(view, "#agent-config-candidate-agent-launch-summary", "exec sh")
     assert has_element?(view, "#agent-config-candidate-agent-launch-summary", "2 args")
     assert has_element?(view, "#agent-config-candidate-agent-launch-summary", "1 env key")
@@ -744,6 +746,8 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#agent-config-missing-agent-launch", "Launch blocked")
+    assert has_element?(view, "#agent-config-missing-agent-cwd", "cwd app default")
+    assert has_element?(view, "#agent-config-missing-agent-env-keys", "env keys SECRET")
 
     assert has_element?(
              view,
@@ -772,6 +776,8 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#agent-config-missing-cwd-agent-launch", "Launch blocked")
+    assert has_element?(view, "#agent-config-missing-cwd-agent-cwd", "cwd #{missing_cwd}")
+    assert has_element?(view, "#agent-config-missing-cwd-agent-env-keys", "env none")
 
     assert has_element?(
              view,
