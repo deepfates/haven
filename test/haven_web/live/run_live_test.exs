@@ -327,6 +327,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-security-boundary-terminal", "inside the workspace")
     assert has_element?(view, "#run-terminal-sessions")
     assert has_element?(view, "#run-terminal-session-count", "0")
+    assert has_element?(view, "#run-terminal-session-summary-label", "None")
     assert has_element?(view, "#run-terminal-sessions-empty", "No terminal sessions recorded.")
   end
 
@@ -2262,6 +2263,7 @@ defmodule HavenWeb.RunLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
     assert has_element?(view, "#run-file-change-count", "0")
+    assert has_element?(view, "#run-file-change-summary-label", "None")
     assert has_element?(view, "#run-file-changes-empty", "No file changes recorded.")
     submit_prompt(view, "write-file")
 
@@ -2341,6 +2343,7 @@ defmodule HavenWeb.RunLiveTest do
     assert pending_change.content_preview == "written by Haven ACP\n"
     assert pending_change.diff_preview =~ "+written by Haven ACP\n"
     assert has_element?(view, "#run-file-change-count", "1")
+    assert has_element?(view, "#run-file-change-summary-label", "1 pending")
     assert has_element?(view, "#run-file-change-review-summary")
     assert has_element?(view, "#run-file-change-pending-count", "1")
     assert has_element?(view, "#run-file-change-applied-count", "0")
@@ -2414,6 +2417,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-file-change-pending-count", "0")
     assert has_element?(view, "#run-file-change-applied-count", "1")
     assert has_element?(view, "#run-file-change-blocked-count", "0")
+    assert has_element?(view, "#run-file-change-summary-label", "1 applied")
     assert has_element?(view, "#file-change-#{applied_change.change_id}-status", "applied")
     assert has_element?(view, "#file-change-#{applied_change.change_id}-review-state", "Applied")
 
@@ -2770,6 +2774,7 @@ defmodule HavenWeb.RunLiveTest do
     assert session.released_at
 
     assert has_element?(view, "#run-terminal-session-count", "1")
+    assert has_element?(view, "#run-terminal-session-summary-label", "1 completed")
     assert has_element?(view, "#run-terminal-session-summary")
     assert has_element?(view, "#run-terminal-session-running-count", "0")
     assert has_element?(view, "#run-terminal-session-completed-count", "1")
@@ -2825,6 +2830,9 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
 
     assert has_element?(view, "#run-terminal-session-count", "3")
+    assert has_element?(view, "#run-terminal-session-summary-label", "1 running")
+    assert has_element?(view, "#run-terminal-session-summary-label", "1 completed")
+    assert has_element?(view, "#run-terminal-session-summary-label", "1 attention")
     assert has_element?(view, "#run-terminal-session-running-count", "1")
     assert has_element?(view, "#run-terminal-session-completed-count", "1")
     assert has_element?(view, "#run-terminal-session-attention-count", "1")

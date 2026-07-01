@@ -1859,6 +1859,18 @@ defmodule HavenWeb.RunLive do
     }
   end
 
+  defp terminal_session_summary_label(%{"all" => 0}), do: "None"
+
+  defp terminal_session_summary_label(counts) do
+    [
+      summary_count(Map.get(counts, "running", 0), "running"),
+      summary_count(Map.get(counts, "completed", 0), "completed"),
+      summary_count(Map.get(counts, "attention", 0), "attention")
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
   defp terminal_review_label(%{status: "running"}), do: "Running"
 
   defp terminal_review_label(%{status: status}) when status in ["exited", "released"],
@@ -1868,6 +1880,9 @@ defmodule HavenWeb.RunLive do
     do: "Needs attention"
 
   defp terminal_review_label(_session), do: "Recorded"
+
+  defp summary_count(0, _label), do: nil
+  defp summary_count(count, label), do: "#{count} #{label}"
 
   defp terminal_review_hint(%{status: "running"}) do
     "This terminal is still active or waiting for output."
@@ -1936,6 +1951,18 @@ defmodule HavenWeb.RunLive do
           total + Map.get(counts, status, 0)
         end)
     }
+  end
+
+  defp file_change_summary_label(%{"all" => 0}), do: "None"
+
+  defp file_change_summary_label(counts) do
+    [
+      summary_count(Map.get(counts, "pending", 0), "pending"),
+      summary_count(Map.get(counts, "applied", 0), "applied"),
+      summary_count(Map.get(counts, "blocked", 0), "blocked")
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
   end
 
   defp file_change_review_label(%{status: "pending"}), do: "Needs review"
@@ -3172,8 +3199,16 @@ defmodule HavenWeb.RunLive do
               <details id="run-file-changes" class="mt-4 border-t border-zinc-200 pt-3">
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-1 text-xs font-semibold uppercase text-zinc-500 marker:hidden">
                   <span>File changes</span>
-                  <span id="run-file-change-count" class="font-mono text-xs text-zinc-500">
-                    {length(@file_changes)}
+                  <span class="flex min-w-0 items-center gap-2">
+                    <span
+                      id="run-file-change-summary-label"
+                      class="truncate font-medium normal-case text-zinc-600"
+                    >
+                      {file_change_summary_label(@file_change_counts)}
+                    </span>
+                    <span id="run-file-change-count" class="font-mono text-xs text-zinc-500">
+                      {length(@file_changes)}
+                    </span>
                   </span>
                 </summary>
 
@@ -3299,11 +3334,19 @@ defmodule HavenWeb.RunLive do
               <details id="run-terminal-sessions" class="mt-4 border-t border-zinc-200 pt-3">
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-1 text-xs font-semibold uppercase text-zinc-500 marker:hidden">
                   <span>Terminal sessions</span>
-                  <span
-                    id="run-terminal-session-count"
-                    class="font-mono text-xs text-zinc-500"
-                  >
-                    {length(@terminal_sessions)}
+                  <span class="flex min-w-0 items-center gap-2">
+                    <span
+                      id="run-terminal-session-summary-label"
+                      class="truncate font-medium normal-case text-zinc-600"
+                    >
+                      {terminal_session_summary_label(@terminal_session_counts)}
+                    </span>
+                    <span
+                      id="run-terminal-session-count"
+                      class="font-mono text-xs text-zinc-500"
+                    >
+                      {length(@terminal_sessions)}
+                    </span>
                   </span>
                 </summary>
 
