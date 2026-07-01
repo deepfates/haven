@@ -9,6 +9,15 @@ defmodule Haven.AgentProbeReport do
   """
 
   @accepted_statuses ~w(idle closed failed)
+  @required_lifecycle_events ~w(
+    run_created
+    agent_process_started
+    agent_initialized
+    agent_session_started
+    turn_started
+    user_message
+    turn_finished
+  )
 
   @spec validate_file(Path.t()) :: :ok | {:error, [String.t()]}
   def validate_file(path) do
@@ -42,6 +51,7 @@ defmodule Haven.AgentProbeReport do
       |> require_no_missing_event_fields(report)
       |> require_no_errors(report)
       |> require_events(report)
+      |> require_lifecycle_events(report)
       |> require_expected_events_present(report)
       |> require_expected_event_fields_present(report)
       |> Enum.reverse()
@@ -217,6 +227,25 @@ defmodule Haven.AgentProbeReport do
 
   defp validate_event(errors, _event, index) do
     ["event #{index} must include integer seq, string type, and object payload" | errors]
+  end
+
+  defp require_lifecycle_events(errors, report) do
+    present_events =
+      report
+      |> Map.get("events", [])
+      |> Enum.filter(&is_map/1)
+      |> Enum.map(&Map.get(&1, "type"))
+      |> MapSet.new()
+
+    missing =
+      @required_lifecycle_events
+      |> Enum.reject(&MapSet.member?(present_events, &1))
+
+    if missing == [] do
+      errors
+    else
+      ["events must include full Haven run lifecycle: #{Enum.join(missing, ", ")}" | errors]
+    end
   end
 
   defp require_expected_events_present(errors, report) do

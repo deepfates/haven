@@ -54,6 +54,20 @@ defmodule Haven.AgentProbeReportTest do
     assert "expected events are absent from events: terminal_created" in errors
   end
 
+  test "rejects reports without the full Haven run lifecycle" do
+    report =
+      valid_report()
+      |> Map.put("events", [
+        %{"seq" => 1, "type" => "run_created", "payload" => %{}},
+        %{"seq" => 2, "type" => "agent_initialized", "payload" => %{}},
+        %{"seq" => 3, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+
+    assert "events must include full Haven run lifecycle: agent_process_started, agent_session_started, turn_started, user_message" in errors
+  end
+
   test "accepts reports with matching expected event fields" do
     report =
       valid_report()
@@ -93,13 +107,17 @@ defmodule Haven.AgentProbeReportTest do
       ])
       |> Map.put("events", [
         %{"seq" => 1, "type" => "run_created", "payload" => %{}},
-        %{"seq" => 2, "type" => "agent_initialized", "payload" => %{}},
+        %{"seq" => 2, "type" => "agent_process_started", "payload" => %{}},
+        %{"seq" => 3, "type" => "agent_initialized", "payload" => %{}},
+        %{"seq" => 4, "type" => "agent_session_started", "payload" => %{}},
+        %{"seq" => 5, "type" => "turn_started", "payload" => %{}},
+        %{"seq" => 6, "type" => "user_message", "payload" => %{}},
         %{
-          "seq" => 3,
+          "seq" => 7,
           "type" => "terminal_output_succeeded",
           "payload" => %{"exit_status" => 0}
         },
-        %{"seq" => 4, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
+        %{"seq" => 8, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
       ])
 
     assert :ok = AgentProbeReport.validate(report)
@@ -115,13 +133,17 @@ defmodule Haven.AgentProbeReportTest do
       ])
       |> Map.put("events", [
         %{"seq" => 1, "type" => "run_created", "payload" => %{}},
-        %{"seq" => 2, "type" => "agent_initialized", "payload" => %{}},
+        %{"seq" => 2, "type" => "agent_process_started", "payload" => %{}},
+        %{"seq" => 3, "type" => "agent_initialized", "payload" => %{}},
+        %{"seq" => 4, "type" => "agent_session_started", "payload" => %{}},
+        %{"seq" => 5, "type" => "turn_started", "payload" => %{}},
+        %{"seq" => 6, "type" => "user_message", "payload" => %{}},
         %{
-          "seq" => 3,
+          "seq" => 7,
           "type" => "terminal_output_succeeded",
           "payload" => %{"exit_status" => 0}
         },
-        %{"seq" => 4, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
+        %{"seq" => 8, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
       ])
 
     assert {:error, errors} = AgentProbeReport.validate(report)
@@ -194,8 +216,12 @@ defmodule Haven.AgentProbeReportTest do
       "redactions" => [],
       "events" => [
         %{"seq" => 1, "type" => "run_created", "payload" => %{}},
-        %{"seq" => 2, "type" => "agent_initialized", "payload" => %{}},
-        %{"seq" => 3, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
+        %{"seq" => 2, "type" => "agent_process_started", "payload" => %{}},
+        %{"seq" => 3, "type" => "agent_initialized", "payload" => %{}},
+        %{"seq" => 4, "type" => "agent_session_started", "payload" => %{}},
+        %{"seq" => 5, "type" => "turn_started", "payload" => %{}},
+        %{"seq" => 6, "type" => "user_message", "payload" => %{}},
+        %{"seq" => 7, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
       ]
     }
   end

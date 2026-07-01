@@ -13,6 +13,9 @@ production-grade Haven real-agent evidence when all of the following are true:
   is present with `accepted: true`.
 - The report was produced through Haven's run lifecycle, not by talking directly
   to the agent process.
+- The ordered `events` list includes the minimum Haven lifecycle spine:
+  `run_created`, `agent_process_started`, `agent_initialized`,
+  `agent_session_started`, `turn_started`, `user_message`, and `turn_finished`.
 - `expected_events` names the lifecycle or capability events required by the
   story being validated.
 - `missing_expected_events` is empty.
