@@ -372,6 +372,9 @@ Evidence:
 - Configured agent working directories are resolved after `{workspace}`
   substitution and must exist before the command is considered launch-ready,
   so a bad `cwd` is visible as `{:missing_cwd, path}` before a run starts.
+- Agent readiness inventory and inbox Agent Setup distinguish missing
+  executables from missing working directories, so launch-blocked external
+  agents show an actionable setup reason instead of a generic failure.
 - `HAVEN_AGENTS_JSON` can configure real ACP agent commands at runtime without
   editing Elixir source/config files.
 - `Haven.Agents.create_agent_config/1` persists ACP agent command definitions

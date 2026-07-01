@@ -156,7 +156,8 @@ defmodule Haven.AgentProbeTest do
       },
       "fake-probe-streaming" => fake_agent_spec("streaming"),
       "malformed-local" => %{executable: "sh", args: ["priv/malformed_agent.exs"]},
-      "missing" => %{executable: "haven-definitely-missing-agent"}
+      "missing" => %{executable: "haven-definitely-missing-agent"},
+      "missing-cwd" => %{executable: "sh", cwd: "/definitely/missing/haven-cwd"}
     })
 
     inventory =
@@ -190,10 +191,22 @@ defmodule Haven.AgentProbeTest do
            ]
 
     assert inventory["missing"].status == "invalid"
+    assert inventory["missing"].error == "Missing executable: haven-definitely-missing-agent"
     refute inventory["missing"].real_agent_candidate
 
     assert inventory["missing"].real_agent_rejection_reasons == [
-             "agent command cannot be resolved"
+             "agent executable cannot be resolved"
+           ]
+
+    assert inventory["missing-cwd"].status == "invalid"
+
+    assert inventory["missing-cwd"].error ==
+             "Missing working directory: /definitely/missing/haven-cwd"
+
+    refute inventory["missing-cwd"].real_agent_candidate
+
+    assert inventory["missing-cwd"].real_agent_rejection_reasons == [
+             "agent working directory does not exist"
            ]
 
     refute Jason.encode!(inventory) =~ "hidden-value"

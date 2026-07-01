@@ -691,9 +691,46 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#agent-config-missing-agent-launch", "Launch blocked")
-    assert has_element?(view, "#agent-config-missing-agent-launch-summary", "missing_executable")
+
+    assert has_element?(
+             view,
+             "#agent-config-missing-agent-launch-summary",
+             "Missing executable"
+           )
+
     assert has_element?(view, "#agent-config-missing-agent-evidence", "Invalid command")
+    assert has_element?(view, "#agent-config-missing-agent-evidence-reason", "executable")
     refute render(view) =~ "hidden-value"
+  end
+
+  test "shows blocked launch readiness for saved agent configs with missing cwd", %{
+    conn: conn
+  } do
+    missing_cwd = Path.join(System.tmp_dir!(), "haven-missing-inbox-agent-cwd")
+    File.rm_rf!(missing_cwd)
+
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "missing-cwd-agent",
+               executable: "sh",
+               cwd: missing_cwd
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#agent-config-missing-cwd-agent-launch", "Launch blocked")
+
+    assert has_element?(
+             view,
+             "#agent-config-missing-cwd-agent-launch-summary",
+             "Missing working directory"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-missing-cwd-agent-evidence-reason",
+             "working directory does not exist"
+           )
   end
 
   test "shows public registry discovery command in agent setup", %{conn: conn} do

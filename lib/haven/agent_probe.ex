@@ -171,13 +171,49 @@ defmodule Haven.AgentProbe do
           %{
             agent: agent,
             status: "invalid",
-            error: inspect(reason),
+            error: agent_command_error_summary(reason),
             real_agent_candidate: false,
-            real_agent_rejection_reasons: ["agent command cannot be resolved"]
+            real_agent_rejection_reasons: [agent_command_rejection_reason(reason)]
           }
       end
     end)
   end
+
+  defp agent_command_error_summary({:missing_executable, executable}) do
+    "Missing executable: #{executable}"
+  end
+
+  defp agent_command_error_summary({:missing_cwd, cwd}) do
+    "Missing working directory: #{cwd}"
+  end
+
+  defp agent_command_error_summary({:unknown_agent, agent}) do
+    "Unknown agent: #{agent}"
+  end
+
+  defp agent_command_error_summary({:invalid_agent_field, field}) do
+    "Invalid agent field: #{field}"
+  end
+
+  defp agent_command_error_summary(reason), do: inspect(reason)
+
+  defp agent_command_rejection_reason({:missing_executable, _executable}) do
+    "agent executable cannot be resolved"
+  end
+
+  defp agent_command_rejection_reason({:missing_cwd, _cwd}) do
+    "agent working directory does not exist"
+  end
+
+  defp agent_command_rejection_reason({:unknown_agent, _agent}) do
+    "agent is not configured"
+  end
+
+  defp agent_command_rejection_reason({:invalid_agent_field, field}) do
+    "agent configuration has invalid #{field}"
+  end
+
+  defp agent_command_rejection_reason(_reason), do: "agent command cannot be resolved"
 
   defp title(agent), do: "Agent probe: #{agent}"
   defp preflight_title(agent), do: "Agent preflight: #{agent}"
