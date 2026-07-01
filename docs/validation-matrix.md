@@ -183,6 +183,9 @@ Evidence:
 - LiveView tests verify the inbox can search visible run facts across title,
   workspace path, agent key, status, attention state, and latest activity while
   preserving lane counts and clear/no-match states.
+- LiveView tests verify inbox rows distinguish saved workspace runs from manual
+  workspace paths, expose saved workspace readiness inline, and make saved
+  workspace names plus manual-path identity searchable from the inbox.
 - LiveView tests verify the inbox has explicit agent and workspace facets, so
   users managing many agents across folders can narrow runs without encoding
   those facts into free-text search; lane counts update through the facets.
@@ -214,6 +217,10 @@ Evidence:
   disappears from the inbox without deleting its run record.
 - Browser inspection verifies the attention summary renders on desktop and a
   390px mobile viewport without horizontal page overflow.
+- Browser smoke
+  `docs/browser-smoke/2026-07-01-workspace-row-identity.md` verifies the
+  rendered mobile inbox shows saved workspace identity chips in run rows while
+  preserving the no-horizontal-overflow invariant.
 - `MIX_ENV=dev mix haven.runtime_smoke --load-runs N` extends the dev-server
   smoke with multiple disposable runs, alternating ordinary and bounded
   long-output turns, then reloads rendered pages to verify run rows,

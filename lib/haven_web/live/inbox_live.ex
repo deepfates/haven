@@ -116,7 +116,8 @@ defmodule HavenWeb.InboxLive do
          socket
          |> put_flash(:info, "Workspace #{workspace.name} saved")
          |> reset_workspace_form()
-         |> refresh_workspace_assigns()}
+         |> refresh_workspace_assigns()
+         |> assign_runs()}
 
       {:error, changeset} ->
         {:noreply,
@@ -147,7 +148,8 @@ defmodule HavenWeb.InboxLive do
     {:noreply,
      socket
      |> put_flash(:info, "Workspace #{workspace.name} deleted")
-     |> refresh_workspace_assigns()}
+     |> refresh_workspace_assigns()
+     |> assign_runs()}
   end
 
   def handle_event("save_agent_config", %{"agent_config" => params}, socket) do
@@ -211,16 +213,19 @@ defmodule HavenWeb.InboxLive do
     agent_inventory = socket.assigns[:agent_inventory] || %{}
     agent_probe_reports = socket.assigns[:agent_probe_reports] || %{}
     agent_capability_gap_reports = socket.assigns[:agent_capability_gap_reports] || %{}
+    workspace_index = socket.assigns[:workspace_index] || %{}
 
     runs =
       Runs.list_runs()
       |> attach_latest_events()
+      |> attach_workspace_context(workspace_index)
       |> attach_agent_evidence(agent_inventory, agent_probe_reports, agent_capability_gap_reports)
       |> sort_runs_by_activity()
 
     archived_runs =
       Runs.list_archived_runs()
       |> attach_latest_events()
+      |> attach_workspace_context(workspace_index)
       |> attach_agent_evidence(agent_inventory, agent_probe_reports, agent_capability_gap_reports)
 
     run_search = socket.assigns[:run_search] || ""
@@ -404,6 +409,12 @@ defmodule HavenWeb.InboxLive do
     end)
   end
 
+  defp attach_workspace_context(runs, workspace_index) do
+    Enum.map(runs, fn run ->
+      Map.put(run, :workspace_summary, Map.get(workspace_index, run.workspace))
+    end)
+  end
+
   defp normalize_search_query(query) when is_binary(query), do: String.trim(query)
   defp normalize_search_query(_query), do: ""
 
@@ -450,6 +461,9 @@ defmodule HavenWeb.InboxLive do
     [
       run.title,
       run.workspace,
+      run_workspace_identity_label(Map.get(run, :workspace_summary)),
+      run_workspace_state_label(Map.get(run, :workspace_summary)),
+      run_workspace_saved_name(Map.get(run, :workspace_summary)),
       run.agent,
       run.status,
       run_attention_label(run),
@@ -618,6 +632,7 @@ defmodule HavenWeb.InboxLive do
 
     socket
     |> assign(:workspaces, workspaces)
+    |> assign(:workspace_index, Map.new(workspaces, &{&1.path, &1}))
     |> assign(:workspace_options, workspace_options(workspaces))
   end
 
@@ -701,6 +716,42 @@ defmodule HavenWeb.InboxLive do
     archived_count = Map.get(workspace, :archived_run_count, 0)
 
     "#{pluralize_count(active_count, "active run")} · #{pluralize_count(archived_count, "archived run")}"
+  end
+
+  defp run_workspace_identity_label(nil), do: "Manual path"
+  defp run_workspace_identity_label(_workspace), do: "Saved workspace"
+
+  defp run_workspace_state_label(%{path_state: :ready}), do: "Ready"
+  defp run_workspace_state_label(%{path_state: :missing}), do: "Missing"
+  defp run_workspace_state_label(_workspace), do: nil
+
+  defp run_workspace_saved_name(%{name: name}) when is_binary(name), do: name
+  defp run_workspace_saved_name(_workspace), do: nil
+
+  defp run_workspace_badge_label(nil), do: "Manual path"
+
+  defp run_workspace_badge_label(workspace) do
+    [run_workspace_identity_label(workspace), run_workspace_state_label(workspace)]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  defp run_workspace_badge_class(%{path_state: :ready}) do
+    "inline-flex shrink-0 items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-emerald-700"
+  end
+
+  defp run_workspace_badge_class(%{path_state: :missing}) do
+    "inline-flex shrink-0 items-center rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-rose-700"
+  end
+
+  defp run_workspace_badge_class(_workspace) do
+    "inline-flex shrink-0 items-center rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-600"
+  end
+
+  defp run_workspace_badge_title(nil), do: "This run uses a manual workspace path."
+
+  defp run_workspace_badge_title(workspace) do
+    "#{workspace.name}: #{workspace.path}"
   end
 
   defp pluralize_count(1, singular), do: "1 #{singular}"
@@ -1773,6 +1824,13 @@ defmodule HavenWeb.InboxLive do
               class="hidden min-w-0 truncate text-zinc-400 sm:inline"
             >
               {workspace_parent(@run.workspace)}
+            </span>
+            <span
+              id={"run-#{@run.id}-workspace-kind"}
+              class={run_workspace_badge_class(@run.workspace_summary)}
+              title={run_workspace_badge_title(@run.workspace_summary)}
+            >
+              {run_workspace_badge_label(@run.workspace_summary)}
             </span>
             <span class="text-zinc-300">/</span>
             <span id={"run-#{@run.id}-agent"} class="truncate">{@run.agent}</span>

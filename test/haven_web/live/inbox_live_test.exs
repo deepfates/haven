@@ -350,15 +350,43 @@ defmodule HavenWeb.InboxLiveTest do
   @tag :tmp_dir
   test "renders run rows with recognizable workspace identity", %{conn: conn, tmp_dir: tmp_dir} do
     workspace = Path.join(tmp_dir, "project-alpha")
+    manual_workspace = Path.join(tmp_dir, "manual-project")
     parent = Path.dirname(workspace)
     File.mkdir_p!(workspace)
+    File.mkdir_p!(manual_workspace)
+
+    assert {:ok, _saved_workspace} =
+             Workspaces.create_workspace(%{
+               "name" => "Alpha repo",
+               "path" => workspace
+             })
+
     run = insert_run!("Folder-aware run", "idle", %{workspace: workspace})
+    manual_run = insert_run!("Manual folder run", "idle", %{workspace: manual_workspace})
 
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, ~s|#run-#{run.id}-workspace[title="#{workspace}"]|)
     assert has_element?(view, "#run-#{run.id}-workspace", "project-alpha")
     assert has_element?(view, "#run-#{run.id}-workspace-path", parent)
+    assert has_element?(view, "#run-#{run.id}-workspace-kind", "Saved workspace · Ready")
+
+    assert has_element?(view, "#run-#{manual_run.id}-workspace", "manual-project")
+    assert has_element?(view, "#run-#{manual_run.id}-workspace-kind", "Manual path")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "Alpha repo"})
+    |> render_change()
+
+    assert has_element?(view, "article", "Folder-aware run")
+    refute has_element?(view, "article", "Manual folder run")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "Manual path"})
+    |> render_change()
+
+    assert has_element?(view, "article", "Manual folder run")
+    refute has_element?(view, "article", "Folder-aware run")
   end
 
   test "rejects a run with a missing workspace", %{conn: conn} do
