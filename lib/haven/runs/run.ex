@@ -3,6 +3,7 @@ defmodule Haven.Runs.Run do
   import Ecto.Changeset
 
   @statuses ~w(idle initializing running waiting failed closed)
+  @purposes ~w(work diagnostic)
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -12,6 +13,7 @@ defmodule Haven.Runs.Run do
     field :workspace, :string
     field :agent, :string
     field :status, :string, default: "idle"
+    field :purpose, :string, default: "work"
     field :agent_session_id, :string
     field :archived_at, :utc_datetime
     field :capability_policy, :map, default: %{}
@@ -26,15 +28,25 @@ defmodule Haven.Runs.Run do
 
   def changeset(run, attrs) do
     run
-    |> cast(attrs, [:title, :workspace, :agent, :status, :agent_session_id, :capability_policy])
+    |> cast(attrs, [
+      :title,
+      :workspace,
+      :agent,
+      :status,
+      :purpose,
+      :agent_session_id,
+      :capability_policy
+    ])
     |> update_change(:workspace, &normalize_workspace/1)
     |> update_change(:capability_policy, &normalize_capability_policy/1)
-    |> validate_required([:title, :workspace, :agent, :status])
+    |> validate_required([:title, :workspace, :agent, :status, :purpose])
     |> validate_inclusion(:status, @statuses)
+    |> validate_inclusion(:purpose, @purposes)
     |> validate_workspace()
   end
 
   def statuses, do: @statuses
+  def purposes, do: @purposes
 
   def capability_policy(policy), do: normalize_capability_policy(policy)
 

@@ -33,6 +33,7 @@ defmodule Haven.Runs do
       |> Map.put_new("workspace", File.cwd!())
       |> Map.put_new("agent", "stub-acp")
       |> Map.put_new("status", "idle")
+      |> Map.put_new("purpose", "work")
 
     changeset = %Run{} |> Run.changeset(attrs) |> validate_agent_launch()
 
@@ -63,6 +64,7 @@ defmodule Haven.Runs do
       "title" => run.title,
       "workspace" => run.workspace,
       "agent" => run.agent,
+      "purpose" => run.purpose,
       "capability_policy" => Run.capability_policy(run.capability_policy)
     })
   end

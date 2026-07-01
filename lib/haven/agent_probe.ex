@@ -51,6 +51,7 @@ defmodule Haven.AgentProbe do
              "title" => Keyword.get(opts, :title, title(agent)),
              "workspace" => workspace,
              "agent" => agent,
+             "purpose" => "diagnostic",
              "capability_policy" => capability_policy
            }),
          {:ok, _run} <- wait_for_boot(run.id, timeout),
@@ -128,6 +129,7 @@ defmodule Haven.AgentProbe do
                "title" => Keyword.get(opts, :title, preflight_title(agent)),
                "workspace" => workspace,
                "agent" => agent,
+               "purpose" => "diagnostic",
                "capability_policy" => capability_policy(opts)
              }),
            {:ok, booted} <- wait_for_boot(run.id, timeout) do

@@ -183,7 +183,7 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#inbox-attention-label", "No runs yet")
     assert has_element?(view, "#inbox-attention-detail", "Ready when you are")
     assert has_element?(view, "#new-run-panel:not([open])")
-    assert has_element?(view, "#inbox-first-run-empty", "No runs yet.")
+    assert has_element?(view, "#inbox-first-run-empty", "No work runs yet.")
     assert has_element?(view, "#inbox-first-run-empty", "Open Start a run")
     assert has_element?(view, "#workspaces-panel:not([open])")
     assert has_element?(view, "#agent-configs-panel:not([open])")
@@ -900,7 +900,7 @@ defmodule HavenWeb.InboxLiveTest do
     refute render(view) =~ "hidden-value"
   end
 
-  test "surfaces durable ACP preflight state for saved agent configs", %{conn: conn} do
+  test "keeps durable ACP preflight diagnostics out of the primary work inbox", %{conn: conn} do
     assert {:ok, _agent_config} =
              Agents.create_agent_config(%{
                key: "candidate-agent",
@@ -908,14 +908,25 @@ defmodule HavenWeb.InboxLiveTest do
                args: ["-c", "cat"]
              })
 
+    failed_work = insert_run!("Fix actual user work", "failed")
+
     failed_preflight =
-      insert_run!("Agent preflight: candidate-agent", "failed", %{agent: "candidate-agent"})
+      insert_run!("Agent preflight: candidate-agent", "failed", %{
+        agent: "candidate-agent",
+        purpose: "diagnostic"
+      })
 
     Events.append!(failed_preflight.id, "agent_protocol_failed", %{
       "reason" => "Method not found"
     })
 
     {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#inbox-queue-all", "1")
+    assert has_element?(view, "#inbox-queue-needs_you", "1")
+    assert has_element?(view, "#inbox-queue-diagnostics", "1")
+    assert has_element?(view, "#run-#{failed_work.id}", "Fix actual user work")
+    refute has_element?(view, "#run-#{failed_preflight.id}", "Agent preflight: candidate-agent")
 
     assert has_element?(
              view,
@@ -933,7 +944,16 @@ defmodule HavenWeb.InboxLiveTest do
     |> form("#inbox-search-form", %{"run_search" => "ACP preflight failed"})
     |> render_change()
 
+    refute has_element?(view, "#run-#{failed_preflight.id}", "Agent preflight: candidate-agent")
+
+    view
+    |> element("#inbox-queue-diagnostics")
+    |> render_click()
+
+    assert has_element?(view, "#inbox-diagnostics-section")
     assert has_element?(view, "#run-#{failed_preflight.id}", "Agent preflight: candidate-agent")
+    assert has_element?(view, "#run-#{failed_preflight.id}-purpose", "Diagnostic")
+    refute has_element?(view, "#run-#{failed_work.id}", "Fix actual user work")
   end
 
   test "classifies saved agent env auth and workspace substitution without exposing values", %{
@@ -1780,7 +1800,8 @@ defmodule HavenWeb.InboxLiveTest do
     Events.append!(run.id, "run_created", %{
       "title" => run.title,
       "workspace" => run.workspace,
-      "agent" => run.agent
+      "agent" => run.agent,
+      "purpose" => run.purpose
     })
 
     run

@@ -12,6 +12,7 @@ defmodule HavenWeb.InboxLive do
     {"needs_you", "Needs You"},
     {"running", "Running"},
     {"history", "History"},
+    {"diagnostics", "Diagnostics"},
     {"archived", "Archived"}
   ]
 
@@ -242,21 +243,25 @@ defmodule HavenWeb.InboxLive do
       |> filter_runs_by_facets(agent_filter, workspace_filter)
       |> filter_runs_by_search(run_search)
 
-    needs_you = Enum.filter(visible_runs, &(&1.status in ["waiting", "failed"]))
-    running = Enum.filter(visible_runs, &(&1.status in ["initializing", "running"]))
+    work_runs = Enum.reject(visible_runs, &diagnostic_run?/1)
+    diagnostics = Enum.filter(visible_runs, &diagnostic_run?/1)
+
+    needs_you = Enum.filter(work_runs, &(&1.status in ["waiting", "failed"]))
+    running = Enum.filter(work_runs, &(&1.status in ["initializing", "running"]))
 
     history =
-      Enum.reject(visible_runs, &(&1.status in ["waiting", "failed", "initializing", "running"]))
+      Enum.reject(work_runs, &(&1.status in ["waiting", "failed", "initializing", "running"]))
 
     run_filter = socket.assigns[:run_filter] || "all"
 
-    {visible_needs_you, visible_running, visible_history, visible_archived} =
-      visible_run_groups(run_filter, needs_you, running, history, archived_matches)
+    {visible_needs_you, visible_running, visible_history, visible_diagnostics, visible_archived} =
+      visible_run_groups(run_filter, needs_you, running, history, diagnostics, archived_matches)
 
     socket
     |> assign(:runs, runs)
     |> assign(:archived_runs, archived_runs)
     |> assign(:visible_runs, visible_runs)
+    |> assign(:visible_work_runs, work_runs)
     |> assign(:visible_archived_runs, visible_archived)
     |> assign(:run_search, run_search)
     |> assign(:agent_filter, agent_filter)
@@ -265,10 +270,11 @@ defmodule HavenWeb.InboxLive do
     |> assign(:workspace_filter_options, facet_options(runs ++ archived_runs, :workspace))
     |> assign(:run_filters, @run_filters)
     |> assign(:run_filter_counts, %{
-      "all" => length(visible_runs),
+      "all" => length(work_runs),
       "needs_you" => length(needs_you),
       "running" => length(running),
       "history" => length(history),
+      "diagnostics" => length(diagnostics),
       "archived" => length(archived_matches)
     })
     |> then(fn socket ->
@@ -281,34 +287,79 @@ defmodule HavenWeb.InboxLive do
     |> assign(:needs_you, visible_needs_you)
     |> assign(:running, visible_running)
     |> assign(:history, visible_history)
+    |> assign(:diagnostics, visible_diagnostics)
     |> assign(:archived, visible_archived)
     |> assign(
       :filtered_runs_empty?,
       (run_filter != "all" or active_run_facets?(run_search, agent_filter, workspace_filter)) and
         visible_needs_you == [] and visible_running == [] and visible_history == [] and
-        visible_archived == []
+        visible_diagnostics == [] and visible_archived == []
     )
     |> assign(
       :searched_runs_empty?,
-      active_run_facets?(run_search, agent_filter, workspace_filter) and visible_runs == [] and
+      active_run_facets?(run_search, agent_filter, workspace_filter) and work_runs == [] and
         archived_matches == []
     )
   end
 
-  defp visible_run_groups("needs_you", needs_you, _running, _history, _archived),
-    do: {needs_you, [], [], []}
+  defp visible_run_groups(
+         "needs_you",
+         needs_you,
+         _running,
+         _history,
+         _diagnostics,
+         _archived
+       ),
+       do: {needs_you, [], [], [], []}
 
-  defp visible_run_groups("running", _needs_you, running, _history, _archived),
-    do: {[], running, [], []}
+  defp visible_run_groups(
+         "running",
+         _needs_you,
+         running,
+         _history,
+         _diagnostics,
+         _archived
+       ),
+       do: {[], running, [], [], []}
 
-  defp visible_run_groups("history", _needs_you, _running, history, _archived),
-    do: {[], [], history, []}
+  defp visible_run_groups(
+         "history",
+         _needs_you,
+         _running,
+         history,
+         _diagnostics,
+         _archived
+       ),
+       do: {[], [], history, [], []}
 
-  defp visible_run_groups("archived", _needs_you, _running, _history, archived),
-    do: {[], [], [], archived}
+  defp visible_run_groups(
+         "diagnostics",
+         _needs_you,
+         _running,
+         _history,
+         diagnostics,
+         _archived
+       ),
+       do: {[], [], [], diagnostics, []}
 
-  defp visible_run_groups(_filter, needs_you, running, history, _archived),
-    do: {needs_you, running, history, []}
+  defp visible_run_groups(
+         "archived",
+         _needs_you,
+         _running,
+         _history,
+         _diagnostics,
+         archived
+       ),
+       do: {[], [], [], [], archived}
+
+  defp visible_run_groups(_filter, needs_you, running, history, _diagnostics, _archived),
+    do: {needs_you, running, history, [], []}
+
+  defp diagnostic_run?(%{purpose: "diagnostic"}), do: true
+  defp diagnostic_run?(_run), do: false
+
+  defp run_purpose_label(%{purpose: "diagnostic"}), do: "Diagnostic"
+  defp run_purpose_label(_run), do: nil
 
   defp valid_run_filter?(filter) do
     Enum.any?(@run_filters, fn {value, _label} -> value == filter end)
@@ -467,6 +518,7 @@ defmodule HavenWeb.InboxLive do
       run_workspace_state_label(Map.get(run, :workspace_summary)),
       run_workspace_saved_name(Map.get(run, :workspace_summary)),
       run.agent,
+      run_purpose_label(run),
       run.status,
       run_attention_label(run),
       run_operational_label(run),
@@ -1132,6 +1184,7 @@ defmodule HavenWeb.InboxLive do
   defp run_queue_caption("needs_you"), do: "Action"
   defp run_queue_caption("running"), do: "In flight"
   defp run_queue_caption("history"), do: "Readable"
+  defp run_queue_caption("diagnostics"), do: "Setup"
   defp run_queue_caption("archived"), do: "Stored"
 
   defp inbox_attention_summary(%{
@@ -1857,6 +1910,13 @@ defmodule HavenWeb.InboxLive do
             </span>
             <span class="text-zinc-300">/</span>
             <span id={"run-#{@run.id}-agent"} class="truncate">{@run.agent}</span>
+            <span
+              :if={diagnostic_run?(@run)}
+              id={"run-#{@run.id}-purpose"}
+              class="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-sky-700"
+            >
+              Diagnostic
+            </span>
           </div>
 
           <p id={"run-#{@run.id}-latest-activity"} class="mt-1 truncate text-zinc-700">
@@ -2088,7 +2148,7 @@ defmodule HavenWeb.InboxLive do
               id="inbox-first-run-empty"
               class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
             >
-              <p class="font-medium text-zinc-700">No runs yet.</p>
+              <p class="font-medium text-zinc-700">No work runs yet.</p>
               <p class="mt-1 text-sm">
                 Open Start a run to launch an agent in a folder.
               </p>
@@ -2099,6 +2159,37 @@ defmodule HavenWeb.InboxLive do
             >
               <.run_card
                 :for={run <- @history}
+                run={run}
+                show_archive={true}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
+              />
+            </div>
+          </section>
+
+          <section
+            :if={@run_filter == "diagnostics" and !@filtered_runs_empty?}
+            id="inbox-diagnostics-section"
+            class="space-y-2"
+          >
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Diagnostics</h2>
+            <p class="px-1 text-sm text-zinc-500">
+              Probe and preflight runs are kept here so setup evidence stays inspectable without
+              crowding active work.
+            </p>
+            <div
+              :if={@diagnostics == []}
+              class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+            >
+              No diagnostic runs match this view.
+            </div>
+            <div
+              :if={@diagnostics != []}
+              class="overflow-hidden rounded-lg border border-zinc-200 bg-white"
+            >
+              <.run_card
+                :for={run <- @diagnostics}
                 run={run}
                 show_archive={true}
                 agent_inventory={@agent_inventory}

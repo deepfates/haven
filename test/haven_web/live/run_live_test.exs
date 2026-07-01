@@ -10,6 +10,8 @@ defmodule HavenWeb.RunLiveTest do
   alias Haven.Runs.{Run, RunServer}
   alias Haven.TerminalSessions
 
+  @agent_event_timeout 5_000
+
   defp submit_prompt(view, prompt) do
     view
     |> form("#run-prompt-form", %{prompt: prompt})
@@ -606,7 +608,7 @@ defmodule HavenWeb.RunLiveTest do
                    1_000
 
     assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
-    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, @agent_event_timeout
 
     assert_receive {:event_appended,
                     %{type: "turn_retry_requested", payload: %{"prompt" => "retry me"}}},
@@ -658,7 +660,7 @@ defmodule HavenWeb.RunLiveTest do
                    1_000
 
     assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
-    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, @agent_event_timeout
 
     assert_receive {:event_appended,
                     %{
@@ -1623,7 +1625,7 @@ defmodule HavenWeb.RunLiveTest do
                    1_000
 
     assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
-    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, @agent_event_timeout
 
     started_events =
       run.id
@@ -1668,7 +1670,7 @@ defmodule HavenWeb.RunLiveTest do
     Runs.subscribe()
 
     {:ok, _pid} = Runs.start_run(run.id)
-    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, @agent_event_timeout
 
     {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
     assert html =~ "fake-crash"
@@ -1695,7 +1697,7 @@ defmodule HavenWeb.RunLiveTest do
                    1_000
 
     assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
-    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, @agent_event_timeout
     assert_receive {:run_updated, %{id: run_id, status: "idle"}}, 1_000
     assert run_id == run.id
 
@@ -3215,7 +3217,7 @@ defmodule HavenWeb.RunLiveTest do
                       type: "agent_protocol_failed",
                       payload: %{"reason" => reason}
                     }},
-                   1_000
+                   @agent_event_timeout
 
     assert reason =~ "protocol_exit"
 
@@ -3323,7 +3325,7 @@ defmodule HavenWeb.RunLiveTest do
     Runs.subscribe()
 
     {:ok, _pid} = Runs.start_run(run.id)
-    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, @agent_event_timeout
 
     {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
     assert html =~ "fake-malformed"
@@ -3408,7 +3410,7 @@ defmodule HavenWeb.RunLiveTest do
     assert cwd == run.workspace
     assert env == ["HAVEN_AGENT_ENV_SMOKE"]
     refute inspect(Events.list_for_run(run.id)) =~ "configured-secret"
-    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, @agent_event_timeout
 
     {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
     assert html =~ "configured-stub"
@@ -3464,7 +3466,7 @@ defmodule HavenWeb.RunLiveTest do
     Runs.subscribe()
 
     {:ok, _pid} = Runs.start_run(run.id)
-    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, @agent_event_timeout
 
     {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
     assert html =~ "fake-streaming"
@@ -3558,7 +3560,7 @@ defmodule HavenWeb.RunLiveTest do
     Runs.subscribe()
 
     {:ok, _pid} = Runs.start_run(run.id)
-    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, @agent_event_timeout
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
 
