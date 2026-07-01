@@ -192,6 +192,8 @@ Evidence:
 - LiveView integration tests and browser smoke verify prompt controls are
   disabled while a turn is running, cancel remains available, and controls
   reopen after the cancellation returns the run to `idle`.
+- LiveView integration tests verify disabled prompt controls explain why input
+  is unavailable for disconnected, failed, and waiting-on-decision states.
 - LiveView integration tests verify recoverable disconnected and failed states
   expose the next Reconnect/Restart action in the conversation path, not only in
   secondary controls.
@@ -210,8 +212,8 @@ Still missing:
 - Prompt-id-level correlation of late chunks when agents provide enough
   metadata; current suppression is session-level after cancellation.
 - Retry or continue after recoverable failure.
-- Disabled controls for every impossible state and control combination beyond
-  the covered waiting/running/disconnected states.
+- Disabled-control explanations for every impossible state and control
+  combination beyond the covered waiting/failed/disconnected states.
 
 ### Permissions
 

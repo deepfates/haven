@@ -101,6 +101,7 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Disconnected history"
     assert html =~ "not connected"
     assert has_element?(view, "#send-prompt-button[disabled]")
+    assert has_element?(view, "#run-control-notice", "not connected")
     refute Runs.started?(run.id)
 
     events = Events.list_for_run(run.id)
@@ -269,6 +270,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-recovery-card", "Run failed")
     assert has_element?(view, "#run-recovery-action-button", "Restart")
     assert has_element?(view, "#reconnect-run-button", "Restart")
+    assert has_element?(view, "#run-control-notice", "Restart it before sending another prompt.")
 
     view
     |> element("#run-recovery-action-button")
@@ -669,6 +671,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#pending-permission-authority-write", "Ask")
     assert has_element?(view, "#pending-permission-authority-write", "notes")
     assert has_element?(view, "#pending-permission-authority-terminal", "Deny")
+    assert has_element?(view, "#run-control-notice", "Waiting for your decision")
 
     view
     |> element(~s|#pending-permission-card button[phx-value-option-id="allow"]|)

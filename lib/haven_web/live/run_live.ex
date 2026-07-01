@@ -130,6 +130,7 @@ defmodule HavenWeb.RunLive do
     |> assign(:can_prompt?, live? and run.status == "idle")
     |> assign(:can_cancel?, live? and run.status in ["initializing", "running", "waiting"])
     |> assign(:can_reconnect?, can_reconnect?(run, live?))
+    |> assign(:control_notice, control_notice(run, live?))
     |> assign(:recovery_attention, recovery_attention(run, live?))
     |> assign(:pending_permission, latest_pending_permission(events))
   end
@@ -243,6 +244,28 @@ defmodule HavenWeb.RunLive do
   defp can_reconnect?(run, live?) do
     run.status == "failed" or (not live? and run.status != "closed")
   end
+
+  defp control_notice(%{status: "waiting"}, _live?) do
+    "Waiting for your decision before this run can accept another prompt."
+  end
+
+  defp control_notice(%{status: status}, _live?) when status in ["initializing", "running"] do
+    "A turn is already in progress. You can cancel it, then send a new prompt."
+  end
+
+  defp control_notice(%{status: "failed"}, _live?) do
+    "This run failed. Restart it before sending another prompt."
+  end
+
+  defp control_notice(%{status: "closed"}, _live?) do
+    "This run is closed. Its history is available, but it cannot accept prompts."
+  end
+
+  defp control_notice(_run, false) do
+    "This run is not connected. Reconnect it before sending another prompt."
+  end
+
+  defp control_notice(_run, _live?), do: nil
 
   defp recovery_attention(%{status: "failed"}, _live?) do
     %{
@@ -1254,6 +1277,13 @@ defmodule HavenWeb.RunLive do
           <aside class="space-y-4">
             <section class="rounded-lg border border-zinc-200 bg-white p-4">
               <h2 class="font-semibold">Control</h2>
+              <p
+                :if={@control_notice}
+                id="run-control-notice"
+                class="mt-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600"
+              >
+                {@control_notice}
+              </p>
               <.form
                 id="run-prompt-form"
                 for={to_form(%{})}
