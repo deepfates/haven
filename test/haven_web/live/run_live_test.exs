@@ -1173,8 +1173,14 @@ defmodule HavenWeb.RunLiveTest do
 
     assert has_element?(
              view,
-             ~s|#pending-permission-event-link[href="#event-#{permission_request_seq}"]|,
-             "View in timeline"
+             ~s|#pending-permission-event-link[href="#run-activity-timeline"]|,
+             "Open activity timeline"
+           )
+
+    assert has_element?(
+             view,
+             "#pending-permission-event-reference",
+             "#event-#{permission_request_seq}"
            )
 
     assert has_element?(view, "#pending-permission-primary-actions")

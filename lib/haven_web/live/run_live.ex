@@ -2138,10 +2138,16 @@ defmodule HavenWeb.RunLive do
                 </div>
                 <a
                   id="pending-permission-event-link"
-                  href={"#event-#{@pending_permission.seq}"}
+                  href="#run-activity-timeline"
                   class="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-zinc-700 transition hover:text-zinc-950"
                 >
-                  <.icon name="hero-arrow-down-circle" class="size-4" /> View in timeline
+                  <.icon name="hero-arrow-down-circle" class="size-4" /> Open activity timeline
+                  <span
+                    id="pending-permission-event-reference"
+                    class="font-mono text-xs font-medium text-zinc-500"
+                  >
+                    #event-{@pending_permission.seq}
+                  </span>
                 </a>
                 <div id="pending-permission-primary-actions" class="mt-3 flex flex-wrap gap-2">
                   <button
