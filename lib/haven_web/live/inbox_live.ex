@@ -671,6 +671,13 @@ defmodule HavenWeb.InboxLive do
     end)
   end
 
+  defp selected_workspace_summary(_workspaces, ""), do: nil
+  defp selected_workspace_summary(_workspaces, nil), do: nil
+
+  defp selected_workspace_summary(workspaces, id) do
+    Enum.find(workspaces, &(&1.id == id))
+  end
+
   defp workspace_path_badge_class(%{path_state: :ready}) do
     "inline-flex h-6 items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 text-xs font-semibold text-emerald-700"
   end
@@ -2026,6 +2033,8 @@ defmodule HavenWeb.InboxLive do
               <% selected_readiness = Map.get(@agent_inventory, selected_agent, %{}) %>
               <% selected_reports = Map.get(@agent_probe_reports, selected_agent, []) %>
               <% selected_gap_reports = Map.get(@agent_capability_gap_reports, selected_agent, []) %>
+              <% selected_workspace =
+                selected_workspace_summary(@workspaces, form_value(@form, :workspace_id)) %>
               <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem]">
                 <.input
                   field={@form[:title]}
@@ -2063,6 +2072,39 @@ defmodule HavenWeb.InboxLive do
                   Start
                 </button>
               </div>
+              <section
+                :if={selected_workspace}
+                id="new-run-selected-workspace"
+                class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600"
+              >
+                <div class="flex min-w-0 flex-wrap items-center gap-2">
+                  <span class="font-semibold text-zinc-950">
+                    {selected_workspace.name}
+                  </span>
+                  <span
+                    id="new-run-selected-workspace-path-state"
+                    class={workspace_path_badge_class(selected_workspace)}
+                  >
+                    {workspace_path_label(selected_workspace)}
+                  </span>
+                  <span
+                    id="new-run-selected-workspace-branch"
+                    class="inline-flex rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-600"
+                  >
+                    {workspace_branch_label(selected_workspace)}
+                  </span>
+                </div>
+                <p
+                  id="new-run-selected-workspace-path"
+                  title={selected_workspace.path}
+                  class="mt-1 truncate font-mono text-[11px] text-zinc-500"
+                >
+                  {selected_workspace.path}
+                </p>
+                <p id="new-run-selected-workspace-usage" class="mt-1 text-zinc-500">
+                  {workspace_usage_label(selected_workspace)}
+                </p>
+              </section>
               <details id="new-run-advanced" class="rounded-md border border-zinc-200 px-3 py-2">
                 <summary class="cursor-pointer text-sm font-medium text-zinc-700">
                   Advanced

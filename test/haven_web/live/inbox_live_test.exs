@@ -393,6 +393,17 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, ~s|#workspace_id option[value="#{workspace.id}"]|)
 
     view
+    |> form("#new-run-form", %{"workspace_id" => workspace.id})
+    |> render_change()
+
+    assert has_element?(view, "#new-run-selected-workspace", "Scratch repo")
+    assert has_element?(view, "#new-run-selected-workspace-path-state", "Ready")
+    assert has_element?(view, "#new-run-selected-workspace-branch", "No git branch")
+    assert has_element?(view, "#new-run-selected-workspace-path", Path.expand(tmp_dir))
+    assert has_element?(view, "#new-run-selected-workspace-usage", "0 active runs")
+    assert has_element?(view, "#new-run-selected-workspace-usage", "0 archived runs")
+
+    view
     |> form("#new-run-form", %{
       "title" => "Saved workspace run",
       "workspace_id" => workspace.id,
@@ -464,6 +475,16 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#workspace-#{ready_workspace.id}-git-branch", "Branch main")
     assert has_element?(view, "#workspace-#{ready_workspace.id}-run-usage", "1 active run")
     assert has_element?(view, "#workspace-#{ready_workspace.id}-run-usage", "1 archived run")
+
+    view
+    |> form("#new-run-form", %{"workspace_id" => ready_workspace.id})
+    |> render_change()
+
+    assert has_element?(view, "#new-run-selected-workspace", "Ready repo")
+    assert has_element?(view, "#new-run-selected-workspace-path-state", "Ready")
+    assert has_element?(view, "#new-run-selected-workspace-branch", "Branch main")
+    assert has_element?(view, "#new-run-selected-workspace-usage", "1 active run")
+    assert has_element?(view, "#new-run-selected-workspace-usage", "1 archived run")
 
     assert has_element?(view, "#workspace-#{missing_workspace.id}-path-state", "Missing")
 
