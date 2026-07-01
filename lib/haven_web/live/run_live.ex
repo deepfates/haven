@@ -1360,8 +1360,25 @@ defmodule HavenWeb.RunLive do
     get_in(permission.payload, ["toolCall", "status"]) || "pending"
   end
 
+  defp permission_options(permission) do
+    case permission.payload["options"] do
+      options when is_list(options) ->
+        Enum.filter(options, &(is_map(&1) and is_binary(&1["optionId"])))
+
+      _options ->
+        []
+    end
+  end
+
+  defp permission_options_summary(permission) do
+    case permission_options(permission) do
+      [] -> "none"
+      options -> Enum.map_join(options, ", ", &permission_option_label/1)
+    end
+  end
+
   defp permission_option_label(option) do
-    "#{option["name"]} (#{option["optionId"]})"
+    "#{option["name"] || "Unnamed option"} (#{option["optionId"]})"
   end
 
   defp permission_decision_summary(permission) do
@@ -1996,10 +2013,10 @@ defmodule HavenWeb.RunLive do
                 </div>
                 <div id="pending-permission-primary-actions" class="mt-3 flex flex-wrap gap-2">
                   <button
-                    :for={option <- @pending_permission.payload["options"]}
+                    :for={option <- permission_options(@pending_permission)}
                     class={[
                       "h-10 rounded-md px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
-                      if(String.starts_with?(option["kind"], "allow"),
+                      if(String.starts_with?(to_string(option["kind"]), "allow"),
                         do: "bg-zinc-950 text-white hover:bg-zinc-800",
                         else: "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
                       )
@@ -2009,8 +2026,15 @@ defmodule HavenWeb.RunLive do
                     phx-value-option-id={option["optionId"]}
                     disabled={!@live?}
                   >
-                    {option["name"]}
+                    {option["name"] || option["optionId"] || "Choose option"}
                   </button>
+                  <p
+                    :if={permission_options(@pending_permission) == []}
+                    id="pending-permission-missing-options"
+                    class="w-full rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
+                  >
+                    This permission request did not include any valid decision options.
+                  </p>
                   <button
                     id="pending-permission-cancel-button"
                     type="button"
@@ -2180,11 +2204,7 @@ defmodule HavenWeb.RunLive do
                   <div id="pending-permission-options" class="min-w-0">
                     <dt class="font-semibold uppercase text-zinc-500">Options</dt>
                     <dd class="truncate font-mono">
-                      {Enum.map_join(
-                        @pending_permission.payload["options"] || [],
-                        ", ",
-                        &permission_option_label/1
-                      )}
+                      {permission_options_summary(@pending_permission)}
                     </dd>
                   </div>
                 </dl>

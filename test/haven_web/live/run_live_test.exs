@@ -365,6 +365,29 @@ defmodule HavenWeb.RunLiveTest do
     assert cancelled_audit.actor == "system"
   end
 
+  test "renders malformed pending permission requests as inspectable instead of crashing", %{
+    conn: conn
+  } do
+    run = insert_disconnected_run!("Malformed permission request", "waiting")
+
+    Events.append!(run.id, "permission_requested", %{
+      "request_id" => "broken-permission",
+      "toolCall" => %{
+        "rawInput" => %{"path" => "notes/plan.md"},
+        "title" => "Write file"
+      }
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#pending-permission-card", "Write file")
+    assert has_element?(view, "#pending-permission-missing-options", "valid decision options")
+    assert has_element?(view, "#pending-permission-options", "none")
+    assert has_element?(view, "#pending-permission-request-id", "broken-permission")
+    assert has_element?(view, "#pending-permission-primary-actions", "Cancel turn")
+    refute has_element?(view, ~s|#pending-permission-primary-actions button[phx-value-option-id]|)
+  end
+
   test "reconnect fails stale in-flight turns for disconnected running runs", %{conn: conn} do
     run = insert_disconnected_run!("Reconnect running history", "running")
     Events.append!(run.id, "turn_started", %{"prompt" => "still running"})

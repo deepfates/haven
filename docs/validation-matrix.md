@@ -396,6 +396,9 @@ Evidence:
 - Stale duplicate permission decisions now create an ignored audit row instead
   of mutating the already-resolved request, making attempted late decisions
   reviewable without reopening the active permission flow.
+- LiveView integration tests verify malformed pending permission payloads with
+  missing/invalid decision options still render an inspectable permission card,
+  show that no valid options are available, and do not crash the run detail.
 
 Still missing:
 
