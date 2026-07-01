@@ -202,8 +202,9 @@ defmodule HavenWeb.InboxLiveTest do
     running = insert_run!("Working run", "running")
     history = insert_run!("Done run", "idle")
 
-    {:ok, view, _html} = live(conn, ~p"/")
+    {:ok, view, html} = live(conn, ~p"/")
 
+    assert html =~ "(2) Haven"
     assert has_element?(view, "#inbox-attention-label", "2 runs need you")
     assert has_element?(view, "#inbox-attention-detail", "1 decision")
     assert has_element?(view, "#inbox-attention-detail", "1 recovery")

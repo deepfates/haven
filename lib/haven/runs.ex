@@ -16,6 +16,11 @@ defmodule Haven.Runs do
   end
 
   def unread_summary(opts \\ []) do
+    summary = attention_summary(opts)
+    %{runs: summary.unread_runs, events: summary.unread_events}
+  end
+
+  def attention_summary(opts \\ []) do
     exclude_run_id = Keyword.get(opts, :exclude_run_id)
 
     query =
@@ -36,22 +41,48 @@ defmodule Haven.Runs do
       |> Enum.map(& &1.id)
       |> Events.latest_by_run_id()
 
-    Enum.reduce(runs, %{runs: 0, events: 0}, fn run, summary ->
-      unread_events =
-        case Map.get(latest_events, run.id) do
-          %{seq: latest_seq} when is_integer(latest_seq) ->
-            max(latest_seq - run.last_viewed_event_seq, 0)
+    Enum.reduce(
+      runs,
+      %{
+        needs_you: 0,
+        decisions: 0,
+        recoveries: 0,
+        unread_runs: 0,
+        unread_events: 0
+      },
+      fn run, summary ->
+        summary =
+          case run.status do
+            "waiting" ->
+              %{summary | needs_you: summary.needs_you + 1, decisions: summary.decisions + 1}
 
-          _latest_event ->
-            0
+            "failed" ->
+              %{summary | needs_you: summary.needs_you + 1, recoveries: summary.recoveries + 1}
+
+            _status ->
+              summary
+          end
+
+        unread_events =
+          case Map.get(latest_events, run.id) do
+            %{seq: latest_seq} when is_integer(latest_seq) ->
+              max(latest_seq - run.last_viewed_event_seq, 0)
+
+            _latest_event ->
+              0
+          end
+
+        if unread_events > 0 do
+          %{
+            summary
+            | unread_runs: summary.unread_runs + 1,
+              unread_events: summary.unread_events + unread_events
+          }
+        else
+          summary
         end
-
-      if unread_events > 0 do
-        %{summary | runs: summary.runs + 1, events: summary.events + unread_events}
-      else
-        summary
       end
-    end)
+    )
   end
 
   def prune_archived_before(%DateTime{} = cutoff) do

@@ -317,11 +317,11 @@ defmodule HavenWeb.InboxLive do
       "archived" => length(archived_matches)
     })
     |> then(fn socket ->
-      assign(
-        socket,
-        :inbox_attention_summary,
-        inbox_attention_summary(socket.assigns.run_filter_counts)
-      )
+      attention_summary = inbox_attention_summary(socket.assigns.run_filter_counts)
+
+      socket
+      |> assign(:inbox_attention_summary, attention_summary)
+      |> assign(:page_title, inbox_page_title(socket.assigns.run_filter_counts))
     end)
     |> assign(:updated, visible_updated)
     |> assign(:needs_you, visible_needs_you)
@@ -1459,6 +1459,16 @@ defmodule HavenWeb.InboxLive do
 
   defp needs_you_label(1), do: "1 run needs you"
   defp needs_you_label(count), do: "#{count} runs need you"
+
+  defp inbox_page_title(%{"needs_you" => needs_you}) when needs_you > 0 do
+    "(#{needs_you}) Haven"
+  end
+
+  defp inbox_page_title(%{"unread_runs" => unread_runs}) when unread_runs > 0 do
+    "(#{unread_runs}) Haven"
+  end
+
+  defp inbox_page_title(_counts), do: "Haven"
 
   defp badge_class(tone) do
     "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium " <>

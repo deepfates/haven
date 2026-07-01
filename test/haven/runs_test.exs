@@ -45,6 +45,31 @@ defmodule Haven.RunsTest do
     assert Runs.list_runs() == []
   end
 
+  test "attention_summary separates decisions, recoveries, and unread updates" do
+    waiting = insert_run!("Needs decision", "waiting")
+    failed = insert_run!("Needs recovery", "failed")
+    updated = insert_run!("Fresh update", "idle")
+    quiet = insert_run!("Quiet history", "idle")
+
+    assert {:ok, _run} = Runs.mark_latest_viewed(waiting.id)
+    assert {:ok, _run} = Runs.mark_latest_viewed(failed.id)
+    assert {:ok, _run} = Runs.mark_latest_viewed(updated.id)
+    assert {:ok, _run} = Runs.mark_latest_viewed(quiet.id)
+
+    Events.append!(updated.id, "agent_message_chunk", %{"text" => "fresh note"})
+
+    assert %{
+             needs_you: 2,
+             decisions: 1,
+             recoveries: 1,
+             unread_runs: 1,
+             unread_events: 1
+           } = Runs.attention_summary()
+
+    assert %{needs_you: 1, decisions: 0, recoveries: 1, unread_runs: 1, unread_events: 1} =
+             Runs.attention_summary(exclude_run_id: waiting.id)
+  end
+
   test "create_run rejects agents with missing working directories before creating durable history" do
     missing_cwd = Path.join(System.tmp_dir!(), "haven-missing-run-agent-cwd")
     File.rm_rf!(missing_cwd)

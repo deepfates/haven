@@ -123,7 +123,7 @@ defmodule HavenWeb.RunLive do
   end
 
   def handle_info({:run_event_appended, _event}, socket) do
-    {:noreply, assign_inbox_unread_summary(socket)}
+    {:noreply, assign_inbox_attention_summary(socket)}
   end
 
   def handle_info({:run_updated, %{id: id}}, %{assigns: %{run: %{id: id}}} = socket) do
@@ -131,7 +131,7 @@ defmodule HavenWeb.RunLive do
   end
 
   def handle_info({:run_updated, _run}, socket) do
-    {:noreply, assign_inbox_unread_summary(socket)}
+    {:noreply, assign_inbox_attention_summary(socket)}
   end
 
   defp assign_run(socket, id) do
@@ -193,16 +193,36 @@ defmodule HavenWeb.RunLive do
     |> assign(:recovery_attention, recovery_attention(run, live?, workspace_missing?))
     |> assign(:latest_failure_summary, latest_failure_summary(events))
     |> assign(:pending_permission, pending_permission)
-    |> assign_inbox_unread_summary()
+    |> assign_inbox_attention_summary()
   end
 
-  defp assign_inbox_unread_summary(socket) do
-    assign(
-      socket,
-      :inbox_unread_summary,
-      Runs.unread_summary(exclude_run_id: socket.assigns.run.id)
-    )
+  defp assign_inbox_attention_summary(socket) do
+    summary = Runs.attention_summary(exclude_run_id: socket.assigns.run.id)
+
+    socket
+    |> assign(:inbox_attention_summary, summary)
+    |> assign(:page_title, run_page_title(socket.assigns.run, summary))
   end
+
+  defp run_page_title(run, %{needs_you: needs_you}) when needs_you > 0 do
+    "(#{needs_you}) #{run.title} - Haven"
+  end
+
+  defp run_page_title(run, %{unread_runs: unread_runs}) when unread_runs > 0 do
+    "(#{unread_runs}) #{run.title} - Haven"
+  end
+
+  defp run_page_title(run, _summary), do: "#{run.title} - Haven"
+
+  defp inbox_attention_badge(%{needs_you: needs_you}) when needs_you > 0 do
+    "#{needs_you} need you"
+  end
+
+  defp inbox_attention_badge(%{unread_runs: unread_runs}) when unread_runs > 0 do
+    pluralize_count(unread_runs, "updated run")
+  end
+
+  defp inbox_attention_badge(_summary), do: nil
 
   defp latest_event_seq(events) do
     events
@@ -2178,11 +2198,11 @@ defmodule HavenWeb.RunLive do
                     <.icon name="hero-arrow-left" class="size-4" />
                     <span>Inbox</span>
                     <span
-                      :if={@inbox_unread_summary.runs > 0}
-                      id="run-header-inbox-unread"
+                      :if={inbox_attention_badge(@inbox_attention_summary)}
+                      id="run-header-inbox-attention"
                       class="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-sky-700"
                     >
-                      {pluralize_count(@inbox_unread_summary.runs, "updated run")}
+                      {inbox_attention_badge(@inbox_attention_summary)}
                     </span>
                   </.link>
                   <h1 class="mt-2 truncate text-2xl font-semibold">{@run.title}</h1>
