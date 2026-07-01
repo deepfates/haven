@@ -80,6 +80,13 @@ defmodule Haven.AgentProbeReportTest do
     assert "prompt must be a non-empty string" in errors
   end
 
+  test "rejects failed runs as positive production evidence" do
+    report = Map.put(valid_report(), "status", "failed")
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+    assert "positive report status must be one of idle, closed" in errors
+  end
+
   test "rejects stub reports" do
     report = Map.put(valid_report(), "agent", "stub-acp")
 
@@ -345,6 +352,12 @@ defmodule Haven.AgentProbeReportTest do
 
   test "accepts real-agent failure reports with tool-call-only capability gaps" do
     assert :ok = AgentProbeReport.validate_failure(valid_failure_report())
+  end
+
+  test "accepts failed status for negative boundary evidence" do
+    report = Map.put(valid_failure_report(), "status", "failed")
+
+    assert :ok = AgentProbeReport.validate_failure(report)
   end
 
   test "rejects failure reports without real-agent acceptance metadata" do

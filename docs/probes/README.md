@@ -35,8 +35,8 @@ production-grade Haven real-agent evidence when all of the following are true:
 - Reports that claim Haven-mediated `file_*` or `terminal_*` capability events
   in `expected_events` must include matching `expected_event_fields` entries
   for those event types; type-only capability evidence is not accepted.
-- `status` is `idle` or another explicitly expected terminal state for the
-  story.
+- `status` is `idle` or `closed`; a failed run cannot count as positive
+  production-grade evidence even if it contains some expected events.
 - The ordered `events` list shows the relevant ACP lifecycle, prompt, permission,
   file, terminal, failure, or recovery events.
 

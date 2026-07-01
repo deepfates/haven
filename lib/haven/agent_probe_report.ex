@@ -8,7 +8,8 @@ defmodule Haven.AgentProbeReport do
   acceptance contract.
   """
 
-  @accepted_statuses ~w(idle closed failed)
+  @accepted_positive_statuses ~w(idle closed)
+  @accepted_failure_statuses ~w(idle closed failed)
   @required_lifecycle_events ~w(
     run_created
     agent_process_started
@@ -70,7 +71,7 @@ defmodule Haven.AgentProbeReport do
       |> reject_stub_agent(report)
       |> require_string(report, "workspace")
       |> require_string(report, "prompt")
-      |> require_accepted_status(report)
+      |> require_accepted_status(report, @accepted_positive_statuses, "positive report")
       |> require_real_agent_evidence(report)
       |> require_redactions(report)
       |> require_expected_events(report)
@@ -103,7 +104,7 @@ defmodule Haven.AgentProbeReport do
       |> reject_stub_agent(report)
       |> require_string(report, "workspace")
       |> require_string(report, "prompt")
-      |> require_accepted_status(report)
+      |> require_accepted_status(report, @accepted_failure_statuses, "failure report")
       |> require_real_agent_evidence(report)
       |> require_redactions(report)
       |> require_expected_events(report)
@@ -182,10 +183,23 @@ defmodule Haven.AgentProbeReport do
 
   defp reject_stub_agent(errors, _report), do: errors
 
-  defp require_accepted_status(errors, report) do
+  defp require_accepted_status(errors, report, accepted_statuses, label) do
     case Map.get(report, "status") do
-      status when status in @accepted_statuses -> errors
-      _status -> ["status must be one of #{Enum.join(@accepted_statuses, ", ")}" | errors]
+      status when is_binary(status) ->
+        if status in accepted_statuses do
+          errors
+        else
+          [
+            "#{label} status must be one of #{Enum.join(accepted_statuses, ", ")}"
+            | errors
+          ]
+        end
+
+      _status ->
+        [
+          "#{label} status must be one of #{Enum.join(accepted_statuses, ", ")}"
+          | errors
+        ]
     end
   end
 

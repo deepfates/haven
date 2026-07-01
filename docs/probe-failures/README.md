@@ -16,7 +16,9 @@ event, at least one matching field-level capability expectation, and a
 `tool_call_update` events. They must also include
 `unsupported_client_capabilities`, which turns the observed boundary into a
 machine-readable declaration of the mediated capability family that the agent
-class did not exercise.
+class did not exercise. Unlike positive reports, failure reports may have
+`status=failed` when the failed run state is itself the honest boundary being
+recorded.
 
 ## Current Failure Reports
 
