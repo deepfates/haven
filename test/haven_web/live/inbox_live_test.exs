@@ -990,6 +990,14 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(
              view,
+             "#agent-registry-save-command",
+             "mix haven.agent_probe --save-registry-agent AGENT_ID"
+           )
+
+    assert has_element?(view, "#agent-registry-hint", "Replace AGENT_ID")
+
+    assert has_element?(
+             view,
              "#agent-registry-hint",
              "package and env key requirements"
            )

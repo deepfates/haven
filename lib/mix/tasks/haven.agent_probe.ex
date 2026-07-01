@@ -599,7 +599,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
                 )
 
                 Mix.shell().info(
-                  "Next: mix haven.agent_probe --list-agents --preflight --workspace #{shell_arg(workspace)}"
+                  "Next: mix haven.agent_probe --list-agents --preflight --proof-commands --workspace #{shell_arg(workspace)}"
                 )
 
               {:error, changeset} ->

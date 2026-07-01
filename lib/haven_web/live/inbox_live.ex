@@ -1596,6 +1596,18 @@ defmodule HavenWeb.InboxLive do
     |> Enum.map_join(" ", &shell_arg/1)
   end
 
+  defp agent_registry_save_command do
+    [
+      "mix",
+      "haven.agent_probe",
+      "--save-registry-agent",
+      "AGENT_ID",
+      "--workspace",
+      File.cwd!()
+    ]
+    |> Enum.map_join(" ", &shell_arg/1)
+  end
+
   defp shell_arg(value) do
     value = to_string(value)
 
@@ -2439,8 +2451,14 @@ defmodule HavenWeb.InboxLive do
                       >
                         {agent_registry_command()}
                       </code>
+                      <code
+                        id="agent-registry-save-command"
+                        class="mt-2 block overflow-x-auto rounded-md border border-sky-200 bg-white/80 px-2 py-1 text-[11px] leading-5 text-sky-950"
+                      >
+                        {agent_registry_save_command()}
+                      </code>
                       <p class="mt-2 text-xs text-sky-800">
-                        Registry discovery lists package and env key requirements, then prints preflight and proof commands. Use an approved workspace and auth scope before probing.
+                        Registry discovery lists package and env key requirements, then prints preflight and proof commands. Replace AGENT_ID to save one suggestion, then preflight the saved command with an approved workspace and auth scope before probing.
                       </p>
                     </div>
                   </div>
