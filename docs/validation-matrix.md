@@ -131,10 +131,14 @@ Evidence:
   of becoming invisible durable records.
 - Browser smoke verifies a failed run can be archived from History and
   disappears from the inbox without deleting its run record.
+- Saved workspace rows now show derived readiness and run usage, including
+  missing-on-disk folders plus active and archived run counts, so multi-folder
+  triage exposes operational state without opening each run.
 
 Still missing:
 
-- Richer workspace configuration UI and metadata beyond name/path.
+- Richer workspace configuration metadata beyond path readiness and run usage
+  (for example repo branch, trust/auth scope, or OS-native folder identity).
 - OS-native workspace browse affordances.
 - Richer filtering beyond operational lanes, agent/workspace facets, and
   free-text search.
@@ -645,7 +649,8 @@ and should not be counted as complete until there is executable evidence.
 - Authentication flows for agents that require auth; configured env can pass
   secrets to launched agents, but no interactive auth flow is proven.
 - Session load/resume/fork/list support when agents expose it.
-- Product-grade workspace and agent configuration UI.
+- Product-grade workspace and agent configuration UI beyond saved rows,
+  readiness summaries, and agent inventory.
 - Authenticated user identity for permission decisions.
 
 ## Next Best Validation Work

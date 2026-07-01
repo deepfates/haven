@@ -469,11 +469,34 @@ defmodule HavenWeb.InboxLive do
   defp save_workspace(_params, attrs), do: Workspaces.create_workspace(attrs)
 
   defp refresh_workspace_assigns(socket) do
-    workspaces = Workspaces.list_workspaces()
+    workspaces =
+      Workspaces.list_workspaces()
+      |> attach_workspace_usage()
 
     socket
     |> assign(:workspaces, workspaces)
     |> assign(:workspace_options, workspace_options(workspaces))
+  end
+
+  defp attach_workspace_usage(workspaces) do
+    active_counts =
+      Runs.list_runs()
+      |> Enum.frequencies_by(& &1.workspace)
+
+    archived_counts =
+      Runs.list_archived_runs()
+      |> Enum.frequencies_by(& &1.workspace)
+
+    Enum.map(workspaces, fn workspace ->
+      workspace
+      |> Map.put(:path_state, workspace_path_state(workspace.path))
+      |> Map.put(:active_run_count, Map.get(active_counts, workspace.path, 0))
+      |> Map.put(:archived_run_count, Map.get(archived_counts, workspace.path, 0))
+    end)
+  end
+
+  defp workspace_path_state(path) do
+    if File.dir?(path), do: :ready, else: :missing
   end
 
   defp workspace_options(workspaces) do
@@ -481,6 +504,27 @@ defmodule HavenWeb.InboxLive do
       {"#{workspace.name} · #{workspace.path}", workspace.id}
     end)
   end
+
+  defp workspace_path_badge_class(%{path_state: :ready}) do
+    "inline-flex h-6 items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 text-xs font-semibold text-emerald-700"
+  end
+
+  defp workspace_path_badge_class(_workspace) do
+    "inline-flex h-6 items-center rounded-md border border-rose-200 bg-rose-50 px-2 text-xs font-semibold text-rose-700"
+  end
+
+  defp workspace_path_label(%{path_state: :ready}), do: "Ready"
+  defp workspace_path_label(_workspace), do: "Missing"
+
+  defp workspace_usage_label(workspace) do
+    active_count = Map.get(workspace, :active_run_count, 0)
+    archived_count = Map.get(workspace, :archived_run_count, 0)
+
+    "#{pluralize_count(active_count, "active run")} · #{pluralize_count(archived_count, "archived run")}"
+  end
+
+  defp pluralize_count(1, singular), do: "1 #{singular}"
+  defp pluralize_count(count, singular), do: "#{count} #{singular}s"
 
   defp reset_workspace_form(socket) do
     socket
@@ -1296,8 +1340,24 @@ defmodule HavenWeb.InboxLive do
                   >
                     <div class="flex items-start justify-between gap-3">
                       <div class="min-w-0">
-                        <p class="truncate text-sm font-semibold text-zinc-950">{workspace.name}</p>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <p class="truncate text-sm font-semibold text-zinc-950">
+                            {workspace.name}
+                          </p>
+                          <span
+                            id={"workspace-#{workspace.id}-path-state"}
+                            class={workspace_path_badge_class(workspace)}
+                          >
+                            {workspace_path_label(workspace)}
+                          </span>
+                        </div>
                         <p class="mt-1 truncate text-xs text-zinc-500">{workspace.path}</p>
+                        <p
+                          id={"workspace-#{workspace.id}-run-usage"}
+                          class="mt-1 text-xs text-zinc-500"
+                        >
+                          {workspace_usage_label(workspace)}
+                        </p>
                       </div>
                       <div class="flex shrink-0 items-center gap-2">
                         <button

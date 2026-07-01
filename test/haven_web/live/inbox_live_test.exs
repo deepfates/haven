@@ -165,6 +165,44 @@ defmodule HavenWeb.InboxLiveTest do
   end
 
   @tag :tmp_dir
+  test "summarizes saved workspace readiness and run usage", %{conn: conn, tmp_dir: tmp_dir} do
+    ready_dir = Path.join(tmp_dir, "ready")
+    missing_dir = Path.join(tmp_dir, "missing")
+    File.mkdir_p!(ready_dir)
+    File.mkdir_p!(missing_dir)
+
+    assert {:ok, ready_workspace} =
+             Workspaces.create_workspace(%{
+               "name" => "Ready repo",
+               "path" => ready_dir
+             })
+
+    assert {:ok, missing_workspace} =
+             Workspaces.create_workspace(%{
+               "name" => "Missing repo",
+               "path" => missing_dir
+             })
+
+    insert_run!("Active workspace run", "idle", %{workspace: Path.expand(ready_dir)})
+
+    archived_run =
+      insert_run!("Archived workspace run", "failed", %{workspace: Path.expand(ready_dir)})
+
+    assert {:ok, _archived} = Runs.archive_run(archived_run.id)
+    File.rm_rf!(missing_dir)
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#workspace-#{ready_workspace.id}-path-state", "Ready")
+    assert has_element?(view, "#workspace-#{ready_workspace.id}-run-usage", "1 active run")
+    assert has_element?(view, "#workspace-#{ready_workspace.id}-run-usage", "1 archived run")
+
+    assert has_element?(view, "#workspace-#{missing_workspace.id}-path-state", "Missing")
+    assert has_element?(view, "#workspace-#{missing_workspace.id}-run-usage", "0 active runs")
+    assert has_element?(view, "#workspace-#{missing_workspace.id}-run-usage", "0 archived runs")
+  end
+
+  @tag :tmp_dir
   test "deletes a saved workspace from the inbox picker", %{conn: conn, tmp_dir: tmp_dir} do
     assert {:ok, workspace} =
              Workspaces.create_workspace(%{
