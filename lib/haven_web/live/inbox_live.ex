@@ -372,6 +372,8 @@ defmodule HavenWeb.InboxLive do
   defp run_activity_at(%{inserted_at: %DateTime{} = inserted_at}), do: inserted_at
   defp run_activity_at(_run), do: ~U[1970-01-01 00:00:00Z]
 
+  defp run_activity_time(run), do: run |> run_activity_at() |> run_row_time()
+
   defp latest_permission_decision_run_ids(events) do
     events
     |> Enum.filter(&permission_decision_event?/1)
@@ -1874,8 +1876,8 @@ defmodule HavenWeb.InboxLive do
             </span>
             <span aria-hidden="true">·</span>
             <span id={"run-#{@run.id}-updated-at"} class="inline-flex items-center gap-1">
-              <span class="font-medium text-zinc-500">Updated</span>
-              <span class="font-mono">{run_row_time(@run.updated_at)}</span>
+              <span class="font-medium text-zinc-500">Activity</span>
+              <span class="font-mono">{run_activity_time(@run)}</span>
             </span>
           </p>
 

@@ -160,7 +160,7 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#new-run-panel summary", "Start a run")
     assert has_element?(view, "#new-run-form")
     assert has_element?(view, "#run-#{run.id}-row-times", "Started")
-    assert has_element?(view, "#run-#{run.id}-row-times", "Updated")
+    assert has_element?(view, "#run-#{run.id}-row-times", "Activity")
     assert has_element?(view, "#run-#{run.id}-started-at")
     assert has_element?(view, "#run-#{run.id}-updated-at")
 
@@ -1600,6 +1600,29 @@ defmodule HavenWeb.InboxLiveTest do
     Events.append!(run.id, "file_write_succeeded", %{"path" => "notes/result.md"})
 
     assert has_element?(view, "#run-#{run.id}-latest-activity", "Wrote file: notes/result.md")
+  end
+
+  test "shows the latest event activity time in inbox row metadata", %{conn: conn} do
+    run = insert_run!("Precise activity row", "idle")
+    run_time = ~U[2026-07-01 08:15:00Z]
+    event_time = ~U[2026-07-01 08:42:00Z]
+
+    Repo.update_all(
+      from(r in Run, where: r.id == ^run.id),
+      set: [inserted_at: run_time, updated_at: run_time]
+    )
+
+    Repo.update_all(
+      from(e in Event, where: e.run_id == ^run.id),
+      set: [inserted_at: event_time, updated_at: event_time]
+    )
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#run-#{run.id}-started-at", "08:15:00")
+    assert has_element?(view, "#run-#{run.id}-updated-at", "Activity")
+    assert has_element?(view, "#run-#{run.id}-updated-at", "08:42:00")
+    refute has_element?(view, "#run-#{run.id}-updated-at", "08:15:00")
   end
 
   test "orders inbox rows by latest activity within each lane", %{conn: conn} do

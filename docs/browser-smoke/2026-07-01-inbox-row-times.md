@@ -10,9 +10,13 @@ Target:
 Checks:
 - Inbox did not show an Ecto pending migration page.
 - Inbox did not show a LiveView crash or exception page.
-- `#run-f89ed3fc-0ca8-4289-95f2-a2d582f4e8fa-row-times` rendered with both `Started` and `Updated`.
+- Row time metadata rendered with both `Started` and `Activity`.
 - `#run-f89ed3fc-0ca8-4289-95f2-a2d582f4e8fa-started-at` rendered a clock time.
-- `#run-f89ed3fc-0ca8-4289-95f2-a2d582f4e8fa-updated-at` rendered a clock time.
+- `#run-f89ed3fc-0ca8-4289-95f2-a2d582f4e8fa-updated-at` rendered an activity
+  clock time based on the latest event used for row ordering.
+- A refreshed browser inspection after the activity-label change showed visible
+  rows such as `Started 12:53:33 · Activity 12:53:39`, proving the displayed
+  activity time can differ from the run creation time.
 - At a `390x844` mobile viewport, the row time strip remained visible.
 - At the same mobile viewport, the page reported `scrollWidth == clientWidth == 390`, so the added row metadata did not introduce horizontal page overflow.
 
