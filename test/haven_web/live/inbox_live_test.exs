@@ -973,10 +973,12 @@ defmodule HavenWeb.InboxLiveTest do
              "mix haven.agent_probe --list-agents --registry"
            )
 
+    assert has_element?(view, "#agent-registry-command", "--preflight --proof-commands")
+
     assert has_element?(
              view,
              "#agent-registry-hint",
-             "download and run third-party code"
+             "package and env key requirements"
            )
   end
 

@@ -77,7 +77,7 @@ mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "run t
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "summarize this repo" --load-runs 2 --load-concurrency 2 --require-real-agent --report docs/probe-load/my-agent-load.json
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "write a long summary" --expect-min-agent-output-chars 1200 --expect-min-agent-message-chunks 8 --require-real-agent --report docs/probes/my-agent-long-output.json
 mix haven.agent_probe --list-agents --preflight --workspace /path/to/repo
-mix haven.agent_probe --list-agents --registry --workspace /path/to/repo
+mix haven.agent_probe --list-agents --registry --preflight --proof-commands --workspace /path/to/repo
 ```
 
 Configured agents can be supplied at runtime with `HAVEN_AGENTS_JSON`:
@@ -121,10 +121,12 @@ preflight, and report output stay readable as evidence. Add `--verbose` when
 debugging the probe task itself. Preflight inventory prints a final summary
 with how many static real-agent candidates passed and which agent keys are
 ready for full evidence probes.
-Use `--list-agents --registry` to fetch the public ACP Registry and print
-npx-backed agent command suggestions that can be supplied through
-`HAVEN_AGENTS_JSON`. Registry commands download and run third-party code; run
-preflight and evidence probes only with an approved workspace and auth scope.
+Use `--list-agents --registry --preflight --proof-commands` to fetch the public
+ACP Registry and print npx-backed agent command suggestions that can be
+supplied through `HAVEN_AGENTS_JSON`. Registry output lists package and env key
+requirements before printing copyable preflight/proof commands. Registry
+commands download and run third-party code; run preflight and evidence probes
+only with an approved workspace and auth scope.
 `--report path.json` writes the full report as pretty JSON for committed proof
 artifacts. `--load-runs N` repeats the same real-agent probe as distinct
 durable runs and writes an aggregate report when paired with `--report`;

@@ -1128,7 +1128,11 @@ defmodule HavenWeb.RunLiveTest do
     submit_prompt(view, "permission")
 
     assert_receive {:event_appended,
-                    %{type: "permission_requested", payload: %{"request_id" => request_id}}},
+                    %{
+                      type: "permission_requested",
+                      seq: permission_request_seq,
+                      payload: %{"request_id" => request_id}
+                    }},
                    1_000
 
     html = render(view)
@@ -1159,6 +1163,12 @@ defmodule HavenWeb.RunLiveTest do
              "Allow lets the agent proceed with this write request; deny blocks it."
            )
 
+    assert has_element?(
+             view,
+             ~s|#pending-permission-event-link[href="#event-#{permission_request_seq}"]|,
+             "View in timeline"
+           )
+
     assert has_element?(view, "#pending-permission-primary-actions")
     assert has_element?(view, "#pending-permission-primary-actions button", "Allow once")
     assert has_element?(view, "#pending-permission-primary-actions button", "Deny")
@@ -1167,11 +1177,13 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#pending-permission-details summary", "Review details")
 
     summary_index = :binary.match(html, ~s|id="pending-permission-decision-summary"|) |> elem(0)
+    event_link_index = :binary.match(html, ~s|id="pending-permission-event-link"|) |> elem(0)
     actions_index = :binary.match(html, ~s|id="pending-permission-primary-actions"|) |> elem(0)
     details_index = :binary.match(html, ~s|id="pending-permission-details"|) |> elem(0)
     authority_index = :binary.match(html, ~s|id="pending-permission-authority"|) |> elem(0)
 
-    assert summary_index < actions_index
+    assert summary_index < event_link_index
+    assert event_link_index < actions_index
     assert actions_index < details_index
     assert details_index < authority_index
 

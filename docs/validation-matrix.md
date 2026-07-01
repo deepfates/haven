@@ -729,10 +729,11 @@ Evidence:
   into an explicit ACP boot check by creating short durable runs for eligible
   candidates and verifying `agent_initialized` plus `agent_session_started`
   before a user attempts a full evidence report.
-- `mix haven.agent_probe --list-agents --registry` fetches the public ACP
-  Registry and prints npx-backed `HAVEN_AGENTS_JSON` suggestions, so Haven can
-  guide users toward real ACP adapters such as `claude-acp`, `codex-acp`, and
-  `gemini` instead of relying on local shell placeholders.
+- `mix haven.agent_probe --list-agents --registry --preflight --proof-commands`
+  fetches the public ACP Registry, lists package and env key requirements, and
+  prints npx-backed `HAVEN_AGENTS_JSON` proof commands, so Haven can guide users
+  toward real ACP adapters such as `claude-acp`, `codex-acp`, and `gemini`
+  instead of relying on local shell placeholders.
 - `mix haven.agent_probe --save-registry-agent AGENT_ID` persists one registry
   suggestion into the same Agent Setup table used by the UI, reducing the gap
   between discovery and a preflighted saved command without treating the saved

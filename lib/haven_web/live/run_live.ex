@@ -2076,6 +2076,13 @@ defmodule HavenWeb.RunLive do
                     {decision_summary.consequence}
                   </p>
                 </div>
+                <a
+                  id="pending-permission-event-link"
+                  href={"#event-#{@pending_permission.seq}"}
+                  class="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-zinc-700 transition hover:text-zinc-950"
+                >
+                  <.icon name="hero-arrow-down-circle" class="size-4" /> View in timeline
+                </a>
                 <div id="pending-permission-primary-actions" class="mt-3 flex flex-wrap gap-2">
                   <button
                     :for={option <- permission_options(@pending_permission)}

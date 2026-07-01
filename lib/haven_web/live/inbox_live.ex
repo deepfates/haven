@@ -1588,6 +1588,8 @@ defmodule HavenWeb.InboxLive do
       "haven.agent_probe",
       "--list-agents",
       "--registry",
+      "--preflight",
+      "--proof-commands",
       "--workspace",
       File.cwd!()
     ]
@@ -2438,7 +2440,7 @@ defmodule HavenWeb.InboxLive do
                         {agent_registry_command()}
                       </code>
                       <p class="mt-2 text-xs text-sky-800">
-                        Registry commands download and run third-party code; use an approved workspace and auth scope before probing.
+                        Registry discovery lists package and env key requirements, then prints preflight and proof commands. Use an approved workspace and auth scope before probing.
                       </p>
                     </div>
                   </div>
