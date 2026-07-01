@@ -153,6 +153,7 @@ defmodule HavenWeb.RunLive do
     |> assign(:terminal_sessions, terminal_sessions)
     |> assign(:terminal_session_counts, terminal_session_counts(terminal_sessions))
     |> assign(:events, events)
+    |> assign(:conversation_messages, conversation_messages(events))
     |> assign_event_projection(events)
     |> assign(:live?, live?)
     |> assign(:can_prompt?, live? and run.status == "idle")
@@ -469,6 +470,59 @@ defmodule HavenWeb.RunLive do
       _event -> nil
     end)
   end
+
+  defp conversation_messages(events) do
+    events
+    |> Enum.reduce([], fn
+      %{type: "user_message", seq: seq, inserted_at: inserted_at, payload: %{"text" => text}}, acc
+      when is_binary(text) ->
+        [%{role: "user", seq: seq, inserted_at: inserted_at, text: text} | acc]
+
+      %{
+        type: "agent_message_chunk",
+        seq: seq,
+        inserted_at: inserted_at,
+        payload: %{"text" => text}
+      },
+      [%{role: "agent"} = previous | rest]
+      when is_binary(text) ->
+        [
+          %{previous | text: previous.text <> text, last_seq: seq, inserted_at: inserted_at}
+          | rest
+        ]
+
+      %{
+        type: "agent_message_chunk",
+        seq: seq,
+        inserted_at: inserted_at,
+        payload: %{"text" => text}
+      },
+      acc
+      when is_binary(text) ->
+        [
+          %{role: "agent", seq: seq, last_seq: seq, inserted_at: inserted_at, text: text}
+          | acc
+        ]
+
+      _event, acc ->
+        acc
+    end)
+    |> Enum.reverse()
+  end
+
+  defp conversation_message_class("user") do
+    "ml-auto max-w-[88%] rounded-2xl rounded-br-md bg-zinc-950 px-4 py-3 text-sm text-white sm:max-w-[75%]"
+  end
+
+  defp conversation_message_class("agent") do
+    "mr-auto max-w-[88%] rounded-2xl rounded-bl-md border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 shadow-sm sm:max-w-[75%]"
+  end
+
+  defp conversation_message_label("user"), do: "You"
+  defp conversation_message_label("agent"), do: "Agent"
+
+  defp conversation_message_label_class("user"), do: "text-zinc-300"
+  defp conversation_message_label_class("agent"), do: "text-zinc-500"
 
   defp event(assigns) do
     assigns =
@@ -1933,6 +1987,40 @@ defmodule HavenWeb.RunLive do
                   </summary>
                   <pre class="mt-2 max-h-40 overflow-auto rounded-md bg-zinc-50 p-3 text-xs text-zinc-700"><%= Jason.encode!(get_in(@pending_permission.payload, ["toolCall", "rawInput"]) || %{}, pretty: true) %></pre>
                 </details>
+              </section>
+
+              <section
+                :if={@conversation_messages != []}
+                id="run-conversation"
+                class="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3"
+              >
+                <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">
+                  Conversation
+                </h2>
+                <div class="flex flex-col gap-3">
+                  <article
+                    :for={message <- @conversation_messages}
+                    id={"conversation-message-#{message.seq}"}
+                    data-conversation-role={message.role}
+                    class={conversation_message_class(message.role)}
+                  >
+                    <div class="mb-1 flex items-center justify-between gap-3">
+                      <span class={[
+                        "text-[11px] font-semibold uppercase",
+                        conversation_message_label_class(message.role)
+                      ]}>
+                        {conversation_message_label(message.role)}
+                      </span>
+                      <span class={[
+                        "text-[11px] tabular-nums",
+                        conversation_message_label_class(message.role)
+                      ]}>
+                        {Calendar.strftime(message.inserted_at, "%H:%M:%S")}
+                      </span>
+                    </div>
+                    <p class="whitespace-pre-wrap">{message.text}</p>
+                  </article>
+                </div>
               </section>
 
               <section

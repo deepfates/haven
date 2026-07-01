@@ -616,8 +616,9 @@ defmodule HavenWeb.RunLiveTest do
     |> render_click()
 
     assert has_element?(view, ~s|[data-event-kind="runtime"]|, "Runtime")
-    refute render(view) =~ "Echo: hello from filter test"
+    refute has_element?(view, ~s|[data-event-kind="agent"]|, "Echo: hello from filter test")
     refute has_element?(view, ~s|[data-event-kind="agent"]|)
+    assert has_element?(view, "#run-conversation", "Echo: hello from filter test")
 
     view
     |> element("#timeline-filter-all")
@@ -658,7 +659,8 @@ defmodule HavenWeb.RunLiveTest do
     |> render_change()
 
     assert has_element?(view, "#timeline-empty-filter", "No events match this search.")
-    refute render(view) =~ "find quartz evidence"
+    refute has_element?(view, ~s|[data-event-kind="user"]|, "find quartz evidence")
+    assert has_element?(view, "#run-conversation", "find quartz evidence")
 
     view
     |> element("#clear-timeline-search")
@@ -3268,17 +3270,39 @@ defmodule HavenWeb.RunLiveTest do
     assert_receive {:run_updated, %{id: run_id, status: "idle"}}, 1_000
     assert run_id == run.id
 
-    streamed_text =
+    agent_chunk_events =
       run.id
       |> Events.list_for_run()
       |> Enum.filter(&(&1.type == "agent_message_chunk"))
-      |> Enum.map(& &1.payload["text"])
 
+    streamed_text = Enum.map(agent_chunk_events, & &1.payload["text"])
     assert streamed_text == ["Partial ", "streamed ", "answer."]
+    [first_chunk, second_chunk, third_chunk] = agent_chunk_events
 
-    {:ok, _reloaded, html} = live(conn, ~p"/runs/#{run.id}")
-    assert html =~ "idle"
-    assert html =~ "answer."
+    {:ok, reloaded, _html} = live(conn, ~p"/runs/#{run.id}")
+    assert has_element?(reloaded, "#haven-run", "idle")
+    assert has_element?(reloaded, "#run-conversation")
+
+    assert has_element?(
+             reloaded,
+             ~s|#run-conversation [data-conversation-role="user"]|,
+             "partial-stream"
+           )
+
+    assert has_element?(
+             reloaded,
+             ~s|#run-conversation [data-conversation-role="agent"]|,
+             "Partial streamed answer."
+           )
+
+    assert has_element?(
+             reloaded,
+             "#conversation-message-#{first_chunk.seq}",
+             "Partial streamed answer."
+           )
+
+    refute has_element?(reloaded, "#conversation-message-#{second_chunk.seq}")
+    refute has_element?(reloaded, "#conversation-message-#{third_chunk.seq}")
   end
 
   test "configured fake ACP harness cancels duplicate permission requests", %{conn: conn} do

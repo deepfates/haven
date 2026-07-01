@@ -225,6 +225,10 @@ Evidence:
 - LiveView integration tests verify the prompt/control panel is in the main run
   thread before timeline filters and side-rail evidence, so mobile users can
   continue a run without scrolling past the full activity history.
+- LiveView integration tests verify the run detail projects user messages and
+  streamed agent chunks into a plain conversation transcript, grouping adjacent
+  agent chunks into one readable answer while preserving the underlying timeline
+  events as evidence.
 - LiveView integration tests verify the run detail layout stays single-column
   until desktop width and its grid columns can shrink, preventing tablet/mobile
   overflow from long run facts.
