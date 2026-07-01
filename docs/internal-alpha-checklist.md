@@ -94,7 +94,10 @@ Evidence:
 
 ### 5. Agent Probe Evidence Gate
 
-Run at least one current probe and commit or document the result.
+Run at least one current real-agent happy-path probe and commit or document the
+result. Negative probes still matter, but they explain known limits; they do not
+substitute for proving that Haven can start a real agent and complete a basic
+turn.
 
 Preferred positive evidence:
 
@@ -110,7 +113,7 @@ mix haven.agent_probe \
   --report docs/probes/AGENT_KEY-basic.json
 ```
 
-Acceptable internal-alpha negative evidence:
+Required internal-alpha negative evidence for any claimed capability gap:
 
 - A failed real-agent probe report or note that names the exact failure.
 - A `tool_call_only_capability_gap` finding that explains which story did not
@@ -119,8 +122,10 @@ Acceptable internal-alpha negative evidence:
 
 Pass condition:
 
-- There is at least one current probe artifact or negative evidence note.
+- There is at least one current positive real-agent basic probe artifact.
 - Any committed positive real-agent report passes `mix haven.probe_reports`.
+- Any missing mediated file or terminal story has a named negative probe report
+  or note.
 - Secrets are redacted with `--redact` or `--redact-env`.
 
 Evidence:

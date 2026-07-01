@@ -10,6 +10,12 @@ defmodule HavenWeb.RunLiveTest do
   alias Haven.Runs.{Run, RunServer}
   alias Haven.TerminalSessions
 
+  defp submit_prompt(view, prompt) do
+    view
+    |> form("#run-prompt-form", %{prompt: prompt})
+    |> render_submit()
+  end
+
   test "renders a durable run timeline after startup and reload", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Durable run"})
     stop_run_server_on_exit(run.id)
@@ -69,8 +75,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#timeline-filters summary", "Filter activity")
     assert has_element?(view, "#run-control-panel", "Message")
     assert has_element?(view, "#run-prompt-form")
-    assert has_element?(view, "#sample-prompts-disclosure summary", "Developer samples")
-    assert has_element?(view, "#sample-prompts #sample-echo-button")
+    refute has_element?(view, "#sample-prompts-disclosure")
     assert has_element?(view, "#run-capability-policy summary", "Capability policy")
     assert has_element?(view, "#run-permission-audit summary", "Permission audit")
     assert has_element?(view, "#run-file-changes summary", "File changes")
@@ -272,7 +277,6 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "not connected"
     assert has_element?(view, "#send-prompt-button[disabled]")
     assert has_element?(view, ~s|#send-prompt-button[title*="not connected"]|)
-    assert has_element?(view, ~s|#sample-terminal-button[title*="not connected"]|)
     assert has_element?(view, ~s|#cancel-run-button[title*="no live turn"]|)
     assert has_element?(view, "#run-control-notice", "not connected")
     refute Runs.started?(run.id)
@@ -626,7 +630,7 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "closed"
     assert has_element?(view, "#send-prompt-button[disabled]")
     assert has_element?(view, "#cancel-run-button[disabled]")
-    assert has_element?(view, ~s|#sample-echo-button[title*="closed"]|)
+    assert has_element?(view, ~s|#send-prompt-button[title*="closed"]|)
     assert has_element?(view, ~s|#cancel-run-button[title*="no active turn"]|)
     assert has_element?(view, "#run-control-notice", "closed")
     refute has_element?(view, "#reconnect-run-button")
@@ -666,7 +670,6 @@ defmodule HavenWeb.RunLiveTest do
 
     refute has_element?(view, "#run-control-notice")
     refute has_element?(view, "#send-prompt-button[title]")
-    refute has_element?(view, "#sample-terminal-button[title]")
     assert has_element?(view, ~s|#cancel-run-button[title*="no active turn"]|)
 
     view
@@ -1089,10 +1092,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-permission-button")
-    |> render_click()
+    submit_prompt(view, "permission")
 
     assert_receive {:event_appended,
                     %{type: "permission_requested", payload: %{"request_id" => request_id}}},
@@ -1231,10 +1231,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-permission-button")
-    |> render_click()
+    submit_prompt(view, "permission")
 
     assert_receive {:event_appended,
                     %{type: "permission_requested", payload: %{"request_id" => request_id}}},
@@ -1281,10 +1278,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-permission-button")
-    |> render_click()
+    submit_prompt(view, "permission")
 
     assert_receive {:event_appended,
                     %{type: "permission_requested", payload: %{"request_id" => request_id}}},
@@ -1324,10 +1318,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-permission-button")
-    |> render_click()
+    submit_prompt(view, "permission")
 
     assert_receive {:event_appended,
                     %{type: "permission_requested", payload: %{"request_id" => request_id}}},
@@ -1370,10 +1361,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-permission-button")
-    |> render_click()
+    submit_prompt(view, "permission")
 
     assert_receive {:event_appended,
                     %{type: "permission_requested", payload: %{"request_id" => request_id}}},
@@ -1651,8 +1639,7 @@ defmodule HavenWeb.RunLiveTest do
 
     assert render(view) =~ "running"
     assert has_element?(view, "#send-prompt-button[disabled]")
-    assert has_element?(view, "#sample-echo-button[disabled]")
-    assert has_element?(view, ~s|#sample-echo-button[title*="turn is already in progress"]|)
+    assert has_element?(view, ~s|#send-prompt-button[title*="turn is already in progress"]|)
     refute has_element?(view, "#cancel-run-button[title]")
     assert has_element?(view, "#run-control-notice", "A turn is already in progress")
     assert Runs.send_prompt(run.id, "second prompt") == {:error, :busy}
@@ -1851,10 +1838,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-read-file-button")
-    |> render_click()
+    submit_prompt(view, "read-file")
 
     assert_receive {:event_appended,
                     %{type: "file_read_requested", payload: %{"path" => "README.md"}}},
@@ -1939,10 +1923,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-read-file-button")
-    |> render_click()
+    submit_prompt(view, "read-file")
 
     assert_receive {:event_appended,
                     %{type: "file_read_requested", payload: %{"path" => "README.md"}}},
@@ -2016,10 +1997,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-read-file-button")
-    |> render_click()
+    submit_prompt(view, "read-file")
 
     assert_receive {:event_appended,
                     %{type: "file_read_requested", payload: %{"path" => "README.md"}}},
@@ -2080,10 +2058,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-read-file-button")
-    |> render_click()
+    submit_prompt(view, "read-file")
 
     assert_receive {:event_appended,
                     %{type: "file_read_requested", payload: %{"path" => "README.md"}}},
@@ -2137,10 +2112,7 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
     assert has_element?(view, "#run-file-change-count", "0")
     assert has_element?(view, "#run-file-changes-empty", "No file changes recorded.")
-
-    view
-    |> element("#sample-write-file-button")
-    |> render_click()
+    submit_prompt(view, "write-file")
 
     assert_receive {:event_appended,
                     %{
@@ -2354,10 +2326,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-write-file-button")
-    |> render_click()
+    submit_prompt(view, "write-file")
 
     assert_receive {:event_appended,
                     %{
@@ -2452,10 +2421,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-write-file-button")
-    |> render_click()
+    submit_prompt(view, "write-file")
 
     assert_receive {:event_appended,
                     %{
@@ -2520,10 +2486,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-write-file-button")
-    |> render_click()
+    submit_prompt(view, "write-file")
 
     assert_receive {:event_appended,
                     %{
@@ -2575,10 +2538,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-terminal-button")
-    |> render_click()
+    submit_prompt(view, "terminal")
 
     assert_receive {:event_appended, %{type: "terminal_create_requested"}}, 1_000
 
@@ -2729,10 +2689,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-terminal-button")
-    |> render_click()
+    submit_prompt(view, "terminal")
 
     assert_receive {:event_appended,
                     %{
@@ -2792,10 +2749,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-terminal-button")
-    |> render_click()
+    submit_prompt(view, "terminal")
 
     assert_receive {:event_appended,
                     %{
@@ -2897,10 +2851,7 @@ defmodule HavenWeb.RunLiveTest do
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
-
-    view
-    |> element("#sample-terminal-button")
-    |> render_click()
+    submit_prompt(view, "terminal")
 
     assert_receive {:event_appended,
                     %{

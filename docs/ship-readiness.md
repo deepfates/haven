@@ -78,6 +78,10 @@ Non-blocking for alpha:
 - Complete protocol payload schemas.
 - Product-grade visual polish.
 
+Minimum alpha UX still must hold: no product-visible developer harnesses, no
+dashboard-like proof walls in the primary path, no mobile overflow in the inbox
+or run thread, and one obvious primary action on each core screen.
+
 ### Production Grade
 
 Status: no.
