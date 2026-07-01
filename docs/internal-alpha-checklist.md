@@ -12,6 +12,7 @@ agents with known limitations. It does not mean production-grade.
 - Commit:
 - Date: 2026-07-01
 - Operator:
+- Last verified candidate commit: `ca272cd9`
 
 ## Required Gates
 
@@ -73,8 +74,8 @@ Pass condition:
 Evidence:
 
 - Result: passed against `http://127.0.0.1:4000`.
-- Notes: recorded run
-  `0d246df6-e292-4fbe-b91f-98d7e898f0a2`; rerun at the exact release commit
+- Notes: latest recorded run
+  `be122feb-0840-47ef-9307-c0b463559b0b`; rerun at the exact release commit
   before cutting alpha.
 
 ### 4. Browser Sanity Gate
@@ -91,9 +92,10 @@ Manual browser check against `http://127.0.0.1:4000/`:
 
 Evidence:
 
-- Result: desktop/default and `390x844` mobile checks passed.
-- Notes: see
-  `docs/browser-smoke/2026-07-01-runtime-and-responsive.md`.
+- Result: desktop/default and `390x844` mobile checks passed for the latest
+  alpha candidate.
+- Notes: see `docs/browser-smoke/2026-07-01-alpha-cut.md`; earlier responsive
+  evidence is in `docs/browser-smoke/2026-07-01-runtime-and-responsive.md`.
 
 ### 5. Agent Probe Evidence Gate
 

@@ -29,8 +29,8 @@ configured agents with known limitations. It is not a production-grade claim.
 - `MIX_ENV=dev mix haven.pending_migrations` reported no pending migrations.
 - `MIX_ENV=dev mix haven.runtime_smoke --base-url http://127.0.0.1:4000`
   passed and produced run
-  `0d246df6-e292-4fbe-b91f-98d7e898f0a2`.
-- `docs/browser-smoke/2026-07-01-runtime-and-responsive.md` records in-app
+  `be122feb-0840-47ef-9307-c0b463559b0b`.
+- `docs/browser-smoke/2026-07-01-alpha-cut.md` records the latest in-app
   browser checks for desktop/default and `390x844` mobile viewport sizes.
 - `docs/probes/codex-acp-basic-current.json` is a current positive real-agent
   report for saved `codex-acp`

@@ -27,6 +27,9 @@ evidence exists.
   hierarchy, absence of duplicate/dev surfaces, inspectable evidence/details,
   and no page-level horizontal overflow at desktop/default and `390x844`
   mobile viewport sizes.
+- Alpha-cut browser smoke: `docs/browser-smoke/2026-07-01-alpha-cut.md`
+  reruns the same browser sanity gate for candidate commit `ca272cd9` and
+  runtime-smoke run `be122feb-0840-47ef-9307-c0b463559b0b`.
 - Agent probe harness: `mix haven.agent_probe --report` can produce durable JSON
   evidence artifacts with explicit `--expect-event` acceptance checks; see
   `docs/probes/README.md`.
