@@ -2843,6 +2843,7 @@ defmodule HavenWeb.RunLiveTest do
 
     assert_receive {:event_appended,
                     %{
+                      seq: seq,
                       type: "agent_start_failed",
                       payload: %{"reason" => reason}
                     }},
@@ -2850,11 +2851,12 @@ defmodule HavenWeb.RunLiveTest do
 
     assert reason =~ "unknown_agent"
 
-    {:ok, _view, html} = live(conn, ~p"/runs/#{run.id}")
+    {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
 
     assert html =~ "failed"
-    assert html =~ "agent_start_failed"
-    assert html =~ "missing-agent"
+    assert has_element?(view, "#runtime-failure-#{seq}", "Agent start failed")
+    assert has_element?(view, "#runtime-failure-#{seq}-reason", "unknown_agent")
+    assert has_element?(view, "#runtime-failure-#{seq}-agent", "missing-agent")
   end
 
   test "malformed ACP startup output fails visibly without restarting", %{conn: conn} do
@@ -2886,6 +2888,7 @@ defmodule HavenWeb.RunLiveTest do
 
     assert_receive {:event_appended,
                     %{
+                      seq: seq,
                       type: "agent_protocol_failed",
                       payload: %{"reason" => reason}
                     }},
@@ -2904,11 +2907,12 @@ defmodule HavenWeb.RunLiveTest do
 
     assert length(started_events) == 1
 
-    {:ok, _view, html} = live(conn, ~p"/runs/#{run.id}")
+    {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
 
     assert html =~ "failed"
-    assert html =~ "agent_protocol_failed"
-    assert html =~ "malformed-agent"
+    assert has_element?(view, "#runtime-failure-#{seq}", "Agent protocol failed")
+    assert has_element?(view, "#runtime-failure-#{seq}-reason", "protocol_exit")
+    assert has_element?(view, "#runtime-failure-#{seq}-agent", "malformed-agent")
   end
 
   test "malformed ACP output after session start fails the active run", %{conn: conn} do

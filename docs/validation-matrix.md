@@ -393,8 +393,9 @@ Evidence:
 - The `Haven.Agents` context can update and delete persisted agent command
   definitions, and the inbox exposes those operations.
 - LiveView integration tests verify that an unknown run agent records
-  `agent_start_failed`, marks the run `failed`, and renders that failure without
-  falling back to the stub.
+  `agent_start_failed`, marks the run `failed`, and renders a readable runtime
+  failure card with the reason and agent name instead of falling back to the
+  stub or requiring raw JSON inspection.
 - LiveView integration tests verify a configured agent key launches the ACP
   process, substitutes the selected workspace in args/cwd/env, starts the
   process in the configured cwd, passes configured env to the spawned process,
@@ -445,8 +446,9 @@ Evidence:
   and `turn_failed` can be restarted from the rendered run detail, then reloads
   with two process/session starts and final `idle` connected state.
 - LiveView integration tests verify malformed ACP startup output records
-  `agent_protocol_failed`, marks the run `failed`, renders visibly, and does not
-  restart the malformed agent process.
+  `agent_protocol_failed`, marks the run `failed`, renders a readable runtime
+  failure card with the protocol reason and agent name, and does not restart the
+  malformed agent process.
 - Browser smoke verifies malformed ACP startup output through the rendered run
   detail: status remains `failed`, controls are disabled, process state is
   `not connected`, runtime `agent_protocol_failed` is visible, and clicking

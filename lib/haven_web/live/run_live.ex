@@ -465,11 +465,61 @@ defmodule HavenWeb.RunLive do
             >
               {@event.payload["actor"]}
             </p>
+          <% type
+             when type in [
+                    "agent_start_failed",
+                    "agent_protocol_failed",
+                    "agent_process_down"
+                  ] -> %>
+            <.runtime_failure_event seq={@event.seq} type={@event.type} payload={@event.payload} />
           <% _ -> %>
             <pre class="overflow-x-auto rounded-md bg-zinc-100 p-3 text-xs text-zinc-700"><%= Jason.encode!(@event.payload, pretty: true) %></pre>
         <% end %>
       </div>
     </article>
+    """
+  end
+
+  defp runtime_failure_event(assigns) do
+    assigns =
+      assigns
+      |> assign(:title, runtime_failure_title(assigns.type))
+      |> assign(:reason, runtime_failure_reason(assigns.payload))
+      |> assign(:fields, runtime_failure_fields(assigns.type, assigns.payload))
+
+    ~H"""
+    <div id={"runtime-failure-#{@seq}"} class="space-y-2">
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
+        <span class="rounded-md bg-rose-700 px-2 py-1 text-xs font-semibold uppercase text-white">
+          Runtime failure
+        </span>
+        <p class="min-w-0 font-semibold text-zinc-900">{@title}</p>
+        <span class={client_event_status_class("Failed")}>
+          Failed
+        </span>
+      </div>
+
+      <p
+        id={"runtime-failure-#{@seq}-reason"}
+        class="whitespace-pre-wrap text-sm font-medium text-rose-700"
+      >
+        {@reason}
+      </p>
+
+      <dl class="grid gap-2 text-sm text-zinc-700 sm:grid-cols-2">
+        <div :for={field <- @fields} id={"runtime-failure-#{@seq}-#{field.id}"} class="min-w-0">
+          <dt class="text-xs font-semibold uppercase text-zinc-500">{field.label}</dt>
+          <dd class="truncate font-mono text-xs">{field.value}</dd>
+        </div>
+      </dl>
+
+      <details class="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+        <summary class="cursor-pointer text-xs font-semibold uppercase text-zinc-500">
+          Event payload
+        </summary>
+        <pre class="mt-2 max-h-48 overflow-auto text-xs text-zinc-700"><%= Jason.encode!(@payload, pretty: true) %></pre>
+      </details>
+    </div>
     """
   end
 
@@ -750,6 +800,35 @@ defmodule HavenWeb.RunLive do
           "border-zinc-200 bg-zinc-50 text-zinc-600"
       end
     ]
+  end
+
+  defp runtime_failure_title("agent_start_failed"), do: "Agent start failed"
+  defp runtime_failure_title("agent_protocol_failed"), do: "Agent protocol failed"
+  defp runtime_failure_title("agent_process_down"), do: "Agent process disconnected"
+  defp runtime_failure_title(_type), do: "Runtime failure"
+
+  defp runtime_failure_reason(%{"reason" => reason}) when reason not in [nil, ""] do
+    format_client_value(reason)
+  end
+
+  defp runtime_failure_reason(%{"error" => error}) when error not in [nil, ""] do
+    format_client_value(error)
+  end
+
+  defp runtime_failure_reason(_payload), do: "unknown runtime failure"
+
+  defp runtime_failure_fields(type, payload) do
+    [
+      client_field("type", "Event", type),
+      client_field("agent", "Agent", payload["agent"]),
+      client_field("workspace", "Workspace", payload["workspace"]),
+      client_field("executable", "Executable", payload["executable"]),
+      client_field("cwd", "Working directory", payload["cwd"]),
+      client_field("pid", "Process id", payload["pid"]),
+      client_field("exit-status", "Exit status", payload["exit_status"]),
+      client_field("line", "Line", payload["line"])
+    ]
+    |> Enum.reject(&is_nil/1)
   end
 
   defp client_event_fields(type, payload) do

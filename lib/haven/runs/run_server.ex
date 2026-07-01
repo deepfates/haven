@@ -86,7 +86,12 @@ defmodule Haven.Runs.RunServer do
       boot_agent_connection(state, run, command, port_io)
     else
       {:error, reason} ->
-        Events.append!(state.run_id, "agent_start_failed", %{"reason" => inspect(reason)})
+        Events.append!(
+          state.run_id,
+          "agent_start_failed",
+          runtime_failure_payload(run, reason)
+        )
+
         Runs.update_status!(state.run_id, %{status: "failed"})
         {:stop, :normal, state}
     end
@@ -135,9 +140,12 @@ defmodule Haven.Runs.RunServer do
 
       true ->
         reason = "malformed_agent_output"
+        run = Runs.get_run!(state.run_id)
 
         Events.append!(state.run_id, "agent_protocol_failed", %{
           "reason" => reason,
+          "agent" => run.agent,
+          "workspace" => run.workspace,
           "line" => String.trim_trailing(line)
         })
 
@@ -190,7 +198,12 @@ defmodule Haven.Runs.RunServer do
   end
 
   def handle_info({:EXIT, _pid, reason}, state) do
-    Events.append!(state.run_id, "agent_process_down", %{"reason" => inspect(reason)})
+    Events.append!(
+      state.run_id,
+      "agent_process_down",
+      runtime_failure_payload(Runs.get_run!(state.run_id), reason)
+    )
+
     Runs.update_status!(state.run_id, %{status: "failed"})
     {:noreply, %{fail_pending_work(state, inspect(reason)) | conn: nil, port_io: nil}}
   end
@@ -213,7 +226,7 @@ defmodule Haven.Runs.RunServer do
         initialize_agent_connection(%{state | port_io: port_io, conn: conn}, run)
 
       {:error, reason} ->
-        fail_agent_boot(%{state | port_io: port_io}, "agent_start_failed", reason)
+        fail_agent_boot(%{state | port_io: port_io}, run, "agent_start_failed", reason)
     end
   end
 
@@ -265,11 +278,11 @@ defmodule Haven.Runs.RunServer do
         {:noreply, state}
       else
         {:error, reason} ->
-          fail_agent_boot(state, "agent_protocol_failed", reason)
+          fail_agent_boot(state, run, "agent_protocol_failed", reason)
       end
     else
       {:error, reason} ->
-        fail_agent_boot(state, "agent_protocol_failed", reason)
+        fail_agent_boot(state, run, "agent_protocol_failed", reason)
     end
   end
 
@@ -317,11 +330,19 @@ defmodule Haven.Runs.RunServer do
     }
   end
 
-  defp fail_agent_boot(state, event_type, reason) do
-    Events.append!(state.run_id, event_type, %{"reason" => inspect(reason)})
+  defp fail_agent_boot(state, run, event_type, reason) do
+    Events.append!(state.run_id, event_type, runtime_failure_payload(run, reason))
     Runs.update_status!(state.run_id, %{status: "failed"})
     cleanup_agent(state)
     {:stop, :normal, state}
+  end
+
+  defp runtime_failure_payload(run, reason) do
+    %{
+      "reason" => inspect(reason),
+      "agent" => run.agent,
+      "workspace" => run.workspace
+    }
   end
 
   @impl true
