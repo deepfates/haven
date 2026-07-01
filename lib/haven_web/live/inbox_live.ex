@@ -1313,6 +1313,19 @@ defmodule HavenWeb.InboxLive do
     end)
   end
 
+  defp agent_evidence_detail_summary(reports, gaps, probes) do
+    [
+      evidence_summary_part(reports, "proof"),
+      evidence_summary_part(gaps, "gap"),
+      evidence_summary_part(probes, "probe")
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  defp evidence_summary_part([], _label), do: nil
+  defp evidence_summary_part(items, label), do: pluralize_count(length(items), label)
+
   defp capability_gap_class do
     badge_class("border-amber-200 bg-amber-50 text-amber-800")
   end
@@ -2604,64 +2617,6 @@ defmodule HavenWeb.InboxLive do
                             {agent_launch_summary(readiness)}
                           </p>
                         </div>
-                        <div
-                          :if={accepted_reports != []}
-                          id={"agent-config-#{agent_config.key}-accepted-probes"}
-                          class="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2"
-                        >
-                          <p class="text-[11px] font-semibold uppercase text-emerald-800">
-                            Accepted probe evidence
-                          </p>
-                          <ul class="mt-1 space-y-1">
-                            <li
-                              :for={report <- accepted_reports}
-                              id={"agent-config-#{agent_config.key}-accepted-probe-#{Path.basename(report.path, ".json")}"}
-                              class="truncate text-xs text-emerald-900"
-                              title={report.prompt}
-                            >
-                              {agent_probe_report_label(report)}
-                            </li>
-                          </ul>
-                        </div>
-                        <div
-                          :if={gap_reports != []}
-                          id={"agent-config-#{agent_config.key}-capability-gaps"}
-                          class="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2"
-                        >
-                          <p class="text-[11px] font-semibold uppercase text-amber-800">
-                            Capability gaps
-                          </p>
-                          <ul class="mt-1 space-y-1">
-                            <li
-                              :for={report <- gap_reports}
-                              id={"agent-config-#{agent_config.key}-capability-gap-#{Path.basename(report.path, ".json")}"}
-                              class="truncate text-xs text-amber-900"
-                              title={report.prompt}
-                            >
-                              {capability_gap_report_label(report)}
-                            </li>
-                          </ul>
-                        </div>
-                        <div :if={probe_commands != []} class="mt-2 space-y-2">
-                          <div
-                            :for={probe <- probe_commands}
-                            id={"agent-config-#{agent_config.key}-probe-#{probe.id}"}
-                          >
-                            <p class="text-[11px] font-semibold uppercase text-zinc-500">
-                              {probe.label}
-                            </p>
-                            <code
-                              id={
-                                if probe.id == "basic",
-                                  do: "agent-config-#{agent_config.key}-probe-command",
-                                  else: "agent-config-#{agent_config.key}-probe-#{probe.id}-command"
-                              }
-                              class="mt-1 block overflow-x-auto rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] leading-5 text-zinc-700"
-                            >
-                              {probe.command}
-                            </code>
-                          </div>
-                        </div>
                         <p
                           :if={agent_evidence_reason(readiness, accepted_reports)}
                           id={"agent-config-#{agent_config.key}-evidence-reason"}
@@ -2669,13 +2624,95 @@ defmodule HavenWeb.InboxLive do
                         >
                           {agent_evidence_reason(readiness, accepted_reports)}
                         </p>
-                        <p
-                          :if={gap_reports != []}
-                          id={"agent-config-#{agent_config.key}-capability-gap-reason"}
-                          class="mt-2 truncate text-xs text-amber-700"
+                        <details
+                          :if={accepted_reports != [] or gap_reports != [] or probe_commands != []}
+                          id={"agent-config-#{agent_config.key}-evidence-details"}
+                          class="mt-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2"
                         >
-                          {capability_gap_reason(gap_reports)}
-                        </p>
+                          <summary class="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-semibold text-zinc-700 marker:hidden">
+                            <span class="inline-flex items-center gap-2">
+                              <.icon
+                                name="hero-document-magnifying-glass"
+                                class="size-4 text-zinc-500"
+                              /> Evidence
+                            </span>
+                            <span class="text-[11px] font-medium text-zinc-500">
+                              {agent_evidence_detail_summary(
+                                accepted_reports,
+                                gap_reports,
+                                probe_commands
+                              )}
+                            </span>
+                          </summary>
+                          <div class="mt-2 space-y-2 border-t border-zinc-200 pt-2">
+                            <div
+                              :if={accepted_reports != []}
+                              id={"agent-config-#{agent_config.key}-accepted-probes"}
+                              class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2"
+                            >
+                              <p class="text-[11px] font-semibold uppercase text-emerald-800">
+                                Accepted probe evidence
+                              </p>
+                              <ul class="mt-1 space-y-1">
+                                <li
+                                  :for={report <- accepted_reports}
+                                  id={"agent-config-#{agent_config.key}-accepted-probe-#{Path.basename(report.path, ".json")}"}
+                                  class="truncate text-xs text-emerald-900"
+                                  title={report.prompt}
+                                >
+                                  {agent_probe_report_label(report)}
+                                </li>
+                              </ul>
+                            </div>
+                            <div
+                              :if={gap_reports != []}
+                              id={"agent-config-#{agent_config.key}-capability-gaps"}
+                              class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2"
+                            >
+                              <p class="text-[11px] font-semibold uppercase text-amber-800">
+                                Capability gaps
+                              </p>
+                              <ul class="mt-1 space-y-1">
+                                <li
+                                  :for={report <- gap_reports}
+                                  id={"agent-config-#{agent_config.key}-capability-gap-#{Path.basename(report.path, ".json")}"}
+                                  class="truncate text-xs text-amber-900"
+                                  title={report.prompt}
+                                >
+                                  {capability_gap_report_label(report)}
+                                </li>
+                              </ul>
+                            </div>
+                            <div :if={probe_commands != []} class="space-y-2">
+                              <div
+                                :for={probe <- probe_commands}
+                                id={"agent-config-#{agent_config.key}-probe-#{probe.id}"}
+                              >
+                                <p class="text-[11px] font-semibold uppercase text-zinc-500">
+                                  {probe.label}
+                                </p>
+                                <code
+                                  id={
+                                    if probe.id == "basic",
+                                      do: "agent-config-#{agent_config.key}-probe-command",
+                                      else:
+                                        "agent-config-#{agent_config.key}-probe-#{probe.id}-command"
+                                  }
+                                  class="mt-1 block overflow-x-auto rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] leading-5 text-zinc-700"
+                                >
+                                  {probe.command}
+                                </code>
+                              </div>
+                            </div>
+                            <p
+                              :if={gap_reports != []}
+                              id={"agent-config-#{agent_config.key}-capability-gap-reason"}
+                              class="truncate text-xs text-amber-700"
+                            >
+                              {capability_gap_reason(gap_reports)}
+                            </p>
+                          </div>
+                        </details>
                       </div>
                       <div class="flex shrink-0 items-center gap-2">
                         <span
