@@ -2050,6 +2050,25 @@ defmodule HavenWeb.InboxLive do
                           </dd>
                         </div>
                       </dl>
+                      <div
+                        id="new-run-security-boundary"
+                        class="mt-3 border-t border-zinc-100 pt-2"
+                      >
+                        <p class="font-semibold uppercase text-zinc-500">
+                          Workspace security boundary
+                        </p>
+                        <ul class="mt-1 grid gap-1 text-[11px] leading-5 text-zinc-600">
+                          <li id="new-run-security-boundary-root">
+                            Files are resolved inside the selected workspace root.
+                          </li>
+                          <li id="new-run-security-boundary-scopes">
+                            Blank path scopes mean all workspace paths; scoped paths narrow access.
+                          </li>
+                          <li id="new-run-security-boundary-terminal">
+                            Terminal working directories must stay inside the workspace.
+                          </li>
+                        </ul>
+                      </div>
                     </section>
                   </section>
                 </div>

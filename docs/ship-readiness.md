@@ -102,7 +102,8 @@ Production blockers:
   load, not only small local examples.
 - Auth/auth-scope handling must be explicit enough that a user can understand
   which credentials are being used and where.
-- Security boundaries around workspace access need a product policy, not only
+- Security boundaries around workspace access must remain visible to users and
+  grounded in the product policy in `docs/workspace-access-policy.md`, not only
   implementation helpers and path checks.
 
 ## What Is Worth Porting

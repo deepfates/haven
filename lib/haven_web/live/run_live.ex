@@ -2689,6 +2689,25 @@ defmodule HavenWeb.RunLive do
                     </dd>
                   </div>
                 </dl>
+                <section
+                  id="run-security-boundary"
+                  class="mt-3 border-t border-zinc-100 pt-2 text-xs text-zinc-600"
+                >
+                  <h4 class="font-semibold uppercase text-zinc-500">
+                    Workspace security boundary
+                  </h4>
+                  <ul class="mt-1 grid gap-1 leading-5">
+                    <li id="run-security-boundary-root">
+                      Files are resolved inside this run's workspace root.
+                    </li>
+                    <li id="run-security-boundary-scopes">
+                      Blank path scopes mean all workspace paths; scoped paths narrow access.
+                    </li>
+                    <li id="run-security-boundary-terminal">
+                      Terminal working directories must stay inside the workspace.
+                    </li>
+                  </ul>
+                </section>
               </details>
               <details id="run-permission-audit" class="mt-4 border-t border-zinc-200 pt-3">
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-1 text-xs font-semibold uppercase text-zinc-500 marker:hidden">

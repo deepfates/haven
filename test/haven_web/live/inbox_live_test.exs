@@ -45,6 +45,10 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#new-run-write-authority", "Ask")
     assert has_element?(view, "#new-run-write-scope-all-workspace-paths", "All workspace paths")
     assert has_element?(view, "#new-run-terminal-authority", "Allow")
+    assert has_element?(view, "#new-run-security-boundary", "Workspace security boundary")
+    assert has_element?(view, "#new-run-security-boundary-root", "workspace root")
+    assert has_element?(view, "#new-run-security-boundary-scopes", "Blank path scopes")
+    assert has_element?(view, "#new-run-security-boundary-terminal", "inside the workspace")
 
     view
     |> form("#new-run-form", %{

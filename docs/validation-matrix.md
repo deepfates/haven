@@ -27,6 +27,10 @@ evidence exists.
   hierarchy, absence of duplicate/dev surfaces, inspectable evidence/details,
   and no page-level horizontal overflow at desktop/default and `390x844`
   mobile viewport sizes.
+- Workspace security policy browser smoke:
+  `docs/browser-smoke/2026-07-01-workspace-security-policy.md` verifies the
+  product-visible root boundary, blank path scope semantics, and terminal
+  working-directory boundary on both Start Run and run detail.
 - Alpha-cut browser smoke: `docs/browser-smoke/2026-07-01-alpha-cut.md`
   reruns the same browser sanity gate for candidate commit `ca272cd9` and
   runtime-smoke run `be122feb-0840-47ef-9307-c0b463559b0b`.
@@ -675,6 +679,11 @@ Evidence:
   scopes render as `All workspace paths`, scoped paths render as individual
   chips, and terminal authority updates with the selected policy. Browser smoke
   records the same preview at `390x844` without horizontal overflow.
+- The product workspace boundary is now documented in
+  `docs/workspace-access-policy.md` and surfaced in both Start Run and run
+  detail. LiveView tests verify users can see that the workspace root is the
+  authority boundary, blank scopes mean all workspace paths, scoped paths narrow
+  access, and terminal working directories must stay inside the workspace.
 - `mix haven.agent_probe` now exercises a configured ACP agent through Haven's
   real run lifecycle, including run creation, ACP boot/session setup, prompting,
   optional permission resolution, per-run capability policy, durable event
@@ -860,6 +869,8 @@ Still missing:
 - PTY-style interactive terminal sessions.
 - More expressive scoped-policy editing and grant modeling beyond the current
   create-form comma fields plus post-creation scope chips.
+- Authenticated user identity and interactive auth flows for agents that require
+  credentials.
 
 ## Not Proven Yet
 
