@@ -403,6 +403,10 @@ Evidence:
 - A configured fake ACP harness can emit a malformed frame after session startup;
   LiveView integration verifies the same `agent_protocol_failed` and
   `turn_failed` projection through the configured external-agent command path.
+- The `Run` schema now constrains persisted run statuses to the canonical
+  vocabulary: `idle`, `initializing`, `running`, `waiting`, `failed`, and
+  `closed`. Data-layer tests verify invalid statuses are rejected on both run
+  creation and status updates.
 - RunServer shutdown now explicitly tears down the ACP connection and port IO
   bridge.
 - Event ordering and persistence are covered by `test/haven/events_test.exs`.

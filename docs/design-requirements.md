@@ -439,7 +439,8 @@ Known implementation limitations:
 
 ## Design Questions To Resolve Next
 
-1. What is the canonical run state machine?
+1. What run status transitions are legal across live, disconnected, failed,
+   closed, and restarted runs?
 2. Should every ACP message be stored as a raw protocol event?
 3. How should app-level events relate to raw ACP stream events?
 4. What workspace permissions are granted by default?

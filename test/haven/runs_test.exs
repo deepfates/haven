@@ -20,6 +20,31 @@ defmodule Haven.RunsTest do
     assert Runs.list_runs() == []
   end
 
+  test "create_run rejects statuses outside the canonical run vocabulary" do
+    assert {:error, changeset} =
+             Runs.create_run(%{
+               "title" => "Impossible status",
+               "workspace" => File.cwd!(),
+               "status" => "maybe_running"
+             })
+
+    assert %{status: ["is invalid"]} = errors_on(changeset)
+    assert Runs.list_runs() == []
+  end
+
+  test "update_status! rejects statuses outside the canonical run vocabulary" do
+    run = insert_run!("Status boundary", "idle")
+
+    error =
+      assert_raise Ecto.InvalidChangesetError, fn ->
+        Runs.update_status!(run.id, %{status: "paused-ish"})
+      end
+
+    assert %{status: ["is invalid"]} = errors_on(error.changeset)
+
+    assert Runs.get_run!(run.id).status == "idle"
+  end
+
   test "archive_run hides terminal runs but rejects active runs" do
     failed = insert_run!("Failed run", "failed")
     running = insert_run!("Running run", "running")

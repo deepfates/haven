@@ -2,6 +2,8 @@ defmodule Haven.Runs.Run do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @statuses ~w(idle initializing running waiting failed closed)
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
@@ -28,8 +30,11 @@ defmodule Haven.Runs.Run do
     |> update_change(:workspace, &normalize_workspace/1)
     |> update_change(:capability_policy, &normalize_capability_policy/1)
     |> validate_required([:title, :workspace, :agent, :status])
+    |> validate_inclusion(:status, @statuses)
     |> validate_workspace()
   end
+
+  def statuses, do: @statuses
 
   def capability_policy(policy), do: normalize_capability_policy(policy)
 
