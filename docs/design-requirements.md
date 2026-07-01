@@ -294,6 +294,8 @@ Proven:
 
 - Phoenix/LiveView can present an inbox and run timeline.
 - The inbox can create runs with explicit title, workspace, and agent choice.
+- The inbox can narrow existing runs by operational lane, agent, workspace, and
+  free-text facts while preserving updated lane counts.
 - The inbox can save reusable workspace directories and select them when
   creating a run.
 - Saved workspace entries can be edited in place, and the run picker uses the

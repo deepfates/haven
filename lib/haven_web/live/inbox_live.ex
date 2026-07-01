@@ -24,6 +24,8 @@ defmodule HavenWeb.InboxLive do
      |> assign(:page_title, "Haven")
      |> assign(:run_filter, "all")
      |> assign(:run_search, "")
+     |> assign(:agent_filter, "")
+     |> assign(:workspace_filter, "")
      |> assign(:form, to_form(default_run_params()))
      |> assign(:workspace_form, to_form(default_workspace_params(), as: :workspace_config))
      |> assign(:workspace_error, nil)
@@ -63,10 +65,12 @@ defmodule HavenWeb.InboxLive do
      |> assign_runs()}
   end
 
-  def handle_event("search_runs", %{"run_search" => query}, socket) do
+  def handle_event("search_runs", params, socket) do
     {:noreply,
      socket
-     |> assign(:run_search, normalize_search_query(query))
+     |> assign(:run_search, normalize_search_query(Map.get(params, "run_search", "")))
+     |> assign(:agent_filter, normalize_filter_value(Map.get(params, "agent_filter", "")))
+     |> assign(:workspace_filter, normalize_filter_value(Map.get(params, "workspace_filter", "")))
      |> assign_runs()}
   end
 
@@ -74,6 +78,8 @@ defmodule HavenWeb.InboxLive do
     {:noreply,
      socket
      |> assign(:run_search, "")
+     |> assign(:agent_filter, "")
+     |> assign(:workspace_filter, "")
      |> assign_runs()}
   end
 
@@ -185,8 +191,18 @@ defmodule HavenWeb.InboxLive do
       |> attach_latest_events()
 
     run_search = socket.assigns[:run_search] || ""
-    visible_runs = filter_runs_by_search(runs, run_search)
-    archived_matches = filter_runs_by_search(archived_runs, run_search)
+    agent_filter = socket.assigns[:agent_filter] || ""
+    workspace_filter = socket.assigns[:workspace_filter] || ""
+
+    visible_runs =
+      runs
+      |> filter_runs_by_facets(agent_filter, workspace_filter)
+      |> filter_runs_by_search(run_search)
+
+    archived_matches =
+      archived_runs
+      |> filter_runs_by_facets(agent_filter, workspace_filter)
+      |> filter_runs_by_search(run_search)
 
     needs_you = Enum.filter(visible_runs, &(&1.status == "waiting"))
     running = Enum.filter(visible_runs, &(&1.status in ["initializing", "running"]))
@@ -203,6 +219,10 @@ defmodule HavenWeb.InboxLive do
     |> assign(:visible_runs, visible_runs)
     |> assign(:visible_archived_runs, visible_archived)
     |> assign(:run_search, run_search)
+    |> assign(:agent_filter, agent_filter)
+    |> assign(:workspace_filter, workspace_filter)
+    |> assign(:agent_filter_options, facet_options(runs ++ archived_runs, :agent))
+    |> assign(:workspace_filter_options, facet_options(runs ++ archived_runs, :workspace))
     |> assign(:run_filters, @run_filters)
     |> assign(:run_filter_counts, %{
       "all" => length(visible_runs),
@@ -217,13 +237,14 @@ defmodule HavenWeb.InboxLive do
     |> assign(:archived, visible_archived)
     |> assign(
       :filtered_runs_empty?,
-      (run_filter != "all" or run_search != "") and
+      (run_filter != "all" or active_run_facets?(run_search, agent_filter, workspace_filter)) and
         visible_needs_you == [] and visible_running == [] and visible_history == [] and
         visible_archived == []
     )
     |> assign(
       :searched_runs_empty?,
-      run_search != "" and visible_runs == [] and archived_matches == []
+      active_run_facets?(run_search, agent_filter, workspace_filter) and visible_runs == [] and
+        archived_matches == []
     )
   end
 
@@ -261,6 +282,32 @@ defmodule HavenWeb.InboxLive do
 
   defp normalize_search_query(query) when is_binary(query), do: String.trim(query)
   defp normalize_search_query(_query), do: ""
+
+  defp normalize_filter_value(value) when is_binary(value), do: String.trim(value)
+  defp normalize_filter_value(_value), do: ""
+
+  defp active_run_facets?(run_search, agent_filter, workspace_filter) do
+    run_search != "" or agent_filter != "" or workspace_filter != ""
+  end
+
+  defp facet_options(runs, field) do
+    runs
+    |> Enum.map(&Map.get(&1, field))
+    |> Enum.filter(&is_binary/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.map(&{&1, &1})
+  end
+
+  defp filter_runs_by_facets(runs, "", ""), do: runs
+
+  defp filter_runs_by_facets(runs, agent_filter, workspace_filter) do
+    Enum.filter(runs, fn run ->
+      (agent_filter == "" or run.agent == agent_filter) and
+        (workspace_filter == "" or run.workspace == workspace_filter)
+    end)
+  end
 
   defp filter_runs_by_search(runs, ""), do: runs
 
@@ -1094,7 +1141,7 @@ defmodule HavenWeb.InboxLive do
             id="inbox-search-form"
             phx-change="search_runs"
             phx-submit="search_runs"
-            class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
+            class="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_minmax(12rem,18rem)_auto]"
           >
             <.input
               id="run_search"
@@ -1105,8 +1152,26 @@ defmodule HavenWeb.InboxLive do
               placeholder="Title, folder, agent, status, activity"
               autocomplete="off"
             />
+            <.input
+              id="agent_filter"
+              name="agent_filter"
+              value={@agent_filter}
+              type="select"
+              label="Agent"
+              prompt="All agents"
+              options={@agent_filter_options}
+            />
+            <.input
+              id="workspace_filter"
+              name="workspace_filter"
+              value={@workspace_filter}
+              type="select"
+              label="Workspace"
+              prompt="All workspaces"
+              options={@workspace_filter_options}
+            />
             <button
-              :if={@run_search != ""}
+              :if={active_run_facets?(@run_search, @agent_filter, @workspace_filter)}
               id="clear-inbox-search"
               type="button"
               class="mb-2 h-10 self-end rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
@@ -1142,7 +1207,7 @@ defmodule HavenWeb.InboxLive do
             class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
           >
             <%= if @searched_runs_empty? do %>
-              No runs match your search.
+              No runs match your filters.
             <% else %>
               No runs in this view.
             <% end %>

@@ -618,6 +618,57 @@ defmodule HavenWeb.InboxLiveTest do
   end
 
   @tag :tmp_dir
+  test "filters inbox runs by agent and workspace facets", %{conn: conn, tmp_dir: tmp_dir} do
+    alpha_workspace = Path.join(tmp_dir, "alpha")
+    beta_workspace = Path.join(tmp_dir, "beta")
+    File.mkdir_p!(alpha_workspace)
+    File.mkdir_p!(beta_workspace)
+
+    insert_run!("Alpha docs", "waiting", %{workspace: alpha_workspace, agent: "codex-acp"})
+    insert_run!("Alpha tests", "running", %{workspace: alpha_workspace, agent: "claude-acp"})
+    insert_run!("Beta docs", "idle", %{workspace: beta_workspace, agent: "codex-acp"})
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, ~s|#agent_filter option[value="codex-acp"]|)
+    assert has_element?(view, ~s|#workspace_filter option[value="#{alpha_workspace}"]|)
+
+    view
+    |> form("#inbox-search-form", %{
+      "agent_filter" => "codex-acp",
+      "workspace_filter" => alpha_workspace,
+      "run_search" => ""
+    })
+    |> render_change()
+
+    assert has_element?(view, "article", "Alpha docs")
+    refute has_element?(view, "article", "Alpha tests")
+    refute has_element?(view, "article", "Beta docs")
+    assert has_element?(view, "#inbox-filter-all", "1")
+    assert has_element?(view, "#inbox-filter-needs_you", "1")
+    assert has_element?(view, "#inbox-filter-running", "0")
+
+    view
+    |> form("#inbox-search-form", %{
+      "agent_filter" => "codex-acp",
+      "workspace_filter" => beta_workspace,
+      "run_search" => "docs"
+    })
+    |> render_change()
+
+    assert has_element?(view, "article", "Beta docs")
+    refute has_element?(view, "article", "Alpha docs")
+
+    view
+    |> element("#clear-inbox-search")
+    |> render_click()
+
+    assert has_element?(view, "article", "Alpha docs")
+    assert has_element?(view, "article", "Alpha tests")
+    assert has_element?(view, "article", "Beta docs")
+  end
+
+  @tag :tmp_dir
   test "searches inbox runs by row facts and latest activity", %{
     conn: conn,
     tmp_dir: tmp_dir
@@ -671,7 +722,7 @@ defmodule HavenWeb.InboxLiveTest do
     |> form("#inbox-search-form", %{"run_search" => "not-here"})
     |> render_change()
 
-    assert has_element?(view, "#inbox-filter-empty", "No runs match your search.")
+    assert has_element?(view, "#inbox-filter-empty", "No runs match your filters.")
     refute has_element?(view, "article", "Docs cleanup")
 
     view

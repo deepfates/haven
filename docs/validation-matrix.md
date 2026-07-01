@@ -112,6 +112,9 @@ Evidence:
 - LiveView tests verify the inbox can search visible run facts across title,
   workspace path, agent key, status, attention state, and latest activity while
   preserving lane counts and clear/no-match states.
+- LiveView tests verify the inbox has explicit agent and workspace facets, so
+  users managing many agents across folders can narrow runs without encoding
+  those facts into free-text search; lane counts update through the facets.
 - LiveView tests verify inbox search includes operational state text such as
   `not connected`, making stale work findable without opening every run.
 - Browser smoke verifies the rendered inbox can start a real run with an
@@ -133,7 +136,8 @@ Still missing:
 
 - Richer workspace configuration UI and metadata beyond name/path.
 - OS-native workspace browse affordances.
-- Richer filtering beyond the fixed operational lanes and free-text search.
+- Richer filtering beyond operational lanes, agent/workspace facets, and
+  free-text search.
 
 ### Run Timeline
 
