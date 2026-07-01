@@ -1277,6 +1277,18 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#permission-audit-#{audit.id}-requested-at", "UTC")
     assert has_element?(view, "#permission-audit-#{audit.id}-resolved-at", "Resolved")
     assert has_element?(view, "#permission-audit-#{audit.id}-resolved-at", "UTC")
+
+    assert has_element?(
+             view,
+             ~s|#permission-audit-#{audit.id}-request-event-link[href="#event-#{permission_request_seq}"]|,
+             "View request"
+           )
+
+    assert has_element?(
+             view,
+             ~s|#permission-audit-#{audit.id}-decision-event-link[href="#event-#{decision_seq}"]|,
+             "View decision"
+           )
   end
 
   test "denies a permission request without taking the requested action", %{conn: conn} do

@@ -1633,6 +1633,29 @@ defmodule HavenWeb.RunLive do
     end)
   end
 
+  defp permission_request_event_for_audit(events, audit) do
+    Enum.find(events, fn event ->
+      event.type == "permission_requested" and same_request_id?(event, audit)
+    end)
+  end
+
+  defp permission_resolution_event_for_audit(events, audit) do
+    resolution_type =
+      if audit.status == "ignored" do
+        "permission_resolution_ignored"
+      else
+        "permission_resolved"
+      end
+
+    Enum.find(events, fn event ->
+      event.type == resolution_type and same_request_id?(event, audit)
+    end)
+  end
+
+  defp same_request_id?(event, audit) do
+    to_string(event.payload["request_id"]) == to_string(audit.request_id)
+  end
+
   defp permission_resolution_title(
          %{type: "permission_resolution_ignored", payload: payload},
          _audit
@@ -2791,6 +2814,8 @@ defmodule HavenWeb.RunLive do
                     id={"permission-audit-#{audit.id}"}
                     class="rounded-md border border-zinc-200 bg-zinc-50 p-3"
                   >
+                    <% request_event = permission_request_event_for_audit(@events, audit) %>
+                    <% decision_event = permission_resolution_event_for_audit(@events, audit) %>
                     <div class="flex min-w-0 items-start justify-between gap-3">
                       <div class="min-w-0">
                         <p class="truncate text-xs font-semibold text-zinc-900">
@@ -2806,6 +2831,25 @@ defmodule HavenWeb.RunLive do
                       >
                         {audit.status}
                       </span>
+                    </div>
+
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      <a
+                        :if={request_event}
+                        id={"permission-audit-#{audit.id}-request-event-link"}
+                        href={"#event-#{request_event.seq}"}
+                        class="inline-flex items-center gap-1 text-xs font-semibold text-zinc-700 transition hover:text-zinc-950"
+                      >
+                        <.icon name="hero-arrow-down-circle" class="size-3.5" /> View request
+                      </a>
+                      <a
+                        :if={decision_event}
+                        id={"permission-audit-#{audit.id}-decision-event-link"}
+                        href={"#event-#{decision_event.seq}"}
+                        class="inline-flex items-center gap-1 text-xs font-semibold text-zinc-700 transition hover:text-zinc-950"
+                      >
+                        <.icon name="hero-arrow-down-circle" class="size-3.5" /> View decision
+                      </a>
                     </div>
 
                     <dl class="mt-3 grid gap-2 text-xs text-zinc-700">
