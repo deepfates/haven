@@ -51,7 +51,7 @@ the product shape:
 
 ### Internal Alpha
 
-Status: close, but needs an explicit release cut.
+Status: alpha candidate, pending final operator cut.
 
 Internal alpha means a trusted developer can use Haven against configured
 agents with known limitations and inspect failures honestly.
@@ -65,8 +65,9 @@ Required before calling alpha:
 - Run `mix precommit` cleanly.
 - Run `MIX_ENV=dev mix haven.pending_migrations` against the dev database.
 - Run `MIX_ENV=dev mix haven.runtime_smoke` against `http://127.0.0.1:4000/`.
-- Produce or update at least one current agent probe report, even if it is a
-  negative report that documents a capability gap.
+- Produce or update at least one current positive real-agent basic probe report.
+- Document negative evidence for any real-agent file or terminal capability
+  story that remains unproven.
 - Write release notes that name the non-production boundaries plainly.
 
 Non-blocking for alpha:
@@ -91,7 +92,8 @@ agents, not only the stub and configured fake harness.
 
 Production blockers:
 
-- At least one real non-test ACP agent must pass a committed probe report.
+- At least one real non-test ACP agent must pass committed probe reports for
+  each production-critical story, not only the basic turn story.
 - Haven-mediated file read/write capability requests must be proven against a
   real non-test agent or explicitly declared unsupported for that agent class.
 - Haven-mediated terminal capability requests must be proven against a real
@@ -127,12 +129,11 @@ Less worth porting directly:
 
 The next best work is not another broad polish pass. It is one of:
 
-1. Run a real configured ACP agent through `mix haven.agent_probe --report` and
-   commit the report if it passes.
-2. If the real agent fails, commit a negative evidence note/report that names
-   the exact gap.
-3. Cut an internal-alpha checklist from this document and stop adding features
-   until the checklist is green.
+1. Rerun the internal-alpha checklist at the exact release commit and fill in
+   branch, commit, date, and operator.
+2. Cut the internal alpha using `docs/releases/internal-alpha-2026-07-01.md`.
+3. For production-grade work, target real-agent file/terminal mediation proof or
+   a named negative report for unsupported agent classes.
 
 ## Completion Claim
 
@@ -140,6 +141,7 @@ The active production-grade telos should not be marked complete yet.
 
 The honest current claim is:
 
-Haven has a strong internal-alpha foundation and a credible path to production,
-but production-grade status remains unproven until real non-test ACP agents pass
-the critical file, terminal, decision, persistence, and inspection stories.
+Haven has an internal-alpha candidate with current browser smoke, runtime smoke,
+tests, and positive basic real-agent evidence. Production-grade status remains
+unproven until real non-test ACP agents pass the critical file, terminal,
+decision, persistence, and inspection stories.

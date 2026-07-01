@@ -8,9 +8,9 @@ agents with known limitations. It does not mean production-grade.
 
 ## Release Candidate
 
-- Branch:
+- Branch: `codex/elixir-cutover`
 - Commit:
-- Date:
+- Date: 2026-07-01
 - Operator:
 
 ## Required Gates
@@ -33,8 +33,8 @@ Pass condition:
 
 Evidence:
 
-- Result:
-- Notes:
+- Result: last recorded run passed with 230 tests and 4 validated probe reports.
+- Notes: rerun at the exact release commit before cutting alpha.
 
 ### 2. Dev Database Gate
 
@@ -50,7 +50,7 @@ Pass condition:
 
 Evidence:
 
-- Result:
+- Result: `No pending migrations.`
 - Notes:
 
 ### 3. Runtime Smoke Gate
@@ -72,8 +72,10 @@ Pass condition:
 
 Evidence:
 
-- Result:
-- Notes:
+- Result: passed against `http://127.0.0.1:4000`.
+- Notes: recorded run
+  `0d246df6-e292-4fbe-b91f-98d7e898f0a2`; rerun at the exact release commit
+  before cutting alpha.
 
 ### 4. Browser Sanity Gate
 
@@ -89,8 +91,9 @@ Manual browser check against `http://127.0.0.1:4000/`:
 
 Evidence:
 
-- Result:
-- Notes:
+- Result: desktop/default and `390x844` mobile checks passed.
+- Notes: see
+  `docs/browser-smoke/2026-07-01-runtime-and-responsive.md`.
 
 ### 5. Agent Probe Evidence Gate
 
@@ -130,9 +133,11 @@ Pass condition:
 
 Evidence:
 
-- Result:
-- Artifact path:
-- Notes:
+- Result: current positive real-agent basic probe passed and validates.
+- Artifact path: `docs/probes/codex-acp-basic-current.json`
+- Notes: `codex-acp` file and terminal stories remain visibility evidence via
+  ACP `tool_call` / `tool_call_update`, not proof of Haven-mediated `fs/*` or
+  `terminal/*` client request handling.
 
 ### 6. Release Notes Gate
 
@@ -149,8 +154,8 @@ Required content:
 
 Evidence:
 
-- Result:
-- Release notes path:
+- Result: release notes drafted.
+- Release notes path: `docs/releases/internal-alpha-2026-07-01.md`
 - Notes:
 
 ## Alpha Non-Goals
