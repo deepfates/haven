@@ -122,6 +122,8 @@ Required content:
 - Current status.
 - Last meaningful event.
 - Whether a permission or failure needs action.
+- Recovery guidance that distinguishes continue, retry, restart, and review
+  states before the user opens the run.
 - Start time and last update time.
 
 Required actions:

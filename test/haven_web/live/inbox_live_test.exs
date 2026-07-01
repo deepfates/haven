@@ -166,7 +166,12 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{waiting.id}-agent", "stub-acp")
     assert has_element?(view, "#run-#{waiting.id}-agent-launch", "Launch ready")
     assert has_element?(view, "#run-#{waiting.id}-agent-trust", "Local harness")
-    assert has_element?(view, "#run-#{failed.id}-next-step", "Restart or inspect failure")
+
+    assert has_element?(
+             view,
+             "#run-#{failed.id}-next-step",
+             "Continue, retry, or inspect failure"
+           )
 
     view
     |> element("#inbox-filter-archived")
@@ -1076,6 +1081,7 @@ defmodule HavenWeb.InboxLiveTest do
   test "renders latest run activity in inbox rows", %{conn: conn} do
     run = insert_run!("Activity row", "idle")
     failed = insert_run!("Failed activity row", "failed")
+    continued = insert_run!("Continued failure row", "running")
 
     Events.append!(run.id, "agent_message_chunk", %{
       "text" => "Reviewed the workspace\nand found one issue."
@@ -1083,6 +1089,10 @@ defmodule HavenWeb.InboxLiveTest do
 
     Events.append!(failed.id, "agent_start_failed", %{
       "reason" => "{:missing_cwd, \"/tmp/vanished\"}"
+    })
+
+    Events.append!(continued.id, "turn_continue_requested", %{
+      "prompt" => "try a smaller plan after the protocol failure"
     })
 
     {:ok, view, _html} = live(conn, ~p"/")
@@ -1099,12 +1109,26 @@ defmodule HavenWeb.InboxLiveTest do
              "Agent start failed: {:missing_cwd, \"/tmp/vanished\"}"
            )
 
+    assert has_element?(
+             view,
+             "#run-#{continued.id}-latest-activity",
+             "Continue requested: try a smaller plan after the protocol failure"
+           )
+
     view
     |> form("#inbox-search-form", %{"run_search" => "missing_cwd"})
     |> render_change()
 
     assert has_element?(view, "#run-#{failed.id}", "Failed activity row")
     refute has_element?(view, "#run-#{run.id}", "Activity row")
+    refute has_element?(view, "#run-#{continued.id}", "Continued failure row")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "smaller plan"})
+    |> render_change()
+
+    assert has_element?(view, "#run-#{continued.id}", "Continued failure row")
+    refute has_element?(view, "#run-#{failed.id}", "Failed activity row")
   end
 
   test "renders and searches latest permission decisions with request context", %{conn: conn} do
@@ -1166,7 +1190,7 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{interrupted.id}-operational-state", "Interrupted")
     assert has_element?(view, "#run-#{closed.id}-operational-state", "Read only")
     assert has_element?(view, "#run-#{closed.id} a", "Review")
-    assert has_element?(view, "#run-#{failed.id}-operational-state", "Needs restart")
+    assert has_element?(view, "#run-#{failed.id}-operational-state", "Needs recovery")
     assert has_element?(view, "#run-#{live_run.id}-operational-state", "Ready")
   end
 

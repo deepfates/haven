@@ -115,12 +115,17 @@ Evidence:
 - LiveView tests verify inbox rows expose explicit next-step guidance derived
   from durable status and current liveness, and archived failed runs are labeled
   for review rather than recovery.
+- LiveView tests verify failed inbox rows name the actual recovery menu:
+  continue with a new prompt, retry the last prompt, or inspect the failure.
 - LiveView tests verify inbox rows project the latest meaningful run event and
   refresh that activity when a new event arrives without requiring a run status
   change.
 - LiveView tests verify failed runtime activity rows include bounded failure
   reasons such as missing cwd/startup errors, and that those reasons are
   searchable from the inbox.
+- LiveView tests verify `turn_continue_requested` renders as a compact latest
+  activity row and is searchable from the inbox, so continued failed work is
+  visible in multi-run triage.
 - Data-layer tests verify latest inbox activity is resolved as one newest event
   per requested run, including duplicate and missing run ids, instead of
   requiring callers to scan full run event histories.

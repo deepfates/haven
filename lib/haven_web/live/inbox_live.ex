@@ -752,7 +752,7 @@ defmodule HavenWeb.InboxLive do
 
   defp run_next_step_label(%{status: "waiting", live?: false}), do: "Reconnect before deciding"
   defp run_next_step_label(%{status: "waiting"}), do: "Decide in thread"
-  defp run_next_step_label(%{status: "failed"}), do: "Restart or inspect failure"
+  defp run_next_step_label(%{status: "failed"}), do: "Continue, retry, or inspect failure"
   defp run_next_step_label(%{status: "closed"}), do: "Review history"
 
   defp run_next_step_label(%{status: status, live?: false})
@@ -769,7 +769,7 @@ defmodule HavenWeb.InboxLive do
   defp run_operational_label(%{archived_at: archived_at}) when not is_nil(archived_at),
     do: "Archived"
 
-  defp run_operational_label(%{status: "failed"}), do: "Needs restart"
+  defp run_operational_label(%{status: "failed"}), do: "Needs recovery"
   defp run_operational_label(%{status: "closed"}), do: "Read only"
   defp run_operational_label(%{status: "waiting", live?: false}), do: "Stale decision"
   defp run_operational_label(%{status: "waiting"}), do: "Waiting for you"
@@ -789,7 +789,7 @@ defmodule HavenWeb.InboxLive do
     do: "Hidden from default triage; history is still inspectable."
 
   defp run_operational_hint(%{status: "failed"}),
-    do: "Open the thread to restart the agent while preserving history."
+    do: "Open the thread to continue, retry, or restart while preserving history."
 
   defp run_operational_hint(%{status: "closed"}),
     do: "History is available, but this run cannot accept more prompts."
@@ -934,6 +934,16 @@ defmodule HavenWeb.InboxLive do
 
   defp latest_activity(%{type: "turn_failed", payload: payload}, _request),
     do: failure_activity("Turn failed", payload)
+
+  defp latest_activity(
+         %{type: "turn_continue_requested", payload: %{"prompt" => prompt}},
+         _request
+       ) do
+    "Continue requested: #{String.slice(prompt, 0, 80)}"
+  end
+
+  defp latest_activity(%{type: "turn_continue_requested"}, _request),
+    do: "Continue requested"
 
   defp latest_activity(%{type: "turn_cancelled"}, _request), do: "Turn cancelled"
   defp latest_activity(%{type: "agent_process_exited"}, _request), do: "Agent process exited"
