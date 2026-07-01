@@ -40,9 +40,14 @@ defmodule HavenWeb.RunLive do
   def handle_event("send_prompt", %{"prompt" => prompt}, socket) do
     prompt = String.trim(prompt)
 
-    if socket.assigns.can_prompt? and prompt != "" do
-      Runs.send_prompt(socket.assigns.run.id, prompt)
-    end
+    socket =
+      if socket.assigns.can_prompt? and prompt != "" do
+        socket.assigns.run.id
+        |> Runs.send_prompt(prompt)
+        |> assign_action_result(socket)
+      else
+        socket
+      end
 
     {:noreply, assign(socket, :prompt, "") |> assign_run(socket.assigns.run.id)}
   end
@@ -50,9 +55,14 @@ defmodule HavenWeb.RunLive do
   def handle_event("continue_failed", %{"prompt" => prompt}, socket) do
     prompt = String.trim(prompt)
 
-    if socket.assigns.can_continue_failed? and prompt != "" do
-      Runs.continue_failed_run(socket.assigns.run.id, prompt)
-    end
+    socket =
+      if socket.assigns.can_continue_failed? and prompt != "" do
+        socket.assigns.run.id
+        |> Runs.continue_failed_run(prompt)
+        |> assign_action_result(socket)
+      else
+        socket
+      end
 
     {:noreply, assign(socket, :prompt, "") |> assign_run(socket.assigns.run.id)}
   end
@@ -84,17 +94,27 @@ defmodule HavenWeb.RunLive do
   end
 
   def handle_event("reconnect", _params, socket) do
-    if socket.assigns.can_reconnect? do
-      Runs.reconnect_run(socket.assigns.run.id)
-    end
+    socket =
+      if socket.assigns.can_reconnect? do
+        socket.assigns.run.id
+        |> Runs.reconnect_run()
+        |> assign_action_result(socket)
+      else
+        socket
+      end
 
     {:noreply, assign_run(socket, socket.assigns.run.id)}
   end
 
   def handle_event("retry_last_prompt", _params, socket) do
-    if socket.assigns.can_retry_last_prompt? do
-      Runs.retry_last_prompt(socket.assigns.run.id)
-    end
+    socket =
+      if socket.assigns.can_retry_last_prompt? do
+        socket.assigns.run.id
+        |> Runs.retry_last_prompt()
+        |> assign_action_result(socket)
+      else
+        socket
+      end
 
     {:noreply, assign_run(socket, socket.assigns.run.id)}
   end
@@ -153,14 +173,32 @@ defmodule HavenWeb.RunLive do
   defp assign_action_result(_result, socket), do: socket
 
   defp action_error_message(:not_connected) do
-    "This run is not connected. Use Reconnect to attach a fresh ACP session before deciding or cancelling."
+    "This run is not connected. Use Reconnect to attach a fresh ACP session before taking more actions."
   end
 
   defp action_error_message(:archived_run),
     do: "This run is archived and cannot accept new actions."
 
+  defp action_error_message(:closed_run),
+    do: "This run is closed and cannot be reconnected."
+
   defp action_error_message(:terminal_run),
     do: "This run is no longer active. Use the recovery controls if they are available."
+
+  defp action_error_message(:live_run),
+    do: "This run is already connected. Refresh the controls before trying that again."
+
+  defp action_error_message(:not_failed),
+    do: "This run is no longer failed. Refresh the recovery controls before trying that again."
+
+  defp action_error_message(:no_prompt),
+    do: "There is no previous prompt to retry."
+
+  defp action_error_message(:blank_prompt),
+    do: "Enter an instruction before continuing the failed run."
+
+  defp action_error_message(:busy),
+    do: "The agent is already working or waiting on a decision."
 
   defp action_error_message({:missing_workspace, workspace}),
     do: "Restore the missing workspace before continuing: #{workspace}"

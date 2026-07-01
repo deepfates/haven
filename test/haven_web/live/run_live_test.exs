@@ -591,6 +591,23 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#send-prompt-button:not([disabled])")
   end
 
+  test "stale reconnect controls show an error instead of silently refreshing", %{conn: conn} do
+    run = insert_disconnected_run!("Stale reconnect history")
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-recovery-action-button", "Reconnect")
+    assert {:ok, _value} = Registry.register(Haven.Runs.Registry, run.id, :stale)
+
+    view
+    |> element("#run-recovery-action-button")
+    |> render_click()
+
+    assert render(view) =~ "This run is already connected"
+
+    refute Enum.any?(Events.list_for_run(run.id), &(&1.type == "run_reconnect_requested"))
+  end
+
   test "reconnect system-cancels stale pending permissions for disconnected waiting runs", %{
     conn: conn
   } do
@@ -897,6 +914,29 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Echo: retry me"
     assert html =~ "idle"
     refute has_element?(view, "#retry-last-prompt-button")
+  end
+
+  test "retry click racing with status change shows an error without reconnecting", %{conn: conn} do
+    run = insert_disconnected_run!("Retry stale failed history", "failed")
+    Events.append!(run.id, "turn_started", %{"prompt" => "retry stale"})
+    Events.append!(run.id, "user_message", %{"text" => "retry stale"})
+    Events.append!(run.id, "turn_failed", %{"error" => "agent_process_exited"})
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#retry-last-prompt-button", "Retry last prompt")
+
+    run
+    |> Ecto.Changeset.change(status: "idle")
+    |> Repo.update!()
+
+    view
+    |> element("#retry-last-prompt-button")
+    |> render_click()
+
+    assert render(view) =~ "This run is no longer failed"
+
+    refute Enum.any?(Events.list_for_run(run.id), &(&1.type == "run_reconnect_requested"))
   end
 
   test "failed runs with stale pending permissions point to recovery before decisions", %{

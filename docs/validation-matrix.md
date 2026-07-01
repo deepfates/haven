@@ -556,6 +556,11 @@ Evidence:
   disconnect shows a user-visible not-connected error, refreshes into stale
   decision state, and does not record a fake resolution or ignored-resolution
   event.
+- LiveView integration tests verify stale recovery controls surface backend
+  errors instead of silently refreshing: reconnect clicks that race with a
+  newly-live run show an already-connected error, and retry clicks that race
+  with a no-longer-failed run show a stale recovery error without appending a
+  reconnect event.
 - LiveView integration tests and browser smoke verify disconnected running runs
   with an unterminated turn offer Reconnect, append a system `turn_failed`
   event for the stale turn, start a fresh ACP process, and reopen prompt
