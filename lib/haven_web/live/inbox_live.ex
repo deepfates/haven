@@ -269,7 +269,7 @@ defmodule HavenWeb.InboxLive do
     |> assign(:agent_filter, agent_filter)
     |> assign(:workspace_filter, workspace_filter)
     |> assign(:agent_filter_options, facet_options(runs ++ archived_runs, :agent))
-    |> assign(:workspace_filter_options, facet_options(runs ++ archived_runs, :workspace))
+    |> assign(:workspace_filter_options, workspace_facet_options(runs ++ archived_runs))
     |> assign(:run_filters, @run_filters)
     |> assign(:run_filter_counts, %{
       "all" => length(work_runs),
@@ -491,6 +491,21 @@ defmodule HavenWeb.InboxLive do
     |> Enum.sort()
     |> Enum.map(&{&1, &1})
   end
+
+  defp workspace_facet_options(runs) do
+    runs
+    |> Enum.filter(&(is_binary(&1.workspace) and &1.workspace != ""))
+    |> Enum.uniq_by(& &1.workspace)
+    |> Enum.sort_by(&workspace_facet_label/1)
+    |> Enum.map(fn run -> {workspace_facet_label(run), run.workspace} end)
+  end
+
+  defp workspace_facet_label(%{workspace_summary: %{name: name}, workspace: path})
+       when is_binary(name) and name != "" do
+    "#{name} · #{path}"
+  end
+
+  defp workspace_facet_label(%{workspace: path}), do: path
 
   defp filter_runs_by_facets(runs, "", ""), do: runs
 

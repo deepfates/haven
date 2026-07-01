@@ -1318,6 +1318,12 @@ defmodule HavenWeb.InboxLiveTest do
     File.mkdir_p!(alpha_workspace)
     File.mkdir_p!(beta_workspace)
 
+    assert {:ok, _workspace} =
+             Workspaces.create_workspace(%{
+               "name" => "Alpha repo",
+               "path" => alpha_workspace
+             })
+
     insert_run!("Alpha docs", "waiting", %{workspace: alpha_workspace, agent: "codex-acp"})
     insert_run!("Alpha tests", "running", %{workspace: alpha_workspace, agent: "claude-acp"})
     insert_run!("Beta docs", "idle", %{workspace: beta_workspace, agent: "codex-acp"})
@@ -1325,7 +1331,18 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, ~s|#agent_filter option[value="codex-acp"]|)
-    assert has_element?(view, ~s|#workspace_filter option[value="#{alpha_workspace}"]|)
+
+    assert has_element?(
+             view,
+             ~s|#workspace_filter option[value="#{alpha_workspace}"]|,
+             "Alpha repo"
+           )
+
+    assert has_element?(
+             view,
+             ~s|#workspace_filter option[value="#{beta_workspace}"]|,
+             beta_workspace
+           )
 
     view
     |> form("#inbox-search-form", %{
