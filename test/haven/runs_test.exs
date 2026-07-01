@@ -59,6 +59,20 @@ defmodule Haven.RunsTest do
     refute Runs.get_run!(running.id).archived_at
   end
 
+  test "archive_run stops a lingering process for terminal history" do
+    run = insert_run!("Lingering failed run", "idle")
+    assert {:ok, pid} = Runs.start_run(run.id)
+    _ = :sys.get_state(pid)
+
+    Runs.update_status!(run.id, %{status: "failed"})
+    ref = Process.monitor(pid)
+
+    assert {:ok, archived} = Runs.archive_run(run.id)
+    assert archived.archived_at
+    assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
+    refute Runs.started?(run.id)
+  end
+
   test "archived runs are read-only and cannot be restarted" do
     run = insert_run!("Archived boundary", "failed")
     assert {:ok, archived} = Runs.archive_run(run.id)

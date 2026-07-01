@@ -194,6 +194,7 @@ defmodule Haven.Runs do
         end)
         |> case do
           {:ok, updated} ->
+            if registry_started?(run_id), do: stop_run(run_id)
             Phoenix.PubSub.broadcast(Haven.PubSub, "runs", {:run_updated, updated})
             {:ok, updated}
 

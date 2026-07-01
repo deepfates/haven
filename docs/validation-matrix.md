@@ -133,6 +133,9 @@ Evidence:
 - Data-layer and LiveView integration tests verify terminal `failed`/`closed`
   runs can be archived, active runs cannot be archived, and archive decisions
   preserve run events while hiding the run from the default inbox.
+- Data-layer tests verify archiving terminal history also stops any lingering
+  run process, so archived records are review-only in both durable state and
+  runtime liveness.
 - Data-layer tests verify archived runs are operationally read-only: direct
   start, ensure-started, reconnect, and retry entry points all return
   `{:error, :archived_run}` without appending new lifecycle events.
