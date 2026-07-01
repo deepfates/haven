@@ -810,7 +810,9 @@ defmodule HavenWeb.RunLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
 
-    assert has_element?(view, "#run-turn-summary")
+    assert has_element?(view, "#run-turn-summary:not([open])")
+    assert has_element?(view, "#run-turn-summary summary", "Turns")
+    assert has_element?(view, "#run-turn-summary summary", "Prompt, tool, decision")
     assert has_element?(view, "#run-turn-summary-count", "2")
 
     assert has_element?(view, ~s|#run-turn-3[data-turn-status="completed"]|, "Completed")

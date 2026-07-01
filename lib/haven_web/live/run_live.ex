@@ -2473,18 +2473,25 @@ defmodule HavenWeb.RunLive do
                 </.form>
               </section>
 
-              <section
+              <details
                 :if={@turn_summaries != []}
                 id="run-turn-summary"
-                class="rounded-lg border border-zinc-200 bg-white p-3"
+                class="group rounded-lg border border-zinc-200 bg-white p-3"
               >
-                <div class="flex items-center justify-between gap-3">
-                  <h2 class="text-sm font-semibold text-zinc-950">Turns</h2>
-                  <span id="run-turn-summary-count" class="font-mono text-xs text-zinc-500">
-                    {length(@turn_summaries)}
+                <summary class="cursor-pointer list-none marker:hidden">
+                  <span class="flex items-center justify-between gap-3">
+                    <span class="min-w-0">
+                      <span class="block text-sm font-semibold text-zinc-950">Turns</span>
+                      <span class="mt-0.5 block text-xs text-zinc-500">
+                        Prompt, tool, decision, file, and terminal rollups
+                      </span>
+                    </span>
+                    <span id="run-turn-summary-count" class="font-mono text-xs text-zinc-500">
+                      {length(@turn_summaries)}
+                    </span>
                   </span>
-                </div>
-                <div class="mt-3 space-y-3">
+                </summary>
+                <div class="mt-3 hidden space-y-3 border-t border-zinc-200 pt-3 group-open:block">
                   <article
                     :for={turn <- @turn_summaries}
                     id={"run-turn-#{turn.started_seq}"}
@@ -2544,7 +2551,7 @@ defmodule HavenWeb.RunLive do
                     </p>
                   </article>
                 </div>
-              </section>
+              </details>
 
               <details
                 id="run-activity-timeline"
