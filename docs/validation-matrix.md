@@ -682,15 +682,16 @@ Evidence:
   failed states.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
   and is part of `mix precommit`, so real-agent evidence requirements are a
-  gate rather than only a documentation convention. Committed reports can now
-  require payload-field facts as well as event types, so future Haven-mediated
-  `fs/*` / `terminal/*` evidence can assert details like requested path,
-  terminal command, and exit status. Reports that claim Haven-mediated
-  `file_*` or `terminal_*` expected events now require matching field-level
-  expectations for those event types, so type-only capability evidence is not
-  accepted. Report validation also rejects blank expected event names, blank
-  expected event-field names, and blank persisted event types, matching the
-  durable event envelope enforced by the app.
+  gate rather than only a documentation convention. Committed reports must name
+  their durable Haven `run_id`. They can also require payload-field facts as
+  well as event types, so future Haven-mediated `fs/*` / `terminal/*` evidence
+  can assert details like requested path, terminal command, and exit status.
+  Reports that claim Haven-mediated `file_*` or `terminal_*` expected events
+  now require matching field-level expectations for those event types, so
+  type-only capability evidence is not accepted. Report validation also rejects
+  blank expected event names, blank expected event-field names, and blank
+  persisted event types, matching the durable event envelope enforced by the
+  app.
 
 Still missing:
 

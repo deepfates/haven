@@ -7,6 +7,7 @@ The deterministic `stub-acp` agent proves the harness. A report only counts as
 production-grade Haven real-agent evidence when all of the following are true:
 
 - The `agent` field names a configured agent other than `stub-acp`.
+- The `run_id` field names the durable Haven run that produced the report.
 - The report was generated with `--require-real-agent`, so `real_agent_evidence`
   is present with `accepted: true`.
 - The report was produced through Haven's run lifecycle, not by talking directly

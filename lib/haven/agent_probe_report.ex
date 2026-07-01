@@ -28,6 +28,7 @@ defmodule Haven.AgentProbeReport do
   def validate(report) when is_map(report) do
     errors =
       []
+      |> require_string(report, "run_id")
       |> require_string(report, "agent")
       |> reject_stub_agent(report)
       |> require_string(report, "workspace")

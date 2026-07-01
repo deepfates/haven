@@ -14,6 +14,13 @@ defmodule Haven.AgentProbeReportTest do
     assert "real_agent_evidence must have required=true and accepted=true" in errors
   end
 
+  test "rejects reports without a durable run id" do
+    report = Map.delete(valid_report(), "run_id")
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+    assert "run_id must be a non-empty string" in errors
+  end
+
   test "rejects stub reports" do
     report = Map.put(valid_report(), "agent", "stub-acp")
 
