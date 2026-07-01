@@ -284,6 +284,35 @@ defmodule Haven.RunsTest do
     assert Runs.get_run!(run.id).last_viewed_event_seq == 3
   end
 
+  test "unread_summary counts unread work runs and can exclude the active run" do
+    current = insert_run!("Current run", "idle")
+    assert {:ok, _run} = Runs.mark_viewed(current.id, 1)
+    Events.append!(current.id, "agent_message_chunk", %{"text" => "current note"})
+
+    other = insert_run!("Other run", "idle")
+    assert {:ok, _run} = Runs.mark_viewed(other.id, 1)
+    Events.append!(other.id, "agent_message_chunk", %{"text" => "other note"})
+    Events.append!(other.id, "agent_message_chunk", %{"text" => "another note"})
+
+    diagnostic = insert_run!("Diagnostic run", "idle")
+
+    diagnostic
+    |> Ecto.Changeset.change(purpose: "diagnostic")
+    |> Repo.update!()
+
+    Events.append!(diagnostic.id, "agent_message_chunk", %{"text" => "diagnostic note"})
+
+    archived =
+      "Archived unread run"
+      |> insert_run!("failed")
+      |> set_archived_at!(~U[2026-06-01 00:00:00Z])
+
+    Events.append!(archived.id, "agent_message_chunk", %{"text" => "archived note"})
+
+    assert Runs.unread_summary() == %{runs: 2, events: 3}
+    assert Runs.unread_summary(exclude_run_id: current.id) == %{runs: 1, events: 2}
+  end
+
   test "normalizes optional file capability path scopes" do
     changeset =
       Run.changeset(%Run{}, %{

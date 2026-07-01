@@ -118,13 +118,21 @@ defmodule HavenWeb.RunLive do
     {:noreply, assign_run(socket, socket.assigns.run.id)}
   end
 
-  def handle_info({:run_event_appended, _event}, socket), do: {:noreply, socket}
+  def handle_info({:run_event_appended, %{run_id: id}}, %{assigns: %{run: %{id: id}}} = socket) do
+    {:noreply, socket}
+  end
+
+  def handle_info({:run_event_appended, _event}, socket) do
+    {:noreply, assign_inbox_unread_summary(socket)}
+  end
 
   def handle_info({:run_updated, %{id: id}}, %{assigns: %{run: %{id: id}}} = socket) do
     {:noreply, assign_run(socket, id)}
   end
 
-  def handle_info({:run_updated, _run}, socket), do: {:noreply, socket}
+  def handle_info({:run_updated, _run}, socket) do
+    {:noreply, assign_inbox_unread_summary(socket)}
+  end
 
   defp assign_run(socket, id) do
     run = Runs.get_run!(id)
@@ -185,6 +193,15 @@ defmodule HavenWeb.RunLive do
     |> assign(:recovery_attention, recovery_attention(run, live?, workspace_missing?))
     |> assign(:latest_failure_summary, latest_failure_summary(events))
     |> assign(:pending_permission, pending_permission)
+    |> assign_inbox_unread_summary()
+  end
+
+  defp assign_inbox_unread_summary(socket) do
+    assign(
+      socket,
+      :inbox_unread_summary,
+      Runs.unread_summary(exclude_run_id: socket.assigns.run.id)
+    )
   end
 
   defp latest_event_seq(events) do
@@ -2154,10 +2171,19 @@ defmodule HavenWeb.RunLive do
               <div class="flex items-start justify-between gap-4">
                 <div class="min-w-0">
                   <.link
+                    id="run-header-inbox-link"
                     navigate={~p"/"}
-                    class="text-sm font-medium text-zinc-600 hover:text-zinc-950"
+                    class="inline-flex h-9 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-950"
                   >
-                    ← Inbox
+                    <.icon name="hero-arrow-left" class="size-4" />
+                    <span>Inbox</span>
+                    <span
+                      :if={@inbox_unread_summary.runs > 0}
+                      id="run-header-inbox-unread"
+                      class="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-sky-700"
+                    >
+                      {pluralize_count(@inbox_unread_summary.runs, "updated run")}
+                    </span>
                   </.link>
                   <h1 class="mt-2 truncate text-2xl font-semibold">{@run.title}</h1>
                   <p

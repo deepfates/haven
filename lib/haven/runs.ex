@@ -15,6 +15,45 @@ defmodule Haven.Runs do
     Repo.all(from r in Run, where: not is_nil(r.archived_at), order_by: [desc: r.archived_at])
   end
 
+  def unread_summary(opts \\ []) do
+    exclude_run_id = Keyword.get(opts, :exclude_run_id)
+
+    query =
+      from r in Run,
+        where: is_nil(r.archived_at) and r.purpose != "diagnostic"
+
+    query =
+      if is_binary(exclude_run_id) do
+        from r in query, where: r.id != ^exclude_run_id
+      else
+        query
+      end
+
+    runs = Repo.all(query)
+
+    latest_events =
+      runs
+      |> Enum.map(& &1.id)
+      |> Events.latest_by_run_id()
+
+    Enum.reduce(runs, %{runs: 0, events: 0}, fn run, summary ->
+      unread_events =
+        case Map.get(latest_events, run.id) do
+          %{seq: latest_seq} when is_integer(latest_seq) ->
+            max(latest_seq - run.last_viewed_event_seq, 0)
+
+          _latest_event ->
+            0
+        end
+
+      if unread_events > 0 do
+        %{summary | runs: summary.runs + 1, events: summary.events + unread_events}
+      else
+        summary
+      end
+    end)
+  end
+
   def prune_archived_before(%DateTime{} = cutoff) do
     {count, _deleted} =
       Repo.delete_all(

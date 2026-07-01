@@ -57,6 +57,8 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, ~s|#run-header-session[title="#{run.agent_session_id}"]|)
     assert has_element?(view, "#run-header-session", String.slice(run.agent_session_id, 0, 8))
     assert has_element?(view, "#run-header-updated", "Updated")
+    assert has_element?(view, ~s|#run-header-inbox-link[href="/"]|, "Inbox")
+    refute has_element?(view, "#run-header-inbox-unread")
     refute has_element?(view, "#run-header-facts")
     assert has_element?(view, "#run-facts-agent", "stub-acp")
     assert has_element?(view, "#run-facts-agent-launch", "Launch ready")
@@ -280,6 +282,9 @@ defmodule HavenWeb.RunLiveTest do
         |> Enum.filter(fn metadata ->
           metadata[:source] == "runs" and String.starts_with?(metadata[:query], "SELECT")
         end)
+        |> Enum.filter(fn metadata ->
+          String.contains?(metadata[:query], ~s|WHERE (r0."id" = ?)|)
+        end)
 
       assert length(run_selects) <= 2
     after
@@ -380,6 +385,21 @@ defmodule HavenWeb.RunLiveTest do
     Events.append!(run.id, "agent_message_chunk", %{"text" => "Scoped event update"})
 
     assert has_element?(view, "#run-thread", "Scoped event update")
+  end
+
+  test "surfaces other unread run activity while reading one run", %{conn: conn} do
+    current = insert_disconnected_run!("Current conversation")
+    other = insert_disconnected_run!("Other conversation")
+    assert {:ok, _run} = Runs.mark_viewed(other.id, 2)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{current.id}")
+
+    refute has_element?(view, "#run-header-inbox-unread")
+
+    Events.append!(other.id, "agent_message_chunk", %{"text" => "other run update"})
+
+    assert has_element?(view, "#run-header-inbox-unread", "1 updated run")
+    refute has_element?(view, "#run-thread", "other run update")
   end
 
   test "renders the run capability policy in the facts panel", %{conn: conn} do
