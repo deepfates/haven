@@ -161,6 +161,7 @@ defmodule HavenWeb.InboxLive do
        |> put_flash(:info, "Agent #{agent_config.key} saved")
        |> reset_agent_config_form()
        |> refresh_agent_config_assigns()
+       |> assign_runs()
        |> push_event("clear_agent_config_form", %{id: "agent-config-form"})}
     else
       {:error, message} when is_binary(message) ->
@@ -202,7 +203,8 @@ defmodule HavenWeb.InboxLive do
      socket
      |> put_flash(:info, "Agent #{agent_config.key} deleted")
      |> reset_agent_config_form()
-     |> refresh_agent_config_assigns()}
+     |> refresh_agent_config_assigns()
+     |> assign_runs()}
   end
 
   @impl true

@@ -749,6 +749,31 @@ defmodule HavenWeb.InboxLiveTest do
     assert_redirect(view, ~p"/runs/#{run.id}")
   end
 
+  test "refreshes existing run rows after saving an agent config", %{conn: conn} do
+    run = insert_run!("Existing custom agent work", "idle", %{agent: "new-real-agent"})
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#run-#{run.id}-agent", "new-real-agent")
+    assert has_element?(view, "#run-#{run.id}-agent-launch", "Launch unknown")
+
+    view
+    |> form("#agent-config-form", %{
+      "agent_config" => %{
+        "key" => "new-real-agent",
+        "executable" => "sh",
+        "args_text" => "-c\ncat",
+        "cwd" => "",
+        "env_text" => ""
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#agent-config-new-real-agent-launch", "Launch ready")
+    assert has_element?(view, "#run-#{run.id}-agent-launch", "Launch ready")
+    assert has_element?(view, "#run-#{run.id}-agent-trust", "Static candidate")
+  end
+
   test "shows probe evidence readiness for saved agent configs", %{conn: conn} do
     assert {:ok, _agent_config} =
              Agents.create_agent_config(%{
