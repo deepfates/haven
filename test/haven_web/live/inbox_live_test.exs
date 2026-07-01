@@ -687,6 +687,12 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(
              view,
+             "#agent-config-candidate-agent-probe-terminal-denied-command",
+             "docs/probe-failures/candidate-agent-terminal-denied-mediated-negative.json"
+           )
+
+    assert has_element?(
+             view,
              "#agent-config-candidate-agent-probe-file-read",
              "File read proof"
            )
@@ -701,6 +707,12 @@ defmodule HavenWeb.InboxLiveTest do
              view,
              "#agent-config-candidate-agent-probe-file-read-command",
              "file_read_succeeded:payload.path=README.md"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-file-read-command",
+             "docs/probe-failures/candidate-agent-file-mediated-negative.json"
            )
 
     assert has_element?(
@@ -729,6 +741,12 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(
              view,
+             "#agent-config-candidate-agent-probe-file-write-approval-command",
+             "docs/probe-failures/candidate-agent-file-write-mediated-negative.json"
+           )
+
+    assert has_element?(
+             view,
              "#agent-config-candidate-agent-probe-terminal-approval",
              "Terminal approval proof"
            )
@@ -743,6 +761,12 @@ defmodule HavenWeb.InboxLiveTest do
              view,
              "#agent-config-candidate-agent-probe-terminal-approval-command",
              "terminal_output_succeeded:payload.exit_status=0"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-terminal-approval-command",
+             "docs/probe-failures/candidate-agent-terminal-mediated-negative.json"
            )
 
     assert has_element?(

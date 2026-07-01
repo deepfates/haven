@@ -259,19 +259,29 @@ defmodule Haven.AgentProbeTest do
     assert output =~ "--file-read-policy allow"
     assert output =~ "file_read_succeeded:payload.path=README.md"
     assert output =~ "--report docs/probes/candidate-file-read.json"
+    assert output =~ "--failure-report docs/probe-failures/candidate-file-mediated-negative.json"
 
     assert output =~ "file-write-approval: mix haven.agent_probe --agent candidate"
     assert output =~ "--file-write-policy ask"
     assert output =~ "--resolve-permissions allow"
     assert output =~ "file_write_requested:payload.path=notes/haven-probe.txt"
 
+    assert output =~
+             "--failure-report docs/probe-failures/candidate-file-write-mediated-negative.json"
+
     assert output =~ "terminal-approval: mix haven.agent_probe --agent candidate"
     assert output =~ "--terminal-create-policy ask"
     assert output =~ "terminal_output_succeeded:payload.exit_status=0"
 
+    assert output =~
+             "--failure-report docs/probe-failures/candidate-terminal-mediated-negative.json"
+
     assert output =~ "terminal-denied: mix haven.agent_probe --agent candidate"
     assert output =~ "--terminal-create-policy deny"
     assert output =~ "capability_policy_applied:payload.decision=deny"
+
+    assert output =~
+             "--failure-report docs/probe-failures/candidate-terminal-denied-mediated-negative.json"
   end
 
   test "agent probe inventory keeps production proof commands on demand" do
@@ -447,6 +457,48 @@ defmodule Haven.AgentProbeTest do
 
     assert output =~ "Diagnostics:"
     assert output =~ "Expected Haven-mediated client capability events were missing"
+  end
+
+  @tag :tmp_dir
+  test "agent probe task writes failed probes to a separate failure report path", %{
+    tmp_dir: tmp_dir
+  } do
+    positive_path = Path.join(tmp_dir, "positive.json")
+    failure_path = Path.join(tmp_dir, "failure.json")
+
+    output =
+      capture_io(fn ->
+        assert_raise Mix.Error, ~r/Agent probe failed: missing_expected_events/, fn ->
+          AgentProbeTask.run([
+            "--agent",
+            "stub-acp",
+            "--workspace",
+            File.cwd!(),
+            "--prompt",
+            "unknown-update",
+            "--expect-event",
+            "file_read_succeeded",
+            "--report",
+            positive_path,
+            "--failure-report",
+            failure_path,
+            "--timeout",
+            "5000"
+          ])
+        end
+      end)
+
+    assert output =~ "Report written: #{failure_path}"
+    refute File.exists?(positive_path)
+    assert File.exists?(failure_path)
+
+    assert {:ok, report} =
+             failure_path
+             |> File.read!()
+             |> Jason.decode()
+
+    assert report["missing_expected_events"] == ["file_read_succeeded"]
+    assert [%{"capability" => "fs/read_text_file"}] = report["unsupported_client_capabilities"]
   end
 
   test "preflights an ACP agent without sending a prompt" do

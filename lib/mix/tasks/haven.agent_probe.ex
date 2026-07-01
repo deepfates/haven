@@ -7,6 +7,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       mix haven.agent_probe --agent my-agent --workspace . --prompt "read README.md" --expect-event-field file_read_succeeded:path=README.md
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --terminal-create-policy deny --expect-event terminal_create_denied
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --report docs/probes/my-agent.json
+      mix haven.agent_probe --agent my-agent --workspace . --prompt "read README.md" --report docs/probes/my-agent-file-read.json --failure-report docs/probe-failures/my-agent-file-mediated-negative.json
       mix haven.agent_probe --agent my-agent --workspace . --prompt "summarize this repo" --load-runs 3 --load-concurrency 2 --require-real-agent --report docs/probe-load/my-agent-load.json
       mix haven.agent_probe --agent my-agent --workspace . --prompt "write a long summary" --expect-min-agent-output-chars 2000 --expect-min-agent-message-chunks 5 --require-real-agent --report docs/probes/my-agent-long-output.json
       mix haven.agent_probe --list-agents --workspace .
@@ -46,6 +47,9 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   Use repeated `--redact value` or `--redact-env ENV_VAR` flags to replace
   sensitive strings in the printed and written report with `[REDACTED]`.
   Use `--report path.json` to write the full probe report as pretty JSON.
+  Use `--failure-report path.json` with `--report` when a failed capability
+  proof should be preserved as named negative boundary evidence instead of
+  overwriting the positive evidence path.
   Terminal output is summary-first by default. Add `--show-events` to print
   every persisted event payload in the terminal as well as in the report file.
   By default, the task suppresses debug-level application logs so preflight and
@@ -75,6 +79,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     expect_event: :keep,
     expect_event_field: :keep,
     report: :string,
+    failure_report: :string,
     title: :string,
     file_read_policy: :string,
     file_read_paths: :string,
@@ -105,6 +110,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
 
     opts = normalize_opts(opts)
     report_path = Keyword.get(opts, :report)
+    failure_report_path = Keyword.get(opts, :failure_report)
 
     with_probe_log_level(opts, fn ->
       cond do
@@ -128,7 +134,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
 
             {:error, reason, report} ->
               print_any_report(report, Keyword.get(opts, :show_events, false))
-              write_report(report, report_path)
+              write_report(report, failure_report_path || report_path)
               Mix.raise("Agent probe failed: #{reason}")
           end
       end
@@ -154,6 +160,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     opts
     |> Keyword.update(:workspace, File.cwd!(), &Path.expand/1)
     |> Keyword.update(:report, nil, &Path.expand/1)
+    |> Keyword.update(:failure_report, nil, &Path.expand/1)
     |> normalize_load_runs()
     |> normalize_load_concurrency()
     |> normalize_positive_integer(:expect_min_agent_output_chars)
@@ -374,7 +381,9 @@ defmodule Mix.Tasks.Haven.AgentProbe do
          "--expect-event-field",
          "file_read_succeeded:payload.path=README.md",
          "--report",
-         "docs/probes/#{agent}-file-read.json"
+         "docs/probes/#{agent}-file-read.json",
+         "--failure-report",
+         "docs/probe-failures/#{agent}-file-mediated-negative.json"
        ])},
       {"file-write-approval",
        probe_command(agent, workspace, [
@@ -401,7 +410,9 @@ defmodule Mix.Tasks.Haven.AgentProbe do
          "--expect-event-field",
          "file_write_succeeded:payload.path=notes/haven-probe.txt",
          "--report",
-         "docs/probes/#{agent}-file-write-approval.json"
+         "docs/probes/#{agent}-file-write-approval.json",
+         "--failure-report",
+         "docs/probe-failures/#{agent}-file-write-mediated-negative.json"
        ])},
       {"terminal-approval",
        probe_command(agent, workspace, [
@@ -430,7 +441,9 @@ defmodule Mix.Tasks.Haven.AgentProbe do
          "--expect-event-field",
          "terminal_output_succeeded:payload.exit_status=0",
          "--report",
-         "docs/probes/#{agent}-terminal-approval.json"
+         "docs/probes/#{agent}-terminal-approval.json",
+         "--failure-report",
+         "docs/probe-failures/#{agent}-terminal-mediated-negative.json"
        ])},
       {"terminal-denied",
        probe_command(agent, workspace, [
@@ -451,7 +464,9 @@ defmodule Mix.Tasks.Haven.AgentProbe do
          "--expect-event-field",
          "capability_policy_applied:payload.decision=deny",
          "--report",
-         "docs/probes/#{agent}-terminal-denied.json"
+         "docs/probes/#{agent}-terminal-denied.json",
+         "--failure-report",
+         "docs/probe-failures/#{agent}-terminal-denied-mediated-negative.json"
        ])}
     ]
   end

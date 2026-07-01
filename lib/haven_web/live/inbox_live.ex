@@ -1461,7 +1461,9 @@ defmodule HavenWeb.InboxLive do
             "--expect-event-field",
             "capability_policy_applied:payload.decision=deny",
             "--report",
-            "docs/probes/#{agent}-terminal-denied.json"
+            "docs/probes/#{agent}-terminal-denied.json",
+            "--failure-report",
+            "docs/probe-failures/#{agent}-terminal-denied-mediated-negative.json"
           ])
       },
       %{
@@ -1488,7 +1490,9 @@ defmodule HavenWeb.InboxLive do
             "--expect-event-field",
             "file_read_succeeded:payload.path=README.md",
             "--report",
-            "docs/probes/#{agent}-file-read.json"
+            "docs/probes/#{agent}-file-read.json",
+            "--failure-report",
+            "docs/probe-failures/#{agent}-file-mediated-negative.json"
           ])
       },
       %{
@@ -1519,7 +1523,9 @@ defmodule HavenWeb.InboxLive do
             "--expect-event-field",
             "file_write_succeeded:payload.path=notes/haven-probe.txt",
             "--report",
-            "docs/probes/#{agent}-file-write-approval.json"
+            "docs/probes/#{agent}-file-write-approval.json",
+            "--failure-report",
+            "docs/probe-failures/#{agent}-file-write-mediated-negative.json"
           ])
       },
       %{
@@ -1552,7 +1558,9 @@ defmodule HavenWeb.InboxLive do
             "--expect-event-field",
             "terminal_output_succeeded:payload.exit_status=0",
             "--report",
-            "docs/probes/#{agent}-terminal-approval.json"
+            "docs/probes/#{agent}-terminal-approval.json",
+            "--failure-report",
+            "docs/probe-failures/#{agent}-terminal-mediated-negative.json"
           ])
       }
     ]

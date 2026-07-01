@@ -87,7 +87,8 @@ mix haven.agent_probe \
   --expect-event file_read_succeeded \
   --expect-event turn_finished \
   --expect-event-field file_read_succeeded:payload.path=README.md \
-  --report docs/probes/my-agent-file-read.json
+  --report docs/probes/my-agent-file-read.json \
+  --failure-report docs/probe-failures/my-agent-file-mediated-negative.json
 
 mix haven.agent_probe \
   --agent my-agent \
@@ -103,7 +104,8 @@ mix haven.agent_probe \
   --expect-event turn_finished \
   --expect-event-field terminal_create_requested:payload.command=mix \
   --expect-event-field terminal_output_succeeded:payload.exit_status=0 \
-  --report docs/probes/my-agent-terminal-approval.json
+  --report docs/probes/my-agent-terminal-approval.json \
+  --failure-report docs/probe-failures/my-agent-terminal-mediated-negative.json
 
 mix haven.agent_probe \
   --agent my-agent \
@@ -117,7 +119,8 @@ mix haven.agent_probe \
   --expect-event turn_finished \
   --expect-event-field terminal_create_requested:payload.command=mix \
   --expect-event-field terminal_output_succeeded:payload.exit_status=0 \
-  --report docs/probes/my-agent-terminal.json
+  --report docs/probes/my-agent-terminal.json \
+  --failure-report docs/probe-failures/my-agent-terminal-mediated-negative.json
 
 mix haven.agent_probe \
   --agent my-agent \
@@ -131,7 +134,8 @@ mix haven.agent_probe \
   --expect-event turn_finished \
   --expect-event-field terminal_create_requested:payload.command=mix \
   --expect-event-field capability_policy_applied:payload.decision=deny \
-  --report docs/probes/my-agent-terminal-denied.json
+  --report docs/probes/my-agent-terminal-denied.json \
+  --failure-report docs/probe-failures/my-agent-terminal-denied-mediated-negative.json
 ```
 
 Use `--list-agents` first when preparing real-agent evidence. It prints every
@@ -176,6 +180,13 @@ environment-derived output, prompts, and agent messages.
 Use repeated `--redact value` flags for literal strings and repeated
 `--redact-env ENV_VAR` flags for secrets stored in the environment. Redacted
 reports include `redactions` metadata, but never the raw redaction values.
+
+Use `--failure-report` alongside `--report` for mediated file and terminal
+proof attempts. A passing run writes the positive report to `docs/probes`; a
+failing run writes the failure report instead, so unsupported real-agent
+capability boundaries do not accidentally become invalid positive artifacts.
+Committed failure reports still must satisfy the stricter
+`docs/probe-failures` validation contract.
 
 Terminal probe output is summary-first by default. Use `--show-events` when you
 need to inspect every persisted event payload in the terminal; committed
