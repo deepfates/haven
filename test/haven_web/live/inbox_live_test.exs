@@ -790,6 +790,12 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(
              view,
+             "#agent-config-candidate-agent-probe-command",
+             "--redact-env SECRET"
+           )
+
+    assert has_element?(
+             view,
              "#agent-config-candidate-agent-probe-terminal-denied",
              "Capability guard proof"
            )
@@ -840,6 +846,12 @@ defmodule HavenWeb.InboxLiveTest do
              view,
              "#agent-config-candidate-agent-probe-file-read-command",
              "--file-read-policy allow"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-file-read-command",
+             "--redact-env SECRET"
            )
 
     assert has_element?(

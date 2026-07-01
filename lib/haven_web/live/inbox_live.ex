@@ -1695,151 +1695,179 @@ defmodule HavenWeb.InboxLive do
 
   defp agent_probe_commands(%{latest_preflight: %{status: "failed"}}), do: []
 
-  defp agent_probe_commands(%{real_agent_candidate: true, agent: agent}) do
+  defp agent_probe_commands(%{real_agent_candidate: true, agent: agent} = inventory) do
+    redaction_args = agent_probe_redaction_args(inventory)
+
     [
       %{
         id: "basic",
         label: "Basic boot proof",
         command:
-          probe_command(agent, [
-            "--expect-event",
-            "agent_initialized",
-            "--expect-event",
-            "agent_session_started",
-            "--expect-event",
-            "turn_finished",
-            "--report",
-            "docs/probes/#{agent}-basic.json"
-          ])
+          probe_command(
+            agent,
+            [
+              "--expect-event",
+              "agent_initialized",
+              "--expect-event",
+              "agent_session_started",
+              "--expect-event",
+              "turn_finished",
+              "--report",
+              "docs/probes/#{agent}-basic.json"
+            ] ++ redaction_args
+          )
       },
       %{
         id: "terminal-denied",
         label: "Capability guard proof",
         command:
-          probe_command(agent, [
-            "--prompt",
-            "run mix --version through the client terminal capability",
-            "--terminal-create-policy",
-            "deny",
-            "--expect-event",
-            "terminal_create_requested",
-            "--expect-event",
-            "capability_policy_applied",
-            "--expect-event",
-            "terminal_create_denied",
-            "--expect-event",
-            "turn_finished",
-            "--expect-event-field",
-            "terminal_create_requested:payload.command=mix",
-            "--expect-event-field",
-            "capability_policy_applied:payload.decision=deny",
-            "--report",
-            "docs/probes/#{agent}-terminal-denied.json",
-            "--failure-report",
-            "docs/probe-failures/#{agent}-terminal-denied-mediated-negative.json"
-          ])
+          probe_command(
+            agent,
+            [
+              "--prompt",
+              "run mix --version through the client terminal capability",
+              "--terminal-create-policy",
+              "deny",
+              "--expect-event",
+              "terminal_create_requested",
+              "--expect-event",
+              "capability_policy_applied",
+              "--expect-event",
+              "terminal_create_denied",
+              "--expect-event",
+              "turn_finished",
+              "--expect-event-field",
+              "terminal_create_requested:payload.command=mix",
+              "--expect-event-field",
+              "capability_policy_applied:payload.decision=deny",
+              "--report",
+              "docs/probes/#{agent}-terminal-denied.json",
+              "--failure-report",
+              "docs/probe-failures/#{agent}-terminal-denied-mediated-negative.json"
+            ] ++ redaction_args
+          )
       },
       %{
         id: "file-read",
         label: "File read proof",
         command:
-          probe_command(agent, [
-            "--prompt",
-            "read README.md through the client file-read capability",
-            "--file-read-policy",
-            "allow",
-            "--file-read-paths",
-            "README.md,docs",
-            "--expect-event",
-            "file_read_requested",
-            "--expect-event",
-            "capability_policy_applied",
-            "--expect-event",
-            "file_read_succeeded",
-            "--expect-event",
-            "turn_finished",
-            "--expect-event-field",
-            "file_read_requested:payload.path=README.md",
-            "--expect-event-field",
-            "file_read_succeeded:payload.path=README.md",
-            "--report",
-            "docs/probes/#{agent}-file-read.json",
-            "--failure-report",
-            "docs/probe-failures/#{agent}-file-mediated-negative.json"
-          ])
+          probe_command(
+            agent,
+            [
+              "--prompt",
+              "read README.md through the client file-read capability",
+              "--file-read-policy",
+              "allow",
+              "--file-read-paths",
+              "README.md,docs",
+              "--expect-event",
+              "file_read_requested",
+              "--expect-event",
+              "capability_policy_applied",
+              "--expect-event",
+              "file_read_succeeded",
+              "--expect-event",
+              "turn_finished",
+              "--expect-event-field",
+              "file_read_requested:payload.path=README.md",
+              "--expect-event-field",
+              "file_read_succeeded:payload.path=README.md",
+              "--report",
+              "docs/probes/#{agent}-file-read.json",
+              "--failure-report",
+              "docs/probe-failures/#{agent}-file-mediated-negative.json"
+            ] ++ redaction_args
+          )
       },
       %{
         id: "file-write-approval",
         label: "File write approval proof",
         command:
-          probe_command(agent, [
-            "--prompt",
-            "write Haven probe sentinel to notes/haven-probe.txt through the client file-write capability",
-            "--file-write-policy",
-            "ask",
-            "--file-write-paths",
-            "notes",
-            "--resolve-permissions",
-            "allow",
-            "--expect-event",
-            "file_write_requested",
-            "--expect-event",
-            "permission_requested",
-            "--expect-event",
-            "permission_resolved",
-            "--expect-event",
-            "file_write_succeeded",
-            "--expect-event",
-            "turn_finished",
-            "--expect-event-field",
-            "file_write_requested:payload.path=notes/haven-probe.txt",
-            "--expect-event-field",
-            "file_write_succeeded:payload.path=notes/haven-probe.txt",
-            "--report",
-            "docs/probes/#{agent}-file-write-approval.json",
-            "--failure-report",
-            "docs/probe-failures/#{agent}-file-write-mediated-negative.json"
-          ])
+          probe_command(
+            agent,
+            [
+              "--prompt",
+              "write Haven probe sentinel to notes/haven-probe.txt through the client file-write capability",
+              "--file-write-policy",
+              "ask",
+              "--file-write-paths",
+              "notes",
+              "--resolve-permissions",
+              "allow",
+              "--expect-event",
+              "file_write_requested",
+              "--expect-event",
+              "permission_requested",
+              "--expect-event",
+              "permission_resolved",
+              "--expect-event",
+              "file_write_succeeded",
+              "--expect-event",
+              "turn_finished",
+              "--expect-event-field",
+              "file_write_requested:payload.path=notes/haven-probe.txt",
+              "--expect-event-field",
+              "file_write_succeeded:payload.path=notes/haven-probe.txt",
+              "--report",
+              "docs/probes/#{agent}-file-write-approval.json",
+              "--failure-report",
+              "docs/probe-failures/#{agent}-file-write-mediated-negative.json"
+            ] ++ redaction_args
+          )
       },
       %{
         id: "terminal-approval",
         label: "Terminal approval proof",
         command:
-          probe_command(agent, [
-            "--prompt",
-            "run mix --version through the client terminal capability",
-            "--terminal-create-policy",
-            "ask",
-            "--resolve-permissions",
-            "allow",
-            "--expect-event",
-            "terminal_create_requested",
-            "--expect-event",
-            "permission_requested",
-            "--expect-event",
-            "permission_resolved",
-            "--expect-event",
-            "terminal_created",
-            "--expect-event",
-            "terminal_output_succeeded",
-            "--expect-event",
-            "terminal_released",
-            "--expect-event",
-            "turn_finished",
-            "--expect-event-field",
-            "terminal_create_requested:payload.command=mix",
-            "--expect-event-field",
-            "terminal_output_succeeded:payload.exit_status=0",
-            "--report",
-            "docs/probes/#{agent}-terminal-approval.json",
-            "--failure-report",
-            "docs/probe-failures/#{agent}-terminal-mediated-negative.json"
-          ])
+          probe_command(
+            agent,
+            [
+              "--prompt",
+              "run mix --version through the client terminal capability",
+              "--terminal-create-policy",
+              "ask",
+              "--resolve-permissions",
+              "allow",
+              "--expect-event",
+              "terminal_create_requested",
+              "--expect-event",
+              "permission_requested",
+              "--expect-event",
+              "permission_resolved",
+              "--expect-event",
+              "terminal_created",
+              "--expect-event",
+              "terminal_output_succeeded",
+              "--expect-event",
+              "terminal_released",
+              "--expect-event",
+              "turn_finished",
+              "--expect-event-field",
+              "terminal_create_requested:payload.command=mix",
+              "--expect-event-field",
+              "terminal_output_succeeded:payload.exit_status=0",
+              "--report",
+              "docs/probes/#{agent}-terminal-approval.json",
+              "--failure-report",
+              "docs/probe-failures/#{agent}-terminal-mediated-negative.json"
+            ] ++ redaction_args
+          )
       }
     ]
   end
 
   defp agent_probe_commands(_inventory), do: []
+
+  defp agent_probe_redaction_args(%{env_keys: keys}) when is_list(keys) do
+    keys
+    |> Enum.map(&to_string/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.flat_map(&["--redact-env", &1])
+  end
+
+  defp agent_probe_redaction_args(_inventory), do: []
 
   defp probe_command(agent, args) do
     [
