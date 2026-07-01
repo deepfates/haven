@@ -1668,10 +1668,10 @@ defmodule HavenWeb.InboxLive do
     ~H"""
     <article
       id={"run-#{@run.id}"}
-      class="border-b border-zinc-200 bg-white px-4 py-3 transition last:border-b-0 hover:bg-zinc-50"
+      class="border-b border-zinc-200 bg-white px-3 py-2.5 transition last:border-b-0 hover:bg-zinc-50 sm:px-4"
     >
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0">
+      <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3">
+        <div class="min-w-0 space-y-1">
           <h3 class="truncate text-sm font-semibold text-zinc-950">
             <.link
               id={"run-#{@run.id}-title-link"}
@@ -1681,43 +1681,58 @@ defmodule HavenWeb.InboxLive do
               {@run.title}
             </.link>
           </h3>
-          <p
-            id={"run-#{@run.id}-workspace"}
-            title={@run.workspace}
-            class="mt-1 flex min-w-0 items-center gap-1 truncate text-xs text-zinc-500"
-          >
-            <.icon name="hero-folder" class="size-3.5 shrink-0 text-zinc-400" />
-            <span class="truncate font-medium text-zinc-700">{workspace_name(@run.workspace)}</span>
+
+          <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+            <span
+              id={"run-#{@run.id}-workspace"}
+              title={@run.workspace}
+              class="inline-flex min-w-0 max-w-full items-center gap-1 truncate"
+            >
+              <.icon name="hero-folder" class="size-3.5 shrink-0 text-zinc-400" />
+              <span class="truncate font-medium text-zinc-700">
+                {workspace_name(@run.workspace)}
+              </span>
+            </span>
+            <span
+              :if={workspace_parent(@run.workspace)}
+              id={"run-#{@run.id}-workspace-path"}
+              class="hidden min-w-0 truncate text-zinc-400 sm:inline"
+            >
+              {workspace_parent(@run.workspace)}
+            </span>
+            <span class="text-zinc-300">/</span>
+            <span id={"run-#{@run.id}-agent"} class="truncate">{@run.agent}</span>
+          </div>
+
+          <p id={"run-#{@run.id}-latest-activity"} class="mt-1 truncate text-zinc-700">
+            {latest_activity(@run)}
+            <span :if={latest_activity_time(@run.latest_event)} class="text-zinc-400">
+              · {latest_activity_time(@run.latest_event)}
+            </span>
           </p>
-          <p
-            :if={workspace_parent(@run.workspace)}
-            id={"run-#{@run.id}-workspace-path"}
-            class="mt-0.5 truncate text-xs text-zinc-400"
-          >
-            {workspace_parent(@run.workspace)}
-          </p>
-        </div>
-        <div class="flex shrink-0 flex-col items-end gap-1">
-          <span class={status_class(@run.status)}>{@run.status}</span>
-          <span
-            :if={@attention_label}
-            id={"run-#{@run.id}-attention"}
-            class={run_attention_class(@run)}
-          >
-            {@attention_label}
-          </span>
-        </div>
-      </div>
-      <div class="mt-2 flex items-center justify-between gap-3">
-        <div class="min-w-0 text-xs text-zinc-500">
-          <p class="truncate">
-            <span id={"run-#{@run.id}-agent"}>{@run.agent}</span>
-            · started {Calendar.strftime(@run.inserted_at, "%H:%M:%S")} · updated {Calendar.strftime(
-              @run.updated_at,
-              "%H:%M:%S"
-            )}
-          </p>
-          <p class="mt-1 flex flex-wrap gap-1">
+
+          <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            <span
+              id={"run-#{@run.id}-next-step"}
+              class="inline-flex min-w-0 max-w-full items-center gap-1 text-zinc-700"
+            >
+              <span class="font-semibold text-zinc-950">Next</span>
+              <span class="text-zinc-400">·</span>
+              <span class="truncate">{run_next_step_label(@run)}</span>
+            </span>
+            <span
+              :if={@operational_label}
+              id={"run-#{@run.id}-operational-state"}
+              class="hidden min-w-0 max-w-full items-center gap-1 text-zinc-500 sm:inline-flex"
+            >
+              <span class="font-medium text-zinc-700">{@operational_label}</span>
+              <span :if={@operational_hint} class="hidden truncate sm:inline">
+                {" · "}{@operational_hint}
+              </span>
+            </span>
+          </div>
+
+          <div class="hidden flex-wrap gap-1 sm:flex">
             <span id={"run-#{@run.id}-agent-launch"} class={agent_launch_class(@agent_readiness)}>
               {agent_launch_label(@agent_readiness)}
             </span>
@@ -1736,38 +1751,29 @@ defmodule HavenWeb.InboxLive do
             >
               {pluralize_count(length(@agent_capability_gap_reports), "capability gap")}
             </span>
-          </p>
-          <p
-            :if={@run.archived_at}
-            id={"run-#{@run.id}-archived-at"}
-            class="mt-1 truncate text-zinc-500"
-          >
-            Archived {Calendar.strftime(@run.archived_at, "%Y-%m-%d %H:%M:%S")}
-          </p>
-          <p id={"run-#{@run.id}-latest-activity"} class="mt-1 truncate text-zinc-700">
-            {latest_activity(@run)}
-            <span :if={latest_activity_time(@run.latest_event)} class="text-zinc-400">
-              · {latest_activity_time(@run.latest_event)}
+            <span
+              :if={@run.archived_at}
+              id={"run-#{@run.id}-archived-at"}
+              class="inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-500"
+            >
+              Archived {Calendar.strftime(@run.archived_at, "%Y-%m-%d")}
             </span>
-          </p>
-          <p
-            id={"run-#{@run.id}-next-step"}
-            class="mt-1 flex min-w-0 items-center gap-1 truncate text-xs text-zinc-700"
-          >
-            <span class="font-semibold text-zinc-950">Next</span>
-            <span class="text-zinc-400">·</span>
-            <span class="truncate">{run_next_step_label(@run)}</span>
-          </p>
-          <p
-            :if={@operational_label}
-            id={"run-#{@run.id}-operational-state"}
-            class="mt-1 truncate text-zinc-500"
-          >
-            <span class="font-medium text-zinc-700">{@operational_label}</span>
-            <span :if={@operational_hint}>{" · "}{@operational_hint}</span>
-          </p>
+          </div>
         </div>
-        <div class="flex shrink-0 items-center gap-2">
+
+        <div class="flex shrink-0 flex-col items-end gap-2">
+          <div class="flex flex-col items-end gap-1">
+            <span class={[status_class(@run.status), @attention_label && "hidden sm:inline-flex"]}>
+              {@run.status}
+            </span>
+            <span
+              :if={@attention_label}
+              id={"run-#{@run.id}-attention"}
+              class={run_attention_class(@run)}
+            >
+              {@attention_label}
+            </span>
+          </div>
           <.link
             id={"run-#{@run.id}-primary-action"}
             navigate={~p"/runs/#{@run.id}"}
@@ -1780,7 +1786,7 @@ defmodule HavenWeb.InboxLive do
             id={"archive-run-#{@run.id}"}
             type="button"
             title="Archive run"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950"
+            class="hidden h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950 sm:inline-flex"
             phx-click="archive_run"
             phx-value-id={@run.id}
           >
