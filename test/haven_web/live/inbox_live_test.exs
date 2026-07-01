@@ -121,6 +121,7 @@ defmodule HavenWeb.InboxLiveTest do
       |> render_submit()
 
     assert html =~ "must be an existing directory"
+    assert has_element?(view, "#new-run-panel[open]")
     assert Runs.list_runs() == []
     refute_redirected(view)
   end

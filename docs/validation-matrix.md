@@ -83,7 +83,8 @@ Evidence:
   run record.
 - LiveView hierarchy tests verify run creation is available behind a closed
   `Start a run` disclosure by default, so the open inbox is not dominated by
-  setup fields on mobile.
+  setup fields on mobile, and failed run creation reopens the disclosure so
+  validation errors are visible.
 - Saved workspaces are stored in SQLite with a name and normalized directory
   path; LiveView tests verify the inbox picker can create a run from a saved
   workspace, editing the workspace updates the picker/run path, and deleting

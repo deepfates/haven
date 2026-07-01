@@ -1156,7 +1156,11 @@ defmodule HavenWeb.InboxLive do
             </div>
           </header>
 
-          <details id="new-run-panel" class="rounded-lg border border-zinc-200 bg-white">
+          <details
+            id="new-run-panel"
+            open={@form.errors != []}
+            class="rounded-lg border border-zinc-200 bg-white"
+          >
             <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-zinc-800 marker:hidden">
               <span class="inline-flex items-center gap-2">
                 <.icon name="hero-plus-circle" class="size-4 text-zinc-500" /> Start a run
