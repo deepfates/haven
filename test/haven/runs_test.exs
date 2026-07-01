@@ -216,6 +216,34 @@ defmodule Haven.RunsTest do
     refute Runs.started?(run.id)
   end
 
+  test "permission decisions refuse disconnected waiting runs without starting a process" do
+    run = insert_run!("Disconnected decision boundary", "waiting")
+    append_permission_requested!(run.id, 42)
+
+    assert {:error, :not_connected} = Runs.resolve_permission(run.id, 42, "allow")
+
+    assert [
+             %{type: "run_created"},
+             %{type: "permission_requested"}
+           ] = Events.list_for_run(run.id)
+
+    refute Runs.started?(run.id)
+  end
+
+  test "cancel refuses disconnected waiting runs without starting a process" do
+    run = insert_run!("Disconnected cancel boundary", "waiting")
+    append_permission_requested!(run.id, 42)
+
+    assert {:error, :not_connected} = Runs.cancel(run.id)
+
+    assert [
+             %{type: "run_created"},
+             %{type: "permission_requested"}
+           ] = Events.list_for_run(run.id)
+
+    refute Runs.started?(run.id)
+  end
+
   test "ensure_started trusts durable terminal state before stale registry liveness" do
     closed = insert_run!("Closed stale registry boundary", "closed")
     assert {:ok, _} = Registry.register(Haven.Runs.Registry, closed.id, :stale)
@@ -382,6 +410,21 @@ defmodule Haven.RunsTest do
     })
 
     run
+  end
+
+  defp append_permission_requested!(run_id, request_id) do
+    Events.append!(run_id, "permission_requested", %{
+      "request_id" => request_id,
+      "toolCall" => %{
+        "title" => "Write file",
+        "rawInput" => %{"path" => "notes.md"},
+        "status" => "pending"
+      },
+      "options" => [
+        %{"optionId" => "allow", "name" => "Allow", "kind" => "allow_once"},
+        %{"optionId" => "deny", "name" => "Deny", "kind" => "reject_once"}
+      ]
+    })
   end
 
   defp set_archived_at!(%Run{} = run, archived_at) do

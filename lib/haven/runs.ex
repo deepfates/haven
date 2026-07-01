@@ -295,13 +295,13 @@ defmodule Haven.Runs do
   end
 
   def resolve_permission(run_id, request_id, option_id) do
-    with {:ok, pid} <- ensure_started(run_id) do
+    with {:ok, pid} <- live_run_pid(run_id) do
       GenServer.call(pid, {:resolve_permission, request_id, option_id}, 30_000)
     end
   end
 
   def cancel(run_id) do
-    with {:ok, pid} <- ensure_started(run_id) do
+    with {:ok, pid} <- live_run_pid(run_id) do
       GenServer.call(pid, :cancel, 30_000)
     end
   end
@@ -416,6 +416,22 @@ defmodule Haven.Runs do
       {:ok, pid} -> {:ok, pid}
       {:error, {:already_started, pid}} -> {:ok, pid}
       other -> other
+    end
+  end
+
+  defp live_run_pid(run_id) do
+    case get_run!(run_id) do
+      %{archived_at: archived_at} when not is_nil(archived_at) ->
+        {:error, :archived_run}
+
+      %{status: status} when status in ["closed", "failed"] ->
+        {:error, :terminal_run}
+
+      _run ->
+        case Registry.lookup(Haven.Runs.Registry, run_id) do
+          [{pid, _}] -> {:ok, pid}
+          [] -> {:error, :not_connected}
+        end
     end
   end
 

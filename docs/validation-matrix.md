@@ -549,6 +549,9 @@ Evidence:
   saved decision is no longer attached to a live agent process, that reconnect
   cancels the stale request, and that the record remains in the permission
   audit.
+- Data-layer tests verify direct permission resolution and cancel calls refuse
+  disconnected waiting runs without starting a fresh agent process or rewriting
+  the stale decision history.
 - LiveView integration tests and browser smoke verify disconnected running runs
   with an unterminated turn offer Reconnect, append a system `turn_failed`
   event for the stale turn, start a fresh ACP process, and reopen prompt
