@@ -41,12 +41,12 @@ recorded.
   class, and includes accepted real-agent metadata.
 - `codex-acp-terminal-mediated-negative.json`: regenerated on 2026-07-01
   against saved `codex-acp`. The probe required `permission_requested`,
-  `permission_resolved`, `terminal_create_requested`, `terminal_created`, and
-  `terminal_output_requested`. The agent ran the sentinel command and returned
-  the answer, but only via ACP `tool_call` / `tool_call_update`; the report
-  records `tool_call_only_capability_gap`, declares the mediated `terminal`
-  capability family unsupported for this agent class, and includes accepted
-  real-agent metadata.
+  `permission_resolved`, `terminal_create_requested`, `terminal_created`,
+  `terminal_output_succeeded`, and `terminal_released`. The agent ran
+  `mix --version` and returned useful output, but only via ACP `tool_call` /
+  `tool_call_update`; the report records `tool_call_only_capability_gap`,
+  declares the mediated `terminal` capability family unsupported for this agent
+  class, and includes accepted real-agent metadata.
 
 These reports mean Haven currently has real-agent visibility for Codex file read,
 file write, and terminal work, but not proof that Codex exercises Haven's direct

@@ -39,21 +39,21 @@
       "type": "agent_session_started",
       "seq": 4,
       "payload": {
-        "agent_session_id": "019f1ce3-44f1-7b53-af06-f24b4f23dbc2"
+        "agent_session_id": "019f1daf-42fa-7eb0-b262-87a1e982d11e"
       }
     },
     {
       "type": "turn_started",
       "seq": 5,
       "payload": {
-        "prompt": "Run this exact command through the client terminal capability if available: printf 'Grei terminal sentinel: current-negative\\n'. Reply with only the sentinel line."
+        "prompt": "run mix --version through the client terminal capability"
       }
     },
     {
       "type": "user_message",
       "seq": 6,
       "payload": {
-        "text": "Run this exact command through the client terminal capability if available: printf 'Grei terminal sentinel: current-negative\\n'. Reply with only the sentinel line."
+        "text": "run mix --version through the client terminal capability"
       }
     },
     {
@@ -188,24 +188,24 @@
         "_meta": {
           "terminal_info": {
             "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
-            "terminal_id": "call_W9b2qzRwiNqkATtOkbnMlftk"
+            "terminal_id": "call_p13M5A1LwVIT9PrCqa0yH7Aw"
           }
         },
         "content": [
           {
-            "terminalId": "call_W9b2qzRwiNqkATtOkbnMlftk",
+            "terminalId": "call_p13M5A1LwVIT9PrCqa0yH7Aw",
             "type": "terminal"
           }
         ],
         "kind": "execute",
         "rawInput": {
-          "command": "printf 'Grei terminal sentinel: current-negative\\n'",
+          "command": "mix --version",
           "cwd": "/Users/deepfates/Hacking/github/deepfates/haven"
         },
         "sessionUpdate": "tool_call",
         "status": "in_progress",
-        "title": "printf 'Grei terminal sentinel: current-negative\\n'",
-        "toolCallId": "call_W9b2qzRwiNqkATtOkbnMlftk"
+        "title": "mix --version",
+        "toolCallId": "call_p13M5A1LwVIT9PrCqa0yH7Aw"
       }
     },
     {
@@ -213,103 +213,365 @@
       "seq": 10,
       "payload": {
         "_meta": {
-          "terminal_exit": {
-            "exit_code": 0,
-            "signal": null,
-            "terminal_id": "call_W9b2qzRwiNqkATtOkbnMlftk"
-          },
           "terminal_output_delta": {
-            "data": "Grei terminal sentinel: current-negative\n",
-            "terminal_id": "call_W9b2qzRwiNqkATtOkbnMlftk"
+            "data": "Erlang/OTP 28 [erts-16.3] [source] [64-bit] [smp:10:10] [ds:10:10:10] [async-threads:1] [jit] [dtrace]\n\nMix 1.19.5 (compiled with Erlang/OTP 28)\n",
+            "terminal_id": "call_p13M5A1LwVIT9PrCqa0yH7Aw"
           }
         },
-        "rawOutput": {
-          "exit_code": 0,
-          "formatted_output": "Grei terminal sentinel: current-negative\n"
-        },
         "sessionUpdate": "tool_call_update",
-        "status": "completed",
-        "toolCallId": "call_W9b2qzRwiNqkATtOkbnMlftk"
+        "toolCallId": "call_p13M5A1LwVIT9PrCqa0yH7Aw"
       }
     },
     {
       "type": "agent_update_unknown",
       "seq": 11,
       "payload": {
-        "session_id": "019f1ce3-44f1-7b53-af06-f24b4f23dbc2",
+        "session_id": "019f1daf-42fa-7eb0-b262-87a1e982d11e",
         "update": {
           "sessionUpdate": "usage_update",
           "size": 258400,
-          "used": 20071
+          "used": 20060
         },
         "update_type": "usage_update"
       }
     },
     {
-      "type": "agent_message_chunk",
+      "type": "tool_call_update",
       "seq": 12,
       "payload": {
-        "text": "G"
+        "_meta": {
+          "terminal_exit": {
+            "exit_code": 0,
+            "signal": null,
+            "terminal_id": "call_p13M5A1LwVIT9PrCqa0yH7Aw"
+          }
+        },
+        "rawOutput": {
+          "exit_code": 0,
+          "formatted_output": "Erlang/OTP 28 [erts-16.3] [source] [64-bit] [smp:10:10] [ds:10:10:10] [async-threads:1] [jit] [dtrace]\n\nMix 1.19.5 (compiled with Erlang/OTP 28)\n"
+        },
+        "sessionUpdate": "tool_call_update",
+        "status": "completed",
+        "toolCallId": "call_p13M5A1LwVIT9PrCqa0yH7Aw"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 13,
       "payload": {
-        "text": "rei"
+        "text": "`"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 14,
       "payload": {
-        "text": " terminal"
+        "text": "mix"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 15,
       "payload": {
-        "text": " sentinel"
+        "text": " --"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 16,
       "payload": {
-        "text": ":"
+        "text": "version"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 17,
       "payload": {
-        "text": " current"
+        "text": "`"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 18,
       "payload": {
-        "text": "-negative"
+        "text": " output"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 19,
+      "payload": {
+        "text": ":\n\n"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 20,
+      "payload": {
+        "text": "```"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 21,
+      "payload": {
+        "text": "text"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 22,
+      "payload": {
+        "text": "\n"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 23,
+      "payload": {
+        "text": "E"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 24,
+      "payload": {
+        "text": "rl"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 25,
+      "payload": {
+        "text": "ang"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 26,
+      "payload": {
+        "text": "/"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 27,
+      "payload": {
+        "text": "OTP"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 28,
+      "payload": {
+        "text": " "
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 29,
+      "payload": {
+        "text": "28"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 30,
+      "payload": {
+        "text": " ["
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 31,
+      "payload": {
+        "text": "erts"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 32,
+      "payload": {
+        "text": "-"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 33,
+      "payload": {
+        "text": "16"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 34,
+      "payload": {
+        "text": "."
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 35,
+      "payload": {
+        "text": "3"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 36,
+      "payload": {
+        "text": "]"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 37,
+      "payload": {
+        "text": " ...\n"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 38,
+      "payload": {
+        "text": "Mix"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 39,
+      "payload": {
+        "text": " "
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 40,
+      "payload": {
+        "text": "1"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 41,
+      "payload": {
+        "text": "."
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 42,
+      "payload": {
+        "text": "19"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 43,
+      "payload": {
+        "text": "."
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 44,
+      "payload": {
+        "text": "5"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 45,
+      "payload": {
+        "text": " ("
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 46,
+      "payload": {
+        "text": "compiled"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 47,
+      "payload": {
+        "text": " with"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 48,
+      "payload": {
+        "text": " Erl"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 49,
+      "payload": {
+        "text": "ang"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 50,
+      "payload": {
+        "text": "/"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 51,
+      "payload": {
+        "text": "OTP"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 52,
+      "payload": {
+        "text": " "
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 53,
+      "payload": {
+        "text": "28"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 54,
+      "payload": {
+        "text": ")\n"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 55,
+      "payload": {
+        "text": "```"
       }
     },
     {
       "type": "agent_update_unknown",
-      "seq": 19,
+      "seq": 56,
       "payload": {
-        "session_id": "019f1ce3-44f1-7b53-af06-f24b4f23dbc2",
+        "session_id": "019f1daf-42fa-7eb0-b262-87a1e982d11e",
         "update": {
           "sessionUpdate": "usage_update",
           "size": 258400,
-          "used": 20136
+          "used": 20221
         },
         "update_type": "usage_update"
       }
     },
     {
       "type": "session_info_update",
-      "seq": 20,
+      "seq": 57,
       "payload": {
         "_meta": {
           "codex": {
@@ -323,7 +585,7 @@
     },
     {
       "type": "turn_finished",
-      "seq": 21,
+      "seq": 58,
       "payload": {
         "request_id": 1,
         "result": {
@@ -333,93 +595,108 @@
                 {
                   "model": "gpt-5.5",
                   "token_count": {
-                    "cachedInputTokens": 4992,
-                    "inputTokens": 15133,
-                    "outputTokens": 11,
+                    "cachedInputTokens": 19840,
+                    "inputTokens": 334,
+                    "outputTokens": 47,
                     "reasoningOutputTokens": 0,
-                    "totalTokens": 20136
+                    "totalTokens": 20221
                   }
                 }
               ],
               "token_count": {
-                "cachedInputTokens": 4992,
-                "inputTokens": 15133,
-                "outputTokens": 11,
+                "cachedInputTokens": 19840,
+                "inputTokens": 334,
+                "outputTokens": 47,
                 "reasoningOutputTokens": 0,
-                "totalTokens": 20136
+                "totalTokens": 20221
               }
             }
           },
           "stopReason": "end_turn",
           "usage": {
-            "cachedReadTokens": 4992,
-            "inputTokens": 15133,
-            "outputTokens": 11,
+            "cachedReadTokens": 19840,
+            "inputTokens": 334,
+            "outputTokens": 47,
             "thoughtTokens": 0,
-            "totalTokens": 20136
+            "totalTokens": 20221
           }
         }
       }
     }
   ],
-  "prompt": "Run this exact command through the client terminal capability if available: printf 'Grei terminal sentinel: current-negative\\n'. Reply with only the sentinel line.",
+  "prompt": "run mix --version through the client terminal capability",
   "diagnostics": [
     {
       "message": "Expected Haven-mediated client capability events were missing, but generic ACP tool_call activity was observed. This is useful agent evidence, not proof of Haven-mediated fs/* or terminal/* handling.",
       "type": "tool_call_only_capability_gap",
-      "missing_events": [
-        "terminal_create_requested",
-        "terminal_created",
-        "terminal_output_requested"
-      ],
       "observed_events": [
         "tool_call",
         "tool_call_update"
+      ],
+      "missing_events": [
+        "terminal_create_requested",
+        "terminal_created",
+        "terminal_output_succeeded",
+        "terminal_released"
       ]
     }
   ],
   "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
   "agent": "codex-acp",
-  "run_id": "4441a6f1-08c3-49dd-bed3-f0c5941470dc",
+  "run_id": "ad4e33f0-a544-4e63-b919-12bbd6fe3949",
   "expected_events": [
+    "terminal_create_requested",
     "permission_requested",
     "permission_resolved",
-    "terminal_create_requested",
     "terminal_created",
-    "terminal_output_requested",
+    "terminal_output_succeeded",
+    "terminal_released",
     "turn_finished"
   ],
+  "agent_output_metrics": {
+    "text_char_count": 107,
+    "message_chunk_count": 43
+  },
+  "expected_output": {},
   "expected_event_fields": [
     {
-      "value": "printf",
+      "value": "mix",
       "field": "command",
       "event": "terminal_create_requested"
+    },
+    {
+      "value": "0",
+      "field": "exit_status",
+      "event": "terminal_output_succeeded"
     }
   ],
   "missing_expected_events": [
+    "terminal_create_requested",
     "permission_requested",
     "permission_resolved",
-    "terminal_create_requested",
     "terminal_created",
-    "terminal_output_requested"
+    "terminal_output_succeeded",
+    "terminal_released"
   ],
   "missing_expected_event_fields": [],
-  "redactions": [],
+  "missing_expected_output": [],
   "unsupported_client_capabilities": [
     {
       "reason": "Observed generic ACP tool_call activity instead of Haven-mediated client capability events.",
-      "missing_events": [
-        "terminal_create_requested",
-        "terminal_created",
-        "terminal_output_requested"
-      ],
       "observed_events": [
         "tool_call",
         "tool_call_update"
       ],
+      "missing_events": [
+        "terminal_create_requested",
+        "terminal_created",
+        "terminal_output_succeeded",
+        "terminal_released"
+      ],
       "capability": "terminal"
     }
   ],
+  "redactions": [],
   "real_agent_evidence": {
     "required": true,
     "accepted": true

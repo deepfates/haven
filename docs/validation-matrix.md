@@ -853,13 +853,15 @@ Evidence:
   `tool_call`/`tool_call_update` session updates rather than Haven's
   `terminal/create`, `terminal/output`, and related client request handlers.
 - `docs/probe-failures/codex-acp-terminal-mediated-negative.json` is a named
-  failed 2026-07-01 attempt to require `permission_requested`,
-  `permission_resolved`, `terminal_create_requested`, `terminal_created`, and
-  `terminal_output_requested` against saved `codex-acp`. The agent still runs
-  the command via generic ACP `tool_call` / `tool_call_update`; the report now
-  declares `terminal` in `unsupported_client_capabilities`, so this counts as
-  explicit unsupported evidence for Haven-mediated proof with this agent class,
-  not positive `terminal/*` proof.
+  failed 2026-07-01 attempt, refreshed as durable run
+  `ad4e33f0-a544-4e63-b919-12bbd6fe3949`, to require
+  `permission_requested`, `permission_resolved`, `terminal_create_requested`,
+  `terminal_created`, `terminal_output_succeeded`, and `terminal_released`
+  against saved `codex-acp`. The agent still runs `mix --version` via generic
+  ACP `tool_call` / `tool_call_update`; the report declares `terminal` in
+  `unsupported_client_capabilities`, so this counts as explicit unsupported
+  evidence for Haven-mediated proof with this agent class, not positive
+  `terminal/*` proof.
 - Haven now wraps the upstream Elixir ACP client-side decoder so newer/unknown
   `session/update` variants are persisted as raw protocol events instead of
   crashing the connection. This was required by `codex-acp`, which currently
