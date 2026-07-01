@@ -757,7 +757,10 @@ Evidence:
   terminal-denial `--require-real-agent` report commands only for eligible probe
   candidates. Those generated commands mirror the missing production-grade
   evidence stories, explicitly warn that they are not ACP evidence until
-  preflight or a generated probe passes, and never render environment values.
+  preflight or a generated probe passes, include `--redact-env` for configured
+  env key names plus a reminder to add `--redact` for stored/plain values that
+  are not present in the shell environment, and never render environment
+  values.
 - Agent inventory now also attaches the latest durable preflight run for the
   selected workspace, so both the CLI inventory and inbox Agent Setup can show
   `ACP preflight passed`, `ACP preflight failed`, or `ACP preflight not run`

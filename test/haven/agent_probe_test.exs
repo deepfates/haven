@@ -270,7 +270,11 @@ defmodule Haven.AgentProbeTest do
 
   test "agent probe inventory prints production proof commands for candidates" do
     Application.put_env(:haven, :agents, %{
-      "candidate" => %{executable: "sh", args: ["-c", "cat"]}
+      "candidate" => %{
+        executable: "sh",
+        args: ["-c", "cat"],
+        env: %{"API_TOKEN" => "hidden-token", "MODE" => "test"}
+      }
     })
 
     output =
@@ -279,8 +283,11 @@ defmodule Haven.AgentProbeTest do
       end)
 
     assert output =~ "proof commands:"
+    assert output =~ "redaction: commands include --redact-env for configured env keys"
     assert output =~ "basic: mix haven.agent_probe --agent candidate"
     assert output =~ "--report docs/probes/candidate-basic.json"
+    assert output =~ "--redact-env API_TOKEN --redact-env MODE"
+    refute output =~ "hidden-token"
 
     assert output =~ "file-read: mix haven.agent_probe --agent candidate"
     assert output =~ "--file-read-policy allow"
