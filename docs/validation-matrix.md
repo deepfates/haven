@@ -491,6 +491,9 @@ Evidence:
   `not connected`, runtime `agent_protocol_failed` is visible, and clicking
   Restart appends `run_reconnect_requested` plus a second runtime failure
   instead of hiding the error.
+- LiveView integration verifies archived failed run detail leads with explicit
+  archived review-only state in the header, so the durable `failed` status is
+  not mistaken for a recoverable live failure.
 - LiveView integration tests and browser smoke verify malformed agent output
   after a successful ACP session has started records `agent_protocol_failed`,
   fails the active turn with `malformed_agent_output`, marks the run `failed`,

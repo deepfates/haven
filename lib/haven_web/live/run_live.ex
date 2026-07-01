@@ -1739,9 +1739,19 @@ defmodule HavenWeb.RunLive do
                     </ul>
                   </details>
                 </div>
-                <span class="inline-flex shrink-0 items-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm font-medium text-zinc-700">
-                  {@run.status}
-                </span>
+                <div class="flex shrink-0 flex-col items-end gap-2">
+                  <span class="inline-flex items-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm font-medium text-zinc-700">
+                    {@run.status}
+                  </span>
+                  <span
+                    :if={@run.archived_at}
+                    id="run-header-archive-state"
+                    title={"Archived at #{Calendar.strftime(@run.archived_at, "%Y-%m-%d %H:%M:%S")}"}
+                    class="inline-flex items-center rounded-full border border-zinc-300 bg-zinc-100 px-3 py-1 text-xs font-semibold uppercase text-zinc-700"
+                  >
+                    Archived
+                  </span>
+                </div>
               </div>
             </header>
 

@@ -609,6 +609,8 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, view, html} = live(conn, ~p"/runs/#{archived_run.id}")
 
     assert html =~ "failed"
+    assert has_element?(view, "#run-header-archive-state", "Archived")
+    assert has_element?(view, ~s|#run-header-archive-state[title*="Archived at"]|)
     assert has_element?(view, "#run-archive-card", "Archived history")
     assert has_element?(view, "#run-control-notice", "archived")
     assert has_element?(view, "#send-prompt-button[disabled]")
