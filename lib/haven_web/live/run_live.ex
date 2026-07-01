@@ -173,6 +173,7 @@ defmodule HavenWeb.RunLive do
     |> assign(:can_retry_last_prompt?, can_retry_last_prompt?(run, events))
     |> assign(:can_continue_failed?, can_continue_failed?(run))
     |> assign(:recovery_attention, recovery_attention(run, live?))
+    |> assign(:latest_failure_summary, latest_failure_summary(events))
     |> assign(:pending_permission, pending_permission)
   end
 
@@ -491,6 +492,52 @@ defmodule HavenWeb.RunLive do
   end
 
   defp recovery_attention(_run, _live?), do: nil
+
+  defp latest_failure_summary(events) do
+    events
+    |> Enum.reverse()
+    |> Enum.find(&failure_event?/1)
+    |> case do
+      nil -> nil
+      event -> failure_summary(event)
+    end
+  end
+
+  defp failure_event?(%{type: type})
+       when type in [
+              "turn_failed",
+              "agent_start_failed",
+              "agent_protocol_failed",
+              "agent_process_down",
+              "agent_process_exited"
+            ],
+       do: true
+
+  defp failure_event?(_event), do: false
+
+  defp failure_summary(%{type: "turn_failed", seq: seq, payload: payload}) do
+    %{
+      seq: seq,
+      title: "Turn failed",
+      reason: format_client_value(payload["error"] || "unknown turn failure")
+    }
+  end
+
+  defp failure_summary(%{type: "agent_process_exited", seq: seq, payload: payload}) do
+    %{
+      seq: seq,
+      title: "Agent process exited",
+      reason: "Exit status #{format_client_value(payload["status"] || "unknown")}"
+    }
+  end
+
+  defp failure_summary(%{type: type, seq: seq, payload: payload}) do
+    %{
+      seq: seq,
+      title: runtime_failure_title(type),
+      reason: runtime_failure_reason(payload)
+    }
+  end
 
   defp latest_pending_permission(events) do
     resolved =
@@ -2139,6 +2186,29 @@ defmodule HavenWeb.RunLive do
                 <p class="mt-2 text-sm text-zinc-700">
                   {@recovery_attention.body}
                 </p>
+                <div
+                  :if={@latest_failure_summary}
+                  id="run-recovery-failure-summary"
+                  class="mt-3 rounded-md border border-rose-200 bg-white px-3 py-2 text-sm"
+                >
+                  <p class="text-xs font-semibold uppercase text-rose-700">Latest failure</p>
+                  <p id="run-recovery-failure-title" class="mt-1 font-semibold text-zinc-950">
+                    {@latest_failure_summary.title}
+                  </p>
+                  <p
+                    id="run-recovery-failure-reason"
+                    class="mt-1 break-words text-rose-800"
+                  >
+                    {@latest_failure_summary.reason}
+                  </p>
+                  <a
+                    id="run-recovery-failure-event-link"
+                    href={"#event-#{@latest_failure_summary.seq}"}
+                    class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-zinc-700 transition hover:text-zinc-950"
+                  >
+                    <.icon name="hero-arrow-down-circle" class="size-3.5" /> View event
+                  </a>
+                </div>
                 <p
                   :if={@can_retry_last_prompt?}
                   id="retry-last-prompt-preview"

@@ -585,13 +585,22 @@ defmodule HavenWeb.RunLiveTest do
     run = insert_disconnected_run!("Retry failed history", "failed")
     Events.append!(run.id, "turn_started", %{"prompt" => "retry me"})
     Events.append!(run.id, "user_message", %{"text" => "retry me"})
-    Events.append!(run.id, "turn_failed", %{"error" => "agent_process_exited"})
+    turn_failed = Events.append!(run.id, "turn_failed", %{"error" => "agent_process_exited"})
     stop_run_server_on_exit(run.id)
     Events.subscribe(run.id)
 
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
 
     assert has_element?(view, "#run-recovery-card", "Run failed")
+    assert has_element?(view, "#run-recovery-failure-summary", "Latest failure")
+    assert has_element?(view, "#run-recovery-failure-title", "Turn failed")
+    assert has_element?(view, "#run-recovery-failure-reason", "agent_process_exited")
+
+    assert has_element?(
+             view,
+             ~s|#run-recovery-failure-event-link[href="#event-#{turn_failed.seq}"]|
+           )
+
     assert has_element?(view, "#retry-last-prompt-button", "Retry last prompt")
     assert has_element?(view, "#retry-last-prompt-preview", "retry me")
     assert has_element?(view, "#run-recovery-action-button", "Restart")
@@ -1545,6 +1554,10 @@ defmodule HavenWeb.RunLiveTest do
     assert_receive {:event_appended, %{type: "turn_failed"}}, 1_000
 
     assert render(view) =~ "failed"
+    assert has_element?(view, "#run-recovery-failure-summary", "Latest failure")
+    assert has_element?(view, "#run-recovery-failure-title", "Turn failed")
+    assert has_element?(view, "#run-recovery-failure-reason", "agent_process_exited")
+    assert has_element?(view, "#run-recovery-failure-event-link")
   end
 
   test "agent crash resolves pending permission as system cancelled", %{conn: conn} do
@@ -3654,7 +3667,7 @@ defmodule HavenWeb.RunLiveTest do
 
   defp sync_run_server!(run_id) do
     {:ok, pid} = Runs.ensure_started(run_id)
-    _ = :sys.get_state(pid)
+    _ = :sys.get_state(pid, @agent_event_timeout * 3)
     :ok
   end
 
