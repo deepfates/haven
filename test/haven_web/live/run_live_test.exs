@@ -1058,6 +1058,12 @@ defmodule HavenWeb.RunLiveTest do
     assert audit.outcome == "selected"
     assert audit.actor == "local_user"
     assert audit.raw_input == %{"path" => Path.join(File.cwd!(), "notes.md")}
+    assert audit.resolved_at
+
+    assert has_element?(view, "#permission-audit-#{audit.id}-requested-at", "Requested")
+    assert has_element?(view, "#permission-audit-#{audit.id}-requested-at", "UTC")
+    assert has_element?(view, "#permission-audit-#{audit.id}-resolved-at", "Resolved")
+    assert has_element?(view, "#permission-audit-#{audit.id}-resolved-at", "UTC")
   end
 
   test "denies a permission request without taking the requested action", %{conn: conn} do

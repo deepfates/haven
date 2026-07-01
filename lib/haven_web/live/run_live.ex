@@ -1295,6 +1295,12 @@ defmodule HavenWeb.RunLive do
 
   defp permission_options_label(_options), do: "none"
 
+  defp audit_time_label(nil), do: "unknown"
+
+  defp audit_time_label(%DateTime{} = time) do
+    Calendar.strftime(time, "%Y-%m-%d %H:%M:%S UTC")
+  end
+
   defp permission_audit_for_event(audits, event) do
     request_id = to_string(event.payload["request_id"])
 
@@ -2229,6 +2235,14 @@ defmodule HavenWeb.RunLive do
                     </div>
 
                     <dl class="mt-3 grid gap-2 text-xs text-zinc-700">
+                      <div id={"permission-audit-#{audit.id}-requested-at"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Requested</dt>
+                        <dd class="font-mono">{audit_time_label(audit.inserted_at)}</dd>
+                      </div>
+                      <div :if={audit.resolved_at} id={"permission-audit-#{audit.id}-resolved-at"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Resolved</dt>
+                        <dd class="font-mono">{audit_time_label(audit.resolved_at)}</dd>
+                      </div>
                       <div id={"permission-audit-#{audit.id}-kind"}>
                         <dt class="font-semibold uppercase text-zinc-500">Kind</dt>
                         <dd>{permission_kind_label(audit.kind)}</dd>

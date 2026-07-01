@@ -181,8 +181,9 @@ Required behavior:
 - Stale or already-resolved permissions should not present active buttons.
 - Permission requests and resolution attempts should also appear in a durable
   audit projection so users can review what was requested, which options were
-  available, who or what resolved it, and whether the request was selected,
-  cancelled, or ignored without spelunking raw timeline JSON.
+  available, who or what resolved it, when it was requested and resolved, and
+  whether the request was selected, cancelled, or ignored without spelunking raw
+  timeline JSON.
 
 ## Protocol Requirements
 

@@ -364,8 +364,8 @@ Evidence:
   updated on allow, deny, local-user cancellation, and system cancellation.
   LiveView integration tests verify the run detail sidebar renders the audit
   projection and that rows preserve request id, kind, title, raw input,
-  available options, selected option, outcome, actor class, and cancellation or
-  stale-resolution reason.
+  available options, selected option, outcome, actor class, requested/resolved
+  timestamps, and cancellation or stale-resolution reason.
 - Stale duplicate permission decisions now create an ignored audit row instead
   of mutating the already-resolved request, making attempted late decisions
   reviewable without reopening the active permission flow.
