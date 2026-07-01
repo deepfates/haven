@@ -2,16 +2,18 @@
 
 Date: 2026-07-01
 
-Verified application commit: `26de37b1`
+Verified application commit: `ae667d2e`
 
-Purpose: rerun the browser sanity gate after the workspace security policy and
-current real-agent probe refresh, using the current dev server at
-`http://127.0.0.1:4000/`.
+Purpose: rerun the browser sanity gate after the mobile-first inbox/run
+simplification pass and current real-agent probe refresh, using the current dev
+server at `http://127.0.0.1:4000/`.
 
 ## CLI Preconditions
 
 - `MIX_ENV=dev mix haven.pending_migrations`
   - Result: `No pending migrations.`
+- `mix precommit`
+  - Result: passed with 253 tests, 0 failures.
 - `MIX_ENV=dev mix haven.runtime_smoke --base-url http://127.0.0.1:4000`
   - Result: passed.
   - Runtime smoke run id: `3223240c-67e0-49dc-abf1-3be3e53bf353`
@@ -43,9 +45,10 @@ Inbox checks:
 - `#haven-inbox` rendered.
 - `h1` text is `Inbox`.
 - `#inbox-queue-summary` present.
-- `#inbox-search-form` present.
+- `#inbox-run-filters` present as the compact `Find runs` disclosure.
+- `#inbox-search-form` remains available inside that disclosure.
 - `#new-run-panel` present as a secondary disclosure.
-- Duplicate `#inbox-run-filters` absent.
+- Run rows appear in the mobile first viewport before expanded filter controls.
 - Page does not contain a pending migration or server error page.
 - No horizontal overflow at default or `390x844`.
 - Product-visible proof metadata is absent from the primary header path.
@@ -58,12 +61,14 @@ Run detail checks:
 - `#run-conversation` or `#run-turn-summary` present.
 - `#pending-permission-card` or `#run-permission-audit` present.
 - `#run-security-boundary` present.
+- On a disconnected waiting run, `#run-control-panel` remains available but no
+  longer has the mobile `sticky` class while prompting is disabled.
 - Run facts/details are available without dominating the primary header.
 - Page does not contain a pending migration or server error page.
 - No horizontal overflow at default or `390x844`.
 - Product-visible proof metadata is absent from the primary header path.
 
 This smoke record verifies the internal-alpha browser sanity gate at verified
-application commit `26de37b1`. It does not change the production-grade
-boundary: real-agent Haven-mediated file and terminal capability proof remains
-unproven for `codex-acp`.
+application commit `ae667d2e`. It does not change the production-grade boundary:
+real-agent Haven-mediated file and terminal capability proof remains proven only
+by the committed probe artifacts named in the probe documentation.
