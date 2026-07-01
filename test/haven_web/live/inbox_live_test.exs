@@ -139,6 +139,9 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#run-#{waiting.id}-next-step", "Reconnect before deciding")
+    assert has_element?(view, "#run-#{waiting.id}-agent", "stub-acp")
+    assert has_element?(view, "#run-#{waiting.id}-agent-launch", "Launch ready")
+    assert has_element?(view, "#run-#{waiting.id}-agent-trust", "Local harness")
     assert has_element?(view, "#run-#{failed.id}-next-step", "Restart or inspect failure")
 
     view
@@ -148,6 +151,23 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{archived_failure.id}-next-step", "Review history")
     assert has_element?(view, "#run-#{archived_failure.id} a", "Review")
     refute has_element?(view, "#run-#{archived_failure.id} a", "Recover")
+  end
+
+  test "renders evidence-backed agent trust in run rows", %{conn: conn} do
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "codex-acp",
+               executable: "sh",
+               args: ["-c", "cat"]
+             })
+
+    run = insert_run!("Evidence row", "idle", %{agent: "codex-acp"})
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#run-#{run.id}-agent", "codex-acp")
+    assert has_element?(view, "#run-#{run.id}-agent-launch", "Launch ready")
+    assert has_element?(view, "#run-#{run.id}-agent-trust", "3 accepted probes")
   end
 
   @tag :tmp_dir

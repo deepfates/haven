@@ -1116,12 +1116,17 @@ defmodule HavenWeb.InboxLive do
   end
 
   defp run_card(assigns) do
+    agent_inventory = Map.get(assigns, :agent_inventory, %{})
+    agent_probe_reports = Map.get(assigns, :agent_probe_reports, %{})
+
     assigns =
       assigns
       |> assign_new(:show_archive, fn -> false end)
       |> assign(:attention_label, run_attention_label(assigns.run))
       |> assign(:operational_label, run_operational_label(assigns.run))
       |> assign(:operational_hint, run_operational_hint(assigns.run))
+      |> assign(:agent_readiness, Map.get(agent_inventory, assigns.run.agent, %{}))
+      |> assign(:agent_reports, Map.get(agent_probe_reports, assigns.run.agent, []))
 
     ~H"""
     <article
@@ -1161,10 +1166,23 @@ defmodule HavenWeb.InboxLive do
       <div class="mt-2 flex items-center justify-between gap-3">
         <div class="min-w-0 text-xs text-zinc-500">
           <p class="truncate">
-            {@run.agent} · started {Calendar.strftime(@run.inserted_at, "%H:%M:%S")} · updated {Calendar.strftime(
+            <span id={"run-#{@run.id}-agent"}>{@run.agent}</span>
+            · started {Calendar.strftime(@run.inserted_at, "%H:%M:%S")} · updated {Calendar.strftime(
               @run.updated_at,
               "%H:%M:%S"
             )}
+          </p>
+          <p class="mt-1 flex flex-wrap gap-1">
+            <span id={"run-#{@run.id}-agent-launch"} class={agent_launch_class(@agent_readiness)}>
+              {agent_launch_label(@agent_readiness)}
+            </span>
+            <span
+              id={"run-#{@run.id}-agent-trust"}
+              class={agent_evidence_class(@agent_readiness, @agent_reports)}
+              title={agent_evidence_reason(@agent_readiness, @agent_reports)}
+            >
+              {agent_evidence_label(@agent_readiness, @agent_reports)}
+            </span>
           </p>
           <p
             :if={@run.archived_at}
@@ -1444,14 +1462,24 @@ defmodule HavenWeb.InboxLive do
           <section :if={@needs_you != []} id="inbox-needs-you-section" class="space-y-2">
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Needs You</h2>
             <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-              <.run_card :for={run <- @needs_you} run={run} />
+              <.run_card
+                :for={run <- @needs_you}
+                run={run}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+              />
             </div>
           </section>
 
           <section :if={@running != []} id="inbox-running-section" class="space-y-2">
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Running</h2>
             <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-              <.run_card :for={run <- @running} run={run} />
+              <.run_card
+                :for={run <- @running}
+                run={run}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+              />
             </div>
           </section>
 
@@ -1475,7 +1503,13 @@ defmodule HavenWeb.InboxLive do
               :if={@history != []}
               class="overflow-hidden rounded-lg border border-zinc-200 bg-white"
             >
-              <.run_card :for={run <- @history} run={run} show_archive={true} />
+              <.run_card
+                :for={run <- @history}
+                run={run}
+                show_archive={true}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+              />
             </div>
           </section>
 
@@ -1495,7 +1529,12 @@ defmodule HavenWeb.InboxLive do
               :if={@archived != []}
               class="overflow-hidden rounded-lg border border-zinc-200 bg-white"
             >
-              <.run_card :for={run <- @archived} run={run} />
+              <.run_card
+                :for={run <- @archived}
+                run={run}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+              />
             </div>
           </section>
 
