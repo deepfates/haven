@@ -332,8 +332,10 @@ Proven:
   diff previews, giving the user something concrete to inspect before
   approving. ACP file writes also create durable file-change projections that
   move from pending to applied, denied, failed, or cancelled and render on run
-  detail after reload. This is still a bounded preview surface, not a full
-  multi-file artifact workspace.
+  detail after reload. The review surface summarizes pending, applied, and
+  blocked changes and labels each proposed change with outcome-specific
+  guidance. This is still a bounded preview surface, not a full multi-file
+  artifact workspace.
 - Runs can carry per-run capability policy for file reads, file writes, and
   terminal creation. File reads/writes support explicit ask, allow, or deny
   behavior plus optional workspace-relative path scopes; terminal creation
@@ -392,7 +394,7 @@ Not yet proven:
   harness.
 - File capability handling against real non-test external agents.
 - Product-grade file artifact review beyond the current bounded file-change
-  projections.
+  projections and review-state summaries.
 - Terminal capability handling against real non-test external agents.
 - Interactive terminal sessions and process-tree kill behavior.
 - ACP-native session resume policy.

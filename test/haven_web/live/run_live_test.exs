@@ -1753,8 +1753,24 @@ defmodule HavenWeb.RunLiveTest do
     assert pending_change.content_preview == "written by Haven ACP\n"
     assert pending_change.diff_preview =~ "+written by Haven ACP\n"
     assert has_element?(view, "#run-file-change-count", "1")
+    assert has_element?(view, "#run-file-change-review-summary")
+    assert has_element?(view, "#run-file-change-pending-count", "1")
+    assert has_element?(view, "#run-file-change-applied-count", "0")
+    assert has_element?(view, "#run-file-change-blocked-count", "0")
     assert has_element?(view, "#file-change-#{pending_change.change_id}", "haven-written.txt")
     assert has_element?(view, "#file-change-#{pending_change.change_id}-status", "pending")
+
+    assert has_element?(
+             view,
+             "#file-change-#{pending_change.change_id}-review-state",
+             "Needs review"
+           )
+
+    assert has_element?(
+             view,
+             "#file-change-#{pending_change.change_id}-review-state",
+             "before deciding"
+           )
 
     assert has_element?(
              view,
@@ -1807,7 +1823,17 @@ defmodule HavenWeb.RunLiveTest do
     html = render(view)
     assert html =~ "file_write_succeeded"
     assert html =~ "Wrote file through Haven."
+    assert has_element?(view, "#run-file-change-pending-count", "0")
+    assert has_element?(view, "#run-file-change-applied-count", "1")
+    assert has_element?(view, "#run-file-change-blocked-count", "0")
     assert has_element?(view, "#file-change-#{applied_change.change_id}-status", "applied")
+    assert has_element?(view, "#file-change-#{applied_change.change_id}-review-state", "Applied")
+
+    assert has_element?(
+             view,
+             "#file-change-#{applied_change.change_id}-review-state",
+             "written to the workspace"
+           )
 
     assert has_element?(
              view,
@@ -1933,7 +1959,17 @@ defmodule HavenWeb.RunLiveTest do
     refute File.exists?(Path.join(tmp_dir, "haven-written.txt"))
     refute has_element?(view, "#pending-permission-card")
     assert render(view) =~ "file_write_denied"
+    assert has_element?(view, "#run-file-change-pending-count", "0")
+    assert has_element?(view, "#run-file-change-applied-count", "0")
+    assert has_element?(view, "#run-file-change-blocked-count", "1")
     assert has_element?(view, "#file-change-#{denied_change.change_id}-status", "denied")
+    assert has_element?(view, "#file-change-#{denied_change.change_id}-review-state", "Blocked")
+
+    assert has_element?(
+             view,
+             "#file-change-#{denied_change.change_id}-review-state",
+             "did not touch"
+           )
 
     assert has_element?(
              view,

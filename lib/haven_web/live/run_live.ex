@@ -124,12 +124,14 @@ defmodule HavenWeb.RunLive do
   defp assign_run(socket, id) do
     run = Runs.get_run!(id)
     events = Events.list_for_run(id)
+    file_changes = FileChanges.list_for_run(id)
     live? = Runs.started?(id)
 
     socket
     |> assign(:run, run)
     |> assign(:capability_policy, Run.capability_policy(run.capability_policy))
-    |> assign(:file_changes, FileChanges.list_for_run(id))
+    |> assign(:file_changes, file_changes)
+    |> assign(:file_change_counts, file_change_counts(file_changes))
     |> assign(:permission_audits, PermissionAudits.list_for_run(id))
     |> assign(:terminal_sessions, TerminalSessions.list_for_run(id))
     |> assign(:events, events)
@@ -926,6 +928,51 @@ defmodule HavenWeb.RunLive do
     ]
   end
 
+  defp file_change_counts(changes) do
+    counts = Enum.frequencies_by(changes, & &1.status)
+
+    %{
+      "all" => length(changes),
+      "pending" => Map.get(counts, "pending", 0),
+      "applied" => Map.get(counts, "applied", 0),
+      "blocked" =>
+        Enum.reduce(["denied", "failed", "cancelled"], 0, fn status, total ->
+          total + Map.get(counts, status, 0)
+        end)
+    }
+  end
+
+  defp file_change_review_label(%{status: "pending"}), do: "Needs review"
+  defp file_change_review_label(%{status: "applied"}), do: "Applied"
+
+  defp file_change_review_label(%{status: status})
+       when status in ["denied", "failed", "cancelled"],
+       do: "Blocked"
+
+  defp file_change_review_label(_change), do: "Recorded"
+
+  defp file_change_review_hint(%{status: "pending"}) do
+    "Review the proposed content and diff before deciding."
+  end
+
+  defp file_change_review_hint(%{status: "applied"}) do
+    "This change was written to the workspace."
+  end
+
+  defp file_change_review_hint(%{status: "denied"}) do
+    "This proposed change was denied and did not touch the workspace."
+  end
+
+  defp file_change_review_hint(%{status: "failed"}) do
+    "This proposed change failed while applying."
+  end
+
+  defp file_change_review_hint(%{status: "cancelled"}) do
+    "This proposed change was cancelled before completion."
+  end
+
+  defp file_change_review_hint(_change), do: "This file change is recorded for review."
+
   defp file_change_error(nil), do: nil
 
   defp file_change_error(%{"message" => message, "data" => %{"reason" => reason}}) do
@@ -1606,6 +1653,31 @@ defmodule HavenWeb.RunLive do
                   No file changes recorded.
                 </div>
 
+                <div
+                  :if={@file_changes != []}
+                  id="run-file-change-review-summary"
+                  class="mt-3 grid grid-cols-3 gap-2 text-xs"
+                >
+                  <div class="rounded-md border border-amber-200 bg-amber-50 p-2">
+                    <p class="font-semibold uppercase text-amber-700">Needs review</p>
+                    <p id="run-file-change-pending-count" class="mt-1 font-mono text-zinc-900">
+                      {@file_change_counts["pending"]}
+                    </p>
+                  </div>
+                  <div class="rounded-md border border-emerald-200 bg-emerald-50 p-2">
+                    <p class="font-semibold uppercase text-emerald-700">Applied</p>
+                    <p id="run-file-change-applied-count" class="mt-1 font-mono text-zinc-900">
+                      {@file_change_counts["applied"]}
+                    </p>
+                  </div>
+                  <div class="rounded-md border border-rose-200 bg-rose-50 p-2">
+                    <p class="font-semibold uppercase text-rose-700">Blocked</p>
+                    <p id="run-file-change-blocked-count" class="mt-1 font-mono text-zinc-900">
+                      {@file_change_counts["blocked"]}
+                    </p>
+                  </div>
+                </div>
+
                 <div class="mt-3 space-y-3">
                   <article
                     :for={change <- @file_changes}
@@ -1628,6 +1700,15 @@ defmodule HavenWeb.RunLive do
                         {change.status}
                       </span>
                     </div>
+                    <p
+                      id={"file-change-#{change.change_id}-review-state"}
+                      class="mt-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600"
+                    >
+                      <span class="font-semibold text-zinc-900">
+                        {file_change_review_label(change)}
+                      </span>
+                      {" · "}{file_change_review_hint(change)}
+                    </p>
 
                     <dl class="mt-3 grid gap-2 text-xs text-zinc-700">
                       <div

@@ -431,6 +431,9 @@ Evidence:
   file-change projection plus approval card, approves the write, verifies the
   projection becomes applied with a resolved path, reloads the page, and
   verifies the applied projection persists.
+- LiveView integration tests verify the file-change review surface summarizes
+  pending, applied, and blocked change counts, and labels each recorded change
+  as needing review, applied, or blocked with outcome-specific guidance.
 - `Haven.Terminals` runs short-lived non-interactive commands, captures stdout
   and stderr, reports exit status, and rejects terminal working directories
   outside the run workspace.
@@ -614,9 +617,10 @@ Still missing:
   (`terminal/create`, `terminal/output`, `terminal/wait_for_exit`,
   `terminal/release`, and `terminal/kill`).
 - Product-grade file artifact review; current evidence is a durable bounded
-  `file_changes` projection for Haven-mediated writes, structured
-  Haven-mediated client capability event projections, and grouped compact
-  `tool_call` projections for real `codex-acp` file/terminal activity.
+  `file_changes` projection with review counts/outcome hints for
+  Haven-mediated writes, structured Haven-mediated client capability event
+  projections, and grouped compact `tool_call` projections for real
+  `codex-acp` file/terminal activity.
 - PTY-style interactive terminal sessions.
 - More expressive scoped-policy UI beyond comma-separated path fields.
 
