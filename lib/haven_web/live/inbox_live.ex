@@ -2072,6 +2072,60 @@ defmodule HavenWeb.InboxLive do
                   Start
                 </button>
               </div>
+              <div
+                id="new-run-agent-evidence"
+                class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600"
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <span id="new-run-agent-key" class="font-semibold text-zinc-950">
+                    {selected_agent}
+                  </span>
+                  <span id="new-run-agent-launch" class={agent_launch_class(selected_readiness)}>
+                    {agent_launch_label(selected_readiness)}
+                  </span>
+                  <span
+                    id="new-run-agent-trust"
+                    class={agent_evidence_class(selected_readiness, selected_reports)}
+                  >
+                    {agent_evidence_label(selected_readiness, selected_reports)}
+                  </span>
+                  <span
+                    :if={selected_gap_reports != []}
+                    id="new-run-agent-capability-gaps"
+                    class={capability_gap_class()}
+                  >
+                    {pluralize_count(length(selected_gap_reports), "capability gap")}
+                  </span>
+                </div>
+                <p id="new-run-agent-evidence-reason" class="mt-1 truncate">
+                  {agent_evidence_reason(selected_readiness, selected_reports)}
+                </p>
+                <div
+                  id="new-run-agent-auth-scope"
+                  class="mt-2 flex flex-wrap items-center gap-2"
+                  title={agent_readiness_env_auth_reason(selected_readiness)}
+                >
+                  <span
+                    id="new-run-agent-auth-env"
+                    class={agent_readiness_env_auth_class(selected_readiness)}
+                  >
+                    {agent_readiness_env_auth_label(selected_readiness)}
+                  </span>
+                  <span
+                    id="new-run-agent-env-keys"
+                    class="inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-600"
+                  >
+                    {agent_readiness_env_scope_label(selected_readiness)}
+                  </span>
+                </div>
+                <p
+                  :if={selected_gap_reports != []}
+                  id="new-run-agent-capability-gap-reason"
+                  class="mt-1 truncate text-amber-700"
+                >
+                  {capability_gap_reason(selected_gap_reports)}
+                </p>
+              </div>
               <section
                 :if={selected_workspace}
                 id="new-run-selected-workspace"
@@ -2115,63 +2169,6 @@ defmodule HavenWeb.InboxLive do
                   <% terminal_policy = form_value(@form, :terminal_create_policy) %>
                   <% read_scopes = parse_path_scope(form_value(@form, :file_read_paths)) %>
                   <% write_scopes = parse_path_scope(form_value(@form, :file_write_paths)) %>
-                  <div
-                    id="new-run-agent-evidence"
-                    class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600"
-                  >
-                    <div class="flex flex-wrap items-center gap-2">
-                      <span id="new-run-agent-key" class="font-semibold text-zinc-950">
-                        {selected_agent}
-                      </span>
-                      <span
-                        id="new-run-agent-launch"
-                        class={agent_launch_class(selected_readiness)}
-                      >
-                        {agent_launch_label(selected_readiness)}
-                      </span>
-                      <span
-                        id="new-run-agent-trust"
-                        class={agent_evidence_class(selected_readiness, selected_reports)}
-                      >
-                        {agent_evidence_label(selected_readiness, selected_reports)}
-                      </span>
-                      <span
-                        :if={selected_gap_reports != []}
-                        id="new-run-agent-capability-gaps"
-                        class={capability_gap_class()}
-                      >
-                        {pluralize_count(length(selected_gap_reports), "capability gap")}
-                      </span>
-                    </div>
-                    <p id="new-run-agent-evidence-reason" class="mt-1 truncate">
-                      {agent_evidence_reason(selected_readiness, selected_reports)}
-                    </p>
-                    <div
-                      id="new-run-agent-auth-scope"
-                      class="mt-2 flex flex-wrap items-center gap-2"
-                      title={agent_readiness_env_auth_reason(selected_readiness)}
-                    >
-                      <span
-                        id="new-run-agent-auth-env"
-                        class={agent_readiness_env_auth_class(selected_readiness)}
-                      >
-                        {agent_readiness_env_auth_label(selected_readiness)}
-                      </span>
-                      <span
-                        id="new-run-agent-env-keys"
-                        class="inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-600"
-                      >
-                        {agent_readiness_env_scope_label(selected_readiness)}
-                      </span>
-                    </div>
-                    <p
-                      :if={selected_gap_reports != []}
-                      id="new-run-agent-capability-gap-reason"
-                      class="mt-1 truncate text-amber-700"
-                    >
-                      {capability_gap_reason(selected_gap_reports)}
-                    </p>
-                  </div>
                   <section id="new-run-capability-policy" class="grid gap-3">
                     <h3 class="text-xs font-semibold uppercase text-zinc-500">
                       Capability policy

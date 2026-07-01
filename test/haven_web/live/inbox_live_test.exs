@@ -50,6 +50,12 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#new-run-security-boundary-scopes", "Blank path scopes")
     assert has_element?(view, "#new-run-security-boundary-terminal", "inside the workspace")
 
+    html = render(view)
+    agent_evidence_index = :binary.match(html, ~s|id="new-run-agent-evidence"|) |> elem(0)
+    advanced_index = :binary.match(html, ~s|id="new-run-advanced"|) |> elem(0)
+
+    assert agent_evidence_index < advanced_index
+
     view
     |> form("#new-run-form", %{
       "title" => "Review agent changes",
@@ -132,6 +138,10 @@ defmodule HavenWeb.InboxLiveTest do
            )
 
     html = render(view)
+    agent_evidence_index = :binary.match(html, ~s|id="new-run-agent-evidence"|) |> elem(0)
+    advanced_index = :binary.match(html, ~s|id="new-run-advanced"|) |> elem(0)
+
+    assert agent_evidence_index < advanced_index
     assert html =~ "Credential-like keys will be injected: API_TOKEN"
     refute html =~ "super-secret"
   end
