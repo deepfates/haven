@@ -953,8 +953,8 @@ Evidence:
   run ids, matching aggregate child metadata, and a passing aggregate status.
   Concurrent load reports with `concurrency > 1` must also include child probe
   windows that show at least two overlapping runs, match the child report
-  `run_id`s and order, and have possible durations where `finished_at` is after
-  `started_at`.
+  `run_id`s, order, and status, and have possible durations where `finished_at`
+  is after `started_at`.
 
 Still missing:
 

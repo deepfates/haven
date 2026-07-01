@@ -330,11 +330,11 @@ defmodule Haven.AgentProbeReport do
 
   defp child_window_order_errors(%{"reports" => reports}, windows)
        when is_list(reports) and is_list(windows) do
-    expected_windows =
+    child_reports_by_run_id =
       reports
       |> Enum.with_index(1)
       |> Enum.filter(fn {report, _index} -> is_map(report) end)
-      |> Map.new(fn {report, index} -> {Map.get(report, "run_id"), index} end)
+      |> Map.new(fn {report, index} -> {Map.get(report, "run_id"), {index, report}} end)
 
     window_run_ids =
       windows
@@ -342,7 +342,7 @@ defmodule Haven.AgentProbeReport do
       |> MapSet.new()
 
     child_run_ids =
-      expected_windows
+      child_reports_by_run_id
       |> Map.keys()
       |> Enum.filter(&non_blank_string?/1)
       |> MapSet.new()
@@ -359,13 +359,32 @@ defmodule Haven.AgentProbeReport do
       mismatched =
         windows
         |> Enum.reject(fn window ->
-          Map.get(expected_windows, window["run_id"]) == window["index"]
+          case Map.get(child_reports_by_run_id, window["run_id"]) do
+            {index, _report} -> index == window["index"]
+            nil -> false
+          end
         end)
 
       if mismatched == [] do
         errors
       else
         ["child_windows indexes must match load child report order" | errors]
+      end
+    end)
+    |> then(fn errors ->
+      mismatched =
+        windows
+        |> Enum.reject(fn window ->
+          case Map.get(child_reports_by_run_id, window["run_id"]) do
+            {_index, report} -> report["status"] == window["status"]
+            nil -> false
+          end
+        end)
+
+      if mismatched == [] do
+        errors
+      else
+        ["child_windows status must match load child report status" | errors]
       end
     end)
   end

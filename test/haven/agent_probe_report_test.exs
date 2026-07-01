@@ -627,6 +627,29 @@ defmodule Haven.AgentProbeReportTest do
     assert "child_windows indexes must match load child report order" in errors
   end
 
+  test "rejects concurrent load reports whose child window status drifts from child reports" do
+    report =
+      Map.put(valid_load_report(), "child_windows", [
+        %{
+          "index" => 1,
+          "run_id" => "run-1",
+          "status" => "failed",
+          "started_at" => "2026-07-01T00:00:00Z",
+          "finished_at" => "2026-07-01T00:00:05Z"
+        },
+        %{
+          "index" => 2,
+          "run_id" => "run-2",
+          "status" => "idle",
+          "started_at" => "2026-07-01T00:00:01Z",
+          "finished_at" => "2026-07-01T00:00:06Z"
+        }
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate_load(report)
+    assert "child_windows status must match load child report status" in errors
+  end
+
   test "rejects concurrent load reports with impossible child window duration" do
     report =
       Map.put(valid_load_report(), "child_windows", [
