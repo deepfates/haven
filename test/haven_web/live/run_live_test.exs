@@ -428,6 +428,22 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, ~s|#run-header-inbox-attention[title="1 decision"]|)
   end
 
+  test "surfaces interrupted work elsewhere while reading one run", %{conn: conn} do
+    current = insert_disconnected_run!("Current conversation")
+    interrupted = insert_disconnected_run!("Interrupted elsewhere", "running")
+    live_running = insert_disconnected_run!("Live elsewhere", "running")
+
+    assert {:ok, _run} = Runs.mark_latest_viewed(interrupted.id)
+    assert {:ok, _run} = Runs.mark_latest_viewed(live_running.id)
+    assert {:ok, _value} = Registry.register(Haven.Runs.Registry, live_running.id, :live)
+
+    {:ok, view, html} = live(conn, ~p"/runs/#{current.id}")
+
+    assert html =~ "(1) Current conversation - Haven"
+    assert has_element?(view, "#run-header-inbox-attention", "1 run needs you")
+    assert has_element?(view, ~s|#run-header-inbox-attention[title="1 interruption"]|)
+  end
+
   test "pluralizes other runs needing attention in the run header", %{conn: conn} do
     current = insert_disconnected_run!("Current conversation")
     waiting = insert_disconnected_run!("Waiting elsewhere", "waiting")

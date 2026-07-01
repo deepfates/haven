@@ -47,6 +47,7 @@ defmodule Haven.Runs do
         needs_you: 0,
         decisions: 0,
         recoveries: 0,
+        interruptions: 0,
         unread_runs: 0,
         unread_events: 0
       },
@@ -58,6 +59,17 @@ defmodule Haven.Runs do
 
             "failed" ->
               %{summary | needs_you: summary.needs_you + 1, recoveries: summary.recoveries + 1}
+
+            status when status in ["initializing", "running"] ->
+              if started?(run) do
+                summary
+              else
+                %{
+                  summary
+                  | needs_you: summary.needs_you + 1,
+                    interruptions: summary.interruptions + 1
+                }
+              end
 
             _status ->
               summary
