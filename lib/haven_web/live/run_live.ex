@@ -131,6 +131,8 @@ defmodule HavenWeb.RunLive do
     |> assign(:can_cancel?, live? and run.status in ["initializing", "running", "waiting"])
     |> assign(:can_reconnect?, can_reconnect?(run, live?))
     |> assign(:control_notice, control_notice(run, live?))
+    |> assign(:prompt_disabled_reason, prompt_disabled_reason(run, live?))
+    |> assign(:cancel_disabled_reason, cancel_disabled_reason(run, live?))
     |> assign(:recovery_attention, recovery_attention(run, live?))
     |> assign(:pending_permission, latest_pending_permission(events))
   end
@@ -266,6 +268,27 @@ defmodule HavenWeb.RunLive do
   end
 
   defp control_notice(_run, _live?), do: nil
+
+  defp prompt_disabled_reason(%{status: "idle"}, true), do: nil
+  defp prompt_disabled_reason(run, live?), do: control_notice(run, live?)
+
+  defp cancel_disabled_reason(%{status: status}, true)
+       when status in ["initializing", "running", "waiting"],
+       do: nil
+
+  defp cancel_disabled_reason(%{status: "failed"}, _live?) do
+    "This run failed. Restart it instead of cancelling."
+  end
+
+  defp cancel_disabled_reason(%{status: "closed"}, _live?) do
+    "This run is closed. There is no active turn to cancel."
+  end
+
+  defp cancel_disabled_reason(_run, false) do
+    "This run is not connected. There is no live turn to cancel."
+  end
+
+  defp cancel_disabled_reason(_run, _live?), do: "There is no active turn to cancel."
 
   defp recovery_attention(%{status: "failed"}, _live?) do
     %{
@@ -1296,12 +1319,16 @@ defmodule HavenWeb.RunLive do
                   class="min-h-28 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
                   placeholder="Prompt this run"
                   disabled={!@can_prompt?}
+                  title={@prompt_disabled_reason}
+                  aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
                 >{@prompt}</textarea>
                 <div class="flex gap-2">
                   <button
                     id="send-prompt-button"
                     class="h-10 flex-1 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={!@can_prompt?}
+                    title={@prompt_disabled_reason}
+                    aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
                   >
                     Send
                   </button>
@@ -1311,6 +1338,8 @@ defmodule HavenWeb.RunLive do
                     class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                     phx-click="cancel"
                     disabled={!@can_cancel?}
+                    title={@cancel_disabled_reason}
+                    aria-describedby={if(@cancel_disabled_reason, do: "run-control-notice")}
                   >
                     Cancel
                   </button>
@@ -1323,6 +1352,8 @@ defmodule HavenWeb.RunLive do
                   phx-click="sample_prompt"
                   phx-value-text="hello from LiveView"
                   disabled={!@can_prompt?}
+                  title={@prompt_disabled_reason}
+                  aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
                 >
                   Echo
                 </button>
@@ -1332,6 +1363,8 @@ defmodule HavenWeb.RunLive do
                   phx-click="sample_prompt"
                   phx-value-text="permission"
                   disabled={!@can_prompt?}
+                  title={@prompt_disabled_reason}
+                  aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
                 >
                   Ask permission
                 </button>
@@ -1341,6 +1374,8 @@ defmodule HavenWeb.RunLive do
                   phx-click="sample_prompt"
                   phx-value-text="read-file"
                   disabled={!@can_prompt?}
+                  title={@prompt_disabled_reason}
+                  aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
                 >
                   Read file
                 </button>
@@ -1350,6 +1385,8 @@ defmodule HavenWeb.RunLive do
                   phx-click="sample_prompt"
                   phx-value-text="write-file"
                   disabled={!@can_prompt?}
+                  title={@prompt_disabled_reason}
+                  aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
                 >
                   Write file
                 </button>
@@ -1359,6 +1396,8 @@ defmodule HavenWeb.RunLive do
                   phx-click="sample_prompt"
                   phx-value-text="terminal"
                   disabled={!@can_prompt?}
+                  title={@prompt_disabled_reason}
+                  aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
                 >
                   Terminal
                 </button>

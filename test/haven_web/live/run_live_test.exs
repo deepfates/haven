@@ -101,6 +101,9 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Disconnected history"
     assert html =~ "not connected"
     assert has_element?(view, "#send-prompt-button[disabled]")
+    assert has_element?(view, ~s|#send-prompt-button[title*="not connected"]|)
+    assert has_element?(view, ~s|#sample-terminal-button[title*="not connected"]|)
+    assert has_element?(view, ~s|#cancel-run-button[title*="no live turn"]|)
     assert has_element?(view, "#run-control-notice", "not connected")
     refute Runs.started?(run.id)
 
@@ -301,6 +304,8 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "closed"
     assert has_element?(view, "#send-prompt-button[disabled]")
     assert has_element?(view, "#cancel-run-button[disabled]")
+    assert has_element?(view, ~s|#sample-echo-button[title*="closed"]|)
+    assert has_element?(view, ~s|#cancel-run-button[title*="no active turn"]|)
     assert has_element?(view, "#run-control-notice", "closed")
     refute has_element?(view, "#reconnect-run-button")
     refute Runs.started?(run.id)
@@ -315,6 +320,9 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
 
     refute has_element?(view, "#run-control-notice")
+    refute has_element?(view, "#send-prompt-button[title]")
+    refute has_element?(view, "#sample-terminal-button[title]")
+    assert has_element?(view, ~s|#cancel-run-button[title*="no active turn"]|)
 
     view
     |> form("#run-prompt-form", %{"prompt" => "hello from LiveView"})
@@ -1159,6 +1167,8 @@ defmodule HavenWeb.RunLiveTest do
     assert render(view) =~ "running"
     assert has_element?(view, "#send-prompt-button[disabled]")
     assert has_element?(view, "#sample-echo-button[disabled]")
+    assert has_element?(view, ~s|#sample-echo-button[title*="turn is already in progress"]|)
+    refute has_element?(view, "#cancel-run-button[title]")
     assert has_element?(view, "#run-control-notice", "A turn is already in progress")
     assert Runs.send_prompt(run.id, "second prompt") == {:error, :busy}
 

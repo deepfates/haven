@@ -201,6 +201,9 @@ Evidence:
   is unavailable for disconnected idle, disconnected waiting, disconnected
   running, live running, failed, closed, and waiting-on-decision states, while
   ready idle runs show no blocking notice.
+- LiveView integration tests verify disabled prompt, sample, and cancel
+  controls carry element-level explanations, while enabled controls do not keep
+  stale disabled-state tooltips.
 - LiveView integration tests verify recoverable disconnected and failed states
   expose the next Reconnect/Restart action in the conversation path, not only in
   secondary controls.
@@ -219,8 +222,8 @@ Still missing:
 - Prompt-id-level correlation of late chunks when agents provide enough
   metadata; current suppression is session-level after cancellation.
 - Retry or continue after recoverable failure.
-- Per-control disabled explanations for secondary sample buttons; the current
-  blocking notice is shared for the whole control panel.
+- Clearer retry/continue semantics for failed turns beyond full session
+  restart.
 
 ### Permissions
 
