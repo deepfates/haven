@@ -47,6 +47,20 @@ defmodule Haven.AgentProbeReport do
     end
   end
 
+  @spec validate_load_file(Path.t()) :: :ok | {:error, [String.t()]}
+  def validate_load_file(path) do
+    with {:ok, content} <- File.read(path),
+         {:ok, report} <- Jason.decode(content) do
+      validate_load(report)
+    else
+      {:error, %Jason.DecodeError{} = error} ->
+        {:error, ["invalid JSON: #{Exception.message(error)}"]}
+
+      {:error, reason} ->
+        {:error, ["could not read report: #{inspect(reason)}"]}
+    end
+  end
+
   @spec validate(map()) :: :ok | {:error, [String.t()]}
   def validate(report) when is_map(report) do
     errors =
@@ -108,6 +122,28 @@ defmodule Haven.AgentProbeReport do
 
   def validate_failure(_report), do: {:error, ["report must be a JSON object"]}
 
+  @spec validate_load(map()) :: :ok | {:error, [String.t()]}
+  def validate_load(report) when is_map(report) do
+    errors =
+      []
+      |> require_load_kind(report)
+      |> require_string(report, "agent")
+      |> reject_stub_agent(report)
+      |> require_string(report, "workspace")
+      |> require_string(report, "prompt")
+      |> require_real_agent_load(report)
+      |> require_positive_integer(report, "run_count", 2)
+      |> require_load_status(report)
+      |> require_expected_events(report)
+      |> require_expected_event_fields(report)
+      |> require_load_reports(report)
+      |> Enum.reverse()
+
+    if errors == [], do: :ok, else: {:error, errors}
+  end
+
+  def validate_load(_report), do: {:error, ["report must be a JSON object"]}
+
   defp require_string(errors, report, key) do
     case Map.get(report, key) do
       value when is_binary(value) ->
@@ -124,6 +160,13 @@ defmodule Haven.AgentProbeReport do
 
   defp invalid_string(errors, key), do: ["#{key} must be a non-empty string" | errors]
 
+  defp require_load_kind(errors, report) do
+    case Map.get(report, "kind") do
+      "agent_probe_load" -> errors
+      _kind -> ["kind must be agent_probe_load" | errors]
+    end
+  end
+
   defp reject_stub_agent(errors, %{"agent" => "stub-acp"}) do
     ["agent must not be stub-acp" | errors]
   end
@@ -136,6 +179,45 @@ defmodule Haven.AgentProbeReport do
       _status -> ["status must be one of #{Enum.join(@accepted_statuses, ", ")}" | errors]
     end
   end
+
+  defp require_load_status(errors, report) do
+    case Map.get(report, "status") do
+      "passed" -> errors
+      _status -> ["status must be passed" | errors]
+    end
+  end
+
+  defp require_positive_integer(errors, report, key, minimum) do
+    case Map.get(report, key) do
+      value when is_integer(value) and value >= minimum ->
+        errors
+
+      _value ->
+        ["#{key} must be an integer >= #{minimum}" | errors]
+    end
+  end
+
+  defp require_real_agent_load(errors, report) do
+    case Map.get(report, "reports") do
+      reports when is_list(reports) ->
+        if Enum.all?(reports, &real_agent_report?/1) do
+          errors
+        else
+          [
+            "all load child reports must have required=true and accepted=true real_agent_evidence"
+            | errors
+          ]
+        end
+
+      _reports ->
+        errors
+    end
+  end
+
+  defp real_agent_report?(%{"real_agent_evidence" => %{"required" => true, "accepted" => true}}),
+    do: true
+
+  defp real_agent_report?(_report), do: false
 
   defp require_real_agent_evidence(errors, report) do
     case Map.get(report, "real_agent_evidence") do
@@ -344,6 +426,89 @@ defmodule Haven.AgentProbeReport do
     case Map.get(report, "errors", %{}) do
       errors_map when errors_map in [%{}, nil] -> errors
       _errors -> ["errors must be empty or absent" | errors]
+    end
+  end
+
+  defp require_load_reports(errors, report) do
+    reports = Map.get(report, "reports")
+    run_count = Map.get(report, "run_count")
+
+    cond do
+      not is_list(reports) or reports == [] ->
+        ["reports must be a non-empty list" | errors]
+
+      is_integer(run_count) and length(reports) != run_count ->
+        [
+          "reports length must match run_count"
+          | validate_load_child_reports(errors, report, reports)
+        ]
+
+      true ->
+        validate_load_child_reports(errors, report, reports)
+    end
+  end
+
+  defp validate_load_child_reports(errors, load_report, reports) do
+    child_errors =
+      reports
+      |> Enum.with_index(1)
+      |> Enum.flat_map(fn {report, index} ->
+        case validate(report) do
+          :ok ->
+            load_child_identity_errors(load_report, report, index)
+
+          {:error, errors} ->
+            Enum.map(errors, &"child report #{index}: #{&1}")
+        end
+      end)
+
+    duplicate_errors = duplicate_run_id_errors(reports)
+
+    child_errors ++ duplicate_errors ++ errors
+  end
+
+  defp load_child_identity_errors(load_report, child, index) do
+    []
+    |> then(fn errors ->
+      if child["agent"] == load_report["agent"] do
+        errors
+      else
+        ["child report #{index}: agent must match load report"]
+      end
+    end)
+    |> then(fn errors ->
+      if child["workspace"] == load_report["workspace"] do
+        errors
+      else
+        ["child report #{index}: workspace must match load report" | errors]
+      end
+    end)
+    |> then(fn errors ->
+      if child["prompt"] == load_report["prompt"] do
+        errors
+      else
+        ["child report #{index}: prompt must match load report" | errors]
+      end
+    end)
+  end
+
+  defp duplicate_run_id_errors(reports) do
+    run_ids =
+      reports
+      |> Enum.filter(&is_map/1)
+      |> Enum.map(&Map.get(&1, "run_id"))
+      |> Enum.filter(&non_blank_string?/1)
+
+    duplicates =
+      run_ids
+      |> Enum.frequencies()
+      |> Enum.filter(fn {_run_id, count} -> count > 1 end)
+      |> Enum.map(fn {run_id, _count} -> run_id end)
+
+    if duplicates == [] do
+      []
+    else
+      ["load child reports must have distinct run_ids: #{Enum.join(duplicates, ", ")}"]
     end
   end
 

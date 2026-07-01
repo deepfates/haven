@@ -166,8 +166,28 @@ Haven real-agent evidence. It rejects the built-in stub and the known local
 test harness scripts used by automated coverage.
 
 Committed `*.json` reports in this directory, plus named negative boundary
-reports in `docs/probe-failures/*.json`, are validated by
+reports in `docs/probe-failures/*.json` and aggregate load reports in
+`docs/probe-load/*.json`, are validated by
 `mix haven.probe_reports`, which also runs as part of `mix precommit`.
+
+Use `--load-runs N` with `--require-real-agent` when the story needs repeated
+real-agent runs through Haven's lifecycle:
+
+```bash
+mix haven.agent_probe \
+  --agent my-agent \
+  --workspace /path/to/repo \
+  --prompt "summarize this workspace" \
+  --load-runs 2 \
+  --require-real-agent \
+  --expect-event agent_initialized \
+  --expect-event agent_session_started \
+  --expect-event turn_finished \
+  --report docs/probe-load/my-agent-basic-load.json
+```
+
+Current load reports are sequential repeated-run evidence. They do not prove
+concurrent scheduling or long-running external-agent output.
 
 ## Committed Evidence
 
@@ -188,3 +208,5 @@ reports in `docs/probe-failures/*.json`, are validated by
   of Haven-mediated `terminal/*` client request handling. The corresponding
   failed mediated-capability probe is recorded in
   `docs/probe-failures/codex-acp-terminal-mediated-negative.json`.
+- `docs/probe-load/codex-acp-basic-load.json`: positive sequential multi-run
+  real-agent evidence for the basic turn lifecycle through saved `codex-acp`.

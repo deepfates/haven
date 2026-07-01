@@ -146,6 +146,84 @@ defmodule Haven.AgentProbe do
     result
   end
 
+  @spec run_load(keyword()) :: {:ok, map()} | {:error, atom(), map()}
+  def run_load(opts) do
+    count = Keyword.get(opts, :load_runs, 1)
+
+    if is_integer(count) and count >= 2 do
+      run_load_runs(opts, count)
+    else
+      report =
+        load_report(opts, count, [], [%{index: nil, reason: :invalid_load_runs, run_id: nil}])
+
+      {:error, :invalid_load_runs, report}
+    end
+  end
+
+  defp run_load_runs(opts, count) do
+    expected_events =
+      Keyword.get_values(opts, :expect_event) ++ Keyword.get(opts, :expect_events, [])
+
+    expected_event_fields = expected_event_fields(opts)
+
+    reports =
+      1..count
+      |> Enum.map(fn index ->
+        run_opts =
+          opts
+          |> Keyword.delete(:load_runs)
+          |> Keyword.put(
+            :title,
+            "#{Keyword.get(opts, :title, title(Keyword.get(opts, :agent, "stub-acp")))} #{index}/#{count}"
+          )
+
+        {index, run(run_opts)}
+      end)
+
+    child_reports =
+      Enum.map(reports, fn
+        {_index, {:ok, report}} -> report
+        {_index, {:error, _reason, report}} -> report
+      end)
+
+    failures =
+      reports
+      |> Enum.flat_map(fn
+        {_index, {:ok, _report}} ->
+          []
+
+        {index, {:error, reason, report}} ->
+          [%{index: index, reason: reason, run_id: report.run_id}]
+      end)
+
+    report = %{
+      load_report(opts, count, child_reports, failures)
+      | expected_events: Enum.uniq(expected_events),
+        expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1)
+    }
+
+    if failures == [] do
+      {:ok, report}
+    else
+      {:error, :load_run_failed, report}
+    end
+  end
+
+  defp load_report(opts, count, child_reports, failures) do
+    %{
+      kind: "agent_probe_load",
+      agent: Keyword.get(opts, :agent, "stub-acp"),
+      workspace: Keyword.get(opts, :workspace, File.cwd!()),
+      prompt: Keyword.get(opts, :prompt, "hello from Haven agent probe"),
+      run_count: count,
+      status: if(failures == [], do: "passed", else: "failed"),
+      expected_events: [],
+      expected_event_fields: [],
+      failures: failures,
+      reports: child_reports
+    }
+  end
+
   @spec agent_inventory(String.t()) :: [map()]
   def agent_inventory(workspace \\ File.cwd!()) do
     workspace = Path.expand(workspace)

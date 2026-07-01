@@ -7,6 +7,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       mix haven.agent_probe --agent my-agent --workspace . --prompt "read README.md" --expect-event-field file_read_succeeded:path=README.md
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --terminal-create-policy deny --expect-event terminal_create_denied
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --report docs/probes/my-agent.json
+      mix haven.agent_probe --agent my-agent --workspace . --prompt "summarize this repo" --load-runs 3 --require-real-agent --report docs/probe-load/my-agent-load.json
       mix haven.agent_probe --list-agents --workspace .
       mix haven.agent_probe --list-agents --preflight --workspace .
       mix haven.agent_probe --list-agents --registry --workspace .
@@ -38,6 +39,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   Use repeated `--redact value` or `--redact-env ENV_VAR` flags to replace
   sensitive strings in the printed and written report with `[REDACTED]`.
   Use `--report path.json` to write the full probe report as pretty JSON.
+  Use `--load-runs N` with `--report` to write an aggregate report proving N
+  separate durable runs completed through the same configured agent path.
   """
 
   use Mix.Task
@@ -50,6 +53,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     workspace: :string,
     prompt: :string,
     timeout: :integer,
+    load_runs: :integer,
     resolve_permissions: :string,
     expect_event: :keep,
     expect_event_field: :keep,
@@ -95,13 +99,13 @@ defmodule Mix.Tasks.Haven.AgentProbe do
         )
 
       true ->
-        case Haven.AgentProbe.run(opts) do
+        case run_probe(opts) do
           {:ok, report} ->
-            print_report(report)
+            print_any_report(report)
             write_report(report, report_path)
 
           {:error, reason, report} ->
-            print_report(report)
+            print_any_report(report)
             write_report(report, report_path)
             Mix.raise("Agent probe failed: #{reason}")
         end
@@ -112,6 +116,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     opts
     |> Keyword.update(:workspace, File.cwd!(), &Path.expand/1)
     |> Keyword.update(:report, nil, &Path.expand/1)
+    |> normalize_load_runs()
     |> Keyword.update(:resolve_permissions, nil, &normalize_permission_resolution/1)
     |> normalize_path_scope(:file_read_paths)
     |> normalize_path_scope(:file_write_paths)
@@ -123,6 +128,19 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   defp normalize_permission_resolution(nil), do: nil
   defp normalize_permission_resolution("none"), do: nil
   defp normalize_permission_resolution(option_id), do: option_id
+
+  defp normalize_load_runs(opts) do
+    case Keyword.fetch(opts, :load_runs) do
+      {:ok, count} when is_integer(count) and count >= 2 ->
+        opts
+
+      {:ok, count} ->
+        Mix.raise("Invalid --load-runs #{inspect(count)}; expected an integer >= 2")
+
+      :error ->
+        opts
+    end
+  end
 
   defp normalize_path_scope(opts, key) do
     case Keyword.fetch(opts, key) do
@@ -345,6 +363,46 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       value
     else
       "'#{String.replace(value, "'", "'\"'\"'")}'"
+    end
+  end
+
+  defp run_probe(opts) do
+    case Keyword.fetch(opts, :load_runs) do
+      {:ok, _count} -> Haven.AgentProbe.run_load(opts)
+      :error -> Haven.AgentProbe.run(opts)
+    end
+  end
+
+  defp print_any_report(%{kind: "agent_probe_load"} = report), do: print_load_report(report)
+  defp print_any_report(report), do: print_report(report)
+
+  defp print_load_report(report) do
+    Mix.shell().info("Load probe: #{report.run_count} run(s)")
+    Mix.shell().info("Agent: #{report.agent}")
+    Mix.shell().info("Workspace: #{report.workspace}")
+    Mix.shell().info("Status: #{report.status}")
+    Mix.shell().info("Prompt: #{report.prompt}")
+
+    if report.expected_events != [] do
+      Mix.shell().info("Expected events: #{Enum.join(report.expected_events, ", ")}")
+    end
+
+    Mix.shell().info("")
+    Mix.shell().info("Runs:")
+
+    Enum.each(report.reports, fn child ->
+      Mix.shell().info("- #{child.run_id || "(not created)"}: #{child.status}")
+    end)
+
+    if report.failures != [] do
+      Mix.shell().info("")
+      Mix.shell().info("Failures:")
+
+      Enum.each(report.failures, fn failure ->
+        Mix.shell().info(
+          "- #{failure.index}: #{failure.reason} #{failure.run_id || "(not created)"}"
+        )
+      end)
     end
   end
 

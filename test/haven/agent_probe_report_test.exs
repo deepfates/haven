@@ -400,6 +400,46 @@ defmodule Haven.AgentProbeReportTest do
     File.rm(path)
   end
 
+  test "accepts load reports with multiple real child reports" do
+    assert :ok = AgentProbeReport.validate_load(valid_load_report())
+  end
+
+  test "rejects load reports with duplicate child run ids" do
+    report =
+      update_in(valid_load_report(), ["reports"], fn [first, second] ->
+        [first, Map.put(second, "run_id", first["run_id"])]
+      end)
+
+    assert {:error, errors} = AgentProbeReport.validate_load(report)
+    assert "load child reports must have distinct run_ids: run-1" in errors
+  end
+
+  test "rejects load reports with non-real child reports" do
+    report =
+      update_in(valid_load_report(), ["reports"], fn [first, second] ->
+        [
+          first,
+          put_in(second, ["real_agent_evidence"], %{"required" => true, "accepted" => false})
+        ]
+      end)
+
+    assert {:error, errors} = AgentProbeReport.validate_load(report)
+
+    assert "all load child reports must have required=true and accepted=true real_agent_evidence" in errors
+
+    assert "child report 2: real_agent_evidence must have required=true and accepted=true" in errors
+  end
+
+  test "validates load report files" do
+    path = Path.join(System.tmp_dir!(), "haven-valid-probe-load-#{System.unique_integer()}.json")
+
+    File.write!(path, Jason.encode!(valid_load_report()))
+
+    assert :ok = AgentProbeReport.validate_load_file(path)
+
+    File.rm(path)
+  end
+
   defp valid_report do
     %{
       "run_id" => "run-1",
@@ -480,6 +520,28 @@ defmodule Haven.AgentProbeReportTest do
         %{"seq" => 8, "type" => "tool_call_update", "payload" => %{"status" => "completed"}},
         %{"seq" => 9, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
       ]
+    }
+  end
+
+  defp valid_load_report do
+    second =
+      valid_report()
+      |> Map.put("run_id", "run-2")
+      |> update_event("run_created", fn event ->
+        put_in(event, ["payload", "workspace"], "/workspace")
+      end)
+
+    %{
+      "kind" => "agent_probe_load",
+      "agent" => "real-agent",
+      "workspace" => "/workspace",
+      "prompt" => "summarize",
+      "run_count" => 2,
+      "status" => "passed",
+      "expected_events" => ["agent_initialized", "turn_finished"],
+      "expected_event_fields" => [],
+      "failures" => [],
+      "reports" => [valid_report(), second]
     }
   end
 

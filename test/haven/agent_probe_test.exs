@@ -233,6 +233,40 @@ defmodule Haven.AgentProbeTest do
     refute Runs.started?(report.run_id)
   end
 
+  test "runs a load probe as multiple durable runs" do
+    assert {:ok, report} =
+             AgentProbe.run_load(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               prompt: "hello from load probe",
+               load_runs: 2,
+               expect_events: ["agent_initialized", "turn_finished"],
+               timeout: 5_000
+             )
+
+    assert report.kind == "agent_probe_load"
+    assert report.status == "passed"
+    assert report.run_count == 2
+    assert report.expected_events == ["agent_initialized", "turn_finished"]
+    assert report.failures == []
+    assert length(report.reports) == 2
+
+    run_ids = Enum.map(report.reports, & &1.run_id)
+    assert Enum.uniq(run_ids) == run_ids
+    assert Enum.all?(report.reports, &(&1.status == "idle"))
+  end
+
+  test "rejects invalid load run counts" do
+    assert {:error, :invalid_load_runs, report} =
+             AgentProbe.run_load(agent: "stub-acp", workspace: File.cwd!(), load_runs: 1)
+
+    assert report.kind == "agent_probe_load"
+    assert report.status == "failed"
+    assert report.run_count == 1
+    assert report.reports == []
+    assert [%{reason: :invalid_load_runs}] = report.failures
+  end
+
   test "preflight surfaces non-ACP commands before full evidence probes" do
     Application.put_env(:haven, :agents, %{
       "not-acp" => %{executable: "sh", args: ["-c", "cat"]}

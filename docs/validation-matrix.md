@@ -37,6 +37,9 @@ evidence exists.
 - Agent probe harness: `mix haven.agent_probe --report` can produce durable JSON
   evidence artifacts with explicit `--expect-event` acceptance checks; see
   `docs/probes/README.md`.
+- Agent probe load harness: `mix haven.agent_probe --load-runs N --report` can
+  produce aggregate repeated-run evidence artifacts; see
+  `docs/probe-load/README.md`.
 - LiveView integration: malformed ACP startup output records
   `agent_protocol_failed`, marks the run `failed`, and does not restart the
   agent process.
@@ -769,6 +772,14 @@ Evidence:
   `2b8270f7-0707-4013-bd6e-18de0a08b5fd`, passed
   `agent_initialized`, `agent_session_started`, and `turn_finished`
   expectations, and is accepted by `mix haven.probe_reports`.
+- `docs/probe-load/codex-acp-basic-load.json` is the current committed positive
+  sequential multi-run real-agent probe from 2026-07-01. It was generated
+  against saved `codex-acp` with `--require-real-agent`, produced distinct
+  durable runs `e2f065c6-222e-4449-95b5-b83872f684ba` and
+  `95bbbea2-e75b-4d58-ad7b-97124c5c3082`, passed `agent_initialized`,
+  `agent_session_started`, and `turn_finished` expectations for each child run,
+  and is accepted by `mix haven.probe_reports`. This is repeated-run evidence,
+  not concurrent-load or long-output proof.
 - `docs/probes/codex-acp-file-tool-call.json` is a committed passing
   `--require-real-agent` report showing `codex-acp` can inspect a disposable
   workspace file and return a sentinel, but it does so through ACP
@@ -844,8 +855,9 @@ Evidence:
   running, completed, and attention-needed session counts, and labels each
   terminal session with outcome-specific guidance for running, exited, and
   failed states.
-- `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
-  and `docs/probe-failures/*.json` boundary artifacts, and is part of
+- `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts,
+  `docs/probe-failures/*.json` boundary artifacts, and
+  `docs/probe-load/*.json` aggregate load artifacts, and is part of
   `mix precommit`, so real-agent evidence requirements are a gate rather than
   only a documentation convention. Committed positive reports must
   non-blankly name their durable Haven `run_id`, agent, workspace, and prompt.
@@ -861,7 +873,9 @@ Evidence:
   app. Report validation accepts both generated payload field paths such as
   `path` and documented CLI paths such as `payload.path`. Failure report
   validation also requires explicit `unsupported_client_capabilities` for
-  tool-call-only mediated capability gaps.
+  tool-call-only mediated capability gaps. Load report validation requires at
+  least two real-agent child reports, distinct durable run ids, matching
+  aggregate child metadata, and a passing aggregate status.
 
 Still missing:
 
@@ -880,6 +894,8 @@ Still missing:
   create-form comma fields plus post-creation scope chips.
 - Authenticated user identity and interactive auth flows for agents that require
   credentials.
+- Concurrent or long-running-output real external agent load beyond the current
+  sequential `codex-acp` basic load report.
 
 ## Not Proven Yet
 
@@ -894,6 +910,7 @@ and should not be counted as complete until there is executable evidence.
 - Authentication flows for agents that require auth; configured env can pass
   secrets to launched agents, but no interactive auth flow is proven.
 - Session load/resume/fork/list support when agents expose it.
+- Concurrent or long-running-output real external agent load.
 - Product-grade workspace and agent configuration UI beyond saved rows,
   workspace readiness summaries, agent launch readiness, and agent inventory.
 - Authenticated user identity for permission decisions.
