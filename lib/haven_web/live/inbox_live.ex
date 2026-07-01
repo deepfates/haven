@@ -51,6 +51,10 @@ defmodule HavenWeb.InboxLive do
     end
   end
 
+  def handle_event("change_run", params, socket) do
+    {:noreply, assign(socket, :form, to_form(run_form_params(params)))}
+  end
+
   def handle_event("archive_run", %{"id" => id}, socket) do
     _ = Runs.archive_run(id)
     {:noreply, assign_runs(socket)}
@@ -369,6 +373,14 @@ defmodule HavenWeb.InboxLive do
       "cwd" => "",
       "env_text" => ""
     }
+  end
+
+  defp run_form_params(params) do
+    defaults = default_run_params()
+
+    Map.new(defaults, fn {key, default} ->
+      {key, Map.get(params, key, default)}
+    end)
   end
 
   defp run_attrs(params) do
@@ -824,6 +836,10 @@ defmodule HavenWeb.InboxLive do
     |> String.capitalize()
   end
 
+  defp form_value(form, field) do
+    form[field].value || default_run_params()[Atom.to_string(field)] || ""
+  end
+
   defp agent_evidence_label(_inventory, reports) when reports != [] do
     pluralize_count(length(reports), "accepted probe")
   end
@@ -1234,9 +1250,13 @@ defmodule HavenWeb.InboxLive do
             <.form
               id="new-run-form"
               for={@form}
+              phx-change="change_run"
               phx-submit="create_run"
               class="grid gap-3 border-t border-zinc-200 p-3"
             >
+              <% selected_agent = form_value(@form, :agent) %>
+              <% selected_readiness = Map.get(@agent_inventory, selected_agent, %{}) %>
+              <% selected_reports = Map.get(@agent_probe_reports, selected_agent, []) %>
               <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem]">
                 <.input
                   field={@form[:title]}
@@ -1251,6 +1271,31 @@ defmodule HavenWeb.InboxLive do
                   label="Agent"
                   options={@agent_options}
                 />
+              </div>
+              <div
+                id="new-run-agent-evidence"
+                class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600"
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <span id="new-run-agent-key" class="font-semibold text-zinc-950">
+                    {selected_agent}
+                  </span>
+                  <span
+                    id="new-run-agent-launch"
+                    class={agent_launch_class(selected_readiness)}
+                  >
+                    {agent_launch_label(selected_readiness)}
+                  </span>
+                  <span
+                    id="new-run-agent-trust"
+                    class={agent_evidence_class(selected_readiness, selected_reports)}
+                  >
+                    {agent_evidence_label(selected_readiness, selected_reports)}
+                  </span>
+                </div>
+                <p id="new-run-agent-evidence-reason" class="mt-1 truncate">
+                  {agent_evidence_reason(selected_readiness, selected_reports)}
+                </p>
               </div>
               <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
                 <.input

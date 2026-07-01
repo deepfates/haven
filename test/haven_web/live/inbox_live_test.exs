@@ -30,6 +30,9 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#file_read_paths")
     assert has_element?(view, "#file_write_paths")
     assert has_element?(view, "#terminal_create_policy option[value='ask']")
+    assert has_element?(view, "#new-run-agent-evidence")
+    assert has_element?(view, "#new-run-agent-key", "stub-acp")
+    assert has_element?(view, "#new-run-agent-trust", "Local harness")
 
     view
     |> form("#new-run-form", %{
@@ -56,6 +59,37 @@ defmodule HavenWeb.InboxLiveTest do
            }
 
     assert_redirect(view, ~p"/runs/#{run.id}")
+  end
+
+  test "updates selected agent evidence before starting a run", %{conn: conn} do
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "codex-acp",
+               executable: "sh",
+               args: ["-c", "cat"]
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#new-run-agent-key", "stub-acp")
+    assert has_element?(view, "#new-run-agent-trust", "Local harness")
+
+    view
+    |> form("#new-run-form", %{
+      "title" => "Evidence-aware run",
+      "agent" => "codex-acp"
+    })
+    |> render_change()
+
+    assert has_element?(view, "#new-run-agent-key", "codex-acp")
+    assert has_element?(view, "#new-run-agent-launch", "Launch ready")
+    assert has_element?(view, "#new-run-agent-trust", "3 accepted probes")
+
+    assert has_element?(
+             view,
+             "#new-run-agent-evidence-reason",
+             "validated committed reports"
+           )
   end
 
   test "renders runs before setup panels in the mobile-first inbox hierarchy", %{conn: conn} do
