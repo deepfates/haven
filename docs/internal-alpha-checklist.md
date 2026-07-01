@@ -12,7 +12,7 @@ agents with known limitations. It does not mean production-grade.
 - Verified application commit: `26de37b1`
 - Date: 2026-07-01
 - Operator: Codex
-- Last verified application commit: `26de37b1`
+- Last maintenance verification commit: `8d65a165`
 
 ## Required Gates
 
@@ -34,9 +34,12 @@ Pass condition:
 
 Evidence:
 
-- Result: passed at verified application commit `26de37b1` with 238 tests, 4
-  validated positive probe reports, and 2 validated negative probe reports.
-- Notes:
+- Original alpha result: passed at verified application commit `26de37b1` with
+  238 tests, 4 validated positive probe reports, and 2 validated negative probe
+  reports.
+- Latest maintenance result: `mix precommit` passed at commit `8d65a165` with
+  254 tests; `mix haven.probe_reports` validated 5 positive probe reports, 2
+  failure reports, and 2 load reports.
 
 ### 2. Dev Database Gate
 
@@ -53,7 +56,8 @@ Pass condition:
 Evidence:
 
 - Result: `No pending migrations.`
-- Notes: verified at application commit `26de37b1`.
+- Notes: latest maintenance verification passed at application commit
+  `8d65a165`.
 
 ### 3. Runtime Smoke Gate
 
@@ -75,7 +79,7 @@ Pass condition:
 Evidence:
 
 - Result: passed against `http://127.0.0.1:4000`.
-- Notes: latest recorded run
+- Notes: alpha recorded run
   `3223240c-67e0-49dc-abf1-3be3e53bf353` at application commit `26de37b1`.
 
 ### 4. Browser Sanity Gate
@@ -93,7 +97,7 @@ Manual browser check against `http://127.0.0.1:4000/`:
 Evidence:
 
 - Result: default and `390x844` mobile checks passed for application commit
-  `26de37b1`.
+  `02496359`, including later mobile-first inbox/run simplification checks.
 - Notes: see `docs/browser-smoke/2026-07-01-alpha-current.md`; earlier
   responsive evidence is in `docs/browser-smoke/2026-07-01-alpha-cut.md` and
   `docs/browser-smoke/2026-07-01-runtime-and-responsive.md`.
@@ -138,6 +142,9 @@ Evidence:
 
 - Result: current positive real-agent basic probe passed and validates.
 - Artifact path: `docs/probes/codex-acp-basic-current.json`
+- Additional positive evidence: bounded long-output real-agent probe
+  `docs/probes/codex-acp-long-output.json`, plus sequential and concurrent
+  two-run real-agent load reports in `docs/probe-load/`.
 - Negative artifact paths:
   `docs/probe-failures/codex-acp-file-mediated-negative.json` and
   `docs/probe-failures/codex-acp-terminal-mediated-negative.json`
