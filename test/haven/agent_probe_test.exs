@@ -311,6 +311,10 @@ defmodule Haven.AgentProbeTest do
              "--failure-report docs/probe-failures/candidate-terminal-mediated-negative.json"
 
     assert output =~ "terminal-denied: mix haven.agent_probe --agent candidate"
+
+    assert output =~
+             "--prompt 'run mix --version through the client terminal capability' --terminal-create-policy deny"
+
     assert output =~ "--terminal-create-policy deny"
     assert output =~ "capability_policy_applied:payload.decision=deny"
 
@@ -744,6 +748,38 @@ defmodule Haven.AgentProbeTest do
     assert output =~ "latest durable preflight: failed (run #{report.run_id})"
     assert output =~ "latest durable preflight reason:"
     assert output =~ "preflight: not run"
+  end
+
+  test "agent probe inventory withholds proof commands after a failed durable preflight" do
+    Application.put_env(:haven, :agents, %{
+      "not-acp" => %{executable: "sh", args: ["-c", "cat"]}
+    })
+
+    assert {:error, :boot_failed, _report} =
+             AgentProbe.preflight(
+               agent: "not-acp",
+               workspace: File.cwd!(),
+               timeout: 1_000,
+               require_real_agent: true
+             )
+
+    output =
+      capture_io(fn ->
+        AgentProbeTask.run([
+          "--list-agents",
+          "--proof-commands",
+          "--workspace",
+          File.cwd!()
+        ])
+      end)
+
+    assert output =~ "latest durable preflight: failed"
+
+    assert output =~
+             "proof commands: withheld because latest durable preflight failed; rerun --preflight after fixing ACP initialize/session before running full probes"
+
+    refute output =~ "basic: mix haven.agent_probe --agent not-acp"
+    refute output =~ "terminal-denied: mix haven.agent_probe --agent not-acp"
   end
 
   test "can create probe runs with file capability policy" do

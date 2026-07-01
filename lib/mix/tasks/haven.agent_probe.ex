@@ -404,7 +404,13 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   defp gap_report_count_label(_count), do: "reports"
 
   defp print_agent_proof_command_status(agent, workspace, true, nil) do
-    print_agent_proof_commands(agent, workspace)
+    if latest_durable_preflight_failed?(agent) do
+      Mix.shell().info(
+        "  proof commands: withheld because latest durable preflight failed; rerun --preflight after fixing ACP initialize/session before running full probes"
+      )
+    else
+      print_agent_proof_commands(agent, workspace)
+    end
   end
 
   defp print_agent_proof_command_status(agent, workspace, true, %{status: :ok}) do
@@ -422,6 +428,9 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       "  proof commands: hidden (add --proof-commands to print basic/file/terminal acceptance commands)"
     )
   end
+
+  defp latest_durable_preflight_failed?(%{latest_preflight: %{status: "failed"}}), do: true
+  defp latest_durable_preflight_failed?(_agent), do: false
 
   defp print_agent_proof_commands(agent, workspace) do
     Mix.shell().info("  proof commands:")
@@ -560,7 +569,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
          workspace,
          [
            "--prompt",
-           "try to open a terminal",
+           "run mix --version through the client terminal capability",
            "--terminal-create-policy",
            "deny",
            "--expect-event",
