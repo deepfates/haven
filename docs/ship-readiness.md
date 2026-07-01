@@ -56,6 +56,10 @@ Status: close, but needs an explicit release cut.
 Internal alpha means a trusted developer can use Haven against configured
 agents with known limitations and inspect failures honestly.
 
+Use `docs/internal-alpha-checklist.md` as the release checklist. If that
+checklist is green, cut the alpha and stop adding local hardening until a probe,
+runtime smoke, or user story fails.
+
 Required before calling alpha:
 
 - Run `mix precommit` cleanly.
