@@ -1178,9 +1178,13 @@ defmodule HavenWeb.InboxLive do
 
   defp archivable?(run), do: run.status in ["closed", "failed"]
 
+  defp run_attention_label(%{workspace_summary: %{path_state: :missing}}), do: "Workspace missing"
   defp run_attention_label(%{status: "waiting"}), do: "Needs decision"
   defp run_attention_label(%{status: "failed"}), do: "Needs recovery"
   defp run_attention_label(_run), do: nil
+
+  defp run_attention_class(%{workspace_summary: %{path_state: :missing}}),
+    do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
 
   defp run_attention_class(%{status: "waiting"}),
     do: badge_class("border-amber-200 bg-amber-50 text-amber-700")
@@ -1189,6 +1193,7 @@ defmodule HavenWeb.InboxLive do
     do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
 
   defp run_action_label(%{archived_at: archived_at}) when not is_nil(archived_at), do: "Review"
+  defp run_action_label(%{workspace_summary: %{path_state: :missing}}), do: "Inspect"
   defp run_action_label(%{status: "waiting"}), do: "Decide"
   defp run_action_label(%{status: "failed"}), do: "Recover"
   defp run_action_label(%{status: "closed"}), do: "Review"
@@ -1196,6 +1201,9 @@ defmodule HavenWeb.InboxLive do
 
   defp run_next_step_label(%{archived_at: archived_at}) when not is_nil(archived_at),
     do: "Review history"
+
+  defp run_next_step_label(%{workspace_summary: %{path_state: :missing}}),
+    do: "Restore workspace"
 
   defp run_next_step_label(%{status: "waiting", live?: false}), do: "Reconnect before deciding"
   defp run_next_step_label(%{status: "waiting"}), do: "Decide in thread"
@@ -1216,6 +1224,9 @@ defmodule HavenWeb.InboxLive do
   defp run_operational_label(%{archived_at: archived_at}) when not is_nil(archived_at),
     do: "Archived"
 
+  defp run_operational_label(%{workspace_summary: %{path_state: :missing}}),
+    do: "Workspace missing"
+
   defp run_operational_label(%{status: "failed"}), do: "Needs recovery"
   defp run_operational_label(%{status: "closed"}), do: "Read only"
   defp run_operational_label(%{status: "waiting", live?: false}), do: "Stale decision"
@@ -1234,6 +1245,9 @@ defmodule HavenWeb.InboxLive do
 
   defp run_operational_hint(%{archived_at: archived_at}) when not is_nil(archived_at),
     do: "Hidden from default triage; history is still inspectable."
+
+  defp run_operational_hint(%{workspace_summary: %{path_state: :missing}}),
+    do: "History is readable; restore the folder before reconnecting, deciding, or prompting."
 
   defp run_operational_hint(%{status: "failed"}),
     do: "Open the thread to continue, retry, or restart while preserving history."

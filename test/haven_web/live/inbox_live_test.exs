@@ -337,6 +337,27 @@ defmodule HavenWeb.InboxLiveTest do
     refute has_element?(view, "#run-#{archived_failure.id} a", "Recover")
   end
 
+  @tag :tmp_dir
+  test "triages missing-workspace runs by the folder problem before generic recovery", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    workspace = Path.join(tmp_dir, "vanished-run-workspace")
+    File.mkdir_p!(workspace)
+    run = insert_run!("Folder vanished after failure", "failed", %{workspace: workspace})
+    File.rm_rf!(workspace)
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#run-#{run.id}-workspace-kind", "Manual path · Missing")
+    assert has_element?(view, "#run-#{run.id}-attention", "Workspace missing")
+    assert has_element?(view, "#run-#{run.id}-next-step", "Restore workspace")
+    assert has_element?(view, "#run-#{run.id}-operational-state", "Workspace missing")
+    assert has_element?(view, "#run-#{run.id}-operational-state", "restore the folder")
+    assert has_element?(view, "#run-#{run.id}-primary-action", "Inspect")
+    refute has_element?(view, "#run-#{run.id}-primary-action", "Recover")
+  end
+
   test "renders evidence-backed agent trust in run rows", %{conn: conn} do
     assert {:ok, _agent_config} =
              Agents.create_agent_config(%{
