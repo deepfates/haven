@@ -29,9 +29,10 @@ evidence exists.
   mobile viewport sizes.
 - Current alpha browser smoke:
   `docs/browser-smoke/2026-07-01-alpha-current.md` reruns the browser sanity
-  gate at commit `cbbfaa8d`, including `390x844` inbox/run detail overflow
-  checks, closed secondary disclosures, and the thread/decision/message/evidence
-  hierarchy.
+  gate at commit `7e91983a`, including default/current width and `390x844`
+  inbox/run detail overflow checks, closed secondary disclosures, and the
+  thread/decision/message/evidence hierarchy on a deterministic waiting-decision
+  run.
 - Workspace security policy browser smoke:
   `docs/browser-smoke/2026-07-01-workspace-security-policy.md` verifies the
   product-visible root boundary, blank path scope semantics, and terminal
@@ -47,7 +48,8 @@ evidence exists.
   `docs/probe-load/README.md`.
 - Runtime load smoke: `docs/runtime-smoke/2026-07-01-load-runs.md` records a
   current dev-server `--load-runs 3` pass at commit `5ffb347c`, including
-  rendered page isolation across disposable runs.
+  rendered page isolation across disposable runs; the current browser smoke
+  reuses the resulting primary run at application commit `7e91983a`.
 - LiveView integration: malformed ACP startup output records
   `agent_protocol_failed`, marks the run `failed`, and does not restart the
   agent process.

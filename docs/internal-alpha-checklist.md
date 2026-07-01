@@ -12,7 +12,7 @@ agents with known limitations. It does not mean production-grade.
 - Verified application commit: `26de37b1`
 - Date: 2026-07-01
 - Operator: Codex
-- Last maintenance verification commit: `5ffb347c`
+- Last maintenance verification commit: `7e91983a`
 
 ## Required Gates
 
@@ -43,10 +43,9 @@ Evidence:
 - Current maintenance result: `mix precommit` passed after the
   `cbbfaa8d` evidence refresh with 262 tests; `mix haven.probe_reports`
   validated 5 positive probe reports, 2 failure reports, and 2 load reports.
-- Current evidence result: `mix precommit` passed with 265 tests; `mix
+- Current evidence result: `mix precommit` passed with 275 tests; `mix
   haven.probe_reports` validates 5 positive probe reports, 3 failure reports,
-  and 2 load reports after adding the `codex-acp` file-write mediated negative
-  artifact.
+  and 2 load reports after the current browser-smoke evidence refresh.
 
 ### 2. Dev Database Gate
 
@@ -112,10 +111,11 @@ Evidence:
   responsive evidence is in `docs/browser-smoke/2026-07-01-alpha-cut.md` and
   `docs/browser-smoke/2026-07-01-runtime-and-responsive.md`.
 - Current maintenance browser inspection passed at application commit
-  `cbbfaa8d`: the inbox and run detail had no horizontal overflow at `390x844`,
-  the inbox primary order remained attention/queue before setup disclosures,
-  and the run detail kept thread/decision/message/evidence hierarchy with
-  permission details closed by default.
+  `7e91983a`: the inbox and run detail had no horizontal overflow at
+  default/current browser width or `390x844`, the inbox primary order remained
+  attention/queue before setup disclosures, and the run detail kept
+  thread/decision/message/evidence hierarchy with permission details closed by
+  default on a deterministic waiting-decision run.
 
 ### 5. Agent Probe Evidence Gate
 
