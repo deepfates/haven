@@ -275,6 +275,47 @@ defmodule Haven.Runs do
     end
   end
 
+  def mark_viewed(run_or_id, latest_event_seq, opts \\ [])
+
+  def mark_viewed(%Run{} = run, latest_event_seq, opts)
+      when is_integer(latest_event_seq) and latest_event_seq >= 0 do
+    {count, _updates} =
+      Repo.update_all(
+        from(r in Run,
+          where: r.id == ^run.id and r.last_viewed_event_seq < ^latest_event_seq
+        ),
+        set: [last_viewed_event_seq: latest_event_seq]
+      )
+
+    updated =
+      if count > 0 do
+        %{run | last_viewed_event_seq: latest_event_seq}
+      else
+        run
+      end
+
+    if count > 0 and Keyword.get(opts, :broadcast?, true) do
+      Phoenix.PubSub.broadcast(Haven.PubSub, "runs", {:run_updated, updated})
+    end
+
+    {:ok, updated}
+  end
+
+  def mark_viewed(%Run{} = run, _latest_event_seq, _opts), do: {:ok, run}
+
+  def mark_viewed(run_id, latest_event_seq, opts) when is_binary(run_id) do
+    run = get_run!(run_id)
+    mark_viewed(run, latest_event_seq, opts)
+  end
+
+  def mark_viewed(run_id, _latest_event_seq, _opts) do
+    if is_binary(run_id) do
+      {:ok, get_run!(run_id)}
+    else
+      {:error, :invalid_run}
+    end
+  end
+
   def update_status!(run_id, attrs) do
     run = get_run!(run_id)
 

@@ -358,6 +358,21 @@ defmodule HavenWeb.InboxLiveTest do
     refute has_element?(view, "#run-#{run.id}-primary-action", "Recover")
   end
 
+  test "shows new activity until the run thread is viewed", %{conn: conn} do
+    run = insert_run!("Unread conversation", "idle")
+    assert {:ok, _run} = Runs.mark_viewed(run.id, 1)
+    Events.append!(run.id, "agent_message_chunk", %{"text" => "fresh note"})
+
+    {:ok, view, _html} = live(conn, ~p"/")
+    assert has_element?(view, "#run-#{run.id}-unread", "1 new event")
+
+    {:ok, _run_view, _html} = live(conn, ~p"/runs/#{run.id}")
+    assert Runs.get_run!(run.id).last_viewed_event_seq == 2
+
+    {:ok, reloaded, _html} = live(conn, ~p"/")
+    refute has_element?(reloaded, "#run-#{run.id}-unread")
+  end
+
   test "renders evidence-backed agent trust in run rows", %{conn: conn} do
     assert {:ok, _agent_config} =
              Agents.create_agent_config(%{

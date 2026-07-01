@@ -17,6 +17,7 @@ defmodule Haven.Runs.Run do
     field :agent_session_id, :string
     field :archived_at, :utc_datetime
     field :capability_policy, :map, default: %{}
+    field :last_viewed_event_seq, :integer, default: 0
 
     has_many :events, Haven.Events.Event
     has_many :file_changes, Haven.FileChanges.FileChange

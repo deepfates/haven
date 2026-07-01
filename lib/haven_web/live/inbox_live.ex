@@ -415,6 +415,7 @@ defmodule HavenWeb.InboxLive do
 
       run
       |> Map.put(:latest_event, latest_event)
+      |> Map.put(:unread_event_count, unread_event_count(run, latest_event))
       |> Map.put(
         :latest_permission_request,
         latest_permission_request(permission_requests, latest_event)
@@ -442,6 +443,14 @@ defmodule HavenWeb.InboxLive do
   defp run_activity_at(_run), do: ~U[1970-01-01 00:00:00Z]
 
   defp run_activity_time(run), do: run |> run_activity_at() |> run_row_time()
+
+  defp unread_event_count(_run, nil), do: 0
+
+  defp unread_event_count(run, %{seq: latest_seq}) when is_integer(latest_seq) do
+    max(latest_seq - Map.get(run, :last_viewed_event_seq, 0), 0)
+  end
+
+  defp unread_event_count(_run, _latest_event), do: 0
 
   defp latest_permission_decision_run_ids(events) do
     events
@@ -2145,6 +2154,13 @@ defmodule HavenWeb.InboxLive do
             {latest_activity(@run)}
             <span :if={latest_activity_time(@run.latest_event)} class="text-zinc-400">
               · {latest_activity_time(@run.latest_event)}
+            </span>
+            <span
+              :if={@run.unread_event_count > 0}
+              id={"run-#{@run.id}-unread"}
+              class="ml-1 inline-flex rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-sky-700"
+            >
+              {pluralize_count(@run.unread_event_count, "new event")}
             </span>
           </p>
 

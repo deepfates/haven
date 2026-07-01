@@ -129,6 +129,8 @@ defmodule HavenWeb.RunLive do
   defp assign_run(socket, id) do
     run = Runs.get_run!(id)
     events = Events.list_for_run(id)
+    latest_event_seq = latest_event_seq(events)
+    {:ok, run} = Runs.mark_viewed(run, latest_event_seq, broadcast?: false)
     file_changes = FileChanges.list_for_run(id)
     terminal_sessions = TerminalSessions.list_for_run(id)
     permission_audits = PermissionAudits.list_for_run(id)
@@ -183,6 +185,12 @@ defmodule HavenWeb.RunLive do
     |> assign(:recovery_attention, recovery_attention(run, live?, workspace_missing?))
     |> assign(:latest_failure_summary, latest_failure_summary(events))
     |> assign(:pending_permission, pending_permission)
+  end
+
+  defp latest_event_seq(events) do
+    events
+    |> Enum.map(& &1.seq)
+    |> Enum.max(fn -> 0 end)
   end
 
   defp run_nav_counts(
