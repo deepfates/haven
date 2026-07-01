@@ -2,6 +2,7 @@ defmodule Haven.Runs do
   import Ecto.Query
 
   alias Haven.Events
+  alias Haven.Agents
   alias Haven.PermissionAudits
   alias Haven.Repo
   alias Haven.Runs.{Run, RunServer}
@@ -35,7 +36,7 @@ defmodule Haven.Runs do
 
     result =
       Repo.transaction(fn ->
-        case %Run{} |> Run.changeset(attrs) |> Repo.insert() do
+        case %Run{} |> Run.changeset(attrs) |> validate_agent_launch() |> Repo.insert() do
           {:ok, run} ->
             Events.append!(run.id, "run_created", %{
               "title" => run.title,
@@ -56,6 +57,30 @@ defmodule Haven.Runs do
       {:ok, run}
     end
   end
+
+  defp validate_agent_launch(%Ecto.Changeset{valid?: false} = changeset), do: changeset
+
+  defp validate_agent_launch(changeset) do
+    agent = Ecto.Changeset.get_field(changeset, :agent)
+    workspace = Ecto.Changeset.get_field(changeset, :workspace)
+
+    case Agents.command(agent, workspace) do
+      {:ok, _command} ->
+        changeset
+
+      {:error, reason} ->
+        Ecto.Changeset.add_error(changeset, :agent, agent_launch_error(reason))
+    end
+  end
+
+  defp agent_launch_error({:unknown_agent, agent}), do: "is not configured: #{agent}"
+
+  defp agent_launch_error({:missing_executable, executable}),
+    do: "executable is missing: #{executable}"
+
+  defp agent_launch_error({:missing_cwd, cwd}), do: "working directory is missing: #{cwd}"
+  defp agent_launch_error({:invalid_agent_field, field}), do: "configuration has invalid #{field}"
+  defp agent_launch_error(_reason), do: "cannot be launched"
 
   def start_run(run_id, opts \\ []) do
     run = get_run!(run_id)

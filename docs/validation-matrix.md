@@ -375,6 +375,9 @@ Evidence:
 - Agent readiness inventory and inbox Agent Setup distinguish missing
   executables from missing working directories, so launch-blocked external
   agents show an actionable setup reason instead of a generic failure.
+- Run creation validates agent launch readiness before inserting durable run
+  history, so known-bad configured agents stay in the inbox with a form error
+  instead of creating an immediately failed run.
 - `HAVEN_AGENTS_JSON` can configure real ACP agent commands at runtime without
   editing Elixir source/config files.
 - `Haven.Agents.create_agent_config/1` persists ACP agent command definitions

@@ -733,6 +733,35 @@ defmodule HavenWeb.InboxLiveTest do
            )
   end
 
+  @tag :tmp_dir
+  test "rejects starting a run with a launch-blocked agent", %{conn: conn, tmp_dir: tmp_dir} do
+    missing_cwd = Path.join(System.tmp_dir!(), "haven-missing-run-start-agent-cwd")
+    File.rm_rf!(missing_cwd)
+
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "blocked-agent",
+               executable: "sh",
+               cwd: missing_cwd
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    html =
+      view
+      |> form("#new-run-form", %{
+        "title" => "Blocked agent run",
+        "workspace" => tmp_dir,
+        "agent" => "blocked-agent"
+      })
+      |> render_submit()
+
+    assert html =~ "working directory is missing"
+    assert has_element?(view, "#new-run-panel[open]")
+    assert Runs.list_runs() == []
+    refute_redirected(view)
+  end
+
   test "shows public registry discovery command in agent setup", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 

@@ -1,6 +1,7 @@
 defmodule Haven.RunsTest do
   use Haven.DataCase
 
+  alias Haven.Agents
   alias Haven.Events
   alias Haven.Repo
   alias Haven.Runs
@@ -29,6 +30,40 @@ defmodule Haven.RunsTest do
              })
 
     assert %{status: ["is invalid"]} = errors_on(changeset)
+    assert Runs.list_runs() == []
+  end
+
+  test "create_run rejects unknown agents before creating durable history" do
+    assert {:error, changeset} =
+             Runs.create_run(%{
+               "title" => "Unknown agent",
+               "workspace" => File.cwd!(),
+               "agent" => "missing-agent"
+             })
+
+    assert %{agent: ["is not configured: missing-agent"]} = errors_on(changeset)
+    assert Runs.list_runs() == []
+  end
+
+  test "create_run rejects agents with missing working directories before creating durable history" do
+    missing_cwd = Path.join(System.tmp_dir!(), "haven-missing-run-agent-cwd")
+    File.rm_rf!(missing_cwd)
+
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "missing-cwd-agent",
+               executable: "sh",
+               cwd: missing_cwd
+             })
+
+    assert {:error, changeset} =
+             Runs.create_run(%{
+               "title" => "Missing cwd agent",
+               "workspace" => File.cwd!(),
+               "agent" => "missing-cwd-agent"
+             })
+
+    assert %{agent: ["working directory is missing: " <> _path]} = errors_on(changeset)
     assert Runs.list_runs() == []
   end
 
