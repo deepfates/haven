@@ -410,6 +410,9 @@ Evidence:
   vocabulary: `idle`, `initializing`, `running`, `waiting`, `failed`, and
   `closed`. Data-layer tests verify invalid statuses are rejected on both run
   creation and status updates.
+- Direct `start_run/2` now refuses terminal `failed` and `closed` history with
+  `{:error, :terminal_run}` and does not append lifecycle events. Data-layer
+  tests preserve explicit reconnect/restart as the intentional recovery path.
 - RunServer shutdown now explicitly tears down the ACP connection and port IO
   bridge.
 - Event ordering and persistence are covered by `test/haven/events_test.exs`.

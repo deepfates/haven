@@ -74,6 +74,17 @@ defmodule Haven.RunsTest do
            ] = Events.list_for_run(archived.id)
   end
 
+  test "direct start_run refuses terminal history without appending lifecycle events" do
+    failed = insert_run!("Failed direct start boundary", "failed")
+    closed = insert_run!("Closed direct start boundary", "closed")
+
+    assert {:error, :terminal_run} = Runs.start_run(failed.id)
+    assert {:error, :terminal_run} = Runs.start_run(closed.id)
+
+    assert [%{type: "run_created"}] = Events.list_for_run(failed.id)
+    assert [%{type: "run_created"}] = Events.list_for_run(closed.id)
+  end
+
   test "prune_archived_before deletes only archived runs older than the cutoff" do
     old_archived =
       "Old archived run"

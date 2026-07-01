@@ -59,10 +59,15 @@ defmodule Haven.Runs do
   def start_run(run_id, opts \\ []) do
     run = get_run!(run_id)
 
-    if archived?(run) do
-      {:error, :archived_run}
-    else
-      start_unarchived_run(run_id, opts)
+    cond do
+      archived?(run) ->
+        {:error, :archived_run}
+
+      run.status in ["closed", "failed"] ->
+        {:error, :terminal_run}
+
+      true ->
+        start_unarchived_run(run_id, opts)
     end
   end
 
