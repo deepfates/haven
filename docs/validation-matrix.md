@@ -778,8 +778,10 @@ Evidence:
   2026-07-01 attempt to require `permission_requested`,
   `permission_resolved`, `file_read_requested`, and `file_read_succeeded`
   against saved `codex-acp`. The agent still reads the file via generic ACP
-  `tool_call` / `tool_call_update`, so it does not satisfy the Haven-mediated
-  `fs/*` proof requirement.
+  `tool_call` / `tool_call_update`; the report now declares
+  `fs/read_text_file` in `unsupported_client_capabilities`, so this counts as
+  explicit unsupported evidence for Haven-mediated proof with this agent class,
+  not positive `fs/*` proof.
 - Failed probe reports now include diagnostics when missing Haven-mediated
   client capability events coincide with observed ACP `tool_call` /
   `tool_call_update` activity. The current saved `codex-acp` file and terminal
@@ -790,6 +792,9 @@ Evidence:
   `--require-real-agent` run, declare the missing expected client capability
   events, include at least one field-level capability expectation, and carry a
   `tool_call_only_capability_gap` diagnostic backed by actual tool-call events.
+  They must also include `unsupported_client_capabilities` entries for each
+  missing mediated capability family, so unsupported agent-class declarations
+  are machine-checkable instead of prose-only.
 - `docs/probes/codex-acp-terminal-tool-call.json` is a committed passing
   `--require-real-agent` report showing `codex-acp` can execute a terminal
   command and return a sentinel, but it does so through ACP
@@ -799,8 +804,10 @@ Evidence:
   failed 2026-07-01 attempt to require `permission_requested`,
   `permission_resolved`, `terminal_create_requested`, `terminal_created`, and
   `terminal_output_requested` against saved `codex-acp`. The agent still runs
-  the command via generic ACP `tool_call` / `tool_call_update`, so it does not
-  satisfy the Haven-mediated `terminal/*` proof requirement.
+  the command via generic ACP `tool_call` / `tool_call_update`; the report now
+  declares `terminal` in `unsupported_client_capabilities`, so this counts as
+  explicit unsupported evidence for Haven-mediated proof with this agent class,
+  not positive `terminal/*` proof.
 - Haven now wraps the upstream Elixir ACP client-side decoder so newer/unknown
   `session/update` variants are persisted as raw protocol events instead of
   crashing the connection. This was required by `codex-acp`, which currently
@@ -852,7 +859,9 @@ Evidence:
   blank expected event names, blank expected event-field names, and blank
   persisted event types, matching the durable event envelope enforced by the
   app. Report validation accepts both generated payload field paths such as
-  `path` and documented CLI paths such as `payload.path`.
+  `path` and documented CLI paths such as `payload.path`. Failure report
+  validation also requires explicit `unsupported_client_capabilities` for
+  tool-call-only mediated capability gaps.
 
 Still missing:
 

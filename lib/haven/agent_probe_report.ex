@@ -100,6 +100,7 @@ defmodule Haven.AgentProbeReport do
       |> require_report_identity_events(report)
       |> require_expected_events_absent(report)
       |> require_tool_call_gap_diagnostic(report)
+      |> require_unsupported_client_capabilities(report)
       |> Enum.reverse()
 
     if errors == [], do: :ok, else: {:error, errors}
@@ -303,6 +304,11 @@ defmodule Haven.AgentProbeReport do
   defp client_capability_event?(type) do
     String.starts_with?(type, "file_") or String.starts_with?(type, "terminal_")
   end
+
+  defp client_capability_family("file_read" <> _suffix), do: "fs/read_text_file"
+  defp client_capability_family("file_write" <> _suffix), do: "fs/write_text_file"
+  defp client_capability_family("terminal_" <> _suffix), do: "terminal"
+  defp client_capability_family("file_" <> _suffix), do: "fs"
 
   defp validate_event_field_expectation(
          errors,
@@ -518,6 +524,126 @@ defmodule Haven.AgentProbeReport do
           | errors
         ]
     end
+  end
+
+  defp require_unsupported_client_capabilities(errors, report) do
+    declared_missing = Map.get(report, "missing_expected_events", [])
+    present_events = present_event_set(report)
+
+    expected =
+      declared_missing
+      |> Enum.filter(&client_capability_event?/1)
+      |> Enum.group_by(&client_capability_family/1)
+      |> Map.new(fn {capability, events} -> {capability, MapSet.new(events)} end)
+
+    case Map.get(report, "unsupported_client_capabilities") do
+      capabilities when is_list(capabilities) and capabilities != [] ->
+        capabilities
+        |> Enum.with_index(1)
+        |> Enum.reduce(errors, fn {capability, index}, acc ->
+          validate_unsupported_client_capability(
+            acc,
+            capability,
+            index,
+            expected,
+            present_events
+          )
+        end)
+        |> require_declared_unsupported_capability_families(capabilities, expected)
+
+      _capabilities ->
+        [
+          "unsupported_client_capabilities must declare unsupported mediated capability families"
+          | errors
+        ]
+    end
+  end
+
+  defp require_declared_unsupported_capability_families(errors, capabilities, expected) do
+    declared =
+      capabilities
+      |> Enum.filter(&is_map/1)
+      |> Enum.map(&Map.get(&1, "capability"))
+      |> MapSet.new()
+
+    missing =
+      expected
+      |> Map.keys()
+      |> Enum.reject(&MapSet.member?(declared, &1))
+
+    if missing == [] do
+      errors
+    else
+      [
+        "unsupported_client_capabilities must declare missing capability families: #{Enum.join(missing, ", ")}"
+        | errors
+      ]
+    end
+  end
+
+  defp validate_unsupported_client_capability(
+         errors,
+         %{
+           "capability" => capability,
+           "reason" => reason,
+           "missing_events" => missing_events,
+           "observed_events" => observed_events
+         },
+         _index,
+         expected,
+         present_events
+       )
+       when is_binary(capability) and is_binary(reason) and is_list(missing_events) and
+              is_list(observed_events) do
+    errors
+    |> then(fn errors ->
+      if non_blank_string?(capability) and non_blank_string?(reason) do
+        errors
+      else
+        ["unsupported_client_capabilities entries must include capability and reason" | errors]
+      end
+    end)
+    |> then(fn errors ->
+      expected_events = Map.get(expected, capability, MapSet.new())
+      missing_set = MapSet.new(missing_events)
+
+      cond do
+        missing_events == [] ->
+          [
+            "unsupported_client_capabilities #{capability} missing_events must not be empty"
+            | errors
+          ]
+
+        not Enum.all?(missing_events, &client_capability_event?/1) ->
+          [
+            "unsupported_client_capabilities #{capability} missing_events must be client capability events"
+            | errors
+          ]
+
+        not MapSet.subset?(missing_set, expected_events) ->
+          [
+            "unsupported_client_capabilities #{capability} missing_events must be declared missing expected events"
+            | errors
+          ]
+
+        true ->
+          errors
+      end
+    end)
+    |> require_diagnostic_observed_events(observed_events, present_events)
+  end
+
+  defp validate_unsupported_client_capability(
+         errors,
+         _capability,
+         index,
+         _expected,
+         _present_events
+       ) do
+    [
+      "unsupported_client_capabilities entry #{index} must include capability, reason, missing_events, and observed_events"
+      | errors
+    ]
   end
 
   defp require_diagnostic_missing_events(errors, missing_events, declared_missing) do

@@ -512,6 +512,14 @@ defmodule Haven.AgentProbeTest do
                observed_events: ["tool_call_update"]
              }
            ] = report.diagnostics
+
+    assert [
+             %{
+               capability: "fs/read_text_file",
+               missing_events: ["file_read_succeeded"],
+               observed_events: ["tool_call_update"]
+             }
+           ] = report.unsupported_client_capabilities
   end
 
   test "passes when expected event payload fields are present" do

@@ -345,6 +345,38 @@ defmodule Haven.AgentProbeReportTest do
     assert "failure report must include a tool_call_only_capability_gap diagnostic with missing_events and observed_events" in errors
   end
 
+  test "rejects failure reports without unsupported capability declarations" do
+    report = Map.delete(valid_failure_report(), "unsupported_client_capabilities")
+
+    assert {:error, errors} = AgentProbeReport.validate_failure(report)
+
+    assert "unsupported_client_capabilities must declare unsupported mediated capability families" in errors
+  end
+
+  test "rejects failure reports when unsupported capability families are incomplete" do
+    report =
+      valid_failure_report()
+      |> Map.put("expected_events", [
+        "agent_initialized",
+        "file_read_requested",
+        "terminal_create_requested",
+        "turn_finished"
+      ])
+      |> Map.put("missing_expected_events", ["file_read_requested", "terminal_create_requested"])
+      |> update_in(["diagnostics"], fn [diagnostic] ->
+        [
+          Map.put(diagnostic, "missing_events", [
+            "file_read_requested",
+            "terminal_create_requested"
+          ])
+        ]
+      end)
+
+    assert {:error, errors} = AgentProbeReport.validate_failure(report)
+
+    assert "unsupported_client_capabilities must declare missing capability families: terminal" in errors
+  end
+
   test "rejects failure reports whose diagnostic observed events are not in events" do
     report =
       valid_failure_report()
@@ -420,6 +452,15 @@ defmodule Haven.AgentProbeReportTest do
         %{
           "type" => "tool_call_only_capability_gap",
           "message" => "Generic ACP tool calls were observed instead.",
+          "missing_events" => ["file_read_requested", "file_read_succeeded"],
+          "observed_events" => ["tool_call", "tool_call_update"]
+        }
+      ],
+      "unsupported_client_capabilities" => [
+        %{
+          "capability" => "fs/read_text_file",
+          "reason" =>
+            "Observed generic ACP tool_call activity instead of Haven-mediated client capability events.",
           "missing_events" => ["file_read_requested", "file_read_succeeded"],
           "observed_events" => ["tool_call", "tool_call_update"]
         }

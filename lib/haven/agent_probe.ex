@@ -462,6 +462,10 @@ defmodule Haven.AgentProbe do
       report =
         report
         |> Map.put(:missing_expected_events, missing)
+        |> Map.put(
+          :unsupported_client_capabilities,
+          unsupported_client_capabilities(missing, report.events)
+        )
         |> Map.update(
           :diagnostics,
           event_gap_diagnostics(missing, report.events),
@@ -493,6 +497,28 @@ defmodule Haven.AgentProbe do
     end
   end
 
+  defp unsupported_client_capabilities(missing, events) do
+    missing_capability_events = Enum.filter(missing, &client_capability_event?/1)
+    observed_tool_events = observed_tool_events(events)
+
+    if missing_capability_events == [] or observed_tool_events == [] do
+      []
+    else
+      missing_capability_events
+      |> Enum.group_by(&client_capability_family/1)
+      |> Enum.map(fn {capability, events} ->
+        %{
+          capability: capability,
+          reason:
+            "Observed generic ACP tool_call activity instead of Haven-mediated client capability events.",
+          missing_events: Enum.sort(events),
+          observed_events: observed_tool_events
+        }
+      end)
+      |> Enum.sort_by(& &1.capability)
+    end
+  end
+
   defp observed_tool_events(events) do
     events
     |> Enum.map(& &1.type)
@@ -503,6 +529,11 @@ defmodule Haven.AgentProbe do
   defp client_capability_event?(type) do
     String.starts_with?(type, "file_") or String.starts_with?(type, "terminal_")
   end
+
+  defp client_capability_family("file_read" <> _suffix), do: "fs/read_text_file"
+  defp client_capability_family("file_write" <> _suffix), do: "fs/write_text_file"
+  defp client_capability_family("terminal_" <> _suffix), do: "terminal"
+  defp client_capability_family("file_" <> _suffix), do: "fs"
 
   defp validate_expected_event_fields({:error, reason, report}, _expected_event_fields),
     do: {:error, reason, report}

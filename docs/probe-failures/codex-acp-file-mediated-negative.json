@@ -39,7 +39,7 @@
       "type": "agent_session_started",
       "seq": 4,
       "payload": {
-        "agent_session_id": "019f1cc7-ce9a-7230-901d-127968d213ef"
+        "agent_session_id": "019f1ce2-f4fb-7143-a4ab-494a99f87b50"
       }
     },
     {
@@ -182,17 +182,8 @@
       }
     },
     {
-      "type": "agent_thought_redacted",
-      "seq": 9,
-      "payload": {
-        "content_type": "text",
-        "first_chunk_length": 2,
-        "redacted": true
-      }
-    },
-    {
       "type": "tool_call",
-      "seq": 10,
+      "seq": 9,
       "payload": {
         "kind": "read",
         "locations": [
@@ -203,107 +194,235 @@
         "sessionUpdate": "tool_call",
         "status": "in_progress",
         "title": "Read file '/Users/deepfates/Hacking/github/deepfates/haven/README.md'",
-        "toolCallId": "call_vJfAoUUm6xCIHf3nOeeirz3X"
+        "toolCallId": "call_xH88EAjW6dzr9LnAWSQJvRgk"
       }
     },
     {
       "type": "tool_call_update",
-      "seq": 11,
+      "seq": 10,
       "payload": {
         "rawOutput": {
           "exit_code": 0,
-          "formatted_output": "# Haven\n\nHaven is a Phoenix/OTP application for running ACP coding agents outside an IDE.\n\nThe core shape:\n\n- A durable run is stored in SQLite.\n- Each live run is owned by a supervised `RunServer` process.\n- The run process owns an ACP client connection to an external agent process.\n- Meaningful state transitions are appended as events.\n- LiveView renders an attention inbox and a run timeline from persisted state.\n- Permission requests become explicit decisions.\n- Reload reconstructs the run from the event log.\n\nSee [docs/design-requirements.md](docs/design-requirements.md) for the product\nand system requirements guiding the project. See\n[docs/validation-matrix.md](docs/validation-matrix.md) for what is currently\nproved by tests and browser smoke, and what remains unproven.\n\n## Run\n\n```bash\nmix ecto.setup\nmix phx.server\n```\n\nOpen [localhost:4000](http://localhost:4000).\n\nThe inbox can save frequently used workspace directories and reuse them from\nthe run form's saved-workspace picker. Manual workspace paths still work.\n\nThe run page includes sample controls:\n\n- `Echo` sends a complete prompt turn.\n- `Ask permission` triggers a permission request.\n- The approval card resolves the permission and lets the stub finish the turn.\n\nIn development, there are HTTP controls for deterministic local testing:\n\n```bash\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/echo\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/permission\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/read-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/write-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/terminal\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow\ncurl -X POST http://127.0.0.1:4000/dev/runs \\\n  -H 'content-type: application/json' \\\n  -d '{\"title\":\"Malformed smoke\",\"agent\":\"malformed-agent\",\"workspace\":\"'\"$PWD\"'\"}'\n```\n\nWith `mix phx.server` running, the repeatable runtime smoke exercises the same\nrendered dev-server path and deterministic controls:\n\n```bash\nMIX_ENV=dev mix haven.runtime_smoke\n```\n\nIt checks dev migrations, renders the inbox, creates a stub-backed run through\n`/dev/runs` in a disposable workspace, waits for startup events on the run\npage, triggers and resolves a generic permission request, approves ACP file\nread/write requests, verifies the written file, runs a deterministic terminal\ncommand, and verifies the thread/decision/evidence disclosure surfaces in\nrendered HTML.\n\nTo probe any configured ACP agent through Haven's real run lifecycle:\n\n```bash\nmix haven.agent_probe --agent stub-acp --workspace . --prompt \"hello\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"summarize this repo\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"read README.md\" --resolve-permissions allow\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --expect-event terminal_created --expect-event terminal_output_succeeded --expect-event-field terminal_output_succeeded:payload.exit_status=0\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --report docs/probes/my-agent-terminal.json\nmix haven.agent_probe --list-agents --preflight --workspace /path/to/repo\nmix haven.agent_probe --list-agents --registry --workspace /path/to/repo\n```\n\nConfigured agents can be supplied at runtime with `HAVEN_AGENTS_JSON`:\n\n```bash\nexport HAVEN_AGENTS_JSON='{\n  \"my-agent\": {\n    \"executable\": \"my-acp-agent\",\n    \"args\": [\"--stdio\", \"--workspace\", \"{workspace}\"],\n    \"cwd\": \"{workspace}\",\n    \"env\": {\"TOKEN\": \"...\"}\n  }\n}'\n```\n\n`executable` may be an absolute path or a command on `PATH`. `{workspace}` is\nsubstituted in `args`, `cwd`, and `env` values before Haven starts the agent.\nAgents can also be stored in SQLite through the inbox Agent Setup form or\n`Haven.Agents.create_agent_config/1`; the inbox supports basic create, edit,\nand delete for persisted commands, and persisted agent keys appear in the run\npicker alongside runtime configuration.\n\nThe probe creates a durable run, waits for ACP initialization/session creation,\nsends the prompt through `RunServer`, optionally resolves permission stalls, and\nprints the persisted event timeline. Repeated `--expect-event` flags make the\nprobe fail unless the run emits the required Haven event types, turning\nreal-agent checks into acceptance contracts instead of best-effort smoke.\nRepeated `--expect-event-field EVENT:payload.path=value` flags also require\nspecific event payload facts, such as the requested path, terminal command,\npermission decision, or exit status.\nUse `--list-agents --preflight` first when a saved command merely looks\nplausible: it starts a short durable run for each probe candidate and verifies\nthe ACP initialize/session handshake before you attempt a full evidence report.\nUse `--list-agents --registry` to fetch the public ACP Registry and print\nnpx-backed agent command suggestions that can be supplied through\n`HAVEN_AGENTS_JSON`. Registry commands download and run third-party code; run\npreflight and evidence probes only with an approved workspace and auth scope.\n`--report path.json` writes the full report as pretty JSON for committed proof\nartifacts. Passing the probe with `stub-acp` proves the harness; passing it with\na real configured ACP agent is the next integration milestone. See\n`docs/probes/README.md` for the report requirements that make a probe count as\nreal-agent evidence.\n\n## Shape\n\n- `Haven.Runs.RunServer` owns one live agent run.\n- `Haven.Agents` resolves built-in and configured ACP agent commands.\n- `Haven.PortIO` bridges spawned agent ports to the IO shape expected\n  by `agent_client_protocol`.\n- `Haven.WorkspaceFiles` handles workspace-scoped file capability requests.\n- `Haven.Runs` is the run lifecycle context.\n- `Haven.Events` is the append-only event log.\n- `InboxLive` is the attention inbox.\n- `RunLive` is the run timeline and control surface.\n- `priv/agent_stub.exs` is an ACP-backed JSON-lines stub agent.\n\nThe default development agent is a self-contained ACP stub. Configured agent\nkeys can point at another ACP command and can be selected when starting a run,\nalongside an explicit workspace path. File capability callbacks are proven\nagainst deterministic ACP requests, and terminal create/wait/output/release is\nproven for short-lived non-interactive commands. The next milestone is to\nvalidate one real external agent and harden capability policy while keeping the\nrun/event/LiveView shape.\n"
+          "formatted_output": "# Haven\n\nHaven is a Phoenix/OTP application for running ACP coding agents outside an IDE.\n\nThe core shape:\n\n- A durable run is stored in SQLite.\n- Each live run is owned by a supervised `RunServer` process.\n- The run process owns an ACP client connection to an external agent process.\n- Meaningful state transitions are appended as events.\n- LiveView renders an attention inbox and a run timeline from persisted state.\n- Permission requests become explicit decisions.\n- Reload reconstructs the run from the event log.\n\nSee [docs/design-requirements.md](docs/design-requirements.md) for the product\nand system requirements guiding the project. See\n[docs/validation-matrix.md](docs/validation-matrix.md) for what is currently\nproved by tests and browser smoke, and what remains unproven.\n\n## Run\n\n```bash\nmix ecto.setup\nmix phx.server\n```\n\nOpen [localhost:4000](http://localhost:4000).\n\nThe inbox can save frequently used workspace directories and reuse them from\nthe run form's saved-workspace picker. Manual workspace paths still work.\n\nThe run page includes sample controls:\n\n- `Echo` sends a complete prompt turn.\n- `Ask permission` triggers a permission request.\n- The approval card resolves the permission and lets the stub finish the turn.\n\nIn development, there are HTTP controls for deterministic local testing:\n\n```bash\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/echo\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/permission\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/read-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/write-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/terminal\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow\ncurl -X POST http://127.0.0.1:4000/dev/runs \\\n  -H 'content-type: application/json' \\\n  -d '{\"title\":\"Malformed smoke\",\"agent\":\"malformed-agent\",\"workspace\":\"'\"$PWD\"'\"}'\n```\n\nWith `mix phx.server` running, the repeatable runtime smoke exercises the same\nrendered dev-server path and deterministic controls:\n\n```bash\nMIX_ENV=dev mix haven.runtime_smoke\nMIX_ENV=dev mix haven.runtime_smoke --load-runs 3\n```\n\nIt checks dev migrations, renders the inbox, creates a stub-backed run through\n`/dev/runs` in a disposable workspace, waits for startup events on the run\npage, triggers and resolves a generic permission request, approves ACP file\nread/write requests, verifies the written file, runs a deterministic terminal\ncommand, and verifies the thread/decision/evidence disclosure surfaces in\nrendered HTML. With `--load-runs N`, it also creates N additional disposable\nruns, alternates ordinary and bounded long-output turns, reloads the rendered\npages, and checks cross-run isolation.\n\nTo probe any configured ACP agent through Haven's real run lifecycle:\n\n```bash\nmix haven.agent_probe --agent stub-acp --workspace . --prompt \"hello\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"summarize this repo\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"read README.md\" --resolve-permissions allow\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --expect-event terminal_created --expect-event terminal_output_succeeded --expect-event-field terminal_output_succeeded:payload.exit_status=0\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --report docs/probes/my-agent-terminal.json\nmix haven.agent_probe --list-agents --preflight --workspace /path/to/repo\nmix haven.agent_probe --list-agents --registry --workspace /path/to/repo\n```\n\nConfigured agents can be supplied at runtime with `HAVEN_AGENTS_JSON`:\n\n```bash\nexport HAVEN_AGENTS_JSON='{\n  \"my-agent\": {\n    \"executable\": \"my-acp-agent\",\n    \"args\": [\"--stdio\", \"--workspace\", \"{workspace}\"],\n    \"cwd\": \"{workspace}\",\n    \"env\": {\"TOKEN\": \"...\"}\n  }\n}'\n```\n\n`executable` may be an absolute path or a command on `PATH`. `{workspace}` is\nsubstituted in `args`, `cwd`, and `env` values before Haven starts the agent.\nAgents can also be stored in SQLite through the inbox Agent Setup form or\n`Haven.Agents.create_agent_config/1`; the inbox supports basic create, edit,\nand delete for persisted commands, and persisted agent keys appear in the run\npicker alongside runtime configuration.\n\nThe probe creates a durable run, waits for ACP initialization/session creation,\nsends the prompt through `RunServer`, optionally resolves permission stalls, and\nprints the persisted event timeline. Repeated `--expect-event` flags make the\nprobe fail unless the run emits the required Haven event types, turning\nreal-agent checks into acceptance contracts instead of best-effort smoke.\nRepeated `--expect-event-field EVENT:payload.path=value` flags also require\nspecific event payload facts, such as the requested path, terminal command,\npermission decision, or exit status.\nUse `--list-agents --preflight` first when a saved command merely looks\nplausible: it starts a short durable run for each probe candidate and verifies\nthe ACP initialize/session handshake before you attempt a full evidence report.\nUse `--list-agents --registry` to fetch the public ACP Registry and print\nnpx-backed agent command suggestions that can be supplied through\n`HAVEN_AGENTS_JSON`. Registry commands download and run third-party code; run\npreflight and evidence probes only with an approved workspace and auth scope.\n`--report path.json` writes the full report as pretty JSON for committed proof\nartifacts. Passing the probe with `stub-acp` proves the harness; passing it with\na real configured ACP agent is the next integration milestone. See\n`docs/probes/README.md` for the report requirements that make a probe count as\nreal-agent evidence.\n\n## Shape\n\n- `Haven.Runs.RunServer` owns one live agent run.\n- `Haven.Agents` resolves built-in and configured ACP agent commands.\n- `Haven.PortIO` bridges spawned agent ports to the IO shape expected\n  by `agent_client_protocol`.\n- `Haven.WorkspaceFiles` handles workspace-scoped file capability requests.\n- `Haven.Runs` is the run lifecycle context.\n- `Haven.Events` is the append-only event log.\n- `InboxLive` is the attention inbox.\n- `RunLive` is the run timeline and control surface.\n- `priv/agent_stub.exs` is an ACP-backed JSON-lines stub agent.\n\nThe default development agent is a self-contained ACP stub. Configured agent\nkeys can point at another ACP command and can be selected when starting a run,\nalongside an explicit workspace path. File capability callbacks are proven\nagainst deterministic ACP requests, and terminal create/wait/output/release is\nproven for short-lived non-interactive commands. The next milestone is to\nvalidate one real external agent and harden capability policy while keeping the\nrun/event/LiveView shape.\n"
         },
         "sessionUpdate": "tool_call_update",
         "status": "completed",
-        "toolCallId": "call_vJfAoUUm6xCIHf3nOeeirz3X"
+        "toolCallId": "call_xH88EAjW6dzr9LnAWSQJvRgk"
       }
     },
     {
       "type": "agent_update_unknown",
-      "seq": 12,
+      "seq": 11,
       "payload": {
-        "session_id": "019f1cc7-ce9a-7230-901d-127968d213ef",
+        "session_id": "019f1ce2-f4fb-7143-a4ab-494a99f87b50",
         "update": {
           "sessionUpdate": "usage_update",
           "size": 258400,
-          "used": 20157
+          "used": 20192
         },
         "update_type": "usage_update"
+      }
+    },
+    {
+      "type": "agent_thought_redacted",
+      "seq": 12,
+      "payload": {
+        "content_type": "text",
+        "first_chunk_length": 2,
+        "redacted": true
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 13,
       "payload": {
-        "text": "S"
+        "text": "The"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 14,
       "payload": {
-        "text": "ENT"
+        "text": " next"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 15,
       "payload": {
-        "text": "IN"
+        "text": " milestone"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 16,
       "payload": {
-        "text": "EL"
+        "text": " is"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 17,
       "payload": {
-        "text": ":"
+        "text": " to"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 18,
       "payload": {
-        "text": " README"
+        "text": " validate"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 19,
       "payload": {
-        "text": ".md"
+        "text": " one"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 20,
       "payload": {
-        "text": " read"
+        "text": " real"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 21,
+      "payload": {
+        "text": " external"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 22,
+      "payload": {
+        "text": " agent"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 23,
+      "payload": {
+        "text": " and"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 24,
+      "payload": {
+        "text": " hard"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 25,
+      "payload": {
+        "text": "en"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 26,
+      "payload": {
+        "text": " capability"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 27,
+      "payload": {
+        "text": " policy"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 28,
+      "payload": {
+        "text": " while"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 29,
+      "payload": {
+        "text": " keeping"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 30,
+      "payload": {
+        "text": " the"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 31,
+      "payload": {
+        "text": " run"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 32,
+      "payload": {
+        "text": "/event"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 33,
+      "payload": {
+        "text": "/"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 34,
+      "payload": {
+        "text": "Live"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 35,
+      "payload": {
+        "text": "View"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 36,
+      "payload": {
+        "text": " shape"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 37,
+      "payload": {
+        "text": "."
       }
     },
     {
       "type": "agent_update_unknown",
-      "seq": 21,
+      "seq": 38,
       "payload": {
-        "session_id": "019f1cc7-ce9a-7230-901d-127968d213ef",
+        "session_id": "019f1ce2-f4fb-7143-a4ab-494a99f87b50",
         "update": {
           "sessionUpdate": "usage_update",
           "size": 258400,
-          "used": 21752
+          "used": 21921
         },
         "update_type": "usage_update"
       }
     },
     {
       "type": "session_info_update",
-      "seq": 22,
+      "seq": 39,
       "payload": {
         "_meta": {
           "codex": {
@@ -317,7 +436,7 @@
     },
     {
       "type": "turn_finished",
-      "seq": 23,
+      "seq": 40,
       "payload": {
         "request_id": 1,
         "result": {
@@ -327,30 +446,30 @@
                 {
                   "model": "gpt-5.5",
                   "token_count": {
-                    "cachedInputTokens": 4992,
-                    "inputTokens": 16748,
-                    "outputTokens": 12,
-                    "reasoningOutputTokens": 0,
-                    "totalTokens": 21752
+                    "cachedInputTokens": 19840,
+                    "inputTokens": 1991,
+                    "outputTokens": 90,
+                    "reasoningOutputTokens": 59,
+                    "totalTokens": 21921
                   }
                 }
               ],
               "token_count": {
-                "cachedInputTokens": 4992,
-                "inputTokens": 16748,
-                "outputTokens": 12,
-                "reasoningOutputTokens": 0,
-                "totalTokens": 21752
+                "cachedInputTokens": 19840,
+                "inputTokens": 1991,
+                "outputTokens": 90,
+                "reasoningOutputTokens": 59,
+                "totalTokens": 21921
               }
             }
           },
           "stopReason": "end_turn",
           "usage": {
-            "cachedReadTokens": 4992,
-            "inputTokens": 16748,
-            "outputTokens": 12,
-            "thoughtTokens": 0,
-            "totalTokens": 21752
+            "cachedReadTokens": 19840,
+            "inputTokens": 1991,
+            "outputTokens": 90,
+            "thoughtTokens": 59,
+            "totalTokens": 21921
           }
         }
       }
@@ -371,7 +490,7 @@
       ]
     }
   ],
-  "run_id": "ebabcdeb-d451-4497-aeb4-6dec56130c42",
+  "run_id": "2ca9105b-45d8-449a-8e42-bf704790ebe8",
   "agent": "codex-acp",
   "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
   "expected_events": [
@@ -401,6 +520,20 @@
     }
   ],
   "missing_expected_event_fields": [],
+  "unsupported_client_capabilities": [
+    {
+      "reason": "Observed generic ACP tool_call activity instead of Haven-mediated client capability events.",
+      "missing_events": [
+        "file_read_requested",
+        "file_read_succeeded"
+      ],
+      "observed_events": [
+        "tool_call",
+        "tool_call_update"
+      ],
+      "capability": "fs/read_text_file"
+    }
+  ],
   "real_agent_evidence": {
     "required": true,
     "accepted": true

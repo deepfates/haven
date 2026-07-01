@@ -52,7 +52,9 @@ When a probe expects Haven-mediated capability events but only observes generic
 ACP tool calls, failed reports may include a `tool_call_only_capability_gap`
 diagnostic. Treat that as useful negative evidence: the agent did work through
 ACP, but Haven did not exercise its direct `fs/*` or `terminal/*` client
-handlers for that story.
+handlers for that story. Committed failure reports must also include
+`unsupported_client_capabilities`, naming the mediated capability family that
+the real agent class did not exercise.
 
 Examples:
 
