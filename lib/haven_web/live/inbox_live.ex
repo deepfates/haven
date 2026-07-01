@@ -1148,18 +1148,28 @@ defmodule HavenWeb.InboxLive do
     <Layouts.app flash={@flash}>
       <main id="haven-inbox" class="min-h-dvh bg-white text-zinc-950">
         <section class="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-4 md:px-8 md:py-6">
-          <header class="grid gap-4 border-b border-zinc-200 pb-4 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)] lg:items-end">
+          <header class="border-b border-zinc-200 pb-4">
             <div>
               <p class="text-sm font-medium text-zinc-500">Haven</p>
               <h1 class="text-2xl font-semibold tracking-normal">Inbox</h1>
               <p class="mt-1 text-sm text-zinc-500">Agent work across your folders.</p>
             </div>
+          </header>
 
+          <details id="new-run-panel" class="rounded-lg border border-zinc-200 bg-white">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-zinc-800 marker:hidden">
+              <span class="inline-flex items-center gap-2">
+                <.icon name="hero-plus-circle" class="size-4 text-zinc-500" /> Start a run
+              </span>
+              <span class="text-xs font-medium text-zinc-500">
+                Goal, folder, agent, policy
+              </span>
+            </summary>
             <.form
               id="new-run-form"
               for={@form}
               phx-submit="create_run"
-              class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3"
+              class="grid gap-3 border-t border-zinc-200 p-3"
             >
               <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem]">
                 <.input
@@ -1242,7 +1252,7 @@ defmodule HavenWeb.InboxLive do
                 </div>
               </details>
             </.form>
-          </header>
+          </details>
 
           <form
             id="inbox-search-form"

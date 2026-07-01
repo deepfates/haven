@@ -81,6 +81,9 @@ Evidence:
 - The inbox create form captures title, workspace, and agent choice; LiveView
   tests verify selected workspace and configured agent are persisted into the
   run record.
+- LiveView hierarchy tests verify run creation is available behind a closed
+  `Start a run` disclosure by default, so the open inbox is not dominated by
+  setup fields on mobile.
 - Saved workspaces are stored in SQLite with a name and normalized directory
   path; LiveView tests verify the inbox picker can create a run from a saved
   workspace, editing the workspace updates the picker/run path, and deleting
