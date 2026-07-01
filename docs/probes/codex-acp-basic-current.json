@@ -39,7 +39,7 @@
       "type": "agent_session_started",
       "seq": 4,
       "payload": {
-        "agent_session_id": "019f1cda-eb14-7a62-a684-d3c584e22025"
+        "agent_session_id": "019f1d82-5095-7330-8085-aea4df96b8b1"
       }
     },
     {
@@ -182,174 +182,18 @@
       }
     },
     {
-      "type": "agent_thought_redacted",
-      "seq": 9,
-      "payload": {
-        "content_type": "text",
-        "first_chunk_length": 2,
-        "redacted": true
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 10,
-      "payload": {
-        "text": "I"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 11,
-      "payload": {
-        "text": "’ll"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 12,
-      "payload": {
-        "text": " take"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 13,
-      "payload": {
-        "text": " a"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 14,
-      "payload": {
-        "text": " quick"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 15,
-      "payload": {
-        "text": " look"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 16,
-      "payload": {
-        "text": " at"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 17,
-      "payload": {
-        "text": " the"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 18,
-      "payload": {
-        "text": " repository"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 19,
-      "payload": {
-        "text": " shape"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 20,
-      "payload": {
-        "text": " so"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 21,
-      "payload": {
-        "text": " the"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 22,
-      "payload": {
-        "text": " summary"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 23,
-      "payload": {
-        "text": " is"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 24,
-      "payload": {
-        "text": " grounded"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 25,
-      "payload": {
-        "text": " in"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 26,
-      "payload": {
-        "text": " what"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 27,
-      "payload": {
-        "text": "’s"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 28,
-      "payload": {
-        "text": " actually"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 29,
-      "payload": {
-        "text": " here"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 30,
-      "payload": {
-        "text": "."
-      }
-    },
-    {
       "type": "tool_call",
-      "seq": 31,
+      "seq": 9,
       "payload": {
         "_meta": {
           "terminal_info": {
             "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
-            "terminal_id": "call_Lejyvb97L84u1DiOKNUTjI1Y"
+            "terminal_id": "call_jh3IxaGrJN1kvkaFTrE9njMx"
           }
         },
         "content": [
           {
-            "terminalId": "call_Lejyvb97L84u1DiOKNUTjI1Y",
+            "terminalId": "call_jh3IxaGrJN1kvkaFTrE9njMx",
             "type": "terminal"
           }
         ],
@@ -361,38 +205,22 @@
         "sessionUpdate": "tool_call",
         "status": "in_progress",
         "title": "pwd",
-        "toolCallId": "call_Lejyvb97L84u1DiOKNUTjI1Y"
-      }
-    },
-    {
-      "type": "tool_call",
-      "seq": 32,
-      "payload": {
-        "kind": "read",
-        "locations": [
-          {
-            "path": "/Users/deepfates/Hacking/github/deepfates/haven/mix.exs"
-          }
-        ],
-        "sessionUpdate": "tool_call",
-        "status": "in_progress",
-        "title": "Read file '/Users/deepfates/Hacking/github/deepfates/haven/mix.exs'",
-        "toolCallId": "call_ZUEJNUslKuugXLhpE6HcUo6f"
+        "toolCallId": "call_jh3IxaGrJN1kvkaFTrE9njMx"
       }
     },
     {
       "type": "tool_call_update",
-      "seq": 33,
+      "seq": 10,
       "payload": {
         "_meta": {
           "terminal_exit": {
             "exit_code": 0,
             "signal": null,
-            "terminal_id": "call_Lejyvb97L84u1DiOKNUTjI1Y"
+            "terminal_id": "call_jh3IxaGrJN1kvkaFTrE9njMx"
           },
           "terminal_output_delta": {
             "data": "/Users/deepfates/Hacking/github/deepfates/haven\n",
-            "terminal_id": "call_Lejyvb97L84u1DiOKNUTjI1Y"
+            "terminal_id": "call_jh3IxaGrJN1kvkaFTrE9njMx"
           }
         },
         "rawOutput": {
@@ -401,334 +229,230 @@
         },
         "sessionUpdate": "tool_call_update",
         "status": "completed",
-        "toolCallId": "call_Lejyvb97L84u1DiOKNUTjI1Y"
-      }
-    },
-    {
-      "type": "tool_call_update",
-      "seq": 34,
-      "payload": {
-        "rawOutput": {
-          "exit_code": 0,
-          "formatted_output": "defmodule Haven.MixProject do\n  use Mix.Project\n\n  def project do\n    [\n      app: :haven,\n      version: \"0.1.0\",\n      elixir: \"~> 1.15\",\n      elixirc_paths: elixirc_paths(Mix.env()),\n      start_permanent: Mix.env() == :prod,\n      aliases: aliases(),\n      deps: deps(),\n      compilers: [:phoenix_live_view] ++ Mix.compilers(),\n      listeners: [Phoenix.CodeReloader]\n    ]\n  end\n\n  # Configuration for the OTP application.\n  #\n  # Type `mix help compile.app` for more information.\n  def application do\n    [\n      mod: {Haven.Application, []},\n      extra_applications: [:logger, :runtime_tools]\n    ]\n  end\n\n  def cli do\n    [\n      preferred_envs: [precommit: :test, \"haven.runtime_smoke\": :dev]\n    ]\n  end\n\n  # Specifies which paths to compile per environment.\n  defp elixirc_paths(:test), do: [\"lib\", \"test/support\"]\n  defp elixirc_paths(_), do: [\"lib\"]\n\n  # Specifies your project dependencies.\n  #\n  # Type `mix help deps` for examples and options.\n  defp deps do\n    [\n      {:phoenix, \"~> 1.8.7\"},\n      {:phoenix_ecto, \"~> 4.5\"},\n      {:ecto_sql, \"~> 3.13\"},\n      {:ecto_sqlite3, \">= 0.0.0\"},\n      {:phoenix_html, \"~> 4.1\"},\n      {:phoenix_live_reload, \"~> 1.2\", only: :dev},\n      {:phoenix_live_view, \"~> 1.1.0\"},\n      {:lazy_html, \">= 0.1.0\", only: :test},\n      {:phoenix_live_dashboard, \"~> 0.8.3\"},\n      {:esbuild, \"~> 0.10\", runtime: Mix.env() == :dev},\n      {:tailwind, \"~> 0.3\", runtime: Mix.env() == :dev},\n      {:heroicons,\n       github: \"tailwindlabs/heroicons\",\n       tag: \"v2.2.0\",\n       sparse: \"optimized\",\n       app: false,\n       compile: false,\n       depth: 1},\n      {:swoosh, \"~> 1.16\"},\n      {:req, \"~> 0.5\"},\n      {:telemetry_metrics, \"~> 1.0\"},\n      {:telemetry_poller, \"~> 1.0\"},\n      {:gettext, \"~> 1.0\"},\n      {:jason, \"~> 1.2\"},\n      {:agent_client_protocol, \"~> 0.1.0\"},\n      {:dns_cluster, \"~> 0.2.0\"},\n      {:bandit, \"~> 1.5\"}\n    ]\n  end\n\n  # Aliases are shortcuts or tasks specific to the current project.\n  # For example, to install project dependencies and perform other setup tasks, run:\n  #\n  #     $ mix setup\n  #\n  # See the documentation for `Mix` for more info on aliases.\n  defp aliases do\n    [\n      setup: [\"deps.get\", \"ecto.setup\", \"assets.setup\", \"assets.build\"],\n      \"ecto.setup\": [\"ecto.create\", \"ecto.migrate\", \"run priv/repo/seeds.exs\"],\n      \"ecto.reset\": [\"ecto.drop\", \"ecto.setup\"],\n      test: [\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"],\n      \"assets.setup\": [\"tailwind.install --if-missing\", \"esbuild.install --if-missing\"],\n      \"assets.build\": [\"compile\", \"tailwind haven\", \"esbuild haven\"],\n      \"assets.deploy\": [\n        \"tailwind haven --minify\",\n        \"esbuild haven --minify\",\n        \"phx.digest\"\n      ],\n      precommit: [\n        \"compile --warnings-as-errors\",\n        \"deps.unlock --unused\",\n        \"format\",\n        \"haven.probe_reports\",\n        \"test\"\n      ]\n    ]\n  end\nend\n"
-        },
-        "sessionUpdate": "tool_call_update",
-        "status": "completed",
-        "toolCallId": "call_ZUEJNUslKuugXLhpE6HcUo6f"
+        "toolCallId": "call_jh3IxaGrJN1kvkaFTrE9njMx"
       }
     },
     {
       "type": "tool_call",
-      "seq": 35,
+      "seq": 11,
       "payload": {
         "kind": "read",
         "sessionUpdate": "tool_call",
         "status": "in_progress",
         "title": "List files",
-        "toolCallId": "call_Jx5qhgJjKat5rX4ZIVvn6c1b"
+        "toolCallId": "call_eOhakF1hpIxa7xvBXtW3lcfg"
       }
     },
     {
       "type": "tool_call_update",
-      "seq": 36,
+      "seq": 12,
       "payload": {
-        "_meta": {
-          "terminal_output_delta": {
-            "data": "assets/vendor/topbar.js\nassets/vendor/heroicons.js\nassets/tsconfig.json\nassets/js/app.js\nassets/css/app.css\nlib/haven_web/controllers/error_html.ex\nlib/haven_web/controllers/dev_controller.ex\nlib/haven_web/controllers/error_json.ex\nlib/haven_web/endpoint.ex\nlib/haven_web/live/inbox_live.ex\nlib/haven_web/live/run_live.ex\nlib/haven_web/components/layouts/root.html.heex\nlib/haven_web/components/layouts.ex\nlib/haven_web/components/core_components.ex\nlib/haven_web/router.ex\nlib/haven_web/gettext.ex\nlib/haven_web/telemetry.ex\nlib/haven_web.ex\nlib/haven/agent_probe_report.ex\nlib/haven/runs/acp_client_handler.ex\nlib/haven/runs/run_server.ex\nlib/haven/runs/run.ex\nlib/haven/repo.ex\nlib/haven/acp_client_side.ex\nlib/haven/events/event.ex\nlib/haven/permission_audits/permission_audit.ex\nlib/haven/application.ex\nlib/haven/acp_wire.ex\nlib/haven/workspaces.ex\nlib/haven/mailer.ex\nlib/haven/runs.ex\nlib/haven/workspace_files.ex\nlib/haven/workspaces/workspace.ex\nlib/haven/agents/agent_config.ex\nlib/haven/file_changes/file_change.ex\nlib/haven/terminals.ex\nlib/haven/agent_registry.ex\nlib/haven/file_changes.ex\nlib/haven/terminal_sessions.ex\nlib/haven/agent_probe.ex\nlib/haven/permission_audits.ex\nlib/haven/agents.ex\nlib/haven/port_io.ex\nlib/haven/terminal_sessions/terminal_session.ex\nlib/haven/events.ex\nlib/haven.ex\nlib/mix/tasks/haven.pending_migrations.ex\nlib/mix/tasks/haven.agent_probe.ex\nlib/mix/tasks/haven.runtime_smoke.ex\nlib/mix/tasks/haven.probe_reports.ex\nREADME.md\ndocs/probe-failures/README.md\ndocs/probes/README.md\ntest/haven_web/controllers/error_json_test.exs\ntest/haven_web/controllers/error_html_test.exs\ntest/haven_web/controllers/dev_controller_test.exs\ntest/support/data_case.ex\ntest/support/fake_acp_agent.ex\ntest/support/fake_agent_runner.exs\ntest/support/conn_case.ex\ntest/haven_web/live/inbox_live_test.exs\ntest/haven_web/live/run_live_test.exs\ntest/test_helper.exs\nmix.exs\ntest/haven/workspace_files_test.exs\ntest/haven/acp_wire_test.exs\ntest/haven/events_test.exs\ntest/haven/agent_registry_test.exs\ntest/haven/runs_test.exs\ntest/haven/terminals_test.exs\ntest/haven/agents_test.exs\ntest/haven/file_changes_test.exs\ntest/haven/workspaces_test.exs\ntest/haven/terminal_sessions_test.exs\ntest/haven/port_io_test.exs\ntest/haven/agent_probe_report_test.exs\ntest/haven/agent_probe_test.exs\n",
-            "terminal_id": "call_Jx5qhgJjKat5rX4ZIVvn6c1b"
-          }
+        "rawOutput": {
+          "exit_code": 0,
+          "formatted_output": "lib/haven_web/controllers/error_html.ex\nlib/haven_web/controllers/dev_controller.ex\nlib/haven_web/controllers/error_json.ex\nlib/haven_web/endpoint.ex\nlib/haven_web/live/inbox_live.ex\nlib/haven_web/live/run_live.ex\nlib/haven_web/components/layouts/root.html.heex\nlib/haven_web/components/layouts.ex\nlib/haven_web/components/core_components.ex\nlib/haven_web/router.ex\nlib/haven_web/gettext.ex\nlib/haven_web/telemetry.ex\nlib/haven_web.ex\nlib/haven/agent_probe_report.ex\nlib/haven/runs/acp_client_handler.ex\nlib/haven/runs/run_server.ex\nlib/haven/runs/run.ex\nlib/haven/repo.ex\nlib/haven/acp_client_side.ex\nlib/haven/events/event.ex\nlib/haven/permission_audits/permission_audit.ex\nlib/haven/application.ex\nlib/haven/acp_wire.ex\nlib/haven/workspaces.ex\nlib/haven/mailer.ex\nlib/haven/runs.ex\nlib/haven/workspace_files.ex\nlib/haven/terminal_sessions.ex\nlib/haven/agent_probe.ex\nlib/haven/permission_audits.ex\nlib/haven/agents.ex\nlib/haven/port_io.ex\nlib/haven/terminals.ex\nlib/haven/agent_registry.ex\nlib/haven/file_changes.ex\nlib/haven/workspaces/workspace.ex\nREADME.md\nlib/haven.ex\nlib/haven/events.ex\nmix.exs\n"
         },
         "sessionUpdate": "tool_call_update",
-        "toolCallId": "call_Jx5qhgJjKat5rX4ZIVvn6c1b"
+        "status": "completed",
+        "toolCallId": "call_eOhakF1hpIxa7xvBXtW3lcfg"
       }
     },
     {
       "type": "agent_update_unknown",
-      "seq": 37,
+      "seq": 13,
       "payload": {
-        "session_id": "019f1cda-eb14-7a62-a684-d3c584e22025",
+        "session_id": "019f1d82-5095-7330-8085-aea4df96b8b1",
         "update": {
           "sessionUpdate": "usage_update",
           "size": 258400,
-          "used": 20246
+          "used": 20171
         },
         "update_type": "usage_update"
       }
     },
     {
-      "type": "tool_call_update",
-      "seq": 38,
-      "payload": {
-        "rawOutput": {
-          "exit_code": 0,
-          "formatted_output": "assets/vendor/topbar.js\nassets/vendor/heroicons.js\nassets/tsconfig.json\nassets/js/app.js\nassets/css/app.css\nlib/haven_web/controllers/error_html.ex\nlib/haven_web/controllers/dev_controller.ex\nlib/haven_web/controllers/error_json.ex\nlib/haven_web/endpoint.ex\nlib/haven_web/live/inbox_live.ex\nlib/haven_web/live/run_live.ex\nlib/haven_web/components/layouts/root.html.heex\nlib/haven_web/components/layouts.ex\nlib/haven_web/components/core_components.ex\nlib/haven_web/router.ex\nlib/haven_web/gettext.ex\nlib/haven_web/telemetry.ex\nlib/haven_web.ex\nlib/haven/agent_probe_report.ex\nlib/haven/runs/acp_client_handler.ex\nlib/haven/runs/run_server.ex\nlib/haven/runs/run.ex\nlib/haven/repo.ex\nlib/haven/acp_client_side.ex\nlib/haven/events/event.ex\nlib/haven/permission_audits/permission_audit.ex\nlib/haven/application.ex\nlib/haven/acp_wire.ex\nlib/haven/workspaces.ex\nlib/haven/mailer.ex\nlib/haven/runs.ex\nlib/haven/workspace_files.ex\nlib/haven/workspaces/workspace.ex\nlib/haven/agents/agent_config.ex\nlib/haven/file_changes/file_change.ex\nlib/haven/terminals.ex\nlib/haven/agent_registry.ex\nlib/haven/file_changes.ex\nlib/haven/terminal_sessions.ex\nlib/haven/agent_probe.ex\nlib/haven/permission_audits.ex\nlib/haven/agents.ex\nlib/haven/port_io.ex\nlib/haven/terminal_sessions/terminal_session.ex\nlib/haven/events.ex\nlib/haven.ex\nlib/mix/tasks/haven.pending_migrations.ex\nlib/mix/tasks/haven.agent_probe.ex\nlib/mix/tasks/haven.runtime_smoke.ex\nlib/mix/tasks/haven.probe_reports.ex\nREADME.md\ndocs/probe-failures/README.md\ndocs/probes/README.md\ntest/haven_web/controllers/error_json_test.exs\ntest/haven_web/controllers/error_html_test.exs\ntest/haven_web/controllers/dev_controller_test.exs\ntest/support/data_case.ex\ntest/support/fake_acp_agent.ex\ntest/support/fake_agent_runner.exs\ntest/support/conn_case.ex\ntest/haven_web/live/inbox_live_test.exs\ntest/haven_web/live/run_live_test.exs\ntest/test_helper.exs\nmix.exs\ntest/haven/workspace_files_test.exs\ntest/haven/acp_wire_test.exs\ntest/haven/events_test.exs\ntest/haven/agent_registry_test.exs\ntest/haven/runs_test.exs\ntest/haven/terminals_test.exs\ntest/haven/agents_test.exs\ntest/haven/file_changes_test.exs\ntest/haven/workspaces_test.exs\ntest/haven/terminal_sessions_test.exs\ntest/haven/port_io_test.exs\ntest/haven/agent_probe_report_test.exs\ntest/haven/agent_probe_test.exs\n"
-        },
-        "sessionUpdate": "tool_call_update",
-        "status": "completed",
-        "toolCallId": "call_Jx5qhgJjKat5rX4ZIVvn6c1b"
-      }
-    },
-    {
       "type": "agent_message_chunk",
-      "seq": 39,
+      "seq": 14,
       "payload": {
         "text": "H"
       }
     },
     {
       "type": "agent_message_chunk",
-      "seq": 40,
+      "seq": 15,
       "payload": {
         "text": "aven"
       }
     },
     {
       "type": "agent_message_chunk",
-      "seq": 41,
+      "seq": 16,
       "payload": {
         "text": " is"
       }
     },
     {
       "type": "agent_message_chunk",
-      "seq": 42,
+      "seq": 17,
       "payload": {
         "text": " a"
       }
     },
     {
       "type": "agent_message_chunk",
-      "seq": 43,
+      "seq": 18,
       "payload": {
         "text": " Phoenix"
       }
     },
     {
       "type": "agent_message_chunk",
-      "seq": 44,
+      "seq": 19,
       "payload": {
-        "text": " "
+        "text": " web"
       }
     },
     {
       "type": "agent_message_chunk",
-      "seq": 45,
-      "payload": {
-        "text": "1"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 46,
-      "payload": {
-        "text": "."
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 47,
-      "payload": {
-        "text": "8"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 48,
-      "payload": {
-        "text": "/"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 49,
-      "payload": {
-        "text": "Live"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 50,
-      "payload": {
-        "text": "View"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 51,
+      "seq": 20,
       "payload": {
         "text": " app"
       }
     },
     {
       "type": "agent_message_chunk",
-      "seq": 52,
+      "seq": 21,
       "payload": {
         "text": " for"
       }
     },
     {
       "type": "agent_message_chunk",
-      "seq": 53,
+      "seq": 22,
       "payload": {
         "text": " managing"
       }
     },
     {
       "type": "agent_message_chunk",
-      "seq": 54,
-      "payload": {
-        "text": " work"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 55,
-      "payload": {
-        "text": "spaces"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 56,
-      "payload": {
-        "text": ","
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 57,
-      "payload": {
-        "text": " agents"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 58,
-      "payload": {
-        "text": ","
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 59,
-      "payload": {
-        "text": " runs"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 60,
-      "payload": {
-        "text": ","
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 61,
-      "payload": {
-        "text": " terminals"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 62,
-      "payload": {
-        "text": ","
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 63,
-      "payload": {
-        "text": " events"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 64,
-      "payload": {
-        "text": ","
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 65,
-      "payload": {
-        "text": " file"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 66,
-      "payload": {
-        "text": " changes"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 67,
-      "payload": {
-        "text": ","
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 68,
-      "payload": {
-        "text": " and"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 69,
-      "payload": {
-        "text": " ACP"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 70,
-      "payload": {
-        "text": "-based"
-      }
-    },
-    {
-      "type": "agent_message_chunk",
-      "seq": 71,
+      "seq": 23,
       "payload": {
         "text": " agent"
       }
     },
     {
       "type": "agent_message_chunk",
-      "seq": 72,
+      "seq": 24,
       "payload": {
-        "text": " interactions"
+        "text": " runs"
       }
     },
     {
       "type": "agent_message_chunk",
-      "seq": 73,
+      "seq": 25,
+      "payload": {
+        "text": ","
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 26,
+      "payload": {
+        "text": " work"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 27,
+      "payload": {
+        "text": "spaces"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 28,
+      "payload": {
+        "text": ","
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 29,
+      "payload": {
+        "text": " terminal"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 30,
+      "payload": {
+        "text": " sessions"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 31,
+      "payload": {
+        "text": ","
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 32,
+      "payload": {
+        "text": " events"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 33,
+      "payload": {
+        "text": ","
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 34,
+      "payload": {
+        "text": " and"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 35,
+      "payload": {
+        "text": " permission"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 36,
+      "payload": {
+        "text": " audits"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 37,
       "payload": {
         "text": "."
       }
     },
     {
       "type": "agent_update_unknown",
-      "seq": 74,
+      "seq": 38,
       "payload": {
-        "session_id": "019f1cda-eb14-7a62-a684-d3c584e22025",
+        "session_id": "019f1d82-5095-7330-8085-aea4df96b8b1",
         "update": {
           "sessionUpdate": "usage_update",
           "size": 258400,
-          "used": 21973
+          "used": 20625
         },
         "update_type": "usage_update"
       }
     },
     {
       "type": "session_info_update",
-      "seq": 75,
+      "seq": 39,
       "payload": {
         "_meta": {
           "codex": {
@@ -742,7 +466,7 @@
     },
     {
       "type": "turn_finished",
-      "seq": 76,
+      "seq": 40,
       "payload": {
         "request_id": 1,
         "result": {
@@ -753,29 +477,29 @@
                   "model": "gpt-5.5",
                   "token_count": {
                     "cachedInputTokens": 19840,
-                    "inputTokens": 2094,
-                    "outputTokens": 39,
+                    "inputTokens": 757,
+                    "outputTokens": 28,
                     "reasoningOutputTokens": 0,
-                    "totalTokens": 21973
+                    "totalTokens": 20625
                   }
                 }
               ],
               "token_count": {
                 "cachedInputTokens": 19840,
-                "inputTokens": 2094,
-                "outputTokens": 39,
+                "inputTokens": 757,
+                "outputTokens": 28,
                 "reasoningOutputTokens": 0,
-                "totalTokens": 21973
+                "totalTokens": 20625
               }
             }
           },
           "stopReason": "end_turn",
           "usage": {
             "cachedReadTokens": 19840,
-            "inputTokens": 2094,
-            "outputTokens": 39,
+            "inputTokens": 757,
+            "outputTokens": 28,
             "thoughtTokens": 0,
-            "totalTokens": 21973
+            "totalTokens": 20625
           }
         }
       }
@@ -785,15 +509,21 @@
   "diagnostics": [],
   "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
   "agent": "codex-acp",
-  "run_id": "2b8270f7-0707-4013-bd6e-18de0a08b5fd",
+  "run_id": "cfffed7d-fe8f-48b3-943d-6509e7b90c66",
   "expected_events": [
     "agent_initialized",
     "agent_session_started",
     "turn_finished"
   ],
+  "agent_output_metrics": {
+    "text_char_count": 113,
+    "message_chunk_count": 24
+  },
+  "expected_output": {},
   "expected_event_fields": [],
   "missing_expected_events": [],
   "missing_expected_event_fields": [],
+  "missing_expected_output": [],
   "redactions": [],
   "real_agent_evidence": {
     "required": true,
