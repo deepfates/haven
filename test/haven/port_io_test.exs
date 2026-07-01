@@ -39,6 +39,22 @@ defmodule Haven.PortIOTest do
     assert PortIO.exit_status(io) == 0
   end
 
+  test "reports a device error when writing after process exit" do
+    {:ok, io} =
+      PortIO.start_link(
+        executable: System.find_executable("sh"),
+        args: ["-c", "true"]
+      )
+
+    assert :eof = IO.read(io, :line)
+
+    assert_raise ArgumentError, ~r/bad file number/, fn ->
+      IO.write(io, "late write\n")
+    end
+
+    assert PortIO.exit_status(io) == 0
+  end
+
   test "notifies observers about a final unterminated line" do
     {:ok, io} =
       PortIO.start_link(

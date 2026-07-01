@@ -47,6 +47,12 @@ defmodule Haven.PortIO do
   def handle_call(:exit_status, _from, state), do: {:reply, state.exit_status, state}
 
   @impl true
+  def handle_info({:io_request, from, reply_as, {:put_chars, _encoding, _chars}}, state)
+      when not is_nil(state.exit_status) do
+    send(from, {:io_reply, reply_as, {:error, :ebadf}})
+    {:noreply, state}
+  end
+
   def handle_info({:io_request, from, reply_as, {:put_chars, _encoding, chars}}, state) do
     Port.command(state.port, IO.iodata_to_binary(chars))
     send(from, {:io_reply, reply_as, :ok})
