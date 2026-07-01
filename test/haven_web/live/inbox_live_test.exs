@@ -136,7 +136,10 @@ defmodule HavenWeb.InboxLiveTest do
     refute html =~ "super-secret"
   end
 
-  test "renders runs before setup panels in the mobile-first inbox hierarchy", %{conn: conn} do
+  test "renders runs before secondary controls and setup panels in the mobile-first inbox hierarchy",
+       %{
+         conn: conn
+       } do
     insert_run!("Quiet run", "idle")
 
     {:ok, view, html} = live(conn, ~p"/")
@@ -148,9 +151,13 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#new-run-form")
 
     history_index = :binary.match(html, "Quiet run") |> elem(0)
+    new_run_index = :binary.match(html, ~s|id="new-run-panel"|) |> elem(0)
+    filters_index = :binary.match(html, ~s|id="inbox-run-filters"|) |> elem(0)
     workspace_index = :binary.match(html, "workspaces-panel") |> elem(0)
     agent_setup_index = :binary.match(html, "agent-configs-panel") |> elem(0)
 
+    assert history_index < new_run_index
+    assert history_index < filters_index
     assert history_index < workspace_index
     assert history_index < agent_setup_index
   end
@@ -166,6 +173,12 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#inbox-first-run-empty", "Open Start a run")
     assert has_element?(view, "#workspaces-panel:not([open])")
     assert has_element?(view, "#agent-configs-panel:not([open])")
+
+    html = render(view)
+    empty_index = :binary.match(html, ~s|id="inbox-first-run-empty"|) |> elem(0)
+    new_run_index = :binary.match(html, ~s|id="new-run-panel"|) |> elem(0)
+
+    assert empty_index < new_run_index
   end
 
   test "renders an attention summary that jumps to the most urgent lane", %{conn: conn} do

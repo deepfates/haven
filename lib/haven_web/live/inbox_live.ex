@@ -1845,6 +1845,139 @@ defmodule HavenWeb.InboxLive do
             </nav>
           </section>
 
+          <div
+            :if={@filtered_runs_empty?}
+            id="inbox-filter-empty"
+            class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+          >
+            <%= if @searched_runs_empty? do %>
+              No runs match your filters.
+            <% else %>
+              No runs in this view.
+            <% end %>
+          </div>
+
+          <section :if={@needs_you != []} id="inbox-needs-you-section" class="space-y-2">
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Needs You</h2>
+            <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+              <.run_card
+                :for={run <- @needs_you}
+                run={run}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
+              />
+            </div>
+          </section>
+
+          <section :if={@running != []} id="inbox-running-section" class="space-y-2">
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Running</h2>
+            <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+              <.run_card
+                :for={run <- @running}
+                run={run}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
+              />
+            </div>
+          </section>
+
+          <section
+            :if={@run_filter in ["all", "history"] and !@filtered_runs_empty?}
+            id="inbox-history-section"
+            class="space-y-2"
+          >
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">History</h2>
+            <div
+              :if={@history == []}
+              id="inbox-first-run-empty"
+              class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+            >
+              <p class="font-medium text-zinc-700">No runs yet.</p>
+              <p class="mt-1 text-sm">
+                Open Start a run to launch an agent in a folder.
+              </p>
+            </div>
+            <div
+              :if={@history != []}
+              class="overflow-hidden rounded-lg border border-zinc-200 bg-white"
+            >
+              <.run_card
+                :for={run <- @history}
+                run={run}
+                show_archive={true}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
+              />
+            </div>
+          </section>
+
+          <section
+            :if={@run_filter == "archived" and !@filtered_runs_empty?}
+            id="inbox-archived-section"
+            class="space-y-2"
+          >
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Archived</h2>
+            <section
+              id="archived-retention-panel"
+              class="rounded-lg border border-zinc-200 bg-zinc-50 p-3"
+            >
+              <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div class="min-w-0">
+                  <h3 class="text-sm font-semibold text-zinc-950">Retention</h3>
+                  <p class="mt-1 text-xs text-zinc-600">
+                    Delete archived runs older than the selected date. Active and recent archived runs are preserved.
+                  </p>
+                </div>
+                <.form
+                  id="archived-retention-form"
+                  for={@retention_form}
+                  phx-submit="prune_archived"
+                  class="grid gap-2 sm:min-w-80 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
+                >
+                  <.input
+                    field={@retention_form[:cutoff_date]}
+                    type="date"
+                    label="Archived before"
+                  />
+                  <button
+                    id="archived-retention-submit"
+                    class="mb-2 h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    Prune
+                  </button>
+                </.form>
+              </div>
+              <p
+                :if={@retention_error}
+                id="archived-retention-error"
+                class="mt-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
+              >
+                {@retention_error}
+              </p>
+            </section>
+            <div
+              :if={@archived == []}
+              class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+            >
+              No archived runs yet.
+            </div>
+            <div
+              :if={@archived != []}
+              class="overflow-hidden rounded-lg border border-zinc-200 bg-white"
+            >
+              <.run_card
+                :for={run <- @archived}
+                run={run}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
+              />
+            </div>
+          </section>
+
           <details
             id="new-run-panel"
             open={@form.errors != []}
@@ -2148,139 +2281,6 @@ defmodule HavenWeb.InboxLive do
               </button>
             </form>
           </details>
-
-          <div
-            :if={@filtered_runs_empty?}
-            id="inbox-filter-empty"
-            class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
-          >
-            <%= if @searched_runs_empty? do %>
-              No runs match your filters.
-            <% else %>
-              No runs in this view.
-            <% end %>
-          </div>
-
-          <section :if={@needs_you != []} id="inbox-needs-you-section" class="space-y-2">
-            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Needs You</h2>
-            <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-              <.run_card
-                :for={run <- @needs_you}
-                run={run}
-                agent_inventory={@agent_inventory}
-                agent_probe_reports={@agent_probe_reports}
-                agent_capability_gap_reports={@agent_capability_gap_reports}
-              />
-            </div>
-          </section>
-
-          <section :if={@running != []} id="inbox-running-section" class="space-y-2">
-            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Running</h2>
-            <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-              <.run_card
-                :for={run <- @running}
-                run={run}
-                agent_inventory={@agent_inventory}
-                agent_probe_reports={@agent_probe_reports}
-                agent_capability_gap_reports={@agent_capability_gap_reports}
-              />
-            </div>
-          </section>
-
-          <section
-            :if={@run_filter in ["all", "history"] and !@filtered_runs_empty?}
-            id="inbox-history-section"
-            class="space-y-2"
-          >
-            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">History</h2>
-            <div
-              :if={@history == []}
-              id="inbox-first-run-empty"
-              class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
-            >
-              <p class="font-medium text-zinc-700">No runs yet.</p>
-              <p class="mt-1 text-sm">
-                Open Start a run to launch an agent in a folder.
-              </p>
-            </div>
-            <div
-              :if={@history != []}
-              class="overflow-hidden rounded-lg border border-zinc-200 bg-white"
-            >
-              <.run_card
-                :for={run <- @history}
-                run={run}
-                show_archive={true}
-                agent_inventory={@agent_inventory}
-                agent_probe_reports={@agent_probe_reports}
-                agent_capability_gap_reports={@agent_capability_gap_reports}
-              />
-            </div>
-          </section>
-
-          <section
-            :if={@run_filter == "archived" and !@filtered_runs_empty?}
-            id="inbox-archived-section"
-            class="space-y-2"
-          >
-            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Archived</h2>
-            <section
-              id="archived-retention-panel"
-              class="rounded-lg border border-zinc-200 bg-zinc-50 p-3"
-            >
-              <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div class="min-w-0">
-                  <h3 class="text-sm font-semibold text-zinc-950">Retention</h3>
-                  <p class="mt-1 text-xs text-zinc-600">
-                    Delete archived runs older than the selected date. Active and recent archived runs are preserved.
-                  </p>
-                </div>
-                <.form
-                  id="archived-retention-form"
-                  for={@retention_form}
-                  phx-submit="prune_archived"
-                  class="grid gap-2 sm:min-w-80 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
-                >
-                  <.input
-                    field={@retention_form[:cutoff_date]}
-                    type="date"
-                    label="Archived before"
-                  />
-                  <button
-                    id="archived-retention-submit"
-                    class="mb-2 h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                  >
-                    Prune
-                  </button>
-                </.form>
-              </div>
-              <p
-                :if={@retention_error}
-                id="archived-retention-error"
-                class="mt-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
-              >
-                {@retention_error}
-              </p>
-            </section>
-            <div
-              :if={@archived == []}
-              class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
-            >
-              No archived runs yet.
-            </div>
-            <div
-              :if={@archived != []}
-              class="overflow-hidden rounded-lg border border-zinc-200 bg-white"
-            >
-              <.run_card
-                :for={run <- @archived}
-                run={run}
-                agent_inventory={@agent_inventory}
-                agent_probe_reports={@agent_probe_reports}
-                agent_capability_gap_reports={@agent_capability_gap_reports}
-              />
-            </div>
-          </section>
 
           <details
             id="workspaces-panel"
