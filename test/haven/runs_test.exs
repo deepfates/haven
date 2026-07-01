@@ -50,6 +50,11 @@ defmodule Haven.RunsTest do
     failed = insert_run!("Needs recovery", "failed")
     interrupted = insert_run!("Interrupted turn", "running")
     live_running = insert_run!("Actually running", "running")
+    missing_workspace = Path.join(System.tmp_dir!(), "haven-missing-attention-summary")
+    File.rm_rf!(missing_workspace)
+    File.mkdir_p!(missing_workspace)
+    missing = insert_run!("Missing workspace", "idle", missing_workspace)
+    File.rm_rf!(missing_workspace)
     updated = insert_run!("Fresh update", "idle")
     quiet = insert_run!("Quiet history", "idle")
 
@@ -57,6 +62,7 @@ defmodule Haven.RunsTest do
     assert {:ok, _run} = Runs.mark_latest_viewed(failed.id)
     assert {:ok, _run} = Runs.mark_latest_viewed(interrupted.id)
     assert {:ok, _run} = Runs.mark_latest_viewed(live_running.id)
+    assert {:ok, _run} = Runs.mark_latest_viewed(missing.id)
     assert {:ok, _run} = Runs.mark_latest_viewed(updated.id)
     assert {:ok, _run} = Runs.mark_latest_viewed(quiet.id)
     assert {:ok, _value} = Registry.register(Haven.Runs.Registry, live_running.id, :live)
@@ -64,19 +70,21 @@ defmodule Haven.RunsTest do
     Events.append!(updated.id, "agent_message_chunk", %{"text" => "fresh note"})
 
     assert %{
-             needs_you: 3,
+             needs_you: 4,
              decisions: 1,
              recoveries: 1,
              interruptions: 1,
+             workspaces: 1,
              unread_runs: 1,
              unread_events: 1
            } = Runs.attention_summary()
 
     assert %{
-             needs_you: 2,
+             needs_you: 3,
              decisions: 0,
              recoveries: 1,
              interruptions: 1,
+             workspaces: 1,
              unread_runs: 1,
              unread_events: 1
            } =

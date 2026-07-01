@@ -185,6 +185,9 @@ Evidence:
   disconnected in-flight runs as interruptions, so the run detail Inbox badge
   and page title surface interrupted work elsewhere instead of undercounting
   other agents that need supervision.
+- Data-layer and LiveView tests verify the same shared attention summary counts
+  missing-workspace runs, so a user reading one run still sees vanished folders
+  elsewhere in the run detail Inbox badge and page title.
 - LiveView tests verify the inbox renders a compact attention summary above run
   creation and search, derived from the same lane counts, and that tapping it
   jumps to the most urgent lane instead of forcing users to scan every run.

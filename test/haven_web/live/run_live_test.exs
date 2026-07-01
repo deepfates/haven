@@ -428,6 +428,25 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, ~s|#run-header-inbox-attention[title="1 decision"]|)
   end
 
+  @tag :tmp_dir
+  test "surfaces missing workspaces elsewhere while reading one run", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    current = insert_disconnected_run!("Current conversation")
+    workspace = Path.join(tmp_dir, "vanished-elsewhere")
+    File.mkdir_p!(workspace)
+    missing = insert_disconnected_run!("Missing folder elsewhere", "idle", workspace)
+    assert {:ok, _run} = Runs.mark_latest_viewed(missing.id)
+    File.rm_rf!(workspace)
+
+    {:ok, view, html} = live(conn, ~p"/runs/#{current.id}")
+
+    assert html =~ "(1) Current conversation - Haven"
+    assert has_element?(view, "#run-header-inbox-attention", "1 run needs you")
+    assert has_element?(view, ~s|#run-header-inbox-attention[title="1 workspace"]|)
+  end
+
   test "surfaces interrupted work elsewhere while reading one run", %{conn: conn} do
     current = insert_disconnected_run!("Current conversation")
     interrupted = insert_disconnected_run!("Interrupted elsewhere", "running")

@@ -302,6 +302,7 @@ defmodule HavenWeb.RunLive do
       attention_count(Map.get(summary, :decisions, 0), "decision"),
       attention_count(Map.get(summary, :recoveries, 0), "recovery"),
       attention_count(Map.get(summary, :interruptions, 0), "interruption"),
+      attention_count(Map.get(summary, :workspaces, 0), "workspace"),
       attention_count(Map.get(summary, :unread_events, 0), "new event")
     ]
     |> Enum.reject(&is_nil/1)
@@ -351,6 +352,7 @@ defmodule HavenWeb.RunLive do
           attention_count(summary.decisions, "decision"),
           attention_count(summary.recoveries, "recovery"),
           attention_count(Map.get(summary, :interruptions, 0), "interruption"),
+          attention_count(Map.get(summary, :workspaces, 0), "workspace"),
           attention_count(summary.unread_events, "new event")
         ]
         |> Enum.reject(&is_nil/1)

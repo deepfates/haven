@@ -48,32 +48,12 @@ defmodule Haven.Runs do
         decisions: 0,
         recoveries: 0,
         interruptions: 0,
+        workspaces: 0,
         unread_runs: 0,
         unread_events: 0
       },
       fn run, summary ->
-        summary =
-          case run.status do
-            "waiting" ->
-              %{summary | needs_you: summary.needs_you + 1, decisions: summary.decisions + 1}
-
-            "failed" ->
-              %{summary | needs_you: summary.needs_you + 1, recoveries: summary.recoveries + 1}
-
-            status when status in ["initializing", "running"] ->
-              if started?(run) do
-                summary
-              else
-                %{
-                  summary
-                  | needs_you: summary.needs_you + 1,
-                    interruptions: summary.interruptions + 1
-                }
-              end
-
-            _status ->
-              summary
-          end
+        summary = add_attention_categories(summary, attention_categories(run))
 
         unread_events =
           case Map.get(latest_events, run.id) do
@@ -96,6 +76,35 @@ defmodule Haven.Runs do
       end
     )
   end
+
+  defp add_attention_categories(summary, []), do: summary
+
+  defp add_attention_categories(summary, categories) do
+    %{
+      summary
+      | needs_you: summary.needs_you + 1,
+        decisions: summary.decisions + category_count(categories, :decision),
+        recoveries: summary.recoveries + category_count(categories, :recovery),
+        interruptions: summary.interruptions + category_count(categories, :interruption),
+        workspaces: summary.workspaces + category_count(categories, :workspace)
+    }
+  end
+
+  defp category_count(categories, category), do: if(category in categories, do: 1, else: 0)
+
+  defp attention_categories(run) do
+    []
+    |> maybe_add_attention_category(:workspace, missing_workspace?(run))
+    |> maybe_add_attention_category(:decision, run.status == "waiting")
+    |> maybe_add_attention_category(:recovery, run.status == "failed")
+    |> maybe_add_attention_category(
+      :interruption,
+      run.status in ["initializing", "running"] and not started?(run)
+    )
+  end
+
+  defp maybe_add_attention_category(categories, category, true), do: [category | categories]
+  defp maybe_add_attention_category(categories, _category, false), do: categories
 
   def prune_archived_before(%DateTime{} = cutoff) do
     {count, _deleted} =
