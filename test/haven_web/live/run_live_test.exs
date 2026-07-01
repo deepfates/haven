@@ -706,6 +706,43 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, ~s|[data-event-kind="user"]|, "User")
   end
 
+  test "renders a compact turn summary from durable events", %{conn: conn} do
+    run = insert_disconnected_run!("Turn summary history", "failed")
+
+    Events.append!(run.id, "turn_started", %{"prompt" => "ship the first slice"})
+    Events.append!(run.id, "user_message", %{"text" => "ship the first slice"})
+    Events.append!(run.id, "agent_message_chunk", %{"text" => "First slice shipped."})
+    Events.append!(run.id, "tool_call", %{"toolCallId" => "tool-1", "title" => "Inspect repo"})
+    Events.append!(run.id, "turn_finished", %{})
+    Events.append!(run.id, "turn_started", %{"prompt" => "try the risky path"})
+    Events.append!(run.id, "user_message", %{"text" => "try the risky path"})
+
+    Events.append!(run.id, "permission_requested", %{
+      "options" => [%{"kind" => "allow_once", "name" => "Allow once", "optionId" => "allow"}],
+      "request_id" => "perm-1",
+      "toolCall" => %{"rawInput" => %{"path" => "notes/plan.md"}, "title" => "Write file"}
+    })
+
+    Events.append!(run.id, "file_write_requested", %{"path" => "notes/plan.md"})
+    Events.append!(run.id, "turn_failed", %{"error" => "agent_process_exited"})
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-turn-summary")
+    assert has_element?(view, "#run-turn-summary-count", "2")
+
+    assert has_element?(view, ~s|#run-turn-3[data-turn-status="completed"]|, "Completed")
+    assert has_element?(view, "#run-turn-3", "ship the first slice")
+    assert has_element?(view, "#run-turn-3-agent-preview", "First slice shipped.")
+    assert has_element?(view, "#run-turn-3-tool-calls", "1")
+
+    assert has_element?(view, ~s|#run-turn-8[data-turn-status="failed"]|, "Failed")
+    assert has_element?(view, "#run-turn-8", "try the risky path")
+    assert has_element?(view, "#run-turn-8-decisions", "1")
+    assert has_element?(view, "#run-turn-8-files", "1")
+    assert has_element?(view, "#run-turn-8-error", "agent_process_exited")
+  end
+
   test "searches timeline events without mutating event history", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Timeline search run"})
     stop_run_server_on_exit(run.id)

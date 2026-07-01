@@ -237,6 +237,10 @@ Evidence:
   streamed agent chunks into a plain conversation transcript, grouping adjacent
   agent chunks into one readable answer while preserving the underlying timeline
   events as evidence.
+- LiveView integration tests verify run detail also projects persisted
+  `turn_started` plus terminal turn-status events into a compact turn summary
+  before the raw timeline, including completed and failed turns plus tool,
+  decision, file, and terminal evidence counts.
 - LiveView integration tests verify the run detail layout stays single-column
   until desktop width and its grid columns can shrink, preventing tablet/mobile
   overflow from long run facts.
@@ -264,7 +268,8 @@ Still missing:
 - Rich protocol event normalization.
 - Formal per-event payload schemas beyond the current durable string-key
   JSON-compatible payload contract.
-- Rich grouping beyond provenance/search facets.
+- Rich protocol grouping beyond the compact persisted turn summary and
+  provenance/search facets.
 
 ### Prompting And Control
 

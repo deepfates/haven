@@ -154,6 +154,7 @@ defmodule HavenWeb.RunLive do
     |> assign(:terminal_session_counts, terminal_session_counts(terminal_sessions))
     |> assign(:events, events)
     |> assign(:conversation_messages, conversation_messages(events))
+    |> assign(:turn_summaries, turn_summaries(events))
     |> assign_event_projection(events)
     |> assign(:live?, live?)
     |> assign(:can_prompt?, live? and run.status == "idle")
@@ -534,6 +535,136 @@ defmodule HavenWeb.RunLive do
 
   defp conversation_message_label_class("user"), do: "text-zinc-300"
   defp conversation_message_label_class("agent"), do: "text-zinc-500"
+
+  defp turn_summaries(events) do
+    {summaries, current} =
+      Enum.reduce(events, {[], nil}, fn event, {summaries, current} ->
+        case {event.type, current} do
+          {"turn_started", nil} ->
+            {summaries, new_turn_summary(event)}
+
+          {"turn_started", current} ->
+            {[current | summaries], new_turn_summary(event)}
+
+          {"user_message", current} when not is_nil(current) ->
+            {summaries, %{current | prompt: current.prompt || event.payload["text"]}}
+
+          {"agent_message_chunk", current} when not is_nil(current) ->
+            {summaries, append_turn_agent_text(current, event.payload["text"])}
+
+          {"tool_call", current} when not is_nil(current) ->
+            {summaries, update_in(current.tool_calls, &(&1 + 1))}
+
+          {"permission_requested", current} when not is_nil(current) ->
+            {summaries, update_in(current.decisions, &(&1 + 1))}
+
+          {type, current} when not is_nil(current) ->
+            cond do
+              type in ["turn_finished", "turn_failed", "turn_cancelled"] ->
+                {[finish_turn_summary(current, event) | summaries], nil}
+
+              String.starts_with?(type, "file_") ->
+                {summaries, update_in(current.file_events, &(&1 + 1))}
+
+              String.starts_with?(type, "terminal_") ->
+                {summaries, update_in(current.terminal_events, &(&1 + 1))}
+
+              true ->
+                {summaries, current}
+            end
+
+          _event_without_turn ->
+            {summaries, current}
+        end
+      end)
+
+    summaries = if current, do: [current | summaries], else: summaries
+
+    summaries
+    |> Enum.reverse()
+    |> Enum.with_index(1)
+    |> Enum.map(fn {summary, index} -> Map.put(summary, :index, index) end)
+  end
+
+  defp new_turn_summary(event) do
+    %{
+      index: nil,
+      started_seq: event.seq,
+      ended_seq: nil,
+      started_at: event.inserted_at,
+      ended_at: nil,
+      status: "running",
+      prompt: event.payload["prompt"],
+      agent_text: "",
+      tool_calls: 0,
+      decisions: 0,
+      file_events: 0,
+      terminal_events: 0,
+      error: nil
+    }
+  end
+
+  defp append_turn_agent_text(summary, text) when is_binary(text) do
+    %{summary | agent_text: summary.agent_text <> text}
+  end
+
+  defp append_turn_agent_text(summary, _text), do: summary
+
+  defp finish_turn_summary(summary, event) do
+    %{
+      summary
+      | ended_seq: event.seq,
+        ended_at: event.inserted_at,
+        status: turn_terminal_status(event.type),
+        error: event.payload["error"]
+    }
+  end
+
+  defp turn_terminal_status("turn_finished"), do: "completed"
+  defp turn_terminal_status("turn_failed"), do: "failed"
+  defp turn_terminal_status("turn_cancelled"), do: "cancelled"
+
+  defp turn_sequence_label(%{ended_seq: nil, started_seq: started_seq}), do: "##{started_seq}+"
+
+  defp turn_sequence_label(%{started_seq: started_seq, ended_seq: ended_seq}) do
+    "##{started_seq}-#{ended_seq}"
+  end
+
+  defp turn_time_label(%{ended_at: nil, started_at: started_at}) do
+    Calendar.strftime(started_at, "%H:%M:%S")
+  end
+
+  defp turn_time_label(%{started_at: started_at, ended_at: ended_at}) do
+    Calendar.strftime(started_at, "%H:%M:%S") <> "-" <> Calendar.strftime(ended_at, "%H:%M:%S")
+  end
+
+  defp turn_status_label("completed"), do: "Completed"
+  defp turn_status_label("failed"), do: "Failed"
+  defp turn_status_label("cancelled"), do: "Cancelled"
+  defp turn_status_label("running"), do: "Running"
+
+  defp turn_status_class("completed") do
+    "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-emerald-700"
+  end
+
+  defp turn_status_class("failed") do
+    "inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-rose-700"
+  end
+
+  defp turn_status_class("cancelled") do
+    "inline-flex rounded-full border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-700"
+  end
+
+  defp turn_status_class("running") do
+    "inline-flex rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-sky-700"
+  end
+
+  defp turn_prompt_preview(nil), do: "No user prompt recorded"
+  defp turn_prompt_preview(""), do: "No user prompt recorded"
+  defp turn_prompt_preview(text), do: String.slice(text, 0, 220)
+
+  defp turn_agent_preview(""), do: "No agent response recorded"
+  defp turn_agent_preview(text), do: String.slice(text, 0, 220)
 
   defp event(assigns) do
     assigns =
@@ -2214,6 +2345,79 @@ defmodule HavenWeb.RunLive do
                     </button>
                   </div>
                 </details>
+              </section>
+
+              <section
+                :if={@turn_summaries != []}
+                id="run-turn-summary"
+                class="rounded-lg border border-zinc-200 bg-white p-3"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <h2 class="text-sm font-semibold text-zinc-950">Turns</h2>
+                  <span id="run-turn-summary-count" class="font-mono text-xs text-zinc-500">
+                    {length(@turn_summaries)}
+                  </span>
+                </div>
+                <div class="mt-3 space-y-3">
+                  <article
+                    :for={turn <- @turn_summaries}
+                    id={"run-turn-#{turn.started_seq}"}
+                    data-turn-status={turn.status}
+                    class="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+                  >
+                    <div class="flex min-w-0 items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <p class="text-xs font-semibold uppercase text-zinc-500">
+                          Turn {turn.index} · {turn_sequence_label(turn)}
+                        </p>
+                        <p class="mt-1 truncate text-sm font-semibold text-zinc-950">
+                          {turn_prompt_preview(turn.prompt)}
+                        </p>
+                      </div>
+                      <span class={turn_status_class(turn.status)}>
+                        {turn_status_label(turn.status)}
+                      </span>
+                    </div>
+
+                    <p
+                      id={"run-turn-#{turn.started_seq}-agent-preview"}
+                      class="mt-3 line-clamp-3 whitespace-pre-wrap rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700"
+                    >
+                      {turn_agent_preview(turn.agent_text)}
+                    </p>
+
+                    <dl class="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-700 sm:grid-cols-5">
+                      <div id={"run-turn-#{turn.started_seq}-time"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Time</dt>
+                        <dd class="font-mono">{turn_time_label(turn)}</dd>
+                      </div>
+                      <div id={"run-turn-#{turn.started_seq}-tool-calls"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Tools</dt>
+                        <dd class="font-mono">{turn.tool_calls}</dd>
+                      </div>
+                      <div id={"run-turn-#{turn.started_seq}-decisions"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Decisions</dt>
+                        <dd class="font-mono">{turn.decisions}</dd>
+                      </div>
+                      <div id={"run-turn-#{turn.started_seq}-files"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Files</dt>
+                        <dd class="font-mono">{turn.file_events}</dd>
+                      </div>
+                      <div id={"run-turn-#{turn.started_seq}-terminals"}>
+                        <dt class="font-semibold uppercase text-zinc-500">Terminals</dt>
+                        <dd class="font-mono">{turn.terminal_events}</dd>
+                      </div>
+                    </dl>
+
+                    <p
+                      :if={turn.error}
+                      id={"run-turn-#{turn.started_seq}-error"}
+                      class="mt-3 text-sm font-medium text-rose-700"
+                    >
+                      {turn.error}
+                    </p>
+                  </article>
+                </div>
               </section>
 
               <details id="timeline-filters" class="rounded-lg border border-zinc-200 bg-white p-3">
