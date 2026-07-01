@@ -768,6 +768,11 @@ Evidence:
   `tool_call_update` activity. The current saved `codex-acp` file and terminal
   mediated-capability attempts record this as `tool_call_only_capability_gap`,
   making the boundary explicit in both CLI output and JSON reports.
+- Failed probe reports are now validated by `mix haven.probe_reports` alongside
+  positive reports. Negative boundary evidence must come from an accepted
+  `--require-real-agent` run, declare the missing expected client capability
+  events, include at least one field-level capability expectation, and carry a
+  `tool_call_only_capability_gap` diagnostic backed by actual tool-call events.
 - `docs/probes/codex-acp-terminal-tool-call.json` is a committed passing
   `--require-real-agent` report showing `codex-acp` can execute a terminal
   command and return a sentinel, but it does so through ACP
@@ -816,8 +821,9 @@ Evidence:
   terminal session with outcome-specific guidance for running, exited, and
   failed states.
 - `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts
-  and is part of `mix precommit`, so real-agent evidence requirements are a
-  gate rather than only a documentation convention. Committed reports must
+  and `docs/probe-failures/*.json` boundary artifacts, and is part of
+  `mix precommit`, so real-agent evidence requirements are a gate rather than
+  only a documentation convention. Committed positive reports must
   non-blankly name their durable Haven `run_id`, agent, workspace, and prompt.
   They must carry redaction metadata that names literal/env redaction sources
   without raw values, and can also require payload-field facts as well as event

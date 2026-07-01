@@ -35,7 +35,7 @@ Pass condition:
 Evidence:
 
 - Result: passed at verified application commit `03657003` with 230 tests and
-  4 validated probe reports.
+  4 validated positive probe reports.
 - Notes:
 
 ### 2. Dev Database Gate
@@ -131,7 +131,7 @@ Pass condition:
 - There is at least one current positive real-agent basic probe artifact.
 - Any committed positive real-agent report passes `mix haven.probe_reports`.
 - Any missing mediated file or terminal story has a named negative probe report
-  or note.
+  or note; committed negative reports must also pass `mix haven.probe_reports`.
 - Secrets are redacted with `--redact` or `--redact-env`.
 
 Evidence:

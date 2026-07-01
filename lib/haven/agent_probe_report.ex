@@ -33,6 +33,20 @@ defmodule Haven.AgentProbeReport do
     end
   end
 
+  @spec validate_failure_file(Path.t()) :: :ok | {:error, [String.t()]}
+  def validate_failure_file(path) do
+    with {:ok, content} <- File.read(path),
+         {:ok, report} <- Jason.decode(content) do
+      validate_failure(report)
+    else
+      {:error, %Jason.DecodeError{} = error} ->
+        {:error, ["invalid JSON: #{Exception.message(error)}"]}
+
+      {:error, reason} ->
+        {:error, ["could not read report: #{inspect(reason)}"]}
+    end
+  end
+
   @spec validate(map()) :: :ok | {:error, [String.t()]}
   def validate(report) when is_map(report) do
     errors =
@@ -62,6 +76,36 @@ defmodule Haven.AgentProbeReport do
   end
 
   def validate(_report), do: {:error, ["report must be a JSON object"]}
+
+  @spec validate_failure(map()) :: :ok | {:error, [String.t()]}
+  def validate_failure(report) when is_map(report) do
+    errors =
+      []
+      |> require_string(report, "run_id")
+      |> require_string(report, "agent")
+      |> reject_stub_agent(report)
+      |> require_string(report, "workspace")
+      |> require_string(report, "prompt")
+      |> require_accepted_status(report)
+      |> require_real_agent_evidence(report)
+      |> require_redactions(report)
+      |> require_expected_events(report)
+      |> require_expected_event_fields(report)
+      |> require_any_capability_event_field_expectation(report)
+      |> require_missing_events(report)
+      |> require_no_missing_event_fields(report)
+      |> require_no_errors(report)
+      |> require_events(report)
+      |> require_lifecycle_events(report)
+      |> require_report_identity_events(report)
+      |> require_expected_events_absent(report)
+      |> require_tool_call_gap_diagnostic(report)
+      |> Enum.reverse()
+
+    if errors == [], do: :ok, else: {:error, errors}
+  end
+
+  def validate_failure(_report), do: {:error, ["report must be a JSON object"]}
 
   defp require_string(errors, report, key) do
     case Map.get(report, key) do
@@ -163,6 +207,33 @@ defmodule Haven.AgentProbeReport do
     end
   end
 
+  defp require_missing_events(errors, report) do
+    case Map.get(report, "missing_expected_events") do
+      events when is_list(events) and events != [] ->
+        errors
+        |> then(fn errors ->
+          if Enum.all?(events, &non_blank_string?/1) do
+            errors
+          else
+            ["missing_expected_events must be a non-empty list of event names" | errors]
+          end
+        end)
+        |> then(fn errors ->
+          if Enum.any?(events, &client_capability_event?/1) do
+            errors
+          else
+            [
+              "missing_expected_events must include at least one client capability event"
+              | errors
+            ]
+          end
+        end)
+
+      _events ->
+        ["missing_expected_events must be a non-empty list of event names" | errors]
+    end
+  end
+
   defp require_expected_event_fields(errors, report) do
     case Map.get(report, "expected_event_fields", []) do
       fields when is_list(fields) ->
@@ -200,6 +271,32 @@ defmodule Haven.AgentProbeReport do
         "client capability expected events require matching expected_event_fields: #{Enum.join(missing, ", ")}"
         | errors
       ]
+    end
+  end
+
+  defp require_any_capability_event_field_expectation(errors, report) do
+    expected_capability_events =
+      report
+      |> Map.get("expected_events", [])
+      |> Enum.filter(&is_binary/1)
+      |> Enum.filter(&client_capability_event?/1)
+      |> MapSet.new()
+
+    expected_event_field_types =
+      report
+      |> Map.get("expected_event_fields", [])
+      |> Enum.filter(&is_map/1)
+      |> Enum.map(&Map.get(&1, "event"))
+      |> Enum.filter(&is_binary/1)
+      |> MapSet.new()
+
+    if MapSet.disjoint?(expected_capability_events, expected_event_field_types) do
+      [
+        "failure reports for client capability gaps require at least one matching expected_event_fields entry"
+        | errors
+      ]
+    else
+      errors
     end
   end
 
@@ -360,6 +457,119 @@ defmodule Haven.AgentProbeReport do
     else
       ["expected events are absent from events: #{Enum.join(missing, ", ")}" | errors]
     end
+  end
+
+  defp require_expected_events_absent(errors, report) do
+    expected_events = Map.get(report, "expected_events", [])
+    declared_missing = Map.get(report, "missing_expected_events", [])
+
+    present_events =
+      report
+      |> Map.get("events", [])
+      |> Enum.filter(&is_map/1)
+      |> Enum.map(&Map.get(&1, "type"))
+      |> MapSet.new()
+
+    actual_missing =
+      expected_events
+      |> Enum.filter(&is_binary/1)
+      |> Enum.reject(&MapSet.member?(present_events, &1))
+
+    cond do
+      Enum.sort(actual_missing) == Enum.sort(declared_missing) ->
+        errors
+
+      actual_missing == [] ->
+        ["failure report must have at least one expected event absent from events" | errors]
+
+      true ->
+        [
+          "missing_expected_events must match absent expected events: #{Enum.join(actual_missing, ", ")}"
+          | errors
+        ]
+    end
+  end
+
+  defp require_tool_call_gap_diagnostic(errors, report) do
+    diagnostics = Map.get(report, "diagnostics", [])
+    declared_missing = Map.get(report, "missing_expected_events", [])
+    present_events = present_event_set(report)
+
+    diagnostic =
+      Enum.find(diagnostics, fn
+        %{"type" => "tool_call_only_capability_gap"} -> true
+        _diagnostic -> false
+      end)
+
+    case diagnostic do
+      %{
+        "missing_events" => missing_events,
+        "observed_events" => observed_events,
+        "message" => message
+      }
+      when is_list(missing_events) and is_list(observed_events) and is_binary(message) ->
+        errors
+        |> require_diagnostic_missing_events(missing_events, declared_missing)
+        |> require_diagnostic_observed_events(observed_events, present_events)
+
+      _diagnostic ->
+        [
+          "failure report must include a tool_call_only_capability_gap diagnostic with missing_events and observed_events"
+          | errors
+        ]
+    end
+  end
+
+  defp require_diagnostic_missing_events(errors, missing_events, declared_missing) do
+    missing_set = MapSet.new(missing_events)
+    declared_set = MapSet.new(declared_missing)
+
+    cond do
+      missing_events == [] ->
+        ["tool_call_only_capability_gap missing_events must not be empty" | errors]
+
+      not Enum.all?(missing_events, &client_capability_event?/1) ->
+        ["tool_call_only_capability_gap missing_events must be client capability events" | errors]
+
+      not MapSet.subset?(missing_set, declared_set) ->
+        [
+          "tool_call_only_capability_gap missing_events must be listed in missing_expected_events"
+          | errors
+        ]
+
+      true ->
+        errors
+    end
+  end
+
+  defp require_diagnostic_observed_events(errors, observed_events, present_events) do
+    observed_set = MapSet.new(observed_events)
+
+    cond do
+      not MapSet.member?(observed_set, "tool_call") and
+          not MapSet.member?(observed_set, "tool_call_update") ->
+        [
+          "tool_call_only_capability_gap observed_events must include tool_call or tool_call_update"
+          | errors
+        ]
+
+      not Enum.all?(observed_events, &MapSet.member?(present_events, &1)) ->
+        [
+          "tool_call_only_capability_gap observed_events must be present in events"
+          | errors
+        ]
+
+      true ->
+        errors
+    end
+  end
+
+  defp present_event_set(report) do
+    report
+    |> Map.get("events", [])
+    |> Enum.filter(&is_map/1)
+    |> Enum.map(&Map.get(&1, "type"))
+    |> MapSet.new()
   end
 
   defp require_expected_event_fields_present(errors, report) do

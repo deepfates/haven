@@ -12,7 +12,7 @@
           "terminal_create": "ask"
         },
         "title": "Agent probe: codex-acp",
-        "workspace": "/tmp/haven-real-agent-terminal-mediated-tN1DeU"
+        "workspace": "/Users/deepfates/Hacking/github/deepfates/haven"
       }
     },
     {
@@ -25,7 +25,7 @@
           "@agentclientprotocol/codex-acp@1.0.1"
         ],
         "command": "codex-acp",
-        "cwd": "/tmp/haven-real-agent-terminal-mediated-tN1DeU",
+        "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
         "env": [],
         "executable": "/opt/homebrew/bin/npx"
       }
@@ -39,7 +39,7 @@
       "type": "agent_session_started",
       "seq": 4,
       "payload": {
-        "agent_session_id": "019f1ca3-7b9c-7a60-9221-c9593e581966"
+        "agent_session_id": "019f1cc8-3114-7b63-afe3-1943dc765b3b"
       }
     },
     {
@@ -187,25 +187,25 @@
       "payload": {
         "_meta": {
           "terminal_info": {
-            "cwd": "/tmp/haven-real-agent-terminal-mediated-tN1DeU",
-            "terminal_id": "call_bk8TK6JhrkIMq2YjklcFuNjA"
+            "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
+            "terminal_id": "call_RXbj6w6jhZ53Q4hpYc1X1HSi"
           }
         },
         "content": [
           {
-            "terminalId": "call_bk8TK6JhrkIMq2YjklcFuNjA",
+            "terminalId": "call_RXbj6w6jhZ53Q4hpYc1X1HSi",
             "type": "terminal"
           }
         ],
         "kind": "execute",
         "rawInput": {
           "command": "printf 'Grei terminal sentinel: current-negative\\n'",
-          "cwd": "/tmp/haven-real-agent-terminal-mediated-tN1DeU"
+          "cwd": "/Users/deepfates/Hacking/github/deepfates/haven"
         },
         "sessionUpdate": "tool_call",
         "status": "in_progress",
         "title": "printf 'Grei terminal sentinel: current-negative\\n'",
-        "toolCallId": "call_bk8TK6JhrkIMq2YjklcFuNjA"
+        "toolCallId": "call_RXbj6w6jhZ53Q4hpYc1X1HSi"
       }
     },
     {
@@ -216,11 +216,11 @@
           "terminal_exit": {
             "exit_code": 0,
             "signal": null,
-            "terminal_id": "call_bk8TK6JhrkIMq2YjklcFuNjA"
+            "terminal_id": "call_RXbj6w6jhZ53Q4hpYc1X1HSi"
           },
           "terminal_output_delta": {
             "data": "Grei terminal sentinel: current-negative\n",
-            "terminal_id": "call_bk8TK6JhrkIMq2YjklcFuNjA"
+            "terminal_id": "call_RXbj6w6jhZ53Q4hpYc1X1HSi"
           }
         },
         "rawOutput": {
@@ -229,18 +229,18 @@
         },
         "sessionUpdate": "tool_call_update",
         "status": "completed",
-        "toolCallId": "call_bk8TK6JhrkIMq2YjklcFuNjA"
+        "toolCallId": "call_RXbj6w6jhZ53Q4hpYc1X1HSi"
       }
     },
     {
       "type": "agent_update_unknown",
       "seq": 11,
       "payload": {
-        "session_id": "019f1ca3-7b9c-7a60-9221-c9593e581966",
+        "session_id": "019f1cc8-3114-7b63-afe3-1943dc765b3b",
         "update": {
           "sessionUpdate": "usage_update",
           "size": 258400,
-          "used": 14440
+          "used": 20092
         },
         "update_type": "usage_update"
       }
@@ -298,11 +298,11 @@
       "type": "agent_update_unknown",
       "seq": 19,
       "payload": {
-        "session_id": "019f1ca3-7b9c-7a60-9221-c9593e581966",
+        "session_id": "019f1cc8-3114-7b63-afe3-1943dc765b3b",
         "update": {
           "sessionUpdate": "usage_update",
           "size": 258400,
-          "used": 14504
+          "used": 20156
         },
         "update_type": "usage_update"
       }
@@ -333,30 +333,30 @@
                 {
                   "model": "gpt-5.5",
                   "token_count": {
-                    "cachedInputTokens": 14208,
-                    "inputTokens": 285,
+                    "cachedInputTokens": 4992,
+                    "inputTokens": 15153,
                     "outputTokens": 11,
                     "reasoningOutputTokens": 0,
-                    "totalTokens": 14504
+                    "totalTokens": 20156
                   }
                 }
               ],
               "token_count": {
-                "cachedInputTokens": 14208,
-                "inputTokens": 285,
+                "cachedInputTokens": 4992,
+                "inputTokens": 15153,
                 "outputTokens": 11,
                 "reasoningOutputTokens": 0,
-                "totalTokens": 14504
+                "totalTokens": 20156
               }
             }
           },
           "stopReason": "end_turn",
           "usage": {
-            "cachedReadTokens": 14208,
-            "inputTokens": 285,
+            "cachedReadTokens": 4992,
+            "inputTokens": 15153,
             "outputTokens": 11,
             "thoughtTokens": 0,
-            "totalTokens": 14504
+            "totalTokens": 20156
           }
         }
       }
@@ -378,9 +378,9 @@
       ]
     }
   ],
-  "workspace": "/tmp/haven-real-agent-terminal-mediated-tN1DeU",
+  "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
   "agent": "codex-acp",
-  "run_id": "2ca26ebf-07f4-45ee-b049-beed302aca01",
+  "run_id": "4f917464-9b4e-4a35-9149-56d5e1f877d1",
   "expected_events": [
     "permission_requested",
     "permission_resolved",
@@ -404,5 +404,9 @@
     "terminal_output_requested"
   ],
   "missing_expected_event_fields": [],
-  "redactions": []
+  "redactions": [],
+  "real_agent_evidence": {
+    "required": true,
+    "accepted": true
+  }
 }

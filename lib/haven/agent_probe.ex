@@ -528,10 +528,22 @@ defmodule Haven.AgentProbe do
     end)
   end
 
-  defp validate_real_agent({:error, reason, report}, _require_real_agent?),
-    do: {:error, reason, report}
+  defp validate_real_agent(result, false), do: result
 
-  defp validate_real_agent({:ok, report}, false), do: {:ok, report}
+  defp validate_real_agent({:error, reason, report}, true) do
+    reasons = real_agent_rejection_reasons(report)
+
+    if reasons == [] do
+      {:error, reason, Map.put(report, :real_agent_evidence, %{required: true, accepted: true})}
+    else
+      {:error, :real_agent_required,
+       report
+       |> Map.put(:real_agent_evidence, %{required: true, accepted: false, reasons: reasons})
+       |> Map.update(:errors, %{"real_agent" => reasons}, fn errors ->
+         Map.put(errors, "real_agent", reasons)
+       end)}
+    end
+  end
 
   defp validate_real_agent({:ok, report}, true) do
     reasons = real_agent_rejection_reasons(report)

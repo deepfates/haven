@@ -8,14 +8,11 @@
         "agent": "codex-acp",
         "capability_policy": {
           "file_read": "ask",
-          "file_read_paths": [
-            "README.md"
-          ],
           "file_write": "ask",
           "terminal_create": "allow"
         },
         "title": "Agent probe: codex-acp",
-        "workspace": "/tmp/haven-real-agent-file-mediated-oPlvkI"
+        "workspace": "/Users/deepfates/Hacking/github/deepfates/haven"
       }
     },
     {
@@ -28,7 +25,7 @@
           "@agentclientprotocol/codex-acp@1.0.1"
         ],
         "command": "codex-acp",
-        "cwd": "/tmp/haven-real-agent-file-mediated-oPlvkI",
+        "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
         "env": [],
         "executable": "/opt/homebrew/bin/npx"
       }
@@ -42,7 +39,7 @@
       "type": "agent_session_started",
       "seq": 4,
       "payload": {
-        "agent_session_id": "019f1ca3-7b95-70c0-b6ef-669e9c2a9853"
+        "agent_session_id": "019f1cc7-ce9a-7230-901d-127968d213ef"
       }
     },
     {
@@ -200,13 +197,13 @@
         "kind": "read",
         "locations": [
           {
-            "path": "/tmp/haven-real-agent-file-mediated-oPlvkI/README.md"
+            "path": "/Users/deepfates/Hacking/github/deepfates/haven/README.md"
           }
         ],
         "sessionUpdate": "tool_call",
         "status": "in_progress",
-        "title": "Read file '/tmp/haven-real-agent-file-mediated-oPlvkI/README.md'",
-        "toolCallId": "call_zTmvaFXBbLoR1Ve1ZGZbR4fi"
+        "title": "Read file '/Users/deepfates/Hacking/github/deepfates/haven/README.md'",
+        "toolCallId": "call_vJfAoUUm6xCIHf3nOeeirz3X"
       }
     },
     {
@@ -215,22 +212,22 @@
       "payload": {
         "rawOutput": {
           "exit_code": 0,
-          "formatted_output": "Grei file sentinel: current-negative\nOnly report this exact sentinel if you read README.md.\n"
+          "formatted_output": "# Haven\n\nHaven is a Phoenix/OTP application for running ACP coding agents outside an IDE.\n\nThe core shape:\n\n- A durable run is stored in SQLite.\n- Each live run is owned by a supervised `RunServer` process.\n- The run process owns an ACP client connection to an external agent process.\n- Meaningful state transitions are appended as events.\n- LiveView renders an attention inbox and a run timeline from persisted state.\n- Permission requests become explicit decisions.\n- Reload reconstructs the run from the event log.\n\nSee [docs/design-requirements.md](docs/design-requirements.md) for the product\nand system requirements guiding the project. See\n[docs/validation-matrix.md](docs/validation-matrix.md) for what is currently\nproved by tests and browser smoke, and what remains unproven.\n\n## Run\n\n```bash\nmix ecto.setup\nmix phx.server\n```\n\nOpen [localhost:4000](http://localhost:4000).\n\nThe inbox can save frequently used workspace directories and reuse them from\nthe run form's saved-workspace picker. Manual workspace paths still work.\n\nThe run page includes sample controls:\n\n- `Echo` sends a complete prompt turn.\n- `Ask permission` triggers a permission request.\n- The approval card resolves the permission and lets the stub finish the turn.\n\nIn development, there are HTTP controls for deterministic local testing:\n\n```bash\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/echo\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/permission\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/read-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/write-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/terminal\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow\ncurl -X POST http://127.0.0.1:4000/dev/runs \\\n  -H 'content-type: application/json' \\\n  -d '{\"title\":\"Malformed smoke\",\"agent\":\"malformed-agent\",\"workspace\":\"'\"$PWD\"'\"}'\n```\n\nWith `mix phx.server` running, the repeatable runtime smoke exercises the same\nrendered dev-server path and deterministic controls:\n\n```bash\nMIX_ENV=dev mix haven.runtime_smoke\n```\n\nIt checks dev migrations, renders the inbox, creates a stub-backed run through\n`/dev/runs` in a disposable workspace, waits for startup events on the run\npage, triggers and resolves a generic permission request, approves ACP file\nread/write requests, verifies the written file, runs a deterministic terminal\ncommand, and verifies the thread/decision/evidence disclosure surfaces in\nrendered HTML.\n\nTo probe any configured ACP agent through Haven's real run lifecycle:\n\n```bash\nmix haven.agent_probe --agent stub-acp --workspace . --prompt \"hello\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"summarize this repo\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"read README.md\" --resolve-permissions allow\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --expect-event terminal_created --expect-event terminal_output_succeeded --expect-event-field terminal_output_succeeded:payload.exit_status=0\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --report docs/probes/my-agent-terminal.json\nmix haven.agent_probe --list-agents --preflight --workspace /path/to/repo\nmix haven.agent_probe --list-agents --registry --workspace /path/to/repo\n```\n\nConfigured agents can be supplied at runtime with `HAVEN_AGENTS_JSON`:\n\n```bash\nexport HAVEN_AGENTS_JSON='{\n  \"my-agent\": {\n    \"executable\": \"my-acp-agent\",\n    \"args\": [\"--stdio\", \"--workspace\", \"{workspace}\"],\n    \"cwd\": \"{workspace}\",\n    \"env\": {\"TOKEN\": \"...\"}\n  }\n}'\n```\n\n`executable` may be an absolute path or a command on `PATH`. `{workspace}` is\nsubstituted in `args`, `cwd`, and `env` values before Haven starts the agent.\nAgents can also be stored in SQLite through the inbox Agent Setup form or\n`Haven.Agents.create_agent_config/1`; the inbox supports basic create, edit,\nand delete for persisted commands, and persisted agent keys appear in the run\npicker alongside runtime configuration.\n\nThe probe creates a durable run, waits for ACP initialization/session creation,\nsends the prompt through `RunServer`, optionally resolves permission stalls, and\nprints the persisted event timeline. Repeated `--expect-event` flags make the\nprobe fail unless the run emits the required Haven event types, turning\nreal-agent checks into acceptance contracts instead of best-effort smoke.\nRepeated `--expect-event-field EVENT:payload.path=value` flags also require\nspecific event payload facts, such as the requested path, terminal command,\npermission decision, or exit status.\nUse `--list-agents --preflight` first when a saved command merely looks\nplausible: it starts a short durable run for each probe candidate and verifies\nthe ACP initialize/session handshake before you attempt a full evidence report.\nUse `--list-agents --registry` to fetch the public ACP Registry and print\nnpx-backed agent command suggestions that can be supplied through\n`HAVEN_AGENTS_JSON`. Registry commands download and run third-party code; run\npreflight and evidence probes only with an approved workspace and auth scope.\n`--report path.json` writes the full report as pretty JSON for committed proof\nartifacts. Passing the probe with `stub-acp` proves the harness; passing it with\na real configured ACP agent is the next integration milestone. See\n`docs/probes/README.md` for the report requirements that make a probe count as\nreal-agent evidence.\n\n## Shape\n\n- `Haven.Runs.RunServer` owns one live agent run.\n- `Haven.Agents` resolves built-in and configured ACP agent commands.\n- `Haven.PortIO` bridges spawned agent ports to the IO shape expected\n  by `agent_client_protocol`.\n- `Haven.WorkspaceFiles` handles workspace-scoped file capability requests.\n- `Haven.Runs` is the run lifecycle context.\n- `Haven.Events` is the append-only event log.\n- `InboxLive` is the attention inbox.\n- `RunLive` is the run timeline and control surface.\n- `priv/agent_stub.exs` is an ACP-backed JSON-lines stub agent.\n\nThe default development agent is a self-contained ACP stub. Configured agent\nkeys can point at another ACP command and can be selected when starting a run,\nalongside an explicit workspace path. File capability callbacks are proven\nagainst deterministic ACP requests, and terminal create/wait/output/release is\nproven for short-lived non-interactive commands. The next milestone is to\nvalidate one real external agent and harden capability policy while keeping the\nrun/event/LiveView shape.\n"
         },
         "sessionUpdate": "tool_call_update",
         "status": "completed",
-        "toolCallId": "call_zTmvaFXBbLoR1Ve1ZGZbR4fi"
+        "toolCallId": "call_vJfAoUUm6xCIHf3nOeeirz3X"
       }
     },
     {
       "type": "agent_update_unknown",
       "seq": 12,
       "payload": {
-        "session_id": "019f1ca3-7b95-70c0-b6ef-669e9c2a9853",
+        "session_id": "019f1cc7-ce9a-7230-901d-127968d213ef",
         "update": {
           "sessionUpdate": "usage_update",
           "size": 258400,
-          "used": 14508
+          "used": 20157
         },
         "update_type": "usage_update"
       }
@@ -239,32 +236,74 @@
       "type": "agent_message_chunk",
       "seq": 13,
       "payload": {
-        "text": "current"
+        "text": "S"
       }
     },
     {
       "type": "agent_message_chunk",
       "seq": 14,
       "payload": {
-        "text": "-negative"
+        "text": "ENT"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 15,
+      "payload": {
+        "text": "IN"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 16,
+      "payload": {
+        "text": "EL"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 17,
+      "payload": {
+        "text": ":"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 18,
+      "payload": {
+        "text": " README"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 19,
+      "payload": {
+        "text": ".md"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 20,
+      "payload": {
+        "text": " read"
       }
     },
     {
       "type": "agent_update_unknown",
-      "seq": 15,
+      "seq": 21,
       "payload": {
-        "session_id": "019f1ca3-7b95-70c0-b6ef-669e9c2a9853",
+        "session_id": "019f1cc7-ce9a-7230-901d-127968d213ef",
         "update": {
           "sessionUpdate": "usage_update",
           "size": 258400,
-          "used": 14573
+          "used": 21752
         },
         "update_type": "usage_update"
       }
     },
     {
       "type": "session_info_update",
-      "seq": 16,
+      "seq": 22,
       "payload": {
         "_meta": {
           "codex": {
@@ -278,7 +317,7 @@
     },
     {
       "type": "turn_finished",
-      "seq": 17,
+      "seq": 23,
       "payload": {
         "request_id": 1,
         "result": {
@@ -288,30 +327,30 @@
                 {
                   "model": "gpt-5.5",
                   "token_count": {
-                    "cachedInputTokens": 14208,
-                    "inputTokens": 359,
-                    "outputTokens": 6,
+                    "cachedInputTokens": 4992,
+                    "inputTokens": 16748,
+                    "outputTokens": 12,
                     "reasoningOutputTokens": 0,
-                    "totalTokens": 14573
+                    "totalTokens": 21752
                   }
                 }
               ],
               "token_count": {
-                "cachedInputTokens": 14208,
-                "inputTokens": 359,
-                "outputTokens": 6,
+                "cachedInputTokens": 4992,
+                "inputTokens": 16748,
+                "outputTokens": 12,
                 "reasoningOutputTokens": 0,
-                "totalTokens": 14573
+                "totalTokens": 21752
               }
             }
           },
           "stopReason": "end_turn",
           "usage": {
-            "cachedReadTokens": 14208,
-            "inputTokens": 359,
-            "outputTokens": 6,
+            "cachedReadTokens": 4992,
+            "inputTokens": 16748,
+            "outputTokens": 12,
             "thoughtTokens": 0,
-            "totalTokens": 14573
+            "totalTokens": 21752
           }
         }
       }
@@ -332,9 +371,9 @@
       ]
     }
   ],
-  "workspace": "/tmp/haven-real-agent-file-mediated-oPlvkI",
+  "run_id": "ebabcdeb-d451-4497-aeb4-6dec56130c42",
   "agent": "codex-acp",
-  "run_id": "1879a163-c585-4b10-8ced-8ab8b4399780",
+  "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
   "expected_events": [
     "permission_requested",
     "permission_resolved",
@@ -342,6 +381,13 @@
     "file_read_succeeded",
     "turn_finished"
   ],
+  "missing_expected_events": [
+    "permission_requested",
+    "permission_resolved",
+    "file_read_requested",
+    "file_read_succeeded"
+  ],
+  "redactions": [],
   "expected_event_fields": [
     {
       "value": "README.md",
@@ -354,12 +400,9 @@
       "event": "file_read_succeeded"
     }
   ],
-  "missing_expected_events": [
-    "permission_requested",
-    "permission_resolved",
-    "file_read_requested",
-    "file_read_succeeded"
-  ],
   "missing_expected_event_fields": [],
-  "redactions": []
+  "real_agent_evidence": {
+    "required": true,
+    "accepted": true
+  }
 }

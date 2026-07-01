@@ -313,6 +313,61 @@ defmodule Haven.AgentProbeReportTest do
     File.rm(path)
   end
 
+  test "accepts real-agent failure reports with tool-call-only capability gaps" do
+    assert :ok = AgentProbeReport.validate_failure(valid_failure_report())
+  end
+
+  test "rejects failure reports without real-agent acceptance metadata" do
+    report = Map.delete(valid_failure_report(), "real_agent_evidence")
+
+    assert {:error, errors} = AgentProbeReport.validate_failure(report)
+    assert "real_agent_evidence must have required=true and accepted=true" in errors
+  end
+
+  test "rejects failure reports without missing expected client capability events" do
+    report =
+      valid_failure_report()
+      |> Map.put("expected_events", ["agent_initialized", "turn_finished"])
+      |> Map.put("missing_expected_events", [])
+
+    assert {:error, errors} = AgentProbeReport.validate_failure(report)
+
+    assert "missing_expected_events must be a non-empty list of event names" in errors
+
+    assert "tool_call_only_capability_gap missing_events must be listed in missing_expected_events" in errors
+  end
+
+  test "rejects failure reports without a tool-call capability-gap diagnostic" do
+    report = Map.put(valid_failure_report(), "diagnostics", [])
+
+    assert {:error, errors} = AgentProbeReport.validate_failure(report)
+
+    assert "failure report must include a tool_call_only_capability_gap diagnostic with missing_events and observed_events" in errors
+  end
+
+  test "rejects failure reports whose diagnostic observed events are not in events" do
+    report =
+      valid_failure_report()
+      |> update_in(["diagnostics"], fn [diagnostic] ->
+        [Map.put(diagnostic, "observed_events", ["tool_call", "terminal_session_update"])]
+      end)
+
+    assert {:error, errors} = AgentProbeReport.validate_failure(report)
+
+    assert "tool_call_only_capability_gap observed_events must be present in events" in errors
+  end
+
+  test "validates failure report files" do
+    path =
+      Path.join(System.tmp_dir!(), "haven-valid-probe-failure-#{System.unique_integer()}.json")
+
+    File.write!(path, Jason.encode!(valid_failure_report()))
+
+    assert :ok = AgentProbeReport.validate_failure_file(path)
+
+    File.rm(path)
+  end
+
   defp valid_report do
     %{
       "run_id" => "run-1",
@@ -336,6 +391,53 @@ defmodule Haven.AgentProbeReportTest do
         %{"seq" => 5, "type" => "turn_started", "payload" => %{}},
         %{"seq" => 6, "type" => "user_message", "payload" => %{"text" => "summarize"}},
         %{"seq" => 7, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
+      ]
+    }
+  end
+
+  defp valid_failure_report do
+    %{
+      "run_id" => "run-2",
+      "agent" => "real-agent",
+      "workspace" => "/workspace",
+      "status" => "idle",
+      "prompt" => "read README.md",
+      "expected_events" => [
+        "agent_initialized",
+        "file_read_requested",
+        "file_read_succeeded",
+        "turn_finished"
+      ],
+      "missing_expected_events" => ["file_read_requested", "file_read_succeeded"],
+      "expected_event_fields" => [
+        %{"event" => "file_read_requested", "field" => "path", "value" => "README.md"},
+        %{"event" => "file_read_succeeded", "field" => "path", "value" => "README.md"}
+      ],
+      "missing_expected_event_fields" => [],
+      "real_agent_evidence" => %{"required" => true, "accepted" => true},
+      "redactions" => [],
+      "diagnostics" => [
+        %{
+          "type" => "tool_call_only_capability_gap",
+          "message" => "Generic ACP tool calls were observed instead.",
+          "missing_events" => ["file_read_requested", "file_read_succeeded"],
+          "observed_events" => ["tool_call", "tool_call_update"]
+        }
+      ],
+      "events" => [
+        %{
+          "seq" => 1,
+          "type" => "run_created",
+          "payload" => %{"agent" => "real-agent", "workspace" => "/workspace"}
+        },
+        %{"seq" => 2, "type" => "agent_process_started", "payload" => %{}},
+        %{"seq" => 3, "type" => "agent_initialized", "payload" => %{}},
+        %{"seq" => 4, "type" => "agent_session_started", "payload" => %{}},
+        %{"seq" => 5, "type" => "turn_started", "payload" => %{}},
+        %{"seq" => 6, "type" => "user_message", "payload" => %{"text" => "read README.md"}},
+        %{"seq" => 7, "type" => "tool_call", "payload" => %{"title" => "Read"}},
+        %{"seq" => 8, "type" => "tool_call_update", "payload" => %{"status" => "completed"}},
+        %{"seq" => 9, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
       ]
     }
   end
