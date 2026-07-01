@@ -2194,6 +2194,34 @@ defmodule HavenWeb.RunLive do
                     {@run_nav_counts.evidence}
                   </span>
                 </a>
+                <a
+                  id="run-nav-files"
+                  href="#run-file-changes"
+                  class="inline-flex h-10 items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
+                  <.icon name="hero-document-text" class="size-4 text-emerald-600" />
+                  <span>Files</span>
+                  <span
+                    id="run-nav-files-count"
+                    class="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600"
+                  >
+                    {length(@file_changes)}
+                  </span>
+                </a>
+                <a
+                  id="run-nav-terminals"
+                  href="#run-terminal-sessions"
+                  class="inline-flex h-10 items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
+                  <.icon name="hero-command-line" class="size-4 text-zinc-600" />
+                  <span>Terminals</span>
+                  <span
+                    id="run-nav-terminals-count"
+                    class="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600"
+                  >
+                    {length(@terminal_sessions)}
+                  </span>
+                </a>
               </div>
             </nav>
 

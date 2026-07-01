@@ -78,6 +78,10 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, ~s|#run-nav-message[href="#run-control-panel"]|, "Message")
     assert has_element?(view, ~s|#run-nav-evidence[href="#run-evidence-summary"]|, "Evidence")
     assert has_element?(view, "#run-nav-evidence-count", "4")
+    assert has_element?(view, ~s|#run-nav-files[href="#run-file-changes"]|, "Files")
+    assert has_element?(view, "#run-nav-files-count", "0")
+    assert has_element?(view, ~s|#run-nav-terminals[href="#run-terminal-sessions"]|, "Terminals")
+    assert has_element?(view, "#run-nav-terminals-count", "0")
     assert has_element?(view, "#run-thread")
     assert has_element?(view, "#run-thread-empty-state", "Ready for a prompt")
     assert has_element?(view, "#run-thread-empty-state", "The agent is connected and waiting.")
@@ -2342,6 +2346,7 @@ defmodule HavenWeb.RunLiveTest do
     assert pending_change.diff_kind == "create"
     assert pending_change.content_preview == "written by Haven ACP\n"
     assert pending_change.diff_preview =~ "+written by Haven ACP\n"
+    assert has_element?(view, "#run-nav-files-count", "1")
     assert has_element?(view, "#run-file-change-count", "1")
     assert has_element?(view, "#run-file-change-summary-label", "1 pending")
     assert has_element?(view, "#run-file-change-review-summary")
@@ -2774,6 +2779,7 @@ defmodule HavenWeb.RunLiveTest do
     assert session.released_at
 
     assert has_element?(view, "#run-terminal-session-count", "1")
+    assert has_element?(view, "#run-nav-terminals-count", "1")
     assert has_element?(view, "#run-terminal-session-summary-label", "1 completed")
     assert has_element?(view, "#run-terminal-session-summary")
     assert has_element?(view, "#run-terminal-session-running-count", "0")
@@ -2830,6 +2836,7 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
 
     assert has_element?(view, "#run-terminal-session-count", "3")
+    assert has_element?(view, "#run-nav-terminals-count", "3")
     assert has_element?(view, "#run-terminal-session-summary-label", "1 running")
     assert has_element?(view, "#run-terminal-session-summary-label", "1 completed")
     assert has_element?(view, "#run-terminal-session-summary-label", "1 attention")
