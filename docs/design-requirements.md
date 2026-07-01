@@ -313,7 +313,7 @@ Proven:
 - One `RunServer` per live run is a good fit.
 - `agent_client_protocol` can own JSON-RPC request ids and response correlation.
 - A Port-backed IO bridge can let `ACP.ClientSideConnection` talk to a spawned
-  agent process.
+  agent process, including preserving final unterminated output for diagnostics.
 - Permission requests can suspend inside an ACP handler and resume from UI/API
   action.
 - Permission decisions now carry a coarse actor class (`local_user` or
@@ -436,7 +436,8 @@ Known implementation limitations:
 - The UI is operational but not yet product-quality.
 - The stub agent is useful for deterministic tests but not representative of a
   full agent.
-- `PortIO` is minimal and should be hardened before production use.
+- `PortIO` still needs broader production hardening, though it now preserves
+  final unterminated output for diagnostics.
 
 ## Design Questions To Resolve Next
 

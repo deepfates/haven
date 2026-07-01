@@ -27,6 +27,30 @@ defmodule Haven.PortIOTest do
     assert_receive {:port_io_line, ^io, "observed\n"}
   end
 
+  test "preserves a final unterminated line when the process exits" do
+    {:ok, io} =
+      PortIO.start_link(
+        executable: System.find_executable("sh"),
+        args: ["-c", "printf partial-frame"]
+      )
+
+    assert "partial-frame" = IO.read(io, :line)
+    assert :eof = IO.read(io, :line)
+    assert PortIO.exit_status(io) == 0
+  end
+
+  test "notifies observers about a final unterminated line" do
+    {:ok, io} =
+      PortIO.start_link(
+        executable: System.find_executable("sh"),
+        args: ["-c", "printf partial-observed"],
+        observer: self()
+      )
+
+    assert "partial-observed" = IO.read(io, :line)
+    assert_receive {:port_io_line, ^io, "partial-observed"}
+  end
+
   test "passes environment variables to the spawned process" do
     {:ok, io} =
       PortIO.start_link(

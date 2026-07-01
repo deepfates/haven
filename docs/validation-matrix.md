@@ -426,6 +426,9 @@ Evidence:
   state.
 - RunServer shutdown now explicitly tears down the ACP connection and port IO
   bridge.
+- `Haven.PortIO` preserves a final unterminated line when the spawned agent
+  exits, and notifies observers about that partial frame. Unit tests verify
+  both IO-device reads and raw observer diagnostics for truncated output.
 - Event ordering and persistence are covered by `test/haven/events_test.exs`.
 - `Haven.Runs.prune_archived_before/1` provides an explicit retention boundary
   for archived records. Data-layer tests verify it deletes only archived runs

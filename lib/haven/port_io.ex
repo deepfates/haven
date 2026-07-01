@@ -82,13 +82,21 @@ defmodule Haven.PortIO do
   end
 
   def handle_info({port, {:exit_status, status}}, %{port: port} = state) do
-    state = %{state | exit_status: status}
+    state =
+      state
+      |> deliver_buffered_line()
+      |> Map.put(:exit_status, status)
+
     state = flush_readers(state)
     {:noreply, state}
   end
 
   def handle_info({:EXIT, port, _reason}, %{port: port} = state) do
-    state = %{state | exit_status: state.exit_status || -1}
+    state =
+      state
+      |> deliver_buffered_line()
+      |> Map.put(:exit_status, state.exit_status || -1)
+
     state = flush_readers(state)
     {:noreply, state}
   end
@@ -124,6 +132,13 @@ defmodule Haven.PortIO do
       {:empty, _readers} ->
         %{state | lines: :queue.in(line, state.lines)}
     end
+  end
+
+  defp deliver_buffered_line(%{buffer: ""} = state), do: state
+
+  defp deliver_buffered_line(%{buffer: buffer} = state) do
+    buffer
+    |> deliver_line(%{state | buffer: ""})
   end
 
   defp flush_readers(state) do
