@@ -176,11 +176,14 @@ Evidence:
 - Saved workspace rows now show derived readiness and run usage, including
   missing-on-disk folders plus active and archived run counts, so multi-folder
   triage exposes operational state without opening each run.
+- Saved workspace rows now also show a lightweight Git branch identity when a
+  workspace has a `.git/HEAD`, giving multi-folder agent work a clearer repo
+  context without shelling out during LiveView refreshes.
 
 Still missing:
 
-- Richer workspace configuration metadata beyond path readiness and run usage
-  (for example repo branch, trust/auth scope, or OS-native folder identity).
+- Richer workspace configuration metadata beyond path readiness, branch, and
+  run usage (for example trust/auth scope or OS-native folder identity).
 - OS-native workspace browse affordances.
 - Richer filtering beyond operational lanes, agent/workspace facets, and
   free-text search.

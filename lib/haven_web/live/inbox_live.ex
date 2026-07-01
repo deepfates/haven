@@ -580,6 +580,7 @@ defmodule HavenWeb.InboxLive do
     Enum.map(workspaces, fn workspace ->
       workspace
       |> Map.put(:path_state, workspace_path_state(workspace.path))
+      |> Map.put(:git_branch, workspace_git_branch(workspace.path))
       |> Map.put(:active_run_count, Map.get(active_counts, workspace.path, 0))
       |> Map.put(:archived_run_count, Map.get(archived_counts, workspace.path, 0))
     end)
@@ -587,6 +588,30 @@ defmodule HavenWeb.InboxLive do
 
   defp workspace_path_state(path) do
     if File.dir?(path), do: :ready, else: :missing
+  end
+
+  defp workspace_git_branch(path) do
+    head_path = Path.join([path, ".git", "HEAD"])
+
+    with true <- File.regular?(head_path),
+         {:ok, head} <- File.read(head_path) do
+      parse_git_head(head)
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_git_head("ref: refs/heads/" <> branch) do
+    branch
+    |> String.trim()
+    |> then(fn
+      "" -> nil
+      branch -> branch
+    end)
+  end
+
+  defp parse_git_head(head) when is_binary(head) do
+    if String.trim(head) == "", do: nil, else: "detached"
   end
 
   defp workspace_options(workspaces) do
@@ -605,6 +630,11 @@ defmodule HavenWeb.InboxLive do
 
   defp workspace_path_label(%{path_state: :ready}), do: "Ready"
   defp workspace_path_label(_workspace), do: "Missing"
+
+  defp workspace_branch_label(%{git_branch: branch}) when is_binary(branch),
+    do: "Branch #{branch}"
+
+  defp workspace_branch_label(_workspace), do: "No git branch"
 
   defp workspace_usage_label(workspace) do
     active_count = Map.get(workspace, :active_run_count, 0)
@@ -1846,6 +1876,12 @@ defmodule HavenWeb.InboxLive do
                           </span>
                         </div>
                         <p class="mt-1 truncate text-xs text-zinc-500">{workspace.path}</p>
+                        <p
+                          id={"workspace-#{workspace.id}-git-branch"}
+                          class="mt-1 truncate text-xs text-zinc-500"
+                        >
+                          {workspace_branch_label(workspace)}
+                        </p>
                         <p
                           id={"workspace-#{workspace.id}-run-usage"}
                           class="mt-1 text-xs text-zinc-500"

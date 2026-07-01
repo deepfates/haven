@@ -338,6 +338,8 @@ defmodule HavenWeb.InboxLiveTest do
     ready_dir = Path.join(tmp_dir, "ready")
     missing_dir = Path.join(tmp_dir, "missing")
     File.mkdir_p!(ready_dir)
+    File.mkdir_p!(Path.join(ready_dir, ".git"))
+    File.write!(Path.join([ready_dir, ".git", "HEAD"]), "ref: refs/heads/main\n")
     File.mkdir_p!(missing_dir)
 
     assert {:ok, ready_workspace} =
@@ -363,10 +365,18 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#workspace-#{ready_workspace.id}-path-state", "Ready")
+    assert has_element?(view, "#workspace-#{ready_workspace.id}-git-branch", "Branch main")
     assert has_element?(view, "#workspace-#{ready_workspace.id}-run-usage", "1 active run")
     assert has_element?(view, "#workspace-#{ready_workspace.id}-run-usage", "1 archived run")
 
     assert has_element?(view, "#workspace-#{missing_workspace.id}-path-state", "Missing")
+
+    assert has_element?(
+             view,
+             "#workspace-#{missing_workspace.id}-git-branch",
+             "No git branch"
+           )
+
     assert has_element?(view, "#workspace-#{missing_workspace.id}-run-usage", "0 active runs")
     assert has_element?(view, "#workspace-#{missing_workspace.id}-run-usage", "0 archived runs")
   end
