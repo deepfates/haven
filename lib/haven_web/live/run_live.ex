@@ -2236,6 +2236,27 @@ defmodule HavenWeb.RunLive do
                   <dd>{if @live?, do: "connected", else: "not connected"}</dd>
                 </div>
               </dl>
+              <section id="run-evidence-summary" class="mt-4 border-t border-zinc-200 pt-3">
+                <h3 class="text-xs font-semibold uppercase text-zinc-500">Evidence</h3>
+                <dl class="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  <div id="run-evidence-events" class="min-w-0">
+                    <dt class="text-zinc-500">Timeline events</dt>
+                    <dd class="font-mono text-sm text-zinc-950">{length(@events)}</dd>
+                  </div>
+                  <div id="run-evidence-decisions" class="min-w-0">
+                    <dt class="text-zinc-500">Decisions</dt>
+                    <dd class="font-mono text-sm text-zinc-950">{length(@permission_audits)}</dd>
+                  </div>
+                  <div id="run-evidence-file-changes" class="min-w-0">
+                    <dt class="text-zinc-500">File changes</dt>
+                    <dd class="font-mono text-sm text-zinc-950">{length(@file_changes)}</dd>
+                  </div>
+                  <div id="run-evidence-terminal-sessions" class="min-w-0">
+                    <dt class="text-zinc-500">Terminal sessions</dt>
+                    <dd class="font-mono text-sm text-zinc-950">{length(@terminal_sessions)}</dd>
+                  </div>
+                </dl>
+              </section>
               <details id="run-capability-policy" class="mt-4 border-t border-zinc-200 pt-3">
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-1 text-xs font-semibold uppercase text-zinc-500 marker:hidden">
                   <span>Capability policy</span>

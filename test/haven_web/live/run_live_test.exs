@@ -50,6 +50,11 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-header-session", run.agent_session_id)
     assert has_element?(view, "#run-header-created")
     assert has_element?(view, "#run-header-updated")
+    assert has_element?(view, "#run-evidence-summary")
+    assert has_element?(view, "#run-evidence-events", "4")
+    assert has_element?(view, "#run-evidence-decisions", "0")
+    assert has_element?(view, "#run-evidence-file-changes", "0")
+    assert has_element?(view, "#run-evidence-terminal-sessions", "0")
     assert has_element?(view, "#run-thread")
     assert has_element?(view, "#timeline-filters summary", "Filter activity")
     assert has_element?(view, "#run-control-panel", "Message")
@@ -1031,6 +1036,7 @@ defmodule HavenWeb.RunLiveTest do
     html = render(view)
     assert html =~ "idle"
     assert html =~ "Permission audit"
+    assert has_element?(view, "#run-evidence-decisions", "1")
     assert has_element?(view, "#run-permission-audit-count", "1")
     assert has_element?(view, "#permission-decision-#{decision_seq}", "Decision recorded")
     assert has_element?(view, "#permission-decision-#{decision_seq}", "allow for Write file")

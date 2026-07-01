@@ -232,6 +232,9 @@ Evidence:
 - LiveView integration tests verify the run detail layout stays single-column
   until desktop width and its grid columns can shrink, preventing tablet/mobile
   overflow from long run facts.
+- LiveView integration tests verify the run facts panel has a compact evidence
+  summary for timeline events, permission decisions, file changes, and terminal
+  sessions, so users can decide which details disclosure is worth opening.
 - Browser inspection verifies a waiting run detail page has no horizontal
   overflow at a 656px viewport.
 - LiveView telemetry tests verify run detail reuses the already loaded run row
