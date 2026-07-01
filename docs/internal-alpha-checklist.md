@@ -158,8 +158,8 @@ Evidence:
 - Result: current positive real-agent basic probe passed and validates.
 - Artifact path: `docs/probes/codex-acp-basic-current.json`
 - Additional positive evidence: bounded long-output real-agent probe
-  `docs/probes/codex-acp-long-output.json`, plus sequential and concurrent
-  two-run real-agent load reports in `docs/probe-load/`.
+  `docs/probes/codex-acp-long-output.json`, plus sequential and three-run
+  concurrent real-agent load reports in `docs/probe-load/`.
 - Negative artifact paths:
   `docs/probe-failures/codex-acp-file-mediated-negative.json`,
   `docs/probe-failures/codex-acp-file-write-mediated-negative.json`, and

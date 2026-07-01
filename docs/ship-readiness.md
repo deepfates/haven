@@ -99,7 +99,7 @@ Production blockers:
 - Haven-mediated terminal capability requests must be proven against a real
   non-test agent or explicitly declared unsupported for that agent class.
 - Longer-duration output and larger-fan-out multi-run behavior need evidence
-  under realistic external-agent load. Bounded long-output and two-run
+  under realistic external-agent load. Bounded long-output and three-run
   concurrent real-agent basic evidence now exist for `codex-acp`, but they do
   not prove arbitrary duration or production-scale fan-out.
 - Auth/auth-scope handling must be explicit enough that a user can understand

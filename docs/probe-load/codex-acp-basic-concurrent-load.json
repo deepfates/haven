@@ -2,15 +2,15 @@
   "status": "passed",
   "prompt": "Summarize this workspace in one short sentence.",
   "kind": "agent_probe_load",
-  "agent": "codex-acp",
   "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
+  "agent": "codex-acp",
+  "run_count": 3,
+  "concurrency": 3,
   "expected_events": [
     "agent_initialized",
     "agent_session_started",
     "turn_finished"
   ],
-  "expected_event_fields": [],
-  "concurrency": 2,
   "reports": [
     {
       "status": "idle",
@@ -25,7 +25,7 @@
               "file_write": "ask",
               "terminal_create": "allow"
             },
-            "title": "Agent probe: codex-acp 1/2",
+            "title": "Agent probe: codex-acp 1/3",
             "workspace": "/Users/deepfates/Hacking/github/deepfates/haven"
           }
         },
@@ -53,7 +53,7 @@
           "type": "agent_session_started",
           "seq": 4,
           "payload": {
-            "agent_session_id": "019f1cfe-4bcf-7b30-ad63-c3a81870fdc7"
+            "agent_session_id": "019f1db6-7021-7b12-b566-fd720e573141"
           }
         },
         {
@@ -202,12 +202,12 @@
             "_meta": {
               "terminal_info": {
                 "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
-                "terminal_id": "call_EXZWtwi5u9br91TpW4q2gzBA"
+                "terminal_id": "call_ZPep5pMW1phXHSRtqplkNI9C"
               }
             },
             "content": [
               {
-                "terminalId": "call_EXZWtwi5u9br91TpW4q2gzBA",
+                "terminalId": "call_ZPep5pMW1phXHSRtqplkNI9C",
                 "type": "terminal"
               }
             ],
@@ -219,7 +219,7 @@
             "sessionUpdate": "tool_call",
             "status": "in_progress",
             "title": "pwd",
-            "toolCallId": "call_EXZWtwi5u9br91TpW4q2gzBA"
+            "toolCallId": "call_ZPep5pMW1phXHSRtqplkNI9C"
           }
         },
         {
@@ -230,11 +230,11 @@
               "terminal_exit": {
                 "exit_code": 0,
                 "signal": null,
-                "terminal_id": "call_EXZWtwi5u9br91TpW4q2gzBA"
+                "terminal_id": "call_ZPep5pMW1phXHSRtqplkNI9C"
               },
               "terminal_output_delta": {
                 "data": "/Users/deepfates/Hacking/github/deepfates/haven\n",
-                "terminal_id": "call_EXZWtwi5u9br91TpW4q2gzBA"
+                "terminal_id": "call_ZPep5pMW1phXHSRtqplkNI9C"
               }
             },
             "rawOutput": {
@@ -243,7 +243,7 @@
             },
             "sessionUpdate": "tool_call_update",
             "status": "completed",
-            "toolCallId": "call_EXZWtwi5u9br91TpW4q2gzBA"
+            "toolCallId": "call_ZPep5pMW1phXHSRtqplkNI9C"
           }
         },
         {
@@ -254,7 +254,7 @@
             "sessionUpdate": "tool_call",
             "status": "in_progress",
             "title": "List files",
-            "toolCallId": "call_wM4CIDSr6EoqZPRJXFSGVg9a"
+            "toolCallId": "call_YQwOQxDl8FcYgeF2gxnxUjxG"
           }
         },
         {
@@ -263,136 +263,172 @@
           "payload": {
             "rawOutput": {
               "exit_code": 0,
-              "formatted_output": "assets/vendor/topbar.js\nassets/vendor/heroicons.js\nassets/tsconfig.json\nassets/js/app.js\nassets/css/app.css\nlib/haven_web/controllers/error_html.ex\nlib/haven_web/controllers/dev_controller.ex\nlib/haven_web/controllers/error_json.ex\nlib/haven_web/endpoint.ex\nlib/haven_web/live/inbox_live.ex\nlib/haven_web/live/run_live.ex\nlib/haven_web/components/layouts/root.html.heex\nlib/haven_web/components/layouts.ex\nlib/haven_web/components/core_components.ex\nlib/haven_web/router.ex\nlib/haven_web/gettext.ex\nlib/haven_web/telemetry.ex\nlib/haven_web.ex\nlib/haven/agent_probe_report.ex\nlib/haven/runs/acp_client_handler.ex\nlib/haven/runs/run_server.ex\nlib/haven/runs/run.ex\nlib/haven/repo.ex\nlib/haven/acp_client_side.ex\nlib/haven/events/event.ex\nlib/haven/permission_audits/permission_audit.ex\nlib/haven/application.ex\nlib/haven/acp_wire.ex\nlib/haven/workspaces.ex\nlib/haven/mailer.ex\nlib/haven/runs.ex\nlib/haven/workspace_files.ex\nlib/haven/workspaces/workspace.ex\nlib/haven/agents/agent_config.ex\nlib/haven/file_changes/file_change.ex\nlib/haven/terminals.ex\nlib/haven/agent_registry.ex\nlib/haven/file_changes.ex\nlib/haven/terminal_sessions.ex\nlib/haven/agent_probe.ex\nlib/haven/permission_audits.ex\nlib/haven/agents.ex\nlib/haven/port_io.ex\nlib/haven/terminal_sessions/terminal_session.ex\nlib/haven/events.ex\nlib/haven.ex\nlib/mix/tasks/haven.pending_migrations.ex\nlib/mix/tasks/haven.agent_probe.ex\nlib/mix/tasks/haven.runtime_smoke.ex\nlib/mix/tasks/haven.probe_reports.ex\nmix.exs\nREADME.md\nconfig/test.exs\nconfig/prod.exs\nconfig/config.exs\nconfig/dev.exs\nconfig/runtime.exs\ndocs/probes/README.md\ndocs/probe-load/README.md\ndocs/probe-failures/README.md\n"
+              "formatted_output": "assets/vendor/topbar.js\nassets/vendor/heroicons.js\nassets/tsconfig.json\nassets/js/app.js\nassets/css/app.css\nlib/haven_web/controllers/error_html.ex\nlib/haven_web/controllers/dev_controller.ex\nlib/haven_web/controllers/error_json.ex\nlib/haven_web/endpoint.ex\nlib/haven_web/live/inbox_live.ex\nlib/haven_web/live/run_live.ex\nlib/haven_web/components/layouts/root.html.heex\nlib/haven_web/components/layouts.ex\nlib/haven_web/components/core_components.ex\nlib/haven_web/router.ex\nlib/haven_web/gettext.ex\nlib/haven_web/telemetry.ex\nlib/haven_web.ex\nlib/haven/agent_probe_report.ex\nlib/haven/runs/acp_client_handler.ex\nlib/haven/runs/run_server.ex\nlib/haven/runs/run.ex\nlib/haven/repo.ex\nlib/haven/acp_client_side.ex\nlib/haven/events/event.ex\nlib/haven/permission_audits/permission_audit.ex\nlib/haven/application.ex\nlib/haven/acp_wire.ex\nlib/haven/workspaces.ex\nlib/haven/mailer.ex\nlib/haven/runs.ex\nlib/haven/workspace_files.ex\nlib/haven/workspaces/workspace.ex\nlib/haven/agents/agent_config.ex\nlib/haven/file_changes/file_change.ex\nlib/haven/terminals.ex\nlib/haven/agent_registry.ex\nlib/haven/file_changes.ex\nlib/haven/terminal_sessions.ex\nlib/haven/agent_probe.ex\nlib/haven/permission_audits.ex\nlib/haven/agents.ex\nlib/haven/port_io.ex\nlib/haven/terminal_sessions/terminal_session.ex\nlib/haven/events.ex\nlib/haven.ex\nlib/mix/tasks/haven.pending_migrations.ex\nlib/mix/tasks/haven.agent_probe.ex\nlib/mix/tasks/haven.runtime_smoke.ex\nlib/mix/tasks/haven.probe_reports.ex\nREADME.md\ndocs/probe-load/README.md\ndocs/probe-failures/README.md\ndocs/probes/README.md\ntest/haven_web/controllers/error_json_test.exs\ntest/haven_web/controllers/error_html_test.exs\ntest/haven_web/controllers/dev_controller_test.exs\ntest/haven_web/live/inbox_live_test.exs\ntest/haven_web/live/run_live_test.exs\ntest/test_helper.exs\ntest/support/data_case.ex\ntest/support/fake_acp_agent.ex\ntest/support/fake_agent_runner.exs\ntest/support/conn_case.ex\ntest/haven/terminal_sessions_test.exs\ntest/haven/agent_probe_report_test.exs\ntest/haven/port_io_test.exs\ntest/haven/agent_probe_test.exs\ntest/haven/terminals_test.exs\ntest/haven/agents_test.exs\ntest/haven/file_changes_test.exs\ntest/haven/workspaces_test.exs\ntest/haven/workspace_files_test.exs\ntest/haven/acp_wire_test.exs\ntest/haven/events_test.exs\ntest/haven/agent_registry_test.exs\ntest/haven/runs_test.exs\nmix.exs\n"
             },
             "sessionUpdate": "tool_call_update",
             "status": "completed",
-            "toolCallId": "call_wM4CIDSr6EoqZPRJXFSGVg9a"
+            "toolCallId": "call_YQwOQxDl8FcYgeF2gxnxUjxG"
           }
         },
         {
           "type": "agent_update_unknown",
           "seq": 13,
           "payload": {
-            "session_id": "019f1cfe-4bcf-7b30-ad63-c3a81870fdc7",
+            "session_id": "019f1db6-7021-7b12-b566-fd720e573141",
             "update": {
               "sessionUpdate": "usage_update",
               "size": 258400,
-              "used": 20159
+              "used": 20141
+            },
+            "update_type": "usage_update"
+          }
+        },
+        {
+          "type": "tool_call",
+          "seq": 14,
+          "payload": {
+            "kind": "read",
+            "locations": [
+              {
+                "path": "/Users/deepfates/Hacking/github/deepfates/haven/mix.exs"
+              }
+            ],
+            "sessionUpdate": "tool_call",
+            "status": "in_progress",
+            "title": "Read file '/Users/deepfates/Hacking/github/deepfates/haven/mix.exs'",
+            "toolCallId": "call_geLHiIZaBbkZccakajObStd3"
+          }
+        },
+        {
+          "type": "tool_call",
+          "seq": 15,
+          "payload": {
+            "kind": "read",
+            "locations": [
+              {
+                "path": "/Users/deepfates/Hacking/github/deepfates/haven/README.md"
+              }
+            ],
+            "sessionUpdate": "tool_call",
+            "status": "in_progress",
+            "title": "Read file '/Users/deepfates/Hacking/github/deepfates/haven/README.md'",
+            "toolCallId": "call_2hzJdNBdhLXNkBOlLqOihMbI"
+          }
+        },
+        {
+          "type": "tool_call_update",
+          "seq": 16,
+          "payload": {
+            "rawOutput": {
+              "exit_code": 0,
+              "formatted_output": "defmodule Haven.MixProject do\n  use Mix.Project\n\n  def project do\n    [\n      app: :haven,\n      version: \"0.1.0\",\n      elixir: \"~> 1.15\",\n      elixirc_paths: elixirc_paths(Mix.env()),\n      start_permanent: Mix.env() == :prod,\n      aliases: aliases(),\n      deps: deps(),\n      compilers: [:phoenix_live_view] ++ Mix.compilers(),\n      listeners: [Phoenix.CodeReloader]\n    ]\n  end\n\n  # Configuration for the OTP application.\n  #\n  # Type `mix help compile.app` for more information.\n  def application do\n    [\n      mod: {Haven.Application, []},\n      extra_applications: [:logger, :runtime_tools]\n    ]\n  end\n\n  def cli do\n    [\n      preferred_envs: [precommit: :test, \"haven.runtime_smoke\": :dev]\n    ]\n  end\n\n  # Specifies which paths to compile per environment.\n  defp elixirc_paths(:test), do: [\"lib\", \"test/support\"]\n  defp elixirc_paths(_), do: [\"lib\"]\n\n  # Specifies your project dependencies.\n  #\n  # Type `mix help deps` for examples and options.\n  defp deps do\n    [\n      {:phoenix, \"~> 1.8.7\"},\n      {:phoenix_ecto, \"~> 4.5\"},\n      {:ecto_sql, \"~> 3.13\"},\n      {:ecto_sqlite3, \">= 0.0.0\"},\n      {:phoenix_html, \"~> 4.1\"},\n      {:phoenix_live_reload, \"~> 1.2\", only: :dev},\n      {:phoenix_live_view, \"~> 1.1.0\"},\n      {:lazy_html, \">= 0.1.0\", only: :test},\n      {:phoenix_live_dashboard, \"~> 0.8.3\"},\n      {:esbuild, \"~> 0.10\", runtime: Mix.env() == :dev},\n      {:tailwind, \"~> 0.3\", runtime: Mix.env() == :dev},\n      {:heroicons,\n       github: \"tailwindlabs/heroicons\",\n       tag: \"v2.2.0\",\n       sparse: \"optimized\",\n       app: false,\n       compile: false,\n       depth: 1},\n      {:swoosh, \"~> 1.16\"},\n      {:req, \"~> 0.5\"},\n      {:telemetry_metrics, \"~> 1.0\"},\n      {:telemetry_poller, \"~> 1.0\"},\n      {:gettext, \"~> 1.0\"},\n      {:jason, \"~> 1.2\"},\n      {:agent_client_protocol, \"~> 0.1.0\"},\n      {:dns_cluster, \"~> 0.2.0\"},\n      {:bandit, \"~> 1.5\"}\n    ]\n  end\n\n  # Aliases are shortcuts or tasks specific to the current project.\n  # For example, to install project dependencies and perform other setup tasks, run:\n  #\n  #     $ mix setup\n  #\n  # See the documentation for `Mix` for more info on aliases.\n  defp aliases do\n    [\n      setup: [\"deps.get\", \"ecto.setup\", \"assets.setup\", \"assets.build\"],\n      \"ecto.setup\": [\"ecto.create\", \"ecto.migrate\", \"run priv/repo/seeds.exs\"],\n      \"ecto.reset\": [\"ecto.drop\", \"ecto.setup\"],\n      test: [\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"],\n      \"assets.setup\": [\"tailwind.install --if-missing\", \"esbuild.install --if-missing\"],\n      \"assets.build\": [\"compile\", \"tailwind haven\", \"esbuild haven\"],\n      \"assets.deploy\": [\n        \"tailwind haven --minify\",\n        \"esbuild haven --minify\",\n        \"phx.digest\"\n      ],\n      precommit: [\n        \"compile --warnings-as-errors\",\n        \"deps.unlock --unused\",\n        \"format\",\n        \"haven.probe_reports\",\n        \"test\"\n      ]\n    ]\n  end\nend\n"
+            },
+            "sessionUpdate": "tool_call_update",
+            "status": "completed",
+            "toolCallId": "call_geLHiIZaBbkZccakajObStd3"
+          }
+        },
+        {
+          "type": "tool_call_update",
+          "seq": 17,
+          "payload": {
+            "rawOutput": {
+              "exit_code": 0,
+              "formatted_output": "# Haven\n\nHaven is a Phoenix/OTP application for running ACP coding agents outside an IDE.\n\nThe core shape:\n\n- A durable run is stored in SQLite.\n- Each live run is owned by a supervised `RunServer` process.\n- The run process owns an ACP client connection to an external agent process.\n- Meaningful state transitions are appended as events.\n- LiveView renders an attention inbox and a run timeline from persisted state.\n- Permission requests become explicit decisions.\n- Reload reconstructs the run from the event log.\n\nSee [docs/design-requirements.md](docs/design-requirements.md) for the product\nand system requirements guiding the project. See\n[docs/validation-matrix.md](docs/validation-matrix.md) for what is currently\nproved by tests and browser smoke, and what remains unproven.\n\n## Run\n\n```bash\nmix ecto.setup\nmix phx.server\n```\n\nOpen [localhost:4000](http://localhost:4000).\n\nThe inbox can save frequently used workspace directories and reuse them from\nthe run form's saved-workspace picker. Manual workspace paths still work.\n\nThe run page includes sample controls:\n\n- `Echo` sends a complete prompt turn.\n- `Ask permission` triggers a permission request.\n- The approval card resolves the permission and lets the stub finish the turn.\n\nIn development, there are HTTP controls for deterministic local testing:\n\n```bash\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/echo\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/permission\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/read-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/write-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/terminal\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow\ncurl -X POST http://127.0.0.1:4000/dev/runs \\\n  -H 'content-type: application/json' \\\n  -d '{\"title\":\"Malformed smoke\",\"agent\":\"malformed-agent\",\"workspace\":\"'\"$PWD\"'\"}'\n```\n\nWith `mix phx.server` running, the repeatable runtime smoke exercises the same\nrendered dev-server path and deterministic controls:\n\n```bash\nMIX_ENV=dev mix haven.runtime_smoke\nMIX_ENV=dev mix haven.runtime_smoke --load-runs 3\n```\n\nIt checks dev migrations, renders the inbox, creates a stub-backed run through\n`/dev/runs` in a disposable workspace, waits for startup events on the run\npage, triggers and resolves a generic permission request, approves ACP file\nread/write requests, verifies the written file, runs a deterministic terminal\ncommand, and verifies the thread/decision/evidence disclosure surfaces in\nrendered HTML. With `--load-runs N`, it also creates N additional disposable\nruns, alternates ordinary and bounded long-output turns, reloads the rendered\npages, and checks cross-run isolation.\n\nTo probe any configured ACP agent through Haven's real run lifecycle:\n\n```bash\nmix haven.agent_probe --agent stub-acp --workspace . --prompt \"hello\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"summarize this repo\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"read README.md\" --resolve-permissions allow\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --expect-event terminal_created --expect-event terminal_output_succeeded --expect-event-field terminal_output_succeeded:payload.exit_status=0\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --report docs/probes/my-agent-terminal.json\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"summarize this repo\" --load-runs 2 --load-concurrency 2 --require-real-agent --report docs/probe-load/my-agent-load.json\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"write a long summary\" --expect-min-agent-output-chars 1200 --expect-min-agent-message-chunks 8 --require-real-agent --report docs/probes/my-agent-long-output.json\nmix haven.agent_probe --list-agents --preflight --workspace /path/to/repo\nmix haven.agent_probe --list-agents --registry --preflight --proof-commands --workspace /path/to/repo\n```\n\nConfigured agents can be supplied at runtime with `HAVEN_AGENTS_JSON`:\n\n```bash\nexport HAVEN_AGENTS_JSON='{\n  \"my-agent\": {\n    \"executable\": \"my-acp-agent\",\n    \"args\": [\"--stdio\", \"--workspace\", \"{workspace}\"],\n    \"cwd\": \"{workspace}\",\n    \"env\": {\"TOKEN\": \"...\"}\n  }\n}'\n```\n\n`executable` may be an absolute path or a command on `PATH`. `{workspace}` is\nsubstituted in `args`, `cwd`, and `env` values before Haven starts the agent.\nAgents can also be stored in SQLite through the inbox Agent Setup form or\n`Haven.Agents.create_agent_config/1`; the inbox supports basic create, edit,\nand delete for persisted commands, and persisted agent keys appear in the run\npicker alongside runtime configuration.\n\nThe probe creates a durable run, waits for ACP initialization/session creation,\nsends the prompt through `RunServer`, optionally resolves permission stalls, and\nprints a compact persisted event summary. Add `--show-events` when you need the\nfull event payloads in terminal output; `--report path.json` always writes the\nfull event list. Repeated `--expect-event` flags make the probe fail unless the\nrun emits the required Haven event types, turning real-agent checks into\nacceptance contracts instead of best-effort smoke.\nRepeated `--expect-event-field EVENT:payload.path=value` flags also require\nspecific event payload facts, such as the requested path, terminal command,\npermission decision, or exit status.\n`--expect-min-agent-output-chars N` and\n`--expect-min-agent-message-chunks N` require a minimum streamed agent response\nsize for bounded long-output evidence.\nUse `--list-agents --preflight` first when a saved command merely looks\nplausible: it starts a short durable run for each probe candidate and verifies\nthe ACP initialize/session handshake before you attempt a full evidence report.\nProbe output suppresses debug-level application logs by default so inventory,\npreflight, and report output stay readable as evidence. Add `--verbose` when\ndebugging the probe task itself. Preflight inventory prints a final summary\nwith how many static real-agent candidates passed and which agent keys are\nready for full evidence probes.\nUse `--list-agents --registry --preflight --proof-commands` to fetch the public\nACP Registry and print npx-backed agent command suggestions that can be\nsupplied through `HAVEN_AGENTS_JSON`. Registry output lists package and env key\nrequirements before printing copyable preflight/proof commands. Registry\ncommands download and run third-party code; run preflight and evidence probes\nonly with an approved workspace and auth scope.\n`--report path.json` writes the full report as pretty JSON for committed proof\nartifacts. `--load-runs N` repeats the same real-agent probe as distinct\ndurable runs and writes an aggregate report when paired with `--report`;\n`--load-concurrency N` runs up to N child probes at the same time.\nPassing the probe with `stub-acp` proves the harness; passing it with a real\nconfigured ACP agent is the next integration milestone. See\n`docs/probes/README.md` and `docs/probe-load/README.md` for the report\nrequirements that make a probe count as real-agent evidence.\n\n## Shape\n\n- `Haven.Runs.RunServer` owns one live agent run.\n- `Haven.Agents` resolves built-in and configured ACP agent commands.\n- `Haven.PortIO` bridges spawned agent ports to the IO shape expected\n  by `agent_client_protocol`.\n- `Haven.WorkspaceFiles` handles workspace-scoped file capability requests.\n- `Haven.Runs` is the run lifecycle context.\n- `Haven.Events` is the append-only event log.\n- `InboxLive` is the attention inbox.\n- `RunLive` is the run timeline and control surface.\n- `priv/agent_stub.exs` is an ACP-backed JSON-lines stub agent.\n\nThe default development agent is a self-contained ACP stub. Configured agent\nkeys can point at another ACP command and can be selected when starting a run,\nalongside an explicit workspace path. File capability callbacks are proven\nagainst deterministic ACP requests, and terminal create/wait/output/release is\nproven for short-lived non-interactive commands. The next milestone is to\nvalidate one real external agent and harden capability policy while keeping the\nrun/event/LiveView shape.\n"
+            },
+            "sessionUpdate": "tool_call_update",
+            "status": "completed",
+            "toolCallId": "call_2hzJdNBdhLXNkBOlLqOihMbI"
+          }
+        },
+        {
+          "type": "agent_update_unknown",
+          "seq": 18,
+          "payload": {
+            "session_id": "019f1db6-7021-7b12-b566-fd720e573141",
+            "update": {
+              "sessionUpdate": "usage_update",
+              "size": 258400,
+              "used": 21033
             },
             "update_type": "usage_update"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 14,
+          "seq": 19,
           "payload": {
             "text": "H"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 15,
+          "seq": 20,
           "payload": {
             "text": "aven"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 16,
+          "seq": 21,
           "payload": {
             "text": " is"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 17,
+          "seq": 22,
           "payload": {
             "text": " a"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 18,
+          "seq": 23,
           "payload": {
             "text": " Phoenix"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 19,
-          "payload": {
-            "text": " web"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 20,
-          "payload": {
-            "text": " app"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 21,
-          "payload": {
-            "text": " for"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 22,
-          "payload": {
-            "text": " managing"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 23,
-          "payload": {
-            "text": " agent"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
           "seq": 24,
           "payload": {
-            "text": " work"
+            "text": "/"
           }
         },
         {
           "type": "agent_message_chunk",
           "seq": 25,
           "payload": {
-            "text": "spaces"
+            "text": "OTP"
           }
         },
         {
           "type": "agent_message_chunk",
           "seq": 26,
           "payload": {
-            "text": ","
+            "text": " web"
           }
         },
         {
           "type": "agent_message_chunk",
           "seq": 27,
           "payload": {
-            "text": " runs"
+            "text": " app"
           }
         },
         {
           "type": "agent_message_chunk",
           "seq": 28,
           "payload": {
-            "text": ","
+            "text": " for"
           }
         },
         {
           "type": "agent_message_chunk",
           "seq": 29,
           "payload": {
-            "text": " events"
+            "text": " running"
           }
         },
         {
@@ -406,7 +442,7 @@
           "type": "agent_message_chunk",
           "seq": 31,
           "payload": {
-            "text": " terminals"
+            "text": " supervising"
           }
         },
         {
@@ -420,67 +456,95 @@
           "type": "agent_message_chunk",
           "seq": 33,
           "payload": {
-            "text": " file"
+            "text": " and"
           }
         },
         {
           "type": "agent_message_chunk",
           "seq": 34,
           "payload": {
-            "text": " changes"
+            "text": " inspecting"
           }
         },
         {
           "type": "agent_message_chunk",
           "seq": 35,
           "payload": {
-            "text": ","
+            "text": " durable"
           }
         },
         {
           "type": "agent_message_chunk",
           "seq": 36,
           "payload": {
-            "text": " and"
+            "text": " ACP"
           }
         },
         {
           "type": "agent_message_chunk",
           "seq": 37,
           "payload": {
-            "text": " permission"
+            "text": " coding"
           }
         },
         {
           "type": "agent_message_chunk",
           "seq": 38,
           "payload": {
-            "text": " audits"
+            "text": "-agent"
           }
         },
         {
           "type": "agent_message_chunk",
           "seq": 39,
           "payload": {
+            "text": " sessions"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 40,
+          "payload": {
+            "text": " outside"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 41,
+          "payload": {
+            "text": " an"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 42,
+          "payload": {
+            "text": " IDE"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 43,
+          "payload": {
             "text": "."
           }
         },
         {
           "type": "agent_update_unknown",
-          "seq": 40,
+          "seq": 44,
           "payload": {
-            "session_id": "019f1cfe-4bcf-7b30-ad63-c3a81870fdc7",
+            "session_id": "019f1db6-7021-7b12-b566-fd720e573141",
             "update": {
               "sessionUpdate": "usage_update",
               "size": 258400,
-              "used": 20768
+              "used": 23966
             },
             "update_type": "usage_update"
           }
         },
         {
           "type": "session_info_update",
-          "seq": 41,
+          "seq": 45,
           "payload": {
             "_meta": {
               "codex": {
@@ -494,7 +558,7 @@
         },
         {
           "type": "turn_finished",
-          "seq": 42,
+          "seq": 46,
           "payload": {
             "request_id": 1,
             "result": {
@@ -504,30 +568,30 @@
                     {
                       "model": "gpt-5.5",
                       "token_count": {
-                        "cachedInputTokens": 4992,
-                        "inputTokens": 15746,
-                        "outputTokens": 30,
+                        "cachedInputTokens": 20864,
+                        "inputTokens": 3073,
+                        "outputTokens": 29,
                         "reasoningOutputTokens": 0,
-                        "totalTokens": 20768
+                        "totalTokens": 23966
                       }
                     }
                   ],
                   "token_count": {
-                    "cachedInputTokens": 4992,
-                    "inputTokens": 15746,
-                    "outputTokens": 30,
+                    "cachedInputTokens": 20864,
+                    "inputTokens": 3073,
+                    "outputTokens": 29,
                     "reasoningOutputTokens": 0,
-                    "totalTokens": 20768
+                    "totalTokens": 23966
                   }
                 }
               },
               "stopReason": "end_turn",
               "usage": {
-                "cachedReadTokens": 4992,
-                "inputTokens": 15746,
-                "outputTokens": 30,
+                "cachedReadTokens": 20864,
+                "inputTokens": 3073,
+                "outputTokens": 29,
                 "thoughtTokens": 0,
-                "totalTokens": 20768
+                "totalTokens": 23966
               }
             }
           }
@@ -535,18 +599,24 @@
       ],
       "prompt": "Summarize this workspace in one short sentence.",
       "diagnostics": [],
-      "run_id": "dc1d85ca-8249-4f36-8249-da3afdef6bc3",
-      "agent": "codex-acp",
       "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
+      "agent": "codex-acp",
+      "run_id": "e46087f3-fc3f-47e7-bb5c-2338d6bf5d72",
       "expected_events": [
         "agent_initialized",
         "agent_session_started",
         "turn_finished"
       ],
-      "missing_expected_events": [],
-      "redactions": [],
+      "agent_output_metrics": {
+        "text_char_count": 121,
+        "message_chunk_count": 25
+      },
+      "expected_output": {},
       "expected_event_fields": [],
+      "missing_expected_events": [],
       "missing_expected_event_fields": [],
+      "missing_expected_output": [],
+      "redactions": [],
       "real_agent_evidence": {
         "required": true,
         "accepted": true
@@ -565,7 +635,7 @@
               "file_write": "ask",
               "terminal_create": "allow"
             },
-            "title": "Agent probe: codex-acp 2/2",
+            "title": "Agent probe: codex-acp 2/3",
             "workspace": "/Users/deepfates/Hacking/github/deepfates/haven"
           }
         },
@@ -593,7 +663,7 @@
           "type": "agent_session_started",
           "seq": 4,
           "payload": {
-            "agent_session_id": "019f1cfe-4b70-7bf3-9eb0-4f3ca964d908"
+            "agent_session_id": "019f1db6-6ff4-7063-80d7-fcb102212e59"
           }
         },
         {
@@ -745,151 +815,18 @@
           }
         },
         {
-          "type": "agent_message_chunk",
-          "seq": 10,
-          "payload": {
-            "text": "I"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 11,
-          "payload": {
-            "text": "’ll"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 12,
-          "payload": {
-            "text": " take"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 13,
-          "payload": {
-            "text": " a"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 14,
-          "payload": {
-            "text": " quick"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 15,
-          "payload": {
-            "text": " look"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 16,
-          "payload": {
-            "text": " at"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 17,
-          "payload": {
-            "text": " the"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 18,
-          "payload": {
-            "text": " repository"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 19,
-          "payload": {
-            "text": " shape"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 20,
-          "payload": {
-            "text": " so"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 21,
-          "payload": {
-            "text": " the"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 22,
-          "payload": {
-            "text": " sentence"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 23,
-          "payload": {
-            "text": " reflects"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 24,
-          "payload": {
-            "text": " what"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 25,
-          "payload": {
-            "text": "’s"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 26,
-          "payload": {
-            "text": " actually"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 27,
-          "payload": {
-            "text": " here"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 28,
-          "payload": {
-            "text": "."
-          }
-        },
-        {
           "type": "tool_call",
-          "seq": 29,
+          "seq": 10,
           "payload": {
             "_meta": {
               "terminal_info": {
                 "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
-                "terminal_id": "call_2QGvzOh31LZNqeZF9VpV29cq"
+                "terminal_id": "call_bXEpmL51Z5dNXynmqPUxzL5M"
               }
             },
             "content": [
               {
-                "terminalId": "call_2QGvzOh31LZNqeZF9VpV29cq",
+                "terminalId": "call_bXEpmL51Z5dNXynmqPUxzL5M",
                 "type": "terminal"
               }
             ],
@@ -901,22 +838,22 @@
             "sessionUpdate": "tool_call",
             "status": "in_progress",
             "title": "pwd",
-            "toolCallId": "call_2QGvzOh31LZNqeZF9VpV29cq"
+            "toolCallId": "call_bXEpmL51Z5dNXynmqPUxzL5M"
           }
         },
         {
           "type": "tool_call_update",
-          "seq": 30,
+          "seq": 11,
           "payload": {
             "_meta": {
               "terminal_exit": {
                 "exit_code": 0,
                 "signal": null,
-                "terminal_id": "call_2QGvzOh31LZNqeZF9VpV29cq"
+                "terminal_id": "call_bXEpmL51Z5dNXynmqPUxzL5M"
               },
               "terminal_output_delta": {
                 "data": "/Users/deepfates/Hacking/github/deepfates/haven\n",
-                "terminal_id": "call_2QGvzOh31LZNqeZF9VpV29cq"
+                "terminal_id": "call_bXEpmL51Z5dNXynmqPUxzL5M"
               }
             },
             "rawOutput": {
@@ -925,258 +862,258 @@
             },
             "sessionUpdate": "tool_call_update",
             "status": "completed",
-            "toolCallId": "call_2QGvzOh31LZNqeZF9VpV29cq"
+            "toolCallId": "call_bXEpmL51Z5dNXynmqPUxzL5M"
           }
         },
         {
           "type": "tool_call",
-          "seq": 31,
+          "seq": 12,
           "payload": {
             "kind": "read",
             "sessionUpdate": "tool_call",
             "status": "in_progress",
             "title": "List files",
-            "toolCallId": "call_PXJ5Sl5GcCU82pAP3AXNLcGz"
+            "toolCallId": "call_PRdKrJ9f3fdx4hWM3H9QQSam"
           }
         },
         {
           "type": "tool_call_update",
-          "seq": 32,
+          "seq": 13,
           "payload": {
             "rawOutput": {
               "exit_code": 0,
-              "formatted_output": "assets/vendor/topbar.js\nassets/vendor/heroicons.js\nassets/tsconfig.json\nassets/js/app.js\nassets/css/app.css\nlib/haven_web/controllers/error_html.ex\nlib/haven_web/controllers/dev_controller.ex\nlib/haven_web/controllers/error_json.ex\nlib/haven_web/endpoint.ex\nlib/haven_web/live/inbox_live.ex\nlib/haven_web/live/run_live.ex\nlib/haven_web/components/layouts/root.html.heex\nlib/haven_web/components/layouts.ex\nlib/haven_web/components/core_components.ex\nlib/haven_web/router.ex\nlib/haven_web/gettext.ex\nlib/haven_web/telemetry.ex\nlib/haven_web.ex\nlib/haven/agent_probe_report.ex\nlib/haven/runs/acp_client_handler.ex\nlib/haven/runs/run_server.ex\nlib/haven/runs/run.ex\nlib/haven/repo.ex\nlib/haven/acp_client_side.ex\nlib/haven/events/event.ex\nlib/haven/permission_audits/permission_audit.ex\nlib/haven/application.ex\nlib/haven/acp_wire.ex\nlib/haven/workspaces.ex\nlib/haven/mailer.ex\nlib/haven/runs.ex\nlib/haven/workspace_files.ex\nlib/haven/workspaces/workspace.ex\nlib/haven/agents/agent_config.ex\nlib/haven/file_changes/file_change.ex\nlib/haven/terminals.ex\nlib/haven/agent_registry.ex\nlib/haven/file_changes.ex\nlib/haven/terminal_sessions.ex\nlib/haven/agent_probe.ex\nlib/haven/permission_audits.ex\nlib/haven/agents.ex\nlib/haven/port_io.ex\nlib/haven/terminal_sessions/terminal_session.ex\nlib/haven/events.ex\nlib/haven.ex\nlib/mix/tasks/haven.pending_migrations.ex\nlib/mix/tasks/haven.agent_probe.ex\nlib/mix/tasks/haven.runtime_smoke.ex\nlib/mix/tasks/haven.probe_reports.ex\nREADME.md\ndocs/probe-load/README.md\ndocs/probe-failures/README.md\ndocs/probes/README.md\ntest/haven_web/controllers/error_json_test.exs\ntest/haven_web/controllers/error_html_test.exs\ntest/haven_web/controllers/dev_controller_test.exs\ntest/haven_web/live/inbox_live_test.exs\ntest/haven_web/live/run_live_test.exs\ntest/test_helper.exs\ntest/support/data_case.ex\ntest/support/fake_acp_agent.ex\ntest/support/fake_agent_runner.exs\ntest/support/conn_case.ex\ntest/haven/terminal_sessions_test.exs\ntest/haven/agent_probe_report_test.exs\ntest/haven/port_io_test.exs\ntest/haven/agent_probe_test.exs\ntest/haven/terminals_test.exs\ntest/haven/agents_test.exs\ntest/haven/file_changes_test.exs\ntest/haven/workspaces_test.exs\ntest/haven/workspace_files_test.exs\ntest/haven/acp_wire_test.exs\ntest/haven/events_test.exs\ntest/haven/agent_registry_test.exs\ntest/haven/runs_test.exs\nmix.exs\n"
+              "formatted_output": "assets/vendor/topbar.js\nassets/vendor/heroicons.js\nassets/tsconfig.json\nassets/js/app.js\nassets/css/app.css\nlib/haven_web/controllers/error_html.ex\nlib/haven_web/controllers/dev_controller.ex\nlib/haven_web/controllers/error_json.ex\nlib/haven_web/endpoint.ex\nlib/haven_web/live/inbox_live.ex\nlib/haven_web/live/run_live.ex\nlib/haven/agent_probe_report.ex\nlib/haven_web/components/layouts/root.html.heex\nlib/haven_web/components/layouts.ex\nlib/haven_web/components/core_components.ex\nlib/haven_web/router.ex\nlib/haven_web/gettext.ex\nlib/haven_web/telemetry.ex\nlib/haven_web.ex\nlib/haven/runs/acp_client_handler.ex\nlib/haven/runs/run_server.ex\nlib/haven/runs/run.ex\nlib/haven/file_changes.ex\nlib/haven/repo.ex\nlib/haven/terminal_sessions.ex\nlib/haven/acp_client_side.ex\nlib/haven/agent_probe.ex\nlib/haven/permission_audits.ex\nlib/haven/agents.ex\nlib/haven/port_io.ex\nlib/haven/events/event.ex\nlib/haven/terminal_sessions/terminal_session.ex\nlib/haven/events.ex\nlib/haven.ex\nlib/haven/permission_audits/permission_audit.ex\nlib/haven/application.ex\nlib/haven/acp_wire.ex\nlib/haven/workspaces.ex\nlib/haven/mailer.ex\nlib/haven/runs.ex\nlib/haven/workspace_files.ex\nlib/haven/workspaces/workspace.ex\nlib/mix/tasks/haven.pending_migrations.ex\nlib/mix/tasks/haven.agent_probe.ex\nlib/mix/tasks/haven.runtime_smoke.ex\nlib/mix/tasks/haven.probe_reports.ex\nlib/haven/agents/agent_config.ex\nlib/haven/file_changes/file_change.ex\nlib/haven/terminals.ex\nlib/haven/agent_registry.ex\ndocs/probe-load/README.md\nmix.exs\nREADME.md\ndocs/probe-failures/README.md\ntest/test_helper.exs\ntest/support/data_case.ex\ntest/support/fake_acp_agent.ex\ntest/support/fake_agent_runner.exs\ntest/support/conn_case.ex\ntest/haven_web/controllers/error_json_test.exs\ntest/haven_web/controllers/error_html_test.exs\ntest/haven_web/controllers/dev_controller_test.exs\ntest/haven_web/live/inbox_live_test.exs\ntest/haven_web/live/run_live_test.exs\ntest/haven/workspace_files_test.exs\ntest/haven/acp_wire_test.exs\ntest/haven/events_test.exs\ntest/haven/agent_registry_test.exs\ntest/haven/runs_test.exs\ntest/haven/agents_test.exs\ntest/haven/file_changes_test.exs\ntest/haven/workspaces_test.exs\ntest/haven/terminals_test.exs\ntest/haven/agent_probe_test.exs\ntest/haven/port_io_test.exs\ntest/haven/terminal_sessions_test.exs\ntest/haven/agent_probe_report_test.exs\ndocs/probes/README.md\n"
             },
             "sessionUpdate": "tool_call_update",
             "status": "completed",
-            "toolCallId": "call_PXJ5Sl5GcCU82pAP3AXNLcGz"
+            "toolCallId": "call_PRdKrJ9f3fdx4hWM3H9QQSam"
           }
         },
         {
           "type": "agent_update_unknown",
-          "seq": 33,
+          "seq": 14,
           "payload": {
-            "session_id": "019f1cfe-4b70-7bf3-9eb0-4f3ca964d908",
+            "session_id": "019f1db6-6ff4-7063-80d7-fcb102212e59",
             "update": {
               "sessionUpdate": "usage_update",
               "size": 258400,
-              "used": 20205
+              "used": 20178
             },
             "update_type": "usage_update"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 34,
+          "seq": 15,
           "payload": {
             "text": "H"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 35,
+          "seq": 16,
           "payload": {
             "text": "aven"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 36,
+          "seq": 17,
           "payload": {
             "text": " is"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 37,
+          "seq": 18,
           "payload": {
             "text": " a"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 38,
+          "seq": 19,
           "payload": {
             "text": " Phoenix"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 39,
+          "seq": 20,
           "payload": {
             "text": " web"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 40,
+          "seq": 21,
           "payload": {
             "text": " app"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 41,
+          "seq": 22,
           "payload": {
             "text": " for"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 42,
+          "seq": 23,
           "payload": {
             "text": " managing"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 43,
+          "seq": 24,
           "payload": {
             "text": " agent"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 44,
+          "seq": 25,
           "payload": {
             "text": " work"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 45,
+          "seq": 26,
           "payload": {
             "text": "spaces"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 46,
+          "seq": 27,
           "payload": {
             "text": ","
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 47,
+          "seq": 28,
           "payload": {
             "text": " runs"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 48,
+          "seq": 29,
           "payload": {
             "text": ","
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 49,
+          "seq": 30,
           "payload": {
-            "text": " terminals"
+            "text": " terminal"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 50,
+          "seq": 31,
+          "payload": {
+            "text": " sessions"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 32,
           "payload": {
             "text": ","
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 51,
+          "seq": 33,
           "payload": {
             "text": " file"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 52,
+          "seq": 34,
           "payload": {
             "text": " changes"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 53,
+          "seq": 35,
           "payload": {
             "text": ","
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 54,
+          "seq": 36,
           "payload": {
             "text": " events"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 55,
+          "seq": 37,
           "payload": {
             "text": ","
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 56,
+          "seq": 38,
           "payload": {
             "text": " and"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 57,
+          "seq": 39,
           "payload": {
-            "text": " ACP"
+            "text": " probe"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 58,
+          "seq": 40,
           "payload": {
-            "text": "-based"
+            "text": "/report"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 59,
+          "seq": 41,
           "payload": {
-            "text": " agent"
+            "text": " workflows"
           }
         },
         {
           "type": "agent_message_chunk",
-          "seq": 60,
-          "payload": {
-            "text": " interactions"
-          }
-        },
-        {
-          "type": "agent_message_chunk",
-          "seq": 61,
+          "seq": 42,
           "payload": {
             "text": "."
           }
         },
         {
           "type": "agent_update_unknown",
-          "seq": 62,
+          "seq": 43,
           "payload": {
-            "session_id": "019f1cfe-4b70-7bf3-9eb0-4f3ca964d908",
+            "session_id": "019f1db6-6ff4-7063-80d7-fcb102212e59",
             "update": {
               "sessionUpdate": "usage_update",
               "size": 258400,
-              "used": 21007
+              "used": 20978
             },
             "update_type": "usage_update"
           }
         },
         {
           "type": "session_info_update",
-          "seq": 63,
+          "seq": 44,
           "payload": {
             "_meta": {
               "codex": {
@@ -1190,7 +1127,7 @@
         },
         {
           "type": "turn_finished",
-          "seq": 64,
+          "seq": 45,
           "payload": {
             "request_id": 1,
             "result": {
@@ -1201,29 +1138,29 @@
                       "model": "gpt-5.5",
                       "token_count": {
                         "cachedInputTokens": 4992,
-                        "inputTokens": 15983,
+                        "inputTokens": 15954,
                         "outputTokens": 32,
                         "reasoningOutputTokens": 0,
-                        "totalTokens": 21007
+                        "totalTokens": 20978
                       }
                     }
                   ],
                   "token_count": {
                     "cachedInputTokens": 4992,
-                    "inputTokens": 15983,
+                    "inputTokens": 15954,
                     "outputTokens": 32,
                     "reasoningOutputTokens": 0,
-                    "totalTokens": 21007
+                    "totalTokens": 20978
                   }
                 }
               },
               "stopReason": "end_turn",
               "usage": {
                 "cachedReadTokens": 4992,
-                "inputTokens": 15983,
+                "inputTokens": 15954,
                 "outputTokens": 32,
                 "thoughtTokens": 0,
-                "totalTokens": 21007
+                "totalTokens": 20978
               }
             }
           }
@@ -1231,40 +1168,621 @@
       ],
       "prompt": "Summarize this workspace in one short sentence.",
       "diagnostics": [],
-      "run_id": "eead68d8-5df7-43a2-8638-0403ece0ca33",
-      "agent": "codex-acp",
       "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
+      "agent": "codex-acp",
+      "run_id": "432a87d0-6ab1-4a07-add6-75367640d270",
       "expected_events": [
         "agent_initialized",
         "agent_session_started",
         "turn_finished"
       ],
-      "missing_expected_events": [],
-      "redactions": [],
+      "agent_output_metrics": {
+        "text_char_count": 132,
+        "message_chunk_count": 28
+      },
+      "expected_output": {},
       "expected_event_fields": [],
+      "missing_expected_events": [],
       "missing_expected_event_fields": [],
+      "missing_expected_output": [],
+      "redactions": [],
+      "real_agent_evidence": {
+        "required": true,
+        "accepted": true
+      }
+    },
+    {
+      "status": "idle",
+      "events": [
+        {
+          "type": "run_created",
+          "seq": 1,
+          "payload": {
+            "agent": "codex-acp",
+            "capability_policy": {
+              "file_read": "ask",
+              "file_write": "ask",
+              "terminal_create": "allow"
+            },
+            "title": "Agent probe: codex-acp 3/3",
+            "workspace": "/Users/deepfates/Hacking/github/deepfates/haven"
+          }
+        },
+        {
+          "type": "agent_process_started",
+          "seq": 2,
+          "payload": {
+            "agent": "codex-acp",
+            "args": [
+              "-y",
+              "@agentclientprotocol/codex-acp@1.0.1"
+            ],
+            "command": "codex-acp",
+            "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
+            "env": [],
+            "executable": "/opt/homebrew/bin/npx"
+          }
+        },
+        {
+          "type": "agent_initialized",
+          "seq": 3,
+          "payload": {}
+        },
+        {
+          "type": "agent_session_started",
+          "seq": 4,
+          "payload": {
+            "agent_session_id": "019f1db6-7043-7ca2-b05d-bc7d5276cd25"
+          }
+        },
+        {
+          "type": "turn_started",
+          "seq": 5,
+          "payload": {
+            "prompt": "Summarize this workspace in one short sentence."
+          }
+        },
+        {
+          "type": "user_message",
+          "seq": 6,
+          "payload": {
+            "text": "Summarize this workspace in one short sentence."
+          }
+        },
+        {
+          "type": "available_commands_update",
+          "seq": 7,
+          "payload": {
+            "availableCommands": [
+              {
+                "description": "List configured Model Context Protocol (MCP) tools.",
+                "name": "mcp"
+              },
+              {
+                "description": "List available skills.",
+                "name": "skills"
+              },
+              {
+                "description": "Display session configuration and token usage.",
+                "name": "status"
+              },
+              {
+                "description": "Review uncommitted changes, or review with custom instructions.",
+                "input": {
+                  "hint": "optional review instructions"
+                },
+                "name": "review"
+              },
+              {
+                "description": "Review changes relative to a base branch.",
+                "input": {
+                  "hint": "branch name"
+                },
+                "name": "review-branch"
+              },
+              {
+                "description": "Review a specific commit.",
+                "input": {
+                  "hint": "commit sha"
+                },
+                "name": "review-commit"
+              },
+              {
+                "description": "Summarize conversation to avoid hitting the context limit.",
+                "name": "compact"
+              },
+              {
+                "description": "Sign out of Codex. This option is available when you are logged in via ChatGPT.",
+                "name": "logout"
+              },
+              {
+                "description": "Control the in-app Browser. Use to open, navigate, inspect, test, click, type, screenshot, or verify local targets such as localhost, 127.0.0.1, ::1, file://, the current in-app browser tab, and websites shown side by side inside Codex.",
+                "name": "$browser:control-in-app-browser"
+              },
+              {
+                "description": "Create, edit, redline, and comment on `.docx`, Word, and Google Docs-targeted document artifacts inside the container, with a strict render-and-verify workflow. Use `render_docx.py` to generate page PNGs (and optional PDF) for visual QA, then iterate until layout is flawless before delivering the final document.",
+                "name": "$documents:documents"
+              },
+              {
+                "description": "Address actionable GitHub pull request review feedback. Use when the user wants to inspect unresolved review threads, requested changes, or inline review comments on a PR, then implement selected fixes. Use the GitHub app for PR metadata and flat comment reads, and use the bundled GraphQL script via `gh` whenever thread-level state, resolution status, or inline review context matters.",
+                "name": "$github:gh-address-comments"
+              },
+              {
+                "description": "Use when a user asks to debug or fix failing GitHub PR checks that run in GitHub Actions. Use the GitHub app from this plugin for PR metadata and patch context, and use `gh` for Actions check and log inspection before implementing any approved fix.",
+                "name": "$github:gh-fix-ci"
+              },
+              {
+                "description": "Triage and orient GitHub repository, pull request, and issue work through the connected GitHub app. Use when the user asks for general GitHub help, wants PR or issue summaries, or needs repository context before choosing a more specific GitHub workflow.",
+                "name": "$github:github"
+              },
+              {
+                "description": "Publish local changes to GitHub by confirming scope, committing intentionally, pushing the branch, and opening a draft PR through the GitHub app from this plugin, with `gh` used only as a fallback where connector coverage is insufficient.",
+                "name": "$github:yeet"
+              },
+              {
+                "description": "Read, create, inspect, render, and verify PDF files where visual layout matters. Use Poppler rendering plus Python tools such as reportlab, pdfplumber, and pypdf for generation and extraction.",
+                "name": "$pdf:pdf"
+              },
+              {
+                "description": "Create or edit PowerPoint or Google Slides decks",
+                "name": "$presentations:Presentations"
+              },
+              {
+                "description": "Use this skill when a user requests to create, modify, analyze, visualize, or work with spreadsheet files (`.xlsx`, `.xls`, `.csv`, `.tsv`) or Google Sheets-targeted spreadsheet artifacts with formulas, formatting, charts, tables, and recalculation.",
+                "name": "$spreadsheets:Spreadsheets"
+              },
+              {
+                "description": "Create or update a reusable personal Codex artifact-template skill. Use when the user invokes $template-creator or asks in natural language to create a template using, from, or based on an attached Word document, PowerPoint presentation, or Excel workbook, or explicitly asks to edit or update a passed artifact-template skill. Do not use for one-off artifact creation from an existing template.",
+                "name": "$template-creator:template-creator"
+              },
+              {
+                "description": "Generate or edit raster images when the task benefits from AI-created bitmap visuals such as photos, illustrations, textures, sprites, mockups, or transparent-background cutouts. Use when Codex should create a brand-new image, transform an existing image, or derive visual variants from references, and the output should be a bitmap asset rather than repo-native code or vector. Do not use when the task is better handled by editing existing SVG/vector/code-native assets, extending an established icon or logo system, or building the visual directly in HTML/CSS/canvas.",
+                "name": "$imagegen"
+              },
+              {
+                "description": "Use when the user asks how to build with OpenAI products or APIs, asks about Codex itself or choosing Codex surfaces, needs up-to-date official documentation with citations, help choosing the latest model for a use case, or model upgrade and prompt-upgrade guidance; use OpenAI docs MCP tools for non-Codex docs questions, use the Codex manual helper first for broad Codex self-knowledge, and restrict fallback browsing to official OpenAI domains.",
+                "name": "$openai-docs"
+              },
+              {
+                "description": "Create and scaffold plugin directories for Codex with a required `.codex-plugin/plugin.json`, optional plugin folders/files, valid manifest defaults, and personal-marketplace entries by default. Use when Codex needs to create a new personal plugin, add optional plugin structure, generate or update marketplace entries for plugin ordering and availability metadata, or update an existing local plugin during development with the CLI-driven cachebuster and reinstall flow.",
+                "name": "$plugin-creator"
+              },
+              {
+                "description": "Create or update a skill",
+                "name": "$skill-creator"
+              },
+              {
+                "description": "Install curated skills from openai/skills or other repos",
+                "name": "$skill-installer"
+              }
+            ],
+            "sessionUpdate": "available_commands_update"
+          }
+        },
+        {
+          "type": "session_info_update",
+          "seq": 8,
+          "payload": {
+            "_meta": {
+              "codex": {
+                "threadStatus": {
+                  "activeFlags": [],
+                  "type": "active"
+                }
+              }
+            },
+            "sessionUpdate": "session_info_update"
+          }
+        },
+        {
+          "type": "tool_call",
+          "seq": 9,
+          "payload": {
+            "_meta": {
+              "terminal_info": {
+                "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
+                "terminal_id": "call_nlF4lDZzul4LHvcPh7oXf7Uf"
+              }
+            },
+            "content": [
+              {
+                "terminalId": "call_nlF4lDZzul4LHvcPh7oXf7Uf",
+                "type": "terminal"
+              }
+            ],
+            "kind": "execute",
+            "rawInput": {
+              "command": "pwd",
+              "cwd": "/Users/deepfates/Hacking/github/deepfates/haven"
+            },
+            "sessionUpdate": "tool_call",
+            "status": "in_progress",
+            "title": "pwd",
+            "toolCallId": "call_nlF4lDZzul4LHvcPh7oXf7Uf"
+          }
+        },
+        {
+          "type": "tool_call_update",
+          "seq": 10,
+          "payload": {
+            "_meta": {
+              "terminal_exit": {
+                "exit_code": 0,
+                "signal": null,
+                "terminal_id": "call_nlF4lDZzul4LHvcPh7oXf7Uf"
+              },
+              "terminal_output_delta": {
+                "data": "/Users/deepfates/Hacking/github/deepfates/haven\n",
+                "terminal_id": "call_nlF4lDZzul4LHvcPh7oXf7Uf"
+              }
+            },
+            "rawOutput": {
+              "exit_code": 0,
+              "formatted_output": "/Users/deepfates/Hacking/github/deepfates/haven\n"
+            },
+            "sessionUpdate": "tool_call_update",
+            "status": "completed",
+            "toolCallId": "call_nlF4lDZzul4LHvcPh7oXf7Uf"
+          }
+        },
+        {
+          "type": "tool_call",
+          "seq": 11,
+          "payload": {
+            "kind": "read",
+            "sessionUpdate": "tool_call",
+            "status": "in_progress",
+            "title": "List files",
+            "toolCallId": "call_ZbFiDDi7Ohzzp6YMSnBhEVS0"
+          }
+        },
+        {
+          "type": "tool_call_update",
+          "seq": 12,
+          "payload": {
+            "rawOutput": {
+              "exit_code": 0,
+              "formatted_output": "assets/vendor/topbar.js\nassets/vendor/heroicons.js\nassets/tsconfig.json\nassets/js/app.js\nassets/css/app.css\nlib/haven_web/controllers/error_html.ex\nlib/haven_web/controllers/dev_controller.ex\nlib/haven_web/controllers/error_json.ex\nlib/haven_web/endpoint.ex\nlib/haven_web/live/inbox_live.ex\nlib/haven_web/live/run_live.ex\nlib/haven_web/components/layouts/root.html.heex\nlib/haven_web/components/layouts.ex\nlib/haven_web/components/core_components.ex\nlib/haven_web/router.ex\nlib/haven_web/gettext.ex\nlib/haven_web/telemetry.ex\nlib/haven_web.ex\nlib/haven/agent_probe_report.ex\nlib/haven/runs/acp_client_handler.ex\nlib/haven/runs/run_server.ex\nlib/haven/runs/run.ex\nlib/haven/repo.ex\nlib/haven/acp_client_side.ex\nlib/haven/events/event.ex\nlib/haven/permission_audits/permission_audit.ex\nlib/haven/application.ex\nlib/haven/acp_wire.ex\nlib/haven/workspaces.ex\nlib/haven/mailer.ex\nlib/haven/runs.ex\nlib/haven/workspace_files.ex\nlib/haven/workspaces/workspace.ex\nlib/haven/agents/agent_config.ex\nlib/haven/file_changes/file_change.ex\nlib/haven/terminals.ex\nlib/haven/agent_registry.ex\nlib/haven/file_changes.ex\nlib/haven/terminal_sessions.ex\nlib/haven/agent_probe.ex\nlib/haven/permission_audits.ex\nlib/haven/agents.ex\nlib/haven/port_io.ex\nlib/haven/terminal_sessions/terminal_session.ex\nlib/haven/events.ex\nlib/haven.ex\nlib/mix/tasks/haven.pending_migrations.ex\nlib/mix/tasks/haven.agent_probe.ex\nlib/mix/tasks/haven.runtime_smoke.ex\nlib/mix/tasks/haven.probe_reports.ex\nREADME.md\ndocs/probe-load/README.md\ndocs/probe-failures/README.md\ndocs/probes/README.md\nconfig/test.exs\nconfig/prod.exs\nconfig/config.exs\nconfig/dev.exs\nconfig/runtime.exs\ntest/test_helper.exs\ntest/haven_web/controllers/error_json_test.exs\ntest/haven_web/controllers/error_html_test.exs\ntest/haven_web/controllers/dev_controller_test.exs\ntest/haven/terminal_sessions_test.exs\ntest/haven/agent_probe_report_test.exs\ntest/haven/port_io_test.exs\ntest/haven/agent_probe_test.exs\ntest/haven/terminals_test.exs\ntest/haven/agents_test.exs\ntest/haven/file_changes_test.exs\ntest/haven/agent_registry_test.exs\ntest/haven/workspaces_test.exs\ntest/haven/runs_test.exs\nmix.exs\ntest/haven/acp_wire_test.exs\ntest/haven/workspace_files_test.exs\ntest/haven_web/live/inbox_live_test.exs\ntest/haven/events_test.exs\ntest/haven_web/live/run_live_test.exs\ntest/support/data_case.ex\n"
+            },
+            "sessionUpdate": "tool_call_update",
+            "status": "completed",
+            "toolCallId": "call_ZbFiDDi7Ohzzp6YMSnBhEVS0"
+          }
+        },
+        {
+          "type": "agent_update_unknown",
+          "seq": 13,
+          "payload": {
+            "session_id": "019f1db6-7043-7ca2-b05d-bc7d5276cd25",
+            "update": {
+              "sessionUpdate": "usage_update",
+              "size": 258400,
+              "used": 20165
+            },
+            "update_type": "usage_update"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 14,
+          "payload": {
+            "text": "H"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 15,
+          "payload": {
+            "text": "aven"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 16,
+          "payload": {
+            "text": " is"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 17,
+          "payload": {
+            "text": " a"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 18,
+          "payload": {
+            "text": " Phoenix"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 19,
+          "payload": {
+            "text": " web"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 20,
+          "payload": {
+            "text": " app"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 21,
+          "payload": {
+            "text": " for"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 22,
+          "payload": {
+            "text": " managing"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 23,
+          "payload": {
+            "text": " agent"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 24,
+          "payload": {
+            "text": " work"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 25,
+          "payload": {
+            "text": "spaces"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 26,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 27,
+          "payload": {
+            "text": " runs"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 28,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 29,
+          "payload": {
+            "text": " events"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 30,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 31,
+          "payload": {
+            "text": " terminal"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 32,
+          "payload": {
+            "text": " sessions"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 33,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 34,
+          "payload": {
+            "text": " file"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 35,
+          "payload": {
+            "text": " changes"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 36,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 37,
+          "payload": {
+            "text": " and"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 38,
+          "payload": {
+            "text": " probe"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 39,
+          "payload": {
+            "text": "/a"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 40,
+          "payload": {
+            "text": "udit"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 41,
+          "payload": {
+            "text": " workflows"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 42,
+          "payload": {
+            "text": "."
+          }
+        },
+        {
+          "type": "agent_update_unknown",
+          "seq": 43,
+          "payload": {
+            "session_id": "019f1db6-7043-7ca2-b05d-bc7d5276cd25",
+            "update": {
+              "sessionUpdate": "usage_update",
+              "size": 258400,
+              "used": 20971
+            },
+            "update_type": "usage_update"
+          }
+        },
+        {
+          "type": "session_info_update",
+          "seq": 44,
+          "payload": {
+            "_meta": {
+              "codex": {
+                "threadStatus": {
+                  "type": "idle"
+                }
+              }
+            },
+            "sessionUpdate": "session_info_update"
+          }
+        },
+        {
+          "type": "turn_finished",
+          "seq": 45,
+          "payload": {
+            "request_id": 1,
+            "result": {
+              "_meta": {
+                "quota": {
+                  "model_usage": [
+                    {
+                      "model": "gpt-5.5",
+                      "token_count": {
+                        "cachedInputTokens": 19840,
+                        "inputTokens": 1098,
+                        "outputTokens": 33,
+                        "reasoningOutputTokens": 0,
+                        "totalTokens": 20971
+                      }
+                    }
+                  ],
+                  "token_count": {
+                    "cachedInputTokens": 19840,
+                    "inputTokens": 1098,
+                    "outputTokens": 33,
+                    "reasoningOutputTokens": 0,
+                    "totalTokens": 20971
+                  }
+                }
+              },
+              "stopReason": "end_turn",
+              "usage": {
+                "cachedReadTokens": 19840,
+                "inputTokens": 1098,
+                "outputTokens": 33,
+                "thoughtTokens": 0,
+                "totalTokens": 20971
+              }
+            }
+          }
+        }
+      ],
+      "prompt": "Summarize this workspace in one short sentence.",
+      "diagnostics": [],
+      "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
+      "agent": "codex-acp",
+      "run_id": "832bf628-8b27-4136-9fb9-6ca6b5d99a70",
+      "expected_events": [
+        "agent_initialized",
+        "agent_session_started",
+        "turn_finished"
+      ],
+      "agent_output_metrics": {
+        "text_char_count": 131,
+        "message_chunk_count": 29
+      },
+      "expected_output": {},
+      "expected_event_fields": [],
+      "missing_expected_events": [],
+      "missing_expected_event_fields": [],
+      "missing_expected_output": [],
+      "redactions": [],
       "real_agent_evidence": {
         "required": true,
         "accepted": true
       }
     }
   ],
-  "run_count": 2,
+  "failures": [],
+  "expected_output": {},
+  "expected_event_fields": [],
   "child_windows": [
     {
       "index": 1,
       "status": "idle",
-      "started_at": "2026-07-01T09:24:13.791789Z",
-      "run_id": "dc1d85ca-8249-4f36-8249-da3afdef6bc3",
-      "finished_at": "2026-07-01T09:24:22.091270Z"
+      "started_at": "2026-07-01T12:45:21.765374Z",
+      "run_id": "e46087f3-fc3f-47e7-bb5c-2338d6bf5d72",
+      "finished_at": "2026-07-01T12:45:35.214737Z"
     },
     {
       "index": 2,
       "status": "idle",
-      "started_at": "2026-07-01T09:24:13.791802Z",
-      "run_id": "eead68d8-5df7-43a2-8638-0403ece0ca33",
-      "finished_at": "2026-07-01T09:24:23.324510Z"
+      "started_at": "2026-07-01T12:45:21.765390Z",
+      "run_id": "432a87d0-6ab1-4a07-add6-75367640d270",
+      "finished_at": "2026-07-01T12:45:30.649549Z"
+    },
+    {
+      "index": 3,
+      "status": "idle",
+      "started_at": "2026-07-01T12:45:21.765396Z",
+      "run_id": "832bf628-8b27-4136-9fb9-6ca6b5d99a70",
+      "finished_at": "2026-07-01T12:45:30.496418Z"
     }
-  ],
-  "failures": []
+  ]
 }

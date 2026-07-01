@@ -56,7 +56,7 @@ configured agents with known limitations. It is not a production-grade claim.
   mediation.
 - Bounded long-output behavior has one current positive `codex-acp` report, but
   arbitrary long duration and production-scale output volume remain unproven.
-- Two-run sequential and concurrent real-agent load evidence exists for
+- Two-run sequential and three-run concurrent real-agent load evidence exists for
   `codex-acp`, but many simultaneous external-agent runs across multiple
   folders remain unproven.
 - Credential/auth scope is visible enough for local alpha, but interactive auth

@@ -793,14 +793,16 @@ Evidence:
 - `docs/probe-load/codex-acp-basic-concurrent-load.json` is the current
   committed positive concurrent multi-run real-agent probe from 2026-07-01. It
   was generated against saved `codex-acp` with `--require-real-agent`,
-  `--load-runs 2`, and `--load-concurrency 2`, produced distinct durable runs
-  `dc1d85ca-8249-4f36-8249-da3afdef6bc3` and
-  `eead68d8-5df7-43a2-8638-0403ece0ca33`, passed `agent_initialized`,
+  `--load-runs 3`, and `--load-concurrency 3`, produced distinct durable runs
+  `e46087f3-fc3f-47e7-bb5c-2338d6bf5d72`,
+  `432a87d0-6ab1-4a07-add6-75367640d270`, and
+  `832bf628-8b27-4136-9fb9-6ca6b5d99a70`, passed `agent_initialized`,
   `agent_session_started`, and `turn_finished` expectations for each child
   run, and is accepted by `mix haven.probe_reports`. The report's
   `child_windows` prove overlapping child probe execution from
-  `2026-07-01T09:24:13.791789Z` to `2026-07-01T09:24:22.091270Z`. This is
-  basic concurrent real-agent evidence, not long-output or larger-fan-out proof.
+  `2026-07-01T12:45:21.765374Z` to `2026-07-01T12:45:35.214737Z`. This is
+  modest concurrent real-agent evidence, not long-output or production-scale
+  fan-out proof.
 - `docs/probes/codex-acp-long-output.json` is the current committed positive
   bounded long-output real-agent probe from 2026-07-01. It was generated
   against saved `codex-acp` with `--require-real-agent`, produced durable run
@@ -943,7 +945,7 @@ Still missing:
 - Authenticated user identity and interactive auth flows for agents that require
   credentials.
 - Longer-duration real external agent output and larger-fan-out concurrency
-  beyond the current bounded `codex-acp` long-output report and two-run
+  beyond the current bounded `codex-acp` long-output report and three-run
   concurrent load report.
 
 ## Not Proven Yet

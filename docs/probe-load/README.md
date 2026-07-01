@@ -46,6 +46,6 @@ text the agent read from the workspace.
   start, a prompted turn, and `turn_finished` in each child run.
 - `codex-acp-basic-concurrent-load.json`: current positive real-agent
   concurrent load probe from 2026-07-01. It uses saved `codex-acp` with
-  `--require-real-agent`, creates two distinct durable Haven runs at
-  `concurrency: 2`, and records overlapping child probe windows from
-  `2026-07-01T09:24:13.791789Z` to `2026-07-01T09:24:22.091270Z`.
+  `--require-real-agent`, creates three distinct durable Haven runs at
+  `concurrency: 3`, and records overlapping child probe windows from
+  `2026-07-01T12:45:21.765374Z` to `2026-07-01T12:45:35.214737Z`.
