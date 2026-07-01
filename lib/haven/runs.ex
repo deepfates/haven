@@ -13,6 +13,16 @@ defmodule Haven.Runs do
     Repo.all(from r in Run, where: not is_nil(r.archived_at), order_by: [desc: r.archived_at])
   end
 
+  def prune_archived_before(%DateTime{} = cutoff) do
+    {count, _deleted} =
+      Repo.delete_all(
+        from r in Run,
+          where: not is_nil(r.archived_at) and r.archived_at < ^cutoff
+      )
+
+    count
+  end
+
   def get_run!(id), do: Repo.get!(Run, id)
 
   def create_run(attrs) do

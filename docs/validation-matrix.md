@@ -398,13 +398,16 @@ Evidence:
 - RunServer shutdown now explicitly tears down the ACP connection and port IO
   bridge.
 - Event ordering and persistence are covered by `test/haven/events_test.exs`.
+- `Haven.Runs.prune_archived_before/1` provides an explicit retention boundary
+  for archived records. Data-layer tests verify it deletes only archived runs
+  older than a cutoff and cascades their event history while preserving active
+  and recent archived runs.
 
 Still missing:
 
 - ACP session resume semantics; current reconnect starts a fresh process/session.
 - Broader concurrent multi-run behavior under realistic external-agent load.
-- Production lifecycle policy for pruning archived run records and old event
-  logs.
+- Product-level retention policy, scheduling, and UI around archived run pruning.
 
 ### Workspace Capabilities
 

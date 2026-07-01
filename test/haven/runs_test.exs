@@ -34,6 +34,27 @@ defmodule Haven.RunsTest do
     refute Runs.get_run!(running.id).archived_at
   end
 
+  test "prune_archived_before deletes only archived runs older than the cutoff" do
+    old_archived =
+      "Old archived run"
+      |> insert_run!("failed")
+      |> set_archived_at!(~U[2026-01-01 00:00:00Z])
+
+    recent_archived =
+      "Recent archived run"
+      |> insert_run!("failed")
+      |> set_archived_at!(~U[2026-06-01 00:00:00Z])
+
+    active = insert_run!("Active failed run", "failed")
+
+    assert 1 == Runs.prune_archived_before(~U[2026-02-01 00:00:00Z])
+
+    refute Repo.get(Run, old_archived.id)
+    assert [] == Events.list_for_run(old_archived.id)
+    assert Runs.get_run!(recent_archived.id).archived_at
+    refute Runs.get_run!(active.id).archived_at
+  end
+
   test "normalizes optional file capability path scopes" do
     changeset =
       Run.changeset(%Run{}, %{
@@ -78,5 +99,11 @@ defmodule Haven.RunsTest do
     })
 
     run
+  end
+
+  defp set_archived_at!(%Run{} = run, archived_at) do
+    run
+    |> Ecto.Changeset.change(archived_at: archived_at)
+    |> Repo.update!()
   end
 end
