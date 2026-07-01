@@ -1528,11 +1528,12 @@ defmodule HavenWeb.InboxLive do
     end)
   end
 
-  defp agent_evidence_detail_summary(reports, gaps, probes) do
+  defp agent_evidence_detail_summary(reports, gaps, probes, probe_block_notice) do
     [
       evidence_summary_part(reports, "proof"),
       evidence_summary_part(gaps, "gap"),
-      evidence_summary_part(probes, "probe")
+      evidence_summary_part(probes, "probe"),
+      if(probe_block_notice, do: "probe blocked", else: nil)
     ]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" · ")
@@ -1686,6 +1687,14 @@ defmodule HavenWeb.InboxLive do
   defp agent_launch_cwd_label(nil), do: "cwd app default"
   defp agent_launch_cwd_label(cwd), do: "cwd #{Path.basename(cwd)}"
 
+  defp agent_probe_block_notice(%{latest_preflight: %{status: "failed"}}) do
+    "Proof commands are withheld because the latest durable ACP preflight failed. Rerun preflight after fixing initialize/session before running full probes."
+  end
+
+  defp agent_probe_block_notice(_inventory), do: nil
+
+  defp agent_probe_commands(%{latest_preflight: %{status: "failed"}}), do: []
+
   defp agent_probe_commands(%{real_agent_candidate: true, agent: agent}) do
     [
       %{
@@ -1709,7 +1718,7 @@ defmodule HavenWeb.InboxLive do
         command:
           probe_command(agent, [
             "--prompt",
-            "try to open a terminal",
+            "run mix --version through the client terminal capability",
             "--terminal-create-policy",
             "deny",
             "--expect-event",
@@ -2852,6 +2861,7 @@ defmodule HavenWeb.InboxLive do
                   >
                     <% readiness = Map.get(@agent_inventory, agent_config.key, %{}) %>
                     <% probe_commands = agent_probe_commands(readiness) %>
+                    <% probe_block_notice = agent_probe_block_notice(readiness) %>
                     <% accepted_reports = Map.get(@agent_probe_reports, agent_config.key, []) %>
                     <% gap_reports = Map.get(@agent_capability_gap_reports, agent_config.key, []) %>
                     <div class="flex items-start justify-between gap-3">
@@ -2922,7 +2932,10 @@ defmodule HavenWeb.InboxLive do
                           {agent_evidence_reason(readiness, accepted_reports)}
                         </p>
                         <details
-                          :if={accepted_reports != [] or gap_reports != [] or probe_commands != []}
+                          :if={
+                            accepted_reports != [] or gap_reports != [] or probe_commands != [] or
+                              probe_block_notice
+                          }
                           id={"agent-config-#{agent_config.key}-evidence-details"}
                           class="mt-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2"
                         >
@@ -2937,11 +2950,19 @@ defmodule HavenWeb.InboxLive do
                               {agent_evidence_detail_summary(
                                 accepted_reports,
                                 gap_reports,
-                                probe_commands
+                                probe_commands,
+                                probe_block_notice
                               )}
                             </span>
                           </summary>
                           <div class="mt-2 space-y-2 border-t border-zinc-200 pt-2">
+                            <p
+                              :if={probe_block_notice}
+                              id={"agent-config-#{agent_config.key}-probe-blocked"}
+                              class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800"
+                            >
+                              {probe_block_notice}
+                            </p>
                             <div
                               :if={accepted_reports != []}
                               id={"agent-config-#{agent_config.key}-accepted-probes"}

@@ -803,6 +803,12 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(
              view,
              "#agent-config-candidate-agent-probe-terminal-denied-command",
+             "run mix --version through the client terminal capability"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-terminal-denied-command",
              "terminal_create_requested:payload.command=mix"
            )
 
@@ -944,6 +950,17 @@ defmodule HavenWeb.InboxLiveTest do
              "#agent-config-candidate-agent-preflight",
              "ACP preflight failed"
            )
+
+    assert has_element?(view, "#agent-config-candidate-agent-evidence-details")
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-blocked",
+             "Proof commands are withheld because the latest durable ACP preflight failed"
+           )
+
+    refute has_element?(view, "#agent-config-candidate-agent-probe-command")
+    refute has_element?(view, "#agent-config-candidate-agent-probe-terminal-denied-command")
 
     view
     |> form("#new-run-form", %{"agent" => "candidate-agent"})
