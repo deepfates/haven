@@ -774,12 +774,24 @@ defmodule HavenWeb.InboxLiveTest do
 
     archived = Runs.get_run!(run.id)
     assert archived.archived_at
+    assert [archived_run] = Runs.list_archived_runs()
+    assert archived_run.id == run.id
 
     assert [%{type: "run_created"}, %{type: "run_archived", payload: payload}] =
              Events.list_for_run(run.id)
 
     assert payload["actor"] == "local_user"
     assert payload["previous_status"] == "failed"
+
+    assert has_element?(view, "#inbox-filter-archived", "1")
+
+    view
+    |> element("#inbox-filter-archived")
+    |> render_click()
+
+    assert has_element?(view, "#inbox-archived-section")
+    assert has_element?(view, "article", "Old failure")
+    assert has_element?(view, "#run-#{run.id}-archived-at", "Archived")
   end
 
   defp insert_run!(title, status, attrs \\ %{}) do

@@ -11,7 +11,8 @@ defmodule HavenWeb.InboxLive do
     {"all", "All"},
     {"needs_you", "Needs You"},
     {"running", "Running"},
-    {"history", "History"}
+    {"history", "History"},
+    {"archived", "Archived"}
   ]
 
   @impl true
@@ -179,8 +180,13 @@ defmodule HavenWeb.InboxLive do
       Runs.list_runs()
       |> attach_latest_events()
 
+    archived_runs =
+      Runs.list_archived_runs()
+      |> attach_latest_events()
+
     run_search = socket.assigns[:run_search] || ""
     visible_runs = filter_runs_by_search(runs, run_search)
+    archived_matches = filter_runs_by_search(archived_runs, run_search)
 
     needs_you = Enum.filter(visible_runs, &(&1.status == "waiting"))
     running = Enum.filter(visible_runs, &(&1.status in ["initializing", "running"]))
@@ -188,35 +194,53 @@ defmodule HavenWeb.InboxLive do
 
     run_filter = socket.assigns[:run_filter] || "all"
 
-    {visible_needs_you, visible_running, visible_history} =
-      visible_run_groups(run_filter, needs_you, running, history)
+    {visible_needs_you, visible_running, visible_history, visible_archived} =
+      visible_run_groups(run_filter, needs_you, running, history, archived_matches)
 
     socket
     |> assign(:runs, runs)
+    |> assign(:archived_runs, archived_runs)
     |> assign(:visible_runs, visible_runs)
+    |> assign(:visible_archived_runs, visible_archived)
     |> assign(:run_search, run_search)
     |> assign(:run_filters, @run_filters)
     |> assign(:run_filter_counts, %{
       "all" => length(visible_runs),
       "needs_you" => length(needs_you),
       "running" => length(running),
-      "history" => length(history)
+      "history" => length(history),
+      "archived" => length(archived_matches)
     })
     |> assign(:needs_you, visible_needs_you)
     |> assign(:running, visible_running)
     |> assign(:history, visible_history)
+    |> assign(:archived, visible_archived)
     |> assign(
       :filtered_runs_empty?,
       (run_filter != "all" or run_search != "") and
-        visible_needs_you == [] and visible_running == [] and visible_history == []
+        visible_needs_you == [] and visible_running == [] and visible_history == [] and
+        visible_archived == []
     )
-    |> assign(:searched_runs_empty?, run_search != "" and visible_runs == [])
+    |> assign(
+      :searched_runs_empty?,
+      run_search != "" and visible_runs == [] and archived_matches == []
+    )
   end
 
-  defp visible_run_groups("needs_you", needs_you, _running, _history), do: {needs_you, [], []}
-  defp visible_run_groups("running", _needs_you, running, _history), do: {[], running, []}
-  defp visible_run_groups("history", _needs_you, _running, history), do: {[], [], history}
-  defp visible_run_groups(_filter, needs_you, running, history), do: {needs_you, running, history}
+  defp visible_run_groups("needs_you", needs_you, _running, _history, _archived),
+    do: {needs_you, [], [], []}
+
+  defp visible_run_groups("running", _needs_you, running, _history, _archived),
+    do: {[], running, [], []}
+
+  defp visible_run_groups("history", _needs_you, _running, history, _archived),
+    do: {[], [], history, []}
+
+  defp visible_run_groups("archived", _needs_you, _running, _history, archived),
+    do: {[], [], [], archived}
+
+  defp visible_run_groups(_filter, needs_you, running, history, _archived),
+    do: {needs_you, running, history, []}
 
   defp valid_run_filter?(filter) do
     Enum.any?(@run_filters, fn {value, _label} -> value == filter end)
@@ -858,6 +882,13 @@ defmodule HavenWeb.InboxLive do
               "%H:%M:%S"
             )}
           </p>
+          <p
+            :if={@run.archived_at}
+            id={"run-#{@run.id}-archived-at"}
+            class="mt-1 truncate text-zinc-500"
+          >
+            Archived {Calendar.strftime(@run.archived_at, "%Y-%m-%d %H:%M:%S")}
+          </p>
           <p id={"run-#{@run.id}-latest-activity"} class="mt-1 truncate text-zinc-700">
             {latest_activity(@run.latest_event)}
             <span :if={latest_activity_time(@run.latest_event)} class="text-zinc-400">
@@ -1080,6 +1111,26 @@ defmodule HavenWeb.InboxLive do
               class="overflow-hidden rounded-lg border border-zinc-200 bg-white"
             >
               <.run_card :for={run <- @history} run={run} show_archive={true} />
+            </div>
+          </section>
+
+          <section
+            :if={@run_filter == "archived" and !@filtered_runs_empty?}
+            id="inbox-archived-section"
+            class="space-y-2"
+          >
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Archived</h2>
+            <div
+              :if={@archived == []}
+              class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+            >
+              No archived runs yet.
+            </div>
+            <div
+              :if={@archived != []}
+              class="overflow-hidden rounded-lg border border-zinc-200 bg-white"
+            >
+              <.run_card :for={run <- @archived} run={run} />
             </div>
           </section>
 

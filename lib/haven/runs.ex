@@ -9,6 +9,10 @@ defmodule Haven.Runs do
     Repo.all(from r in Run, where: is_nil(r.archived_at), order_by: [desc: r.updated_at])
   end
 
+  def list_archived_runs do
+    Repo.all(from r in Run, where: not is_nil(r.archived_at), order_by: [desc: r.archived_at])
+  end
+
   def get_run!(id), do: Repo.get!(Run, id)
 
   def create_run(attrs) do
