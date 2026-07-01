@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   Add `--preflight` to `--list-agents` to try ACP initialization/session
   creation for each eligible probe candidate before attempting a full report.
   Add `--proof-commands` to `--list-agents` to print the basic, file, terminal,
-  and policy-guard probe commands for each candidate.
+  policy-guard, long-output, and small load probe commands for each candidate.
   Add `--registry` to `--list-agents` to show npx-backed ACP agent suggestions
   from the public ACP registry.
   Use `--save-registry-agent AGENT_ID` to persist one public registry suggestion
@@ -425,7 +425,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
 
   defp print_agent_proof_command_status(_agent, _workspace, false, _preflight_result) do
     Mix.shell().info(
-      "  proof commands: hidden (add --proof-commands to print basic/file/terminal acceptance commands)"
+      "  proof commands: hidden (add --proof-commands to print basic/file/terminal/long-output/load acceptance commands)"
     )
   end
 
@@ -588,6 +588,48 @@ defmodule Mix.Tasks.Haven.AgentProbe do
            "docs/probes/#{agent_key}-terminal-denied.json",
            "--failure-report",
            "docs/probe-failures/#{agent_key}-terminal-denied-mediated-negative.json"
+         ] ++ redaction_args
+       )},
+      {"long-output",
+       probe_command(
+         agent,
+         workspace,
+         [
+           "--prompt",
+           "write a structured summary of this workspace in at least 1200 characters",
+           "--expect-event",
+           "agent_initialized",
+           "--expect-event",
+           "agent_session_started",
+           "--expect-event",
+           "turn_finished",
+           "--expect-min-agent-output-chars",
+           "1200",
+           "--expect-min-agent-message-chunks",
+           "8",
+           "--report",
+           "docs/probes/#{agent_key}-long-output.json"
+         ] ++ redaction_args
+       )},
+      {"load-basic",
+       probe_command(
+         agent,
+         workspace,
+         [
+           "--prompt",
+           "summarize this workspace in one short sentence",
+           "--load-runs",
+           "3",
+           "--load-concurrency",
+           "2",
+           "--expect-event",
+           "agent_initialized",
+           "--expect-event",
+           "agent_session_started",
+           "--expect-event",
+           "turn_finished",
+           "--report",
+           "docs/probe-load/#{agent_key}-basic-load.json"
          ] ++ redaction_args
        )}
     ]

@@ -150,10 +150,11 @@ their values.
 Use `--list-agents --proof-commands` when you want the full acceptance-command
 set for a candidate. It prints basic boot, Haven-mediated file read,
 permission-approved file write, permission-approved terminal, and denied
-terminal guard probes. These commands are intentionally stricter than launch
-readiness: they include expected event and field checks so missing `fs/*` or
-`terminal/*` client-capability stories fail as evidence instead of passing as
-generic agent activity.
+terminal guard probes, plus bounded long-output and small concurrent load
+probes. These commands are intentionally stricter than launch readiness: they
+include expected event, field, output, and load checks so missing `fs/*`,
+`terminal/*`, streaming, or fan-out stories fail as evidence instead of passing
+as generic agent activity.
 
 When `--preflight` and `--proof-commands` are used together, proof commands are
 printed only for agents that pass ACP initialize/session preflight. Agents that

@@ -320,6 +320,16 @@ defmodule Haven.AgentProbeTest do
 
     assert output =~
              "--failure-report docs/probe-failures/candidate-terminal-denied-mediated-negative.json"
+
+    assert output =~ "long-output: mix haven.agent_probe --agent candidate"
+    assert output =~ "--expect-min-agent-output-chars 1200"
+    assert output =~ "--expect-min-agent-message-chunks 8"
+    assert output =~ "--report docs/probes/candidate-long-output.json"
+
+    assert output =~ "load-basic: mix haven.agent_probe --agent candidate"
+    assert output =~ "--load-runs 3"
+    assert output =~ "--load-concurrency 2"
+    assert output =~ "--report docs/probe-load/candidate-basic-load.json"
   end
 
   test "agent probe inventory keeps production proof commands on demand" do
