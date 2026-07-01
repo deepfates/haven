@@ -766,7 +766,7 @@ Evidence:
 - `docs/probes/codex-acp-basic-current.json` is the current committed positive
   real-agent basic probe from 2026-07-01. It was generated against saved
   `codex-acp` with `--require-real-agent`, produced durable run
-  `e77fa898-d57c-40d5-a9e1-355f72c221bd`, passed
+  `2b8270f7-0707-4013-bd6e-18de0a08b5fd`, passed
   `agent_initialized`, `agent_session_started`, and `turn_finished`
   expectations, and is accepted by `mix haven.probe_reports`.
 - `docs/probes/codex-acp-file-tool-call.json` is a committed passing

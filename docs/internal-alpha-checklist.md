@@ -6,13 +6,13 @@ This checklist is the release cut for an internal alpha. It turns
 Internal alpha means Haven is usable by a trusted developer against configured
 agents with known limitations. It does not mean production-grade.
 
-## Release Candidate
+## Release Cut
 
 - Branch: `codex/elixir-cutover`
-- Verified application commit: `03657003`
+- Verified application commit: `26de37b1`
 - Date: 2026-07-01
 - Operator: Codex
-- Last verified application commit: `03657003`
+- Last verified application commit: `26de37b1`
 
 ## Required Gates
 
@@ -34,8 +34,8 @@ Pass condition:
 
 Evidence:
 
-- Result: passed at verified application commit `03657003` with 230 tests and
-  4 validated positive probe reports.
+- Result: passed at verified application commit `26de37b1` with 238 tests, 4
+  validated positive probe reports, and 2 validated negative probe reports.
 - Notes:
 
 ### 2. Dev Database Gate
@@ -53,7 +53,7 @@ Pass condition:
 Evidence:
 
 - Result: `No pending migrations.`
-- Notes: verified at application commit `03657003`.
+- Notes: verified at application commit `26de37b1`.
 
 ### 3. Runtime Smoke Gate
 
@@ -76,7 +76,7 @@ Evidence:
 
 - Result: passed against `http://127.0.0.1:4000`.
 - Notes: latest recorded run
-  `e1d746a8-12f2-44f2-ac66-aa8e8686f0b5` at application commit `03657003`.
+  `3223240c-67e0-49dc-abf1-3be3e53bf353` at application commit `26de37b1`.
 
 ### 4. Browser Sanity Gate
 
@@ -93,7 +93,7 @@ Manual browser check against `http://127.0.0.1:4000/`:
 Evidence:
 
 - Result: default and `390x844` mobile checks passed for application commit
-  `03657003`.
+  `26de37b1`.
 - Notes: see `docs/browser-smoke/2026-07-01-alpha-current.md`; earlier
   responsive evidence is in `docs/browser-smoke/2026-07-01-alpha-cut.md` and
   `docs/browser-smoke/2026-07-01-runtime-and-responsive.md`.
@@ -160,7 +160,7 @@ Required content:
 
 Evidence:
 
-- Result: release notes drafted.
+- Result: release notes complete for the current alpha cut.
 - Release notes path: `docs/releases/internal-alpha-2026-07-01.md`
 - Notes:
 
@@ -184,11 +184,12 @@ These remain blockers for the full production-grade claim:
 - Real non-test ACP agent evidence for terminal capability mediation.
 - Long-running output behavior under realistic volume.
 - Multi-run behavior under realistic external-agent load.
-- Product security policy for workspace and credential boundaries.
+- Real-agent proof that credential/auth flows work end-to-end when an agent
+  requires interactive authentication.
 
 ## Stop Rule
 
-If all required gates are green, cut the alpha and stop adding local hardening
+All required gates are green for this alpha cut. Stop adding local hardening
 until a real-agent probe, runtime smoke, or user story fails.
 
 If any required gate fails, the next task is to fix or document that gate. Do

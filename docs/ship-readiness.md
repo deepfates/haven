@@ -51,14 +51,14 @@ the product shape:
 
 ### Internal Alpha
 
-Status: alpha candidate, pending final operator cut.
+Status: cut for trusted local use on 2026-07-01.
 
 Internal alpha means a trusted developer can use Haven against configured
 agents with known limitations and inspect failures honestly.
 
-Use `docs/internal-alpha-checklist.md` as the release checklist. If that
-checklist is green, cut the alpha and stop adding local hardening until a probe,
-runtime smoke, or user story fails.
+Use `docs/internal-alpha-checklist.md` as the release checklist. The current
+alpha cut is documented in `docs/releases/internal-alpha-2026-07-01.md`. Stop
+adding local hardening until a probe, runtime smoke, or user story fails.
 
 Required before calling alpha:
 
@@ -130,11 +130,12 @@ Less worth porting directly:
 
 The next best work is not another broad polish pass. It is one of:
 
-1. Rerun the internal-alpha checklist at the exact release commit and fill in
-   branch, commit, date, and operator.
-2. Cut the internal alpha using `docs/releases/internal-alpha-2026-07-01.md`.
-3. For production-grade work, target real-agent file/terminal mediation proof or
+1. For production-grade work, target real-agent file/terminal mediation proof or
    a named negative report for unsupported agent classes.
+2. Add realistic long-output or multi-run external-agent evidence only when it
+   uses a real configured ACP agent, not the local stub alone.
+3. Tighten auth/credential proof only when an agent actually requires
+   interactive authentication or scoped credentials.
 
 ## Completion Claim
 
@@ -142,7 +143,7 @@ The active production-grade telos should not be marked complete yet.
 
 The honest current claim is:
 
-Haven has an internal-alpha candidate with current browser smoke, runtime smoke,
+Haven has an internal-alpha cut with current browser smoke, runtime smoke,
 tests, and positive basic real-agent evidence. Production-grade status remains
 unproven until real non-test ACP agents pass the critical file, terminal,
 decision, persistence, and inspection stories.

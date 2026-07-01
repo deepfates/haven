@@ -4,7 +4,7 @@ Date: 2026-07-01
 
 Branch: `codex/elixir-cutover`
 
-Status: alpha candidate. This is suitable for trusted local use against
+Status: internal alpha cut. This is suitable for trusted local use against
 configured agents with known limitations. It is not a production-grade claim.
 
 ## What Works Now
@@ -22,22 +22,26 @@ configured agents with known limitations. It is not a production-grade claim.
   mediation.
 - Runtime smoke exercises the dev server path, not only unit tests.
 - Browser smoke checks the simplified mobile-first hierarchy and page overflow.
+- Workspace access policy is visible before launch and on run detail, including
+  the workspace-root boundary, blank-scope semantics, and terminal cwd rule.
 
 ## Current Positive Evidence
 
-- `mix precommit` passed with 230 tests and 4 validated probe reports.
+- `mix precommit` passed with 238 tests, 4 validated positive probe reports,
+  and 2 validated negative probe reports.
 - `MIX_ENV=dev mix haven.pending_migrations` reported no pending migrations.
 - `MIX_ENV=dev mix haven.runtime_smoke --base-url http://127.0.0.1:4000`
   passed and produced run
-  `be122feb-0840-47ef-9307-c0b463559b0b`.
-- `docs/browser-smoke/2026-07-01-alpha-cut.md` records the latest in-app
-  browser checks for desktop/default and `390x844` mobile viewport sizes.
+  `3223240c-67e0-49dc-abf1-3be3e53bf353`.
+- `docs/browser-smoke/2026-07-01-alpha-current.md` records the latest in-app
+  browser checks for desktop/default and `390x844` mobile viewport sizes at
+  application commit `26de37b1`.
 - `docs/probes/codex-acp-basic-current.json` is a current positive real-agent
   report for saved `codex-acp`
   (`npx @agentclientprotocol/codex-acp@1.0.1`). It passed
   `--require-real-agent` and verified `agent_initialized`,
   `agent_session_started`, and `turn_finished` for durable run
-  `e77fa898-d57c-40d5-a9e1-355f72c221bd`.
+  `2b8270f7-0707-4013-bd6e-18de0a08b5fd`.
 
 ## What Is Not Production-Grade
 
@@ -51,8 +55,8 @@ configured agents with known limitations. It is not a production-grade claim.
 - Long-running output behavior has not been proven under realistic volume.
 - Many simultaneous external-agent runs across multiple folders have not been
   load-tested.
-- Credential/auth scope is visible enough for local alpha, but not yet a full
-  product security policy.
+- Credential/auth scope is visible enough for local alpha, but interactive auth
+  flows for agents that require credentials are not proven.
 - Packaging, upgrades, backups, and multi-user identity are out of scope for
   this alpha.
 
@@ -68,23 +72,24 @@ mix haven.agent_probe --list-agents --workspace /Users/deepfates/Hacking/github/
 
 Latest application-candidate verification:
 
-- Verified application commit: `03657003`
+- Verified application commit: `26de37b1`
 - `MIX_ENV=dev mix haven.pending_migrations`: passed with no pending
   migrations.
 - `MIX_ENV=dev mix haven.runtime_smoke --base-url http://127.0.0.1:4000`:
-  passed with run id `e1d746a8-12f2-44f2-ac66-aa8e8686f0b5`.
+  passed with run id `3223240c-67e0-49dc-abf1-3be3e53bf353`.
 - Browser sanity: default and `390x844` mobile checks passed; see
   `docs/browser-smoke/2026-07-01-alpha-current.md`.
-- `mix precommit`: passed at verified application commit `03657003` with 230
-  tests and 4 validated probe reports.
+- `mix precommit`: passed at verified application commit `26de37b1` with 238
+  tests, 4 validated positive probe reports, and 2 validated negative probe
+  reports.
 
 Current basic real-agent probe shape:
 
 ```bash
 mix haven.agent_probe \
   --agent codex-acp \
-  --workspace /path/to/approved/workspace \
-  --prompt "Reply exactly: Haven ACP current real-agent smoke" \
+  --workspace /Users/deepfates/Hacking/github/deepfates/haven \
+  --prompt "Summarize this workspace in one short sentence." \
   --require-real-agent \
   --expect-event agent_initialized \
   --expect-event agent_session_started \
@@ -104,7 +109,6 @@ capability proof.
 
 ## Alpha Cut Line
 
-This alpha should be cut when the release operator reruns the required gates in
-`docs/internal-alpha-checklist.md` and records the exact branch, commit, date,
-and operator. After that, stop local hardening unless a probe, runtime smoke, or
-named user story fails.
+This alpha is cut for trusted local use at verified application commit
+`26de37b1`. After this point, stop local hardening unless a real-agent probe,
+runtime smoke, or named user story fails.
