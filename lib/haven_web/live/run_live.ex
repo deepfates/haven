@@ -2400,12 +2400,12 @@ defmodule HavenWeb.RunLive do
                 class={[
                   "bg-white",
                   @can_prompt? &&
-                    "sticky bottom-0 z-20 -mx-4 border-y border-zinc-200 bg-white/95 px-4 py-3 shadow-[0_-12px_28px_rgba(255,255,255,0.92)] backdrop-blur md:static md:mx-0 md:rounded-lg md:border md:p-4 md:shadow-none md:backdrop-blur-none",
+                    "sticky bottom-0 z-20 -mx-4 border-y border-zinc-200 bg-white/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_28px_rgba(255,255,255,0.92)] backdrop-blur md:static md:mx-0 md:rounded-lg md:border md:p-4 md:shadow-none md:backdrop-blur-none",
                   !@can_prompt? &&
                     "rounded-lg border border-zinc-200 p-4"
                 ]}
               >
-                <h2 class="font-semibold">Message</h2>
+                <h2 class="text-sm font-semibold text-zinc-950">Message</h2>
                 <p
                   :if={@control_notice}
                   id="run-control-notice"
@@ -2422,8 +2422,9 @@ defmodule HavenWeb.RunLive do
                   <textarea
                     id="run-prompt"
                     name="prompt"
-                    class="min-h-28 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
-                    placeholder="Prompt this run"
+                    rows="2"
+                    class="min-h-20 w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                    placeholder="Message the agent"
                     disabled={!@can_prompt?}
                     title={@prompt_disabled_reason}
                     aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
@@ -2431,23 +2432,23 @@ defmodule HavenWeb.RunLive do
                   <div class="flex gap-2">
                     <button
                       id="send-prompt-button"
-                      class="h-10 flex-1 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      class="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={!@can_prompt?}
                       title={@prompt_disabled_reason}
                       aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
                     >
-                      Send
+                      <.icon name="hero-paper-airplane" class="size-4" /> Send
                     </button>
                     <button
                       id="cancel-run-button"
                       type="button"
-                      class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      class="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                       phx-click="cancel"
                       disabled={!@can_cancel?}
                       title={@cancel_disabled_reason}
                       aria-describedby={if(@cancel_disabled_reason, do: "run-control-notice")}
                     >
-                      Cancel
+                      <.icon name="hero-x-mark" class="size-4" /> Cancel
                     </button>
                   </div>
                 </.form>
