@@ -137,6 +137,9 @@ Evidence:
 
 - Result: current positive real-agent basic probe passed and validates.
 - Artifact path: `docs/probes/codex-acp-basic-current.json`
+- Negative artifact paths:
+  `docs/probe-failures/codex-acp-file-mediated-negative.json` and
+  `docs/probe-failures/codex-acp-terminal-mediated-negative.json`
 - Notes: `codex-acp` file and terminal stories remain visibility evidence via
   ACP `tool_call` / `tool_call_update`, not proof of Haven-mediated `fs/*` or
   `terminal/*` client request handling.

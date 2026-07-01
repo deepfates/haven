@@ -80,6 +80,16 @@ mix haven.agent_probe \
   --report docs/probes/codex-acp-basic-current.json
 ```
 
+Current negative mediated-capability evidence:
+
+- `docs/probe-failures/codex-acp-file-mediated-negative.json`
+- `docs/probe-failures/codex-acp-terminal-mediated-negative.json`
+
+Both reports show useful real `codex-acp` work through ACP `tool_call` /
+`tool_call_update`, but missing Haven-mediated permission, file, and terminal
+client-handler events. Treat these as production boundaries, not positive
+capability proof.
+
 ## Alpha Cut Line
 
 This alpha should be cut when the release operator reruns the required gates in

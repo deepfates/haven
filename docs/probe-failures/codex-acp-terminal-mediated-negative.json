@@ -1,0 +1,408 @@
+{
+  "status": "idle",
+  "events": [
+    {
+      "type": "run_created",
+      "seq": 1,
+      "payload": {
+        "agent": "codex-acp",
+        "capability_policy": {
+          "file_read": "ask",
+          "file_write": "ask",
+          "terminal_create": "ask"
+        },
+        "title": "Agent probe: codex-acp",
+        "workspace": "/tmp/haven-real-agent-terminal-mediated-tN1DeU"
+      }
+    },
+    {
+      "type": "agent_process_started",
+      "seq": 2,
+      "payload": {
+        "agent": "codex-acp",
+        "args": [
+          "-y",
+          "@agentclientprotocol/codex-acp@1.0.1"
+        ],
+        "command": "codex-acp",
+        "cwd": "/tmp/haven-real-agent-terminal-mediated-tN1DeU",
+        "env": [],
+        "executable": "/opt/homebrew/bin/npx"
+      }
+    },
+    {
+      "type": "agent_initialized",
+      "seq": 3,
+      "payload": {}
+    },
+    {
+      "type": "agent_session_started",
+      "seq": 4,
+      "payload": {
+        "agent_session_id": "019f1ca3-7b9c-7a60-9221-c9593e581966"
+      }
+    },
+    {
+      "type": "turn_started",
+      "seq": 5,
+      "payload": {
+        "prompt": "Run this exact command through the client terminal capability if available: printf 'Grei terminal sentinel: current-negative\\n'. Reply with only the sentinel line."
+      }
+    },
+    {
+      "type": "user_message",
+      "seq": 6,
+      "payload": {
+        "text": "Run this exact command through the client terminal capability if available: printf 'Grei terminal sentinel: current-negative\\n'. Reply with only the sentinel line."
+      }
+    },
+    {
+      "type": "available_commands_update",
+      "seq": 7,
+      "payload": {
+        "availableCommands": [
+          {
+            "description": "List configured Model Context Protocol (MCP) tools.",
+            "name": "mcp"
+          },
+          {
+            "description": "List available skills.",
+            "name": "skills"
+          },
+          {
+            "description": "Display session configuration and token usage.",
+            "name": "status"
+          },
+          {
+            "description": "Review uncommitted changes, or review with custom instructions.",
+            "input": {
+              "hint": "optional review instructions"
+            },
+            "name": "review"
+          },
+          {
+            "description": "Review changes relative to a base branch.",
+            "input": {
+              "hint": "branch name"
+            },
+            "name": "review-branch"
+          },
+          {
+            "description": "Review a specific commit.",
+            "input": {
+              "hint": "commit sha"
+            },
+            "name": "review-commit"
+          },
+          {
+            "description": "Summarize conversation to avoid hitting the context limit.",
+            "name": "compact"
+          },
+          {
+            "description": "Sign out of Codex. This option is available when you are logged in via ChatGPT.",
+            "name": "logout"
+          },
+          {
+            "description": "Control the in-app Browser. Use to open, navigate, inspect, test, click, type, screenshot, or verify local targets such as localhost, 127.0.0.1, ::1, file://, the current in-app browser tab, and websites shown side by side inside Codex.",
+            "name": "$browser:control-in-app-browser"
+          },
+          {
+            "description": "Create, edit, redline, and comment on `.docx`, Word, and Google Docs-targeted document artifacts inside the container, with a strict render-and-verify workflow. Use `render_docx.py` to generate page PNGs (and optional PDF) for visual QA, then iterate until layout is flawless before delivering the final document.",
+            "name": "$documents:documents"
+          },
+          {
+            "description": "Address actionable GitHub pull request review feedback. Use when the user wants to inspect unresolved review threads, requested changes, or inline review comments on a PR, then implement selected fixes. Use the GitHub app for PR metadata and flat comment reads, and use the bundled GraphQL script via `gh` whenever thread-level state, resolution status, or inline review context matters.",
+            "name": "$github:gh-address-comments"
+          },
+          {
+            "description": "Use when a user asks to debug or fix failing GitHub PR checks that run in GitHub Actions. Use the GitHub app from this plugin for PR metadata and patch context, and use `gh` for Actions check and log inspection before implementing any approved fix.",
+            "name": "$github:gh-fix-ci"
+          },
+          {
+            "description": "Triage and orient GitHub repository, pull request, and issue work through the connected GitHub app. Use when the user asks for general GitHub help, wants PR or issue summaries, or needs repository context before choosing a more specific GitHub workflow.",
+            "name": "$github:github"
+          },
+          {
+            "description": "Publish local changes to GitHub by confirming scope, committing intentionally, pushing the branch, and opening a draft PR through the GitHub app from this plugin, with `gh` used only as a fallback where connector coverage is insufficient.",
+            "name": "$github:yeet"
+          },
+          {
+            "description": "Read, create, inspect, render, and verify PDF files where visual layout matters. Use Poppler rendering plus Python tools such as reportlab, pdfplumber, and pypdf for generation and extraction.",
+            "name": "$pdf:pdf"
+          },
+          {
+            "description": "Create or edit PowerPoint or Google Slides decks",
+            "name": "$presentations:Presentations"
+          },
+          {
+            "description": "Use this skill when a user requests to create, modify, analyze, visualize, or work with spreadsheet files (`.xlsx`, `.xls`, `.csv`, `.tsv`) or Google Sheets-targeted spreadsheet artifacts with formulas, formatting, charts, tables, and recalculation.",
+            "name": "$spreadsheets:Spreadsheets"
+          },
+          {
+            "description": "Create or update a reusable personal Codex artifact-template skill. Use when the user invokes $template-creator or asks in natural language to create a template using, from, or based on an attached Word document, PowerPoint presentation, or Excel workbook, or explicitly asks to edit or update a passed artifact-template skill. Do not use for one-off artifact creation from an existing template.",
+            "name": "$template-creator:template-creator"
+          },
+          {
+            "description": "Generate or edit raster images when the task benefits from AI-created bitmap visuals such as photos, illustrations, textures, sprites, mockups, or transparent-background cutouts. Use when Codex should create a brand-new image, transform an existing image, or derive visual variants from references, and the output should be a bitmap asset rather than repo-native code or vector. Do not use when the task is better handled by editing existing SVG/vector/code-native assets, extending an established icon or logo system, or building the visual directly in HTML/CSS/canvas.",
+            "name": "$imagegen"
+          },
+          {
+            "description": "Use when the user asks how to build with OpenAI products or APIs, asks about Codex itself or choosing Codex surfaces, needs up-to-date official documentation with citations, help choosing the latest model for a use case, or model upgrade and prompt-upgrade guidance; use OpenAI docs MCP tools for non-Codex docs questions, use the Codex manual helper first for broad Codex self-knowledge, and restrict fallback browsing to official OpenAI domains.",
+            "name": "$openai-docs"
+          },
+          {
+            "description": "Create and scaffold plugin directories for Codex with a required `.codex-plugin/plugin.json`, optional plugin folders/files, valid manifest defaults, and personal-marketplace entries by default. Use when Codex needs to create a new personal plugin, add optional plugin structure, generate or update marketplace entries for plugin ordering and availability metadata, or update an existing local plugin during development with the CLI-driven cachebuster and reinstall flow.",
+            "name": "$plugin-creator"
+          },
+          {
+            "description": "Create or update a skill",
+            "name": "$skill-creator"
+          },
+          {
+            "description": "Install curated skills from openai/skills or other repos",
+            "name": "$skill-installer"
+          }
+        ],
+        "sessionUpdate": "available_commands_update"
+      }
+    },
+    {
+      "type": "session_info_update",
+      "seq": 8,
+      "payload": {
+        "_meta": {
+          "codex": {
+            "threadStatus": {
+              "activeFlags": [],
+              "type": "active"
+            }
+          }
+        },
+        "sessionUpdate": "session_info_update"
+      }
+    },
+    {
+      "type": "tool_call",
+      "seq": 9,
+      "payload": {
+        "_meta": {
+          "terminal_info": {
+            "cwd": "/tmp/haven-real-agent-terminal-mediated-tN1DeU",
+            "terminal_id": "call_bk8TK6JhrkIMq2YjklcFuNjA"
+          }
+        },
+        "content": [
+          {
+            "terminalId": "call_bk8TK6JhrkIMq2YjklcFuNjA",
+            "type": "terminal"
+          }
+        ],
+        "kind": "execute",
+        "rawInput": {
+          "command": "printf 'Grei terminal sentinel: current-negative\\n'",
+          "cwd": "/tmp/haven-real-agent-terminal-mediated-tN1DeU"
+        },
+        "sessionUpdate": "tool_call",
+        "status": "in_progress",
+        "title": "printf 'Grei terminal sentinel: current-negative\\n'",
+        "toolCallId": "call_bk8TK6JhrkIMq2YjklcFuNjA"
+      }
+    },
+    {
+      "type": "tool_call_update",
+      "seq": 10,
+      "payload": {
+        "_meta": {
+          "terminal_exit": {
+            "exit_code": 0,
+            "signal": null,
+            "terminal_id": "call_bk8TK6JhrkIMq2YjklcFuNjA"
+          },
+          "terminal_output_delta": {
+            "data": "Grei terminal sentinel: current-negative\n",
+            "terminal_id": "call_bk8TK6JhrkIMq2YjklcFuNjA"
+          }
+        },
+        "rawOutput": {
+          "exit_code": 0,
+          "formatted_output": "Grei terminal sentinel: current-negative\n"
+        },
+        "sessionUpdate": "tool_call_update",
+        "status": "completed",
+        "toolCallId": "call_bk8TK6JhrkIMq2YjklcFuNjA"
+      }
+    },
+    {
+      "type": "agent_update_unknown",
+      "seq": 11,
+      "payload": {
+        "session_id": "019f1ca3-7b9c-7a60-9221-c9593e581966",
+        "update": {
+          "sessionUpdate": "usage_update",
+          "size": 258400,
+          "used": 14440
+        },
+        "update_type": "usage_update"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 12,
+      "payload": {
+        "text": "G"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 13,
+      "payload": {
+        "text": "rei"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 14,
+      "payload": {
+        "text": " terminal"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 15,
+      "payload": {
+        "text": " sentinel"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 16,
+      "payload": {
+        "text": ":"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 17,
+      "payload": {
+        "text": " current"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 18,
+      "payload": {
+        "text": "-negative"
+      }
+    },
+    {
+      "type": "agent_update_unknown",
+      "seq": 19,
+      "payload": {
+        "session_id": "019f1ca3-7b9c-7a60-9221-c9593e581966",
+        "update": {
+          "sessionUpdate": "usage_update",
+          "size": 258400,
+          "used": 14504
+        },
+        "update_type": "usage_update"
+      }
+    },
+    {
+      "type": "session_info_update",
+      "seq": 20,
+      "payload": {
+        "_meta": {
+          "codex": {
+            "threadStatus": {
+              "type": "idle"
+            }
+          }
+        },
+        "sessionUpdate": "session_info_update"
+      }
+    },
+    {
+      "type": "turn_finished",
+      "seq": 21,
+      "payload": {
+        "request_id": 1,
+        "result": {
+          "_meta": {
+            "quota": {
+              "model_usage": [
+                {
+                  "model": "gpt-5.5",
+                  "token_count": {
+                    "cachedInputTokens": 14208,
+                    "inputTokens": 285,
+                    "outputTokens": 11,
+                    "reasoningOutputTokens": 0,
+                    "totalTokens": 14504
+                  }
+                }
+              ],
+              "token_count": {
+                "cachedInputTokens": 14208,
+                "inputTokens": 285,
+                "outputTokens": 11,
+                "reasoningOutputTokens": 0,
+                "totalTokens": 14504
+              }
+            }
+          },
+          "stopReason": "end_turn",
+          "usage": {
+            "cachedReadTokens": 14208,
+            "inputTokens": 285,
+            "outputTokens": 11,
+            "thoughtTokens": 0,
+            "totalTokens": 14504
+          }
+        }
+      }
+    }
+  ],
+  "prompt": "Run this exact command through the client terminal capability if available: printf 'Grei terminal sentinel: current-negative\\n'. Reply with only the sentinel line.",
+  "diagnostics": [
+    {
+      "message": "Expected Haven-mediated client capability events were missing, but generic ACP tool_call activity was observed. This is useful agent evidence, not proof of Haven-mediated fs/* or terminal/* handling.",
+      "type": "tool_call_only_capability_gap",
+      "missing_events": [
+        "terminal_create_requested",
+        "terminal_created",
+        "terminal_output_requested"
+      ],
+      "observed_events": [
+        "tool_call",
+        "tool_call_update"
+      ]
+    }
+  ],
+  "workspace": "/tmp/haven-real-agent-terminal-mediated-tN1DeU",
+  "agent": "codex-acp",
+  "run_id": "2ca26ebf-07f4-45ee-b049-beed302aca01",
+  "expected_events": [
+    "permission_requested",
+    "permission_resolved",
+    "terminal_create_requested",
+    "terminal_created",
+    "terminal_output_requested",
+    "turn_finished"
+  ],
+  "expected_event_fields": [
+    {
+      "value": "printf",
+      "field": "command",
+      "event": "terminal_create_requested"
+    }
+  ],
+  "missing_expected_events": [
+    "permission_requested",
+    "permission_resolved",
+    "terminal_create_requested",
+    "terminal_created",
+    "terminal_output_requested"
+  ],
+  "missing_expected_event_fields": [],
+  "redactions": []
+}

@@ -748,21 +748,28 @@ Evidence:
   workspace file and return a sentinel, but it does so through ACP
   `tool_call`/`tool_call_update` session updates rather than Haven's
   `fs/read_text_file` client request handler.
-- A current `/tmp` attempt to require `file_read_requested`,
-  `capability_policy_applied`, and `file_read_succeeded` against saved
-  `codex-acp` fails with `missing_expected_events`: the agent still reads the
-  file via a generic terminal `tool_call`, so it does not satisfy the
-  Haven-mediated `fs/*` proof requirement.
+- `docs/probe-failures/codex-acp-file-mediated-negative.json` is a named failed
+  2026-07-01 attempt to require `permission_requested`,
+  `permission_resolved`, `file_read_requested`, and `file_read_succeeded`
+  against saved `codex-acp`. The agent still reads the file via generic ACP
+  `tool_call` / `tool_call_update`, so it does not satisfy the Haven-mediated
+  `fs/*` proof requirement.
 - Failed probe reports now include diagnostics when missing Haven-mediated
   client capability events coincide with observed ACP `tool_call` /
-  `tool_call_update` activity. The current saved `codex-acp` file-read attempt
-  records this as `tool_call_only_capability_gap`, making the boundary explicit
-  in both CLI output and JSON reports.
+  `tool_call_update` activity. The current saved `codex-acp` file and terminal
+  mediated-capability attempts record this as `tool_call_only_capability_gap`,
+  making the boundary explicit in both CLI output and JSON reports.
 - `docs/probes/codex-acp-terminal-tool-call.json` is a committed passing
   `--require-real-agent` report showing `codex-acp` can execute a terminal
   command and return a sentinel, but it does so through ACP
   `tool_call`/`tool_call_update` session updates rather than Haven's
   `terminal/create`, `terminal/output`, and related client request handlers.
+- `docs/probe-failures/codex-acp-terminal-mediated-negative.json` is a named
+  failed 2026-07-01 attempt to require `permission_requested`,
+  `permission_resolved`, `terminal_create_requested`, `terminal_created`, and
+  `terminal_output_requested` against saved `codex-acp`. The agent still runs
+  the command via generic ACP `tool_call` / `tool_call_update`, so it does not
+  satisfy the Haven-mediated `terminal/*` proof requirement.
 - Haven now wraps the upstream Elixir ACP client-side decoder so newer/unknown
   `session/update` variants are persisted as raw protocol events instead of
   crashing the connection. This was required by `codex-acp`, which currently
