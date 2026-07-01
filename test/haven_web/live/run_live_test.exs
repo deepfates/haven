@@ -957,6 +957,8 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Needs approval"
     assert html =~ "Write file"
     assert has_element?(view, "#pending-permission-card")
+    assert has_element?(view, "#pending-permission-conversation-context", "Prompt context")
+    assert has_element?(view, "#pending-permission-conversation-context", "permission")
     assert has_element?(view, "#pending-permission-decision-summary")
 
     assert has_element?(
@@ -1139,6 +1141,7 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Needs approval"
     assert html =~ "Write file"
     assert has_element?(reloaded, "#pending-permission-card")
+    assert has_element?(reloaded, "#pending-permission-conversation-context", "permission")
 
     reloaded
     |> element(~s|#pending-permission-card button[phx-value-option-id="allow"]|)

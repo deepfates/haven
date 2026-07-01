@@ -1777,6 +1777,14 @@ defmodule HavenWeb.RunLive do
                   The agent is blocked until you choose an option.
                 </p>
                 <div
+                  :if={@last_user_prompt}
+                  id="pending-permission-conversation-context"
+                  class="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700"
+                >
+                  <p class="text-xs font-semibold uppercase text-zinc-500">Prompt context</p>
+                  <p class="mt-1 line-clamp-3 whitespace-pre-wrap">{@last_user_prompt}</p>
+                </div>
+                <div
                   id="pending-permission-decision-summary"
                   class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
                 >

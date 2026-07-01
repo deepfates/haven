@@ -349,6 +349,9 @@ Evidence:
   plain-language consequence of allow/deny decisions for generic file writes,
   file reads, proposed file changes, and terminal commands before exposing raw
   protocol details.
+- LiveView integration tests verify active permission cards include the last
+  user prompt as prompt context and preserve it after reload, so a mobile user
+  can decide from the sheet without hunting through the timeline first.
 - LiveView integration tests verify the active permission decision controls sit
   directly below the plain-language consequence and before authority/raw
   details, so the card behaves like a decision sheet rather than a form buried
