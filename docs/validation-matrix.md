@@ -764,6 +764,11 @@ Evidence:
   `fs/write_text_file`, and `terminal`; LiveView tests verify inbox rows,
   Agent Setup evidence, run detail evidence, and inbox search expose those exact
   unsupported mediated families.
+- `mix haven.agent_probe --list-agents` now also prints committed capability
+  gap families and their report paths for each configured real-agent candidate,
+  so terminal inventory shows whether existing evidence declares
+  `fs/read_text_file`, `fs/write_text_file`, or `terminal` unsupported before a
+  user runs new proof commands.
 - Browser smoke verifies the Agent Setup panel also surfaces the public
   registry discovery command with `--registry` and warns that registry commands
   download and run third-party code before probing.

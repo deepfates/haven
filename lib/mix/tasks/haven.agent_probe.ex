@@ -257,6 +257,11 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   defp print_agent_inventory(workspace, preflight?, proof_commands?, preflight_timeout, registry?) do
     inventory = Haven.AgentProbe.agent_inventory(workspace)
 
+    capability_gap_reports =
+      inventory
+      |> Enum.map(& &1.agent)
+      |> Haven.Agents.capability_gap_reports_by_agent()
+
     Mix.shell().info("Workspace: #{workspace}")
     Mix.shell().info("")
     Mix.shell().info("Configured agents:")
@@ -287,6 +292,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
         end
 
         if agent.real_agent_candidate do
+          print_agent_capability_gaps(agent.agent, capability_gap_reports)
+
           preflight_result =
             if preflight? do
               print_agent_preflight(agent.agent, workspace, preflight_timeout)
@@ -356,6 +363,45 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   end
 
   defp print_latest_durable_preflight(_agent), do: :ok
+
+  defp print_agent_capability_gaps(agent, reports_by_agent) do
+    reports = Map.get(reports_by_agent, agent, [])
+
+    if reports != [] do
+      Mix.shell().info(
+        "  committed capability gaps: #{capability_gap_family_label(reports)} (#{length(reports)} #{gap_report_count_label(length(reports))})"
+      )
+
+      Enum.each(reports, fn report ->
+        Mix.shell().info("    - #{capability_gap_report_label(report)}")
+      end)
+    end
+  end
+
+  defp capability_gap_report_label(report) do
+    path = Path.relative_to(report.path, File.cwd!())
+    "#{path}: #{capability_gap_family_label([report])}"
+  end
+
+  defp capability_gap_family_label(reports) do
+    reports
+    |> Enum.flat_map(&Map.get(&1, :unsupported_client_capabilities, []))
+    |> Enum.map(fn
+      %{capability: capability} -> capability
+      %{"capability" => capability} -> capability
+      _capability -> nil
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> case do
+      [] -> "unknown mediated capability"
+      families -> Enum.join(families, "/")
+    end
+  end
+
+  defp gap_report_count_label(1), do: "report"
+  defp gap_report_count_label(_count), do: "reports"
 
   defp print_agent_proof_command_status(agent, workspace, true, nil) do
     print_agent_proof_commands(agent, workspace)

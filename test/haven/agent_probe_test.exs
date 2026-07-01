@@ -299,6 +299,29 @@ defmodule Haven.AgentProbeTest do
     refute output =~ "terminal-approval: mix haven.agent_probe --agent candidate"
   end
 
+  test "agent probe inventory prints committed capability gap families" do
+    Application.put_env(:haven, :agents, %{
+      "codex-acp" => %{executable: "sh", args: ["-c", "cat"]}
+    })
+
+    output =
+      capture_io(fn ->
+        AgentProbeTask.run(["--list-agents", "--workspace", File.cwd!()])
+      end)
+
+    assert output =~
+             "committed capability gaps: fs/read_text_file/fs/write_text_file/terminal (3 reports)"
+
+    assert output =~
+             "docs/probe-failures/codex-acp-file-mediated-negative.json: fs/read_text_file"
+
+    assert output =~
+             "docs/probe-failures/codex-acp-file-write-mediated-negative.json: fs/write_text_file"
+
+    assert output =~
+             "docs/probe-failures/codex-acp-terminal-mediated-negative.json: terminal"
+  end
+
   test "agent probe inventory preflight prints a concise candidate summary" do
     Application.put_env(:haven, :agents, %{
       "not-acp" => %{executable: "sh", args: ["-c", "cat"]}
