@@ -345,6 +345,11 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{run.id}-agent-launch", "Launch ready")
     assert has_element?(view, "#run-#{run.id}-agent-trust", "5 accepted probes")
     assert has_element?(view, "#run-#{run.id}-agent-capability-gaps", "3 capability gaps")
+
+    assert has_element?(
+             view,
+             ~s|#run-#{run.id}-agent-capability-gaps[title*="fs/write_text_file"]|
+           )
   end
 
   @tag :tmp_dir
@@ -1011,7 +1016,7 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(
              view,
              "#agent-config-codex-acp-capability-gap-codex-acp-file-write-mediated-negative",
-             "file_write_requested"
+             "fs/write_text_file"
            )
 
     assert has_element?(
@@ -1023,7 +1028,7 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(
              view,
              "#agent-config-codex-acp-capability-gap-reason",
-             "not Haven-mediated file/terminal handling"
+             "not Haven-mediated fs/read_text_file/fs/write_text_file/terminal handling"
            )
   end
 
@@ -1391,6 +1396,14 @@ defmodule HavenWeb.InboxLiveTest do
 
     view
     |> form("#inbox-search-form", %{"run_search" => "capability gap"})
+    |> render_change()
+
+    assert has_element?(view, "#run-#{evidence_backed.id}", "Evidence backed")
+    refute has_element?(view, "#run-#{blocked_agent.id}", "Broken command")
+    refute has_element?(view, "article", "Payment bug")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "fs/write_text_file"})
     |> render_change()
 
     assert has_element?(view, "#run-#{evidence_backed.id}", "Evidence backed")

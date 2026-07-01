@@ -233,7 +233,13 @@ defmodule Haven.AgentsTest do
     assert %{
              agent: "codex-acp",
              path: path,
-             missing_expected_events: ["file_read_requested", "file_read_succeeded"]
+             missing_expected_events: ["file_read_requested", "file_read_succeeded"],
+             unsupported_client_capabilities: [
+               %{
+                 "capability" => "fs/read_text_file",
+                 "missing_events" => ["file_read_requested", "file_read_succeeded"]
+               }
+             ]
            } = reports_by_agent["codex-acp"] |> List.first()
 
     assert Path.basename(path) == "codex-gap.json"
@@ -309,6 +315,15 @@ defmodule Haven.AgentsTest do
       "run_id" => "gap-#{agent}",
       "expected_events" => ["file_read_requested", "file_read_succeeded"],
       "missing_expected_events" => ["file_read_requested", "file_read_succeeded"],
+      "unsupported_client_capabilities" => [
+        %{
+          "capability" => "fs/read_text_file",
+          "reason" =>
+            "Observed generic ACP tool_call activity instead of Haven-mediated client capability events.",
+          "missing_events" => ["file_read_requested", "file_read_succeeded"],
+          "observed_events" => ["tool_call", "tool_call_update"]
+        }
+      ],
       "diagnostics" => [
         %{
           "type" => "tool_call_only_capability_gap",

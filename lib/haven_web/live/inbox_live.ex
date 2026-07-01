@@ -1441,39 +1441,60 @@ defmodule HavenWeb.InboxLive do
   defp capability_gap_reason([]), do: nil
 
   defp capability_gap_reason(reports) do
-    missing =
+    "real-agent probes observed generic ACP tool calls, not Haven-mediated #{capability_gap_family_label(reports)} handling"
+  end
+
+  defp capability_gap_family_label(reports) do
+    reports
+    |> capability_gap_families()
+    |> case do
+      [] -> "capability"
+      families -> Enum.join(families, "/")
+    end
+  end
+
+  defp capability_gap_families(reports) do
+    exact_families =
+      reports
+      |> Enum.flat_map(&Map.get(&1, :unsupported_client_capabilities, []))
+      |> Enum.map(fn
+        %{capability: capability} -> capability
+        %{"capability" => capability} -> capability
+        _capability -> nil
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    if exact_families == [] do
       reports
       |> Enum.flat_map(& &1.missing_expected_events)
       |> Enum.filter(&client_capability_event?/1)
-      |> Enum.uniq()
-
-    "real-agent probes observed generic ACP tool calls, not Haven-mediated #{capability_gap_family_label(missing)} handling"
-  end
-
-  defp capability_gap_family_label(events) do
-    families =
-      events
       |> Enum.map(fn
-        "file_" <> _rest -> "file"
+        "file_read" <> _rest -> "fs/read_text_file"
+        "file_write" <> _rest -> "fs/write_text_file"
+        "file_" <> _rest -> "fs"
         "terminal_" <> _rest -> "terminal"
         _event -> nil
       end)
       |> Enum.reject(&is_nil/1)
       |> Enum.uniq()
       |> Enum.sort()
-
-    case families do
-      ["file", "terminal"] -> "file/terminal"
-      [family] -> family
-      _families -> "capability"
+    else
+      exact_families
     end
   end
 
   defp capability_gap_report_label(report) do
+    capability_label =
+      report
+      |> List.wrap()
+      |> capability_gap_family_label()
+
     report.path
     |> Path.relative_to(File.cwd!())
     |> then(fn path ->
-      "#{path} · missing #{Enum.join(report.missing_expected_events, ", ")}"
+      "#{path} · #{capability_label} · missing #{Enum.join(report.missing_expected_events, ", ")}"
     end)
   end
 

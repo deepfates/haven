@@ -145,6 +145,7 @@ defmodule Haven.Agents do
           prompt: report["prompt"],
           expected_events: report["expected_events"] || [],
           missing_expected_events: report["missing_expected_events"] || [],
+          unsupported_client_capabilities: report["unsupported_client_capabilities"] || [],
           diagnostics: report["diagnostics"] || []
         }
       ]

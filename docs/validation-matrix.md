@@ -759,9 +759,18 @@ Evidence:
   selected workspace, so both the CLI inventory and inbox Agent Setup can show
   `ACP preflight passed`, `ACP preflight failed`, or `ACP preflight not run`
   separately from executable launch readiness.
+- Capability gap report summaries now preserve exact
+  `unsupported_client_capabilities` families such as `fs/read_text_file`,
+  `fs/write_text_file`, and `terminal`; LiveView tests verify inbox rows,
+  Agent Setup evidence, run detail evidence, and inbox search expose those exact
+  unsupported mediated families.
 - Browser smoke verifies the Agent Setup panel also surfaces the public
   registry discovery command with `--registry` and warns that registry commands
   download and run third-party code before probing.
+- Browser smoke
+  `docs/browser-smoke/2026-07-01-capability-gap-family-labels.md` verifies the
+  rendered inbox carries those exact unsupported families into capability-gap
+  trust badges without a migration/error page or horizontal overflow.
 - Local inventory on this machine currently finds saved `/bin/sh -c cat`
   commands that are runnable non-test probe candidates, but they are not
   ACP-proven and do not satisfy the real-agent evidence requirement.

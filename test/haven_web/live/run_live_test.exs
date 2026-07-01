@@ -216,7 +216,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(
              view,
              "#run-facts-agent-capability-gap-reason",
-             "not Haven-mediated file/terminal handling"
+             "not Haven-mediated fs/read_text_file/fs/write_text_file/terminal handling"
            )
 
     assert has_element?(view, "#run-agent-probe-evidence", "Accepted probe artifacts")
@@ -237,13 +237,13 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(
              view,
              "#run-agent-capability-gap-codex-acp-file-mediated-negative",
-             "docs/probe-failures/codex-acp-file-mediated-negative.json"
+             "fs/read_text_file"
            )
 
     assert has_element?(
              view,
              "#run-agent-capability-gap-codex-acp-file-write-mediated-negative",
-             "file_write_requested"
+             "fs/write_text_file"
            )
 
     assert has_element?(
