@@ -17,7 +17,7 @@ inspectable agent runs with explicit human decisions.
   `/dev/runs` in a disposable workspace, triggers and resolves a generic
   permission request, approves ACP file read/write requests, verifies the
   written file, runs a deterministic terminal command, and verifies the thread,
-  decision, and evidence disclosure surfaces in rendered HTML.
+  decision, audit timestamp, and evidence disclosure surfaces in rendered HTML.
 - Agent probe harness: `mix haven.agent_probe --report` can produce durable JSON
   evidence artifacts with explicit `--expect-event` acceptance checks; see
   `docs/probes/README.md`.
@@ -347,7 +347,7 @@ Evidence:
   under evidence.
 - Browser smoke verifies the same allow flow through the real rendered UI,
   including a rendered `permission_resolved` payload with
-  `"actor": "local_user"`.
+  `"actor": "local_user"` and requested/resolved audit timing.
 - Browser smoke verifies a waiting permission survives a page reload and can be
   denied from the rendered card, producing the denied agent response and final
   `idle` state.

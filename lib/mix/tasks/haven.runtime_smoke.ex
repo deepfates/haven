@@ -128,16 +128,25 @@ defmodule Mix.Tasks.Haven.RuntimeSmoke do
 
     resolve_permission!(client, run["id"], request_id, "allow")
 
-    wait_until!(timeout_ms, "permission resolution is rendered durably", fn ->
-      html = get_html!(client, run_path)
+    permission_html =
+      wait_until!(timeout_ms, "permission resolution is rendered durably", fn ->
+        html = get_html!(client, run_path)
 
-      if contains_all?(html, ["permission_resolved", "turn_finished"]) and
-           not String.contains?(html, "pending-permission-card") do
-        {:ok, html}
-      else
-        :retry
-      end
-    end)
+        if contains_all?(html, [
+             "permission_resolved",
+             "turn_finished",
+             "Permission audit",
+             "Requested",
+             "Resolved",
+             "UTC"
+           ]) and not String.contains?(html, "pending-permission-card") do
+          {:ok, html}
+        else
+          :retry
+        end
+      end)
+
+    assert_contains!(permission_html, "local_user", "permission audit actor")
 
     read_request_id =
       trigger_pending_permission!(client, run["id"], run_path, "read-file", timeout_ms)
