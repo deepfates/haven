@@ -1321,6 +1321,10 @@ defmodule HavenWeb.RunLive do
     end
   end
 
+  defp capability_gap_family_items(reports) do
+    capability_gap_families(reports)
+  end
+
   defp capability_gap_families(reports) do
     exact_families =
       reports
@@ -2769,6 +2773,21 @@ defmodule HavenWeb.RunLive do
                 <summary class="cursor-pointer font-semibold uppercase text-amber-700">
                   Capability gap reports
                 </summary>
+                <div
+                  id="run-agent-capability-gap-summary"
+                  class="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-amber-900"
+                >
+                  <p class="font-semibold">Not proven for this agent</p>
+                  <div class="mt-1 flex flex-wrap gap-1">
+                    <span
+                      :for={family <- capability_gap_family_items(@agent_capability_gap_reports)}
+                      id={"run-agent-capability-gap-family-#{policy_scope_id(family)}"}
+                      class="inline-flex max-w-full rounded-full border border-amber-300 bg-white px-2 py-0.5 font-mono text-[11px] text-amber-900"
+                    >
+                      <span class="truncate">{family}</span>
+                    </span>
+                  </div>
+                </div>
                 <ul class="mt-2 space-y-1">
                   <li
                     :for={report <- @agent_capability_gap_reports}

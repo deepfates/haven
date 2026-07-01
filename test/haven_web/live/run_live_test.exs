@@ -221,6 +221,25 @@ defmodule HavenWeb.RunLiveTest do
 
     assert has_element?(view, "#run-agent-probe-evidence", "Accepted probe artifacts")
     assert has_element?(view, "#run-agent-capability-gap-evidence", "Capability gap reports")
+    assert has_element?(view, "#run-agent-capability-gap-summary", "Not proven for this agent")
+
+    assert has_element?(
+             view,
+             "#run-agent-capability-gap-family-fs-read-text-file",
+             "fs/read_text_file"
+           )
+
+    assert has_element?(
+             view,
+             "#run-agent-capability-gap-family-fs-write-text-file",
+             "fs/write_text_file"
+           )
+
+    assert has_element?(
+             view,
+             "#run-agent-capability-gap-family-terminal",
+             "terminal"
+           )
 
     assert has_element?(
              view,
