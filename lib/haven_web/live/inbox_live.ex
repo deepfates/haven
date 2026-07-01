@@ -266,16 +266,17 @@ defmodule HavenWeb.InboxLive do
     work_runs = Enum.reject(visible_runs, &diagnostic_run?/1)
     diagnostics = Enum.filter(visible_runs, &diagnostic_run?/1)
 
-    needs_you = Enum.filter(work_runs, &(&1.status in ["waiting", "failed"]))
+    needs_you = Enum.filter(work_runs, &run_needs_attention?/1)
     needs_you_decisions = Enum.count(needs_you, &(&1.status == "waiting"))
     needs_you_recoveries = Enum.count(needs_you, &(&1.status == "failed"))
+    needs_you_interruptions = Enum.count(needs_you, &interrupted_run?/1)
     unread_runs = Enum.count(work_runs, &(Map.get(&1, :unread_event_count, 0) > 0))
     unread_events = Enum.reduce(work_runs, 0, &(Map.get(&1, :unread_event_count, 0) + &2))
     updated = Enum.filter(work_runs, &(Map.get(&1, :unread_event_count, 0) > 0))
-    running = Enum.filter(work_runs, &(&1.status in ["initializing", "running"]))
+    running = Enum.filter(work_runs, &live_in_flight_run?/1)
 
     history =
-      Enum.reject(work_runs, &(&1.status in ["waiting", "failed", "initializing", "running"]))
+      Enum.reject(work_runs, &(run_needs_attention?(&1) or live_in_flight_run?(&1)))
 
     run_filter = socket.assigns[:run_filter] || "all"
 
@@ -295,6 +296,7 @@ defmodule HavenWeb.InboxLive do
       needs_you: length(needs_you),
       decisions: needs_you_decisions,
       recoveries: needs_you_recoveries,
+      interruptions: needs_you_interruptions,
       unread_runs: unread_runs,
       unread_events: unread_events
     }
@@ -319,6 +321,7 @@ defmodule HavenWeb.InboxLive do
       "needs_you" => length(needs_you),
       "needs_you_decisions" => needs_you_decisions,
       "needs_you_recoveries" => needs_you_recoveries,
+      "needs_you_interruptions" => needs_you_interruptions,
       "unread_runs" => unread_runs,
       "unread_events" => unread_events,
       "running" => length(running),
@@ -433,6 +436,21 @@ defmodule HavenWeb.InboxLive do
 
   defp diagnostic_run?(%{purpose: "diagnostic"}), do: true
   defp diagnostic_run?(_run), do: false
+
+  defp run_needs_attention?(%{status: status}) when status in ["waiting", "failed"], do: true
+  defp run_needs_attention?(run), do: interrupted_run?(run)
+
+  defp interrupted_run?(%{status: status, live?: false})
+       when status in ["initializing", "running"],
+       do: true
+
+  defp interrupted_run?(_run), do: false
+
+  defp live_in_flight_run?(%{status: status, live?: true})
+       when status in ["initializing", "running"],
+       do: true
+
+  defp live_in_flight_run?(_run), do: false
 
   defp run_purpose_label(%{purpose: "diagnostic"}), do: "Diagnostic"
   defp run_purpose_label(_run), do: nil
@@ -1248,7 +1266,7 @@ defmodule HavenWeb.InboxLive do
   defp run_attention_label(%{workspace_summary: %{path_state: :missing}}), do: "Workspace missing"
   defp run_attention_label(%{status: "waiting"}), do: "Needs decision"
   defp run_attention_label(%{status: "failed"}), do: "Needs recovery"
-  defp run_attention_label(_run), do: nil
+  defp run_attention_label(run), do: if(interrupted_run?(run), do: "Interrupted")
 
   defp run_attention_class(%{workspace_summary: %{path_state: :missing}}),
     do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
@@ -1259,12 +1277,18 @@ defmodule HavenWeb.InboxLive do
   defp run_attention_class(%{status: "failed"}),
     do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
 
+  defp run_attention_class(run) do
+    if interrupted_run?(run) do
+      badge_class("border-rose-200 bg-rose-50 text-rose-700")
+    end
+  end
+
   defp run_action_label(%{archived_at: archived_at}) when not is_nil(archived_at), do: "Review"
   defp run_action_label(%{workspace_summary: %{path_state: :missing}}), do: "Inspect"
   defp run_action_label(%{status: "waiting"}), do: "Decide"
   defp run_action_label(%{status: "failed"}), do: "Recover"
   defp run_action_label(%{status: "closed"}), do: "Review"
-  defp run_action_label(_run), do: "Open"
+  defp run_action_label(run), do: if(interrupted_run?(run), do: "Reconnect", else: "Open")
 
   defp run_next_step_label(%{archived_at: archived_at}) when not is_nil(archived_at),
     do: "Review history"
@@ -1367,19 +1391,17 @@ defmodule HavenWeb.InboxLive do
   defp run_queue_caption("needs_you", counts) do
     decisions = Map.get(counts, "needs_you_decisions", 0)
     recoveries = Map.get(counts, "needs_you_recoveries", 0)
+    interruptions = Map.get(counts, "needs_you_interruptions", 0)
 
-    cond do
-      decisions > 0 and recoveries > 0 ->
-        "#{pluralize_count(decisions, "decision")} · #{pluralize_count(recoveries, "recovery")}"
-
-      decisions > 0 ->
-        pluralize_count(decisions, "decision")
-
-      recoveries > 0 ->
-        pluralize_count(recoveries, "recovery")
-
-      true ->
-        "Action"
+    [
+      if(decisions > 0, do: pluralize_count(decisions, "decision")),
+      if(recoveries > 0, do: pluralize_count(recoveries, "recovery")),
+      if(interruptions > 0, do: pluralize_count(interruptions, "interruption"))
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> "Action"
+      parts -> Enum.join(parts, " · ")
     end
   end
 
@@ -1392,6 +1414,7 @@ defmodule HavenWeb.InboxLive do
          "needs_you" => count,
          "needs_you_decisions" => decisions,
          "needs_you_recoveries" => recoveries,
+         "needs_you_interruptions" => interruptions,
          "unread_events" => unread_events,
          "running" => running,
          "history" => history
@@ -1405,6 +1428,7 @@ defmodule HavenWeb.InboxLive do
         [
           attention_detail(decisions, "decision"),
           attention_detail(recoveries, "recovery"),
+          attention_detail(interruptions, "interruption"),
           attention_detail(unread_events, "new event"),
           "#{running} running",
           "#{history} history"
@@ -1506,6 +1530,7 @@ defmodule HavenWeb.InboxLive do
         [
           attention_detail(counts.decisions, "decision"),
           attention_detail(counts.recoveries, "recovery"),
+          attention_detail(counts.interruptions, "interruption"),
           attention_detail(counts.unread_events, "new event")
         ]
         |> Enum.reject(&is_nil/1)

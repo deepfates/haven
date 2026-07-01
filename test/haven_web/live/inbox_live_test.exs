@@ -206,17 +206,18 @@ defmodule HavenWeb.InboxLiveTest do
   test "renders an attention summary that jumps to the most urgent lane", %{conn: conn} do
     waiting = insert_run!("Needs approval", "waiting")
     failed = insert_run!("Fix failed agent", "failed")
-    running = insert_run!("Working run", "running")
+    interrupted = insert_run!("Working run", "running")
     history = insert_run!("Done run", "idle")
 
     {:ok, view, html} = live(conn, ~p"/")
 
-    assert html =~ "(2) Haven"
-    assert has_element?(view, "#inbox-attention-label", "2 runs need you")
+    assert html =~ "(3) Haven"
+    assert has_element?(view, "#inbox-attention-label", "3 runs need you")
     assert has_element?(view, "#inbox-attention-detail", "1 decision")
     assert has_element?(view, "#inbox-attention-detail", "1 recovery")
+    assert has_element?(view, "#inbox-attention-detail", "1 interruption")
     assert has_element?(view, "#inbox-attention-detail", "4 new events")
-    assert has_element?(view, "#inbox-attention-detail", "1 running")
+    assert has_element?(view, "#inbox-attention-detail", "0 running")
     assert has_element?(view, "#inbox-attention-detail", "1 history")
     assert has_element?(view, "#inbox-queue-all", "4 new events")
 
@@ -227,21 +228,22 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#inbox-needs-you-section")
     assert has_element?(view, "#run-#{waiting.id}")
     assert has_element?(view, "#run-#{failed.id}")
-    refute has_element?(view, "#run-#{running.id}")
+    assert has_element?(view, "#run-#{interrupted.id}")
     refute has_element?(view, "#run-#{history.id}")
   end
 
   test "keeps failed active work in needs-you before ordinary history", %{conn: conn} do
     failed = insert_run!("Fix failed agent", "failed")
-    running = insert_run!("Still working", "running")
+    interrupted = insert_run!("Still working", "running")
     history = insert_run!("Answered question", "idle")
 
     {:ok, view, _html} = live(conn, ~p"/")
 
-    assert has_element?(view, "#inbox-attention-label", "1 run needs you")
+    assert has_element?(view, "#inbox-attention-label", "2 runs need you")
     assert has_element?(view, "#inbox-attention-detail", "1 recovery")
+    assert has_element?(view, "#inbox-attention-detail", "1 interruption")
     assert has_element?(view, "#inbox-attention-detail", "3 new events")
-    assert has_element?(view, "#inbox-attention-detail", "1 running")
+    assert has_element?(view, "#inbox-attention-detail", "0 running")
     assert has_element?(view, "#inbox-attention-detail", "1 history")
 
     view
@@ -251,7 +253,7 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, ~s|#inbox-queue-needs_you[aria-current="page"]|)
     assert has_element?(view, "#inbox-needs-you-section")
     assert has_element?(view, "#run-#{failed.id}")
-    refute has_element?(view, "#run-#{running.id}")
+    assert has_element?(view, "#run-#{interrupted.id}")
     refute has_element?(view, "#run-#{history.id}")
   end
 
@@ -260,8 +262,8 @@ defmodule HavenWeb.InboxLiveTest do
     assert {:ok, _run} = Runs.mark_viewed(unread.id, 1)
     Events.append!(unread.id, "agent_message_chunk", %{"text" => "fresh note"})
 
-    running = insert_run!("Still working", "running")
-    assert {:ok, _run} = Runs.mark_viewed(running.id, 1)
+    running = insert_live_running_run!("Still working")
+    assert {:ok, _run} = Runs.mark_latest_viewed(running.id)
     history = insert_run!("Read history", "idle")
     assert {:ok, _run} = Runs.mark_viewed(history.id, 1)
 
@@ -309,7 +311,7 @@ defmodule HavenWeb.InboxLiveTest do
     waiting = insert_run!("Approve deploy", "waiting")
     failed = insert_run!("Fix failed probe", "failed")
     failed_recovery = insert_run!("Restart failed worker", "failed")
-    running = insert_run!("Index repository", "running")
+    running = insert_live_running_run!("Index repository")
     history = insert_run!("Answered question", "idle")
     archived = insert_run!("Old incident", "failed")
     assert {:ok, _archived} = Runs.archive_run(archived.id)
@@ -1594,7 +1596,8 @@ defmodule HavenWeb.InboxLiveTest do
 
   test "groups runs into operational attention lanes", %{conn: conn} do
     waiting = insert_run!("Needs approval", "waiting")
-    insert_run!("Still working", "running")
+    running = insert_live_running_run!("Still working")
+    interrupted = insert_run!("Interrupted turn", "running")
     failed = insert_run!("Needs restart", "failed")
     insert_run!("Quiet", "idle")
 
@@ -1613,7 +1616,10 @@ defmodule HavenWeb.InboxLiveTest do
              "Decide"
            )
 
-    assert has_element?(view, "article", "Still working")
+    assert has_element?(view, "#run-#{running.id}", "Still working")
+    assert has_element?(view, "#run-#{interrupted.id}", "Interrupted turn")
+    assert has_element?(view, "#run-#{interrupted.id}-attention", "Interrupted")
+    assert has_element?(view, "#run-#{interrupted.id}-primary-action", "Reconnect")
     assert has_element?(view, "article", "Needs restart")
     assert has_element?(view, "#run-#{failed.id}-attention", "Needs recovery")
     assert has_element?(view, "#run-#{failed.id}-primary-action", "Recover")
@@ -1622,13 +1628,15 @@ defmodule HavenWeb.InboxLiveTest do
 
   test "filters inbox runs by operational lane", %{conn: conn} do
     insert_run!("Needs approval", "waiting")
-    insert_run!("Still working", "running")
+    running = insert_live_running_run!("Still working")
+    interrupted = insert_run!("Interrupted turn", "running")
     insert_run!("Quiet", "idle")
 
     {:ok, view, _html} = live(conn, ~p"/")
 
-    assert has_element?(view, "#inbox-queue-all", "3")
-    assert has_element?(view, "#inbox-queue-needs_you", "1")
+    assert has_element?(view, "#inbox-queue-all", "4")
+    assert has_element?(view, "#inbox-queue-needs_you", "2")
+    assert has_element?(view, "#inbox-queue-needs_you", "1 interruption")
     assert has_element?(view, "#inbox-queue-running", "1")
     assert has_element?(view, "#inbox-queue-history", "1")
 
@@ -1637,9 +1645,18 @@ defmodule HavenWeb.InboxLiveTest do
     |> render_click()
 
     assert has_element?(view, "#inbox-running-section")
-    assert has_element?(view, "article", "Still working")
+    assert has_element?(view, "#run-#{running.id}", "Still working")
     refute has_element?(view, "article", "Needs approval")
+    refute has_element?(view, "#run-#{interrupted.id}")
     refute has_element?(view, "article", "Quiet")
+
+    view
+    |> element("#inbox-queue-needs_you")
+    |> render_click()
+
+    assert has_element?(view, "#inbox-needs-you-section")
+    assert has_element?(view, "#run-#{interrupted.id}", "Interrupted turn")
+    refute has_element?(view, "#run-#{running.id}")
 
     view
     |> element("#inbox-queue-history")
@@ -2172,6 +2189,16 @@ defmodule HavenWeb.InboxLiveTest do
     })
 
     run
+  end
+
+  defp insert_live_running_run!(title) do
+    assert {:ok, run} = Runs.create_run(%{"title" => title})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+
+    run
+    |> Ecto.Changeset.change(status: "running")
+    |> Repo.update!()
   end
 
   defp archive_and_set_time!(%Run{} = run, archived_at) do
