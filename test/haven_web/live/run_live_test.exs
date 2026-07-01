@@ -153,6 +153,13 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-facts-agent-launch", "Launch ready")
     assert has_element?(view, "#run-facts-agent-cwd", "cwd #{Path.expand(agent_cwd)}")
     assert has_element?(view, "#run-facts-agent-env-keys", "env keys TOKEN, WORKSPACE")
+    assert has_element?(view, "#run-facts-agent-auth-env", "Credential env")
+
+    assert has_element?(
+             view,
+             "#run-facts-agent-auth-reason",
+             "Credential-like keys are available to the agent: TOKEN"
+           )
 
     refute render(view) =~ "hidden-run-token"
   end

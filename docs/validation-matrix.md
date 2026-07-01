@@ -139,6 +139,9 @@ Evidence:
   launch: LiveView tests verify credential-like env keys are labeled and env
   values remain hidden while the user is choosing an agent; browser smoke
   verifies the same behavior in the running app.
+- Run detail mirrors the configured agent auth scope after launch: LiveView
+  tests verify credential-like env keys are labeled in run facts, only env key
+  names are shown, and env values stay hidden from run detail/evidence.
 - The inbox can edit and delete persisted agent command definitions; LiveView
   tests verify updated keys replace old picker options and deleted keys
   disappear from run creation.

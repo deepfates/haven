@@ -1410,6 +1410,64 @@ defmodule HavenWeb.RunLive do
 
   defp agent_launch_env_scope_label(_readiness), do: "env unknown"
 
+  defp agent_launch_env_auth_label(%{env_keys: keys}) when is_list(keys) do
+    keys = normalize_env_keys(keys)
+
+    cond do
+      keys == [] -> "No auth env"
+      Enum.any?(keys, &credential_env_key?/1) -> "Credential env"
+      true -> "Plain env"
+    end
+  end
+
+  defp agent_launch_env_auth_label(_readiness), do: "Auth unknown"
+
+  defp agent_launch_env_auth_class(%{env_keys: keys}) when is_list(keys) do
+    keys = normalize_env_keys(keys)
+
+    cond do
+      keys == [] ->
+        badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+
+      Enum.any?(keys, &credential_env_key?/1) ->
+        badge_class("border-amber-200 bg-amber-50 text-amber-700")
+
+      true ->
+        badge_class("border-sky-200 bg-sky-50 text-sky-700")
+    end
+  end
+
+  defp agent_launch_env_auth_class(_readiness),
+    do: badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+
+  defp agent_launch_env_auth_reason(%{env_keys: keys}) when is_list(keys) do
+    keys = normalize_env_keys(keys)
+    credential_keys = Enum.filter(keys, &credential_env_key?/1)
+
+    cond do
+      keys == [] ->
+        "No environment variables were configured for this agent launch."
+
+      credential_keys != [] ->
+        "Credential-like keys are available to the agent: #{Enum.join(credential_keys, ", ")}. Values stay hidden in run detail and evidence."
+
+      true ->
+        "Environment variable names are available to the agent; values stay hidden in run detail and evidence."
+    end
+  end
+
+  defp agent_launch_env_auth_reason(_readiness), do: "Agent auth scope is unknown."
+
+  defp normalize_env_keys(keys), do: keys |> Enum.map(&to_string/1) |> Enum.sort()
+
+  defp credential_env_key?(key) do
+    key = key |> to_string() |> String.upcase()
+
+    String.contains?(key, "TOKEN") or String.contains?(key, "SECRET") or
+      String.contains?(key, "KEY") or String.contains?(key, "PASSWORD") or
+      String.contains?(key, "CREDENTIAL")
+  end
+
   defp badge_class(extra_class) do
     [
       "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase",
@@ -2723,7 +2781,24 @@ defmodule HavenWeb.RunLive do
                 </div>
                 <div id="run-facts-agent-env-keys">
                   <dt class="text-zinc-500">Agent env</dt>
-                  <dd class="break-all text-xs">{agent_launch_env_scope_label(@agent_readiness)}</dd>
+                  <dd class="mt-1 flex flex-wrap items-center gap-1 text-xs">
+                    <span id="run-facts-agent-env-key-list" class="break-all">
+                      {agent_launch_env_scope_label(@agent_readiness)}
+                    </span>
+                    <span
+                      id="run-facts-agent-auth-env"
+                      class={agent_launch_env_auth_class(@agent_readiness)}
+                      title={agent_launch_env_auth_reason(@agent_readiness)}
+                    >
+                      {agent_launch_env_auth_label(@agent_readiness)}
+                    </span>
+                  </dd>
+                  <dd
+                    id="run-facts-agent-auth-reason"
+                    class="mt-1 text-xs text-zinc-500"
+                  >
+                    {agent_launch_env_auth_reason(@agent_readiness)}
+                  </dd>
                 </div>
                 <div id="run-facts-session">
                   <dt class="text-zinc-500">Agent session</dt>
