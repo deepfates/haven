@@ -46,7 +46,7 @@ evidence exists.
   produce aggregate repeated-run evidence artifacts; see
   `docs/probe-load/README.md`.
 - Runtime load smoke: `docs/runtime-smoke/2026-07-01-load-runs.md` records a
-  current dev-server `--load-runs 3` pass at commit `cbbfaa8d`, including
+  current dev-server `--load-runs 3` pass at commit `5ffb347c`, including
   rendered page isolation across disposable runs.
 - LiveView integration: malformed ACP startup output records
   `agent_protocol_failed`, marks the run `failed`, and does not restart the

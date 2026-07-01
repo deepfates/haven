@@ -12,7 +12,7 @@ agents with known limitations. It does not mean production-grade.
 - Verified application commit: `26de37b1`
 - Date: 2026-07-01
 - Operator: Codex
-- Last maintenance verification commit: `cbbfaa8d`
+- Last maintenance verification commit: `5ffb347c`
 
 ## Required Gates
 
@@ -64,7 +64,7 @@ Evidence:
 
 - Result: `No pending migrations.`
 - Notes: latest maintenance verification passed at application commit
-  `cbbfaa8d`.
+  `5ffb347c`.
 
 ### 3. Runtime Smoke Gate
 
@@ -89,8 +89,8 @@ Evidence:
 - Notes: alpha recorded run
   `3223240c-67e0-49dc-abf1-3be3e53bf353` at application commit `26de37b1`.
 - Current maintenance smoke passed against `http://127.0.0.1:4000` at
-  application commit `cbbfaa8d`, including `--load-runs 3`; primary smoke run
-  `faac147e-cf60-434f-b3a8-63b77a28d4a9`.
+  application commit `5ffb347c`, including `--load-runs 3`; primary smoke run
+  `7fb44008-7b0d-49be-a888-d6a283f720ed`.
 
 ### 4. Browser Sanity Gate
 
