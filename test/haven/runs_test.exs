@@ -274,6 +274,16 @@ defmodule Haven.RunsTest do
     assert Runs.get_run!(run.id).last_viewed_event_seq == 2
   end
 
+  test "mark_latest_viewed advances the durable event read marker to the latest event" do
+    run = insert_run!("Latest read marker run", "idle")
+    Events.append!(run.id, "agent_message_chunk", %{"text" => "first note"})
+    Events.append!(run.id, "agent_message_chunk", %{"text" => "second note"})
+
+    assert {:ok, viewed} = Runs.mark_latest_viewed(run.id)
+    assert viewed.last_viewed_event_seq == 3
+    assert Runs.get_run!(run.id).last_viewed_event_seq == 3
+  end
+
   test "normalizes optional file capability path scopes" do
     changeset =
       Run.changeset(%Run{}, %{

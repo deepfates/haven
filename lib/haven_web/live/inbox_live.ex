@@ -74,6 +74,11 @@ defmodule HavenWeb.InboxLive do
     {:noreply, assign_runs(socket)}
   end
 
+  def handle_event("mark_run_read", %{"id" => id}, socket) do
+    _ = Runs.mark_latest_viewed(id)
+    {:noreply, assign_runs(socket)}
+  end
+
   def handle_event("prune_archived", %{"retention" => %{"cutoff_date" => cutoff_date}}, socket) do
     case archived_retention_cutoff(cutoff_date) do
       {:ok, cutoff} ->
@@ -2325,6 +2330,16 @@ defmodule HavenWeb.InboxLive do
           >
             {run_action_label(@run)}
           </.link>
+          <button
+            :if={@run.unread_event_count > 0}
+            id={"mark-run-read-#{@run.id}"}
+            type="button"
+            class="inline-flex h-8 items-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-950"
+            phx-click="mark_run_read"
+            phx-value-id={@run.id}
+          >
+            Mark read
+          </button>
           <button
             :if={@show_archive and archivable?(@run)}
             id={"archive-run-#{@run.id}"}

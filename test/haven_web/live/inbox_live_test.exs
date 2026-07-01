@@ -419,6 +419,28 @@ defmodule HavenWeb.InboxLiveTest do
     refute has_element?(reloaded, "#run-#{run.id}-unread")
   end
 
+  test "marks unread activity as read from the inbox row", %{conn: conn} do
+    run = insert_run!("Triage from inbox", "idle")
+    assert {:ok, _run} = Runs.mark_viewed(run.id, 1)
+    Events.append!(run.id, "agent_message_chunk", %{"text" => "fresh note"})
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#inbox-attention-label", "1 run updated")
+    assert has_element?(view, "#inbox-queue-updated", "1")
+    assert has_element?(view, "#run-#{run.id}-unread", "1 new event")
+    assert has_element?(view, "#mark-run-read-#{run.id}")
+
+    view
+    |> element("#mark-run-read-#{run.id}")
+    |> render_click()
+
+    refute has_element?(view, "#run-#{run.id}-unread")
+    refute has_element?(view, "#mark-run-read-#{run.id}")
+    assert has_element?(view, "#inbox-queue-updated", "0")
+    assert Runs.get_run!(run.id).last_viewed_event_seq == 2
+  end
+
   test "renders evidence-backed agent trust in run rows", %{conn: conn} do
     assert {:ok, _agent_config} =
              Agents.create_agent_config(%{

@@ -316,6 +316,16 @@ defmodule Haven.Runs do
     end
   end
 
+  def mark_latest_viewed(run_id, opts \\ []) when is_binary(run_id) do
+    latest_event_seq =
+      case Events.latest_by_run_id([run_id]) do
+        %{^run_id => %{seq: seq}} -> seq
+        _latest_events -> 0
+      end
+
+    mark_viewed(run_id, latest_event_seq, opts)
+  end
+
   def update_status!(run_id, attrs) do
     run = get_run!(run_id)
 
