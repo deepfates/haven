@@ -102,9 +102,11 @@ picker alongside runtime configuration.
 
 The probe creates a durable run, waits for ACP initialization/session creation,
 sends the prompt through `RunServer`, optionally resolves permission stalls, and
-prints the persisted event timeline. Repeated `--expect-event` flags make the
-probe fail unless the run emits the required Haven event types, turning
-real-agent checks into acceptance contracts instead of best-effort smoke.
+prints a compact persisted event summary. Add `--show-events` when you need the
+full event payloads in terminal output; `--report path.json` always writes the
+full event list. Repeated `--expect-event` flags make the probe fail unless the
+run emits the required Haven event types, turning real-agent checks into
+acceptance contracts instead of best-effort smoke.
 Repeated `--expect-event-field EVENT:payload.path=value` flags also require
 specific event payload facts, such as the requested path, terminal command,
 permission decision, or exit status.

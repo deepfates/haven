@@ -267,6 +267,53 @@ defmodule Haven.AgentProbeTest do
     refute output =~ "Preflight-ready agents:"
   end
 
+  test "agent probe task prints event summaries by default" do
+    output =
+      capture_io(fn ->
+        AgentProbeTask.run([
+          "--agent",
+          "stub-acp",
+          "--workspace",
+          File.cwd!(),
+          "--prompt",
+          "hello from task",
+          "--expect-event",
+          "turn_finished",
+          "--timeout",
+          "5000"
+        ])
+      end)
+
+    assert output =~ "Event summary:"
+    assert output =~ "turn_finished=1"
+    assert output =~ "Use --show-events to print full event payloads."
+    refute output =~ "1. run_created"
+  end
+
+  test "agent probe task can print full event payloads on request" do
+    output =
+      capture_io(fn ->
+        AgentProbeTask.run([
+          "--agent",
+          "stub-acp",
+          "--workspace",
+          File.cwd!(),
+          "--prompt",
+          "hello from task",
+          "--expect-event",
+          "turn_finished",
+          "--show-events",
+          "--timeout",
+          "5000"
+        ])
+      end)
+
+    assert output =~ "Events:"
+    assert output =~ "1. run_created"
+    assert output =~ "turn_finished"
+    refute output =~ "Use --show-events"
+  end
+
   test "preflights an ACP agent without sending a prompt" do
     assert {:ok, report} =
              AgentProbe.preflight(

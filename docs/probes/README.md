@@ -167,6 +167,10 @@ Use repeated `--redact value` flags for literal strings and repeated
 `--redact-env ENV_VAR` flags for secrets stored in the environment. Redacted
 reports include `redactions` metadata, but never the raw redaction values.
 
+Terminal probe output is summary-first by default. Use `--show-events` when you
+need to inspect every persisted event payload in the terminal; committed
+`--report` JSON files always include the full ordered event list.
+
 Use `--require-real-agent` on any report intended to count as production-grade
 Haven real-agent evidence. It rejects the built-in stub and the known local
 test harness scripts used by automated coverage.

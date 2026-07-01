@@ -43,6 +43,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   Use repeated `--redact value` or `--redact-env ENV_VAR` flags to replace
   sensitive strings in the printed and written report with `[REDACTED]`.
   Use `--report path.json` to write the full probe report as pretty JSON.
+  Terminal output is summary-first by default. Add `--show-events` to print
+  every persisted event payload in the terminal as well as in the report file.
   By default, the task suppresses debug-level application logs so preflight and
   probe output remains readable as evidence. Add `--verbose` to keep the
   current logger level while debugging the task itself.
@@ -83,7 +85,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     preflight: :boolean,
     registry: :boolean,
     save_registry_agent: :string,
-    verbose: :boolean
+    verbose: :boolean,
+    show_events: :boolean
   ]
 
   @aliases [a: :agent, w: :workspace, p: :prompt, t: :timeout]
@@ -115,11 +118,11 @@ defmodule Mix.Tasks.Haven.AgentProbe do
         true ->
           case run_probe(opts) do
             {:ok, report} ->
-              print_any_report(report)
+              print_any_report(report, Keyword.get(opts, :show_events, false))
               write_report(report, report_path)
 
             {:error, reason, report} ->
-              print_any_report(report)
+              print_any_report(report, Keyword.get(opts, :show_events, false))
               write_report(report, report_path)
               Mix.raise("Agent probe failed: #{reason}")
           end
@@ -472,10 +475,12 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     end
   end
 
-  defp print_any_report(%{kind: "agent_probe_load"} = report), do: print_load_report(report)
-  defp print_any_report(report), do: print_report(report)
+  defp print_any_report(%{kind: "agent_probe_load"} = report, show_events?),
+    do: print_load_report(report, show_events?)
 
-  defp print_load_report(report) do
+  defp print_any_report(report, show_events?), do: print_report(report, show_events?)
+
+  defp print_load_report(report, show_events?) do
     Mix.shell().info("Load probe: #{report.run_count} run(s)")
     Mix.shell().info("Concurrency: #{Map.get(report, :concurrency, 1)}")
     Mix.shell().info("Agent: #{report.agent}")
@@ -494,6 +499,10 @@ defmodule Mix.Tasks.Haven.AgentProbe do
 
     Enum.each(report.reports, fn child ->
       Mix.shell().info("- #{child.run_id || "(not created)"}: #{child.status}")
+
+      if show_events? do
+        print_event_lines(child.events, "  ")
+      end
     end)
 
     if report.failures != [] do
@@ -508,7 +517,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     end
   end
 
-  defp print_report(report) do
+  defp print_report(report, show_events?) do
     Mix.shell().info("Run: #{report.run_id || "(not created)"}")
     Mix.shell().info("Agent: #{report.agent}")
     Mix.shell().info("Workspace: #{report.workspace}")
@@ -554,17 +563,41 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       end)
     end
 
-    Mix.shell().info("")
-    Mix.shell().info("Events:")
-
-    Enum.each(report.events, fn event ->
-      Mix.shell().info("#{event.seq}. #{event.type} #{Jason.encode!(event.payload)}")
-    end)
+    print_event_summary(report.events, show_events?)
 
     if Map.get(report, :errors) not in [nil, %{}] do
       Mix.shell().info("")
       Mix.shell().info("Errors: #{inspect(report.errors)}")
     end
+  end
+
+  defp print_event_summary(events, true) do
+    Mix.shell().info("")
+    Mix.shell().info("Events:")
+    print_event_lines(events, "")
+  end
+
+  defp print_event_summary(events, false) do
+    event_counts =
+      events
+      |> Enum.map(& &1.type)
+      |> Enum.frequencies()
+      |> Enum.sort_by(fn {type, _count} -> type end)
+
+    Mix.shell().info("")
+    Mix.shell().info("Event summary: #{length(events)} event(s)")
+
+    Mix.shell().info(
+      "Event types: #{Enum.map_join(event_counts, ", ", fn {type, count} -> "#{type}=#{count}" end)}"
+    )
+
+    Mix.shell().info("Use --show-events to print full event payloads.")
+  end
+
+  defp print_event_lines(events, prefix) do
+    Enum.each(events, fn event ->
+      Mix.shell().info("#{prefix}#{event.seq}. #{event.type} #{Jason.encode!(event.payload)}")
+    end)
   end
 
   defp write_report(_report, nil), do: :ok
