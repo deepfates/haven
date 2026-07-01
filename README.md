@@ -114,6 +114,9 @@ size for bounded long-output evidence.
 Use `--list-agents --preflight` first when a saved command merely looks
 plausible: it starts a short durable run for each probe candidate and verifies
 the ACP initialize/session handshake before you attempt a full evidence report.
+Probe output suppresses debug-level application logs by default so inventory,
+preflight, and report output stay readable as evidence. Add `--verbose` when
+debugging the probe task itself.
 Use `--list-agents --registry` to fetch the public ACP Registry and print
 npx-backed agent command suggestions that can be supplied through
 `HAVEN_AGENTS_JSON`. Registry commands download and run third-party code; run

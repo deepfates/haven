@@ -1,8 +1,12 @@
 defmodule Haven.AgentProbeTest do
   use Haven.DataCase
 
+  import ExUnit.CaptureIO
+  import ExUnit.CaptureLog
+
   alias Haven.AgentProbe
   alias Haven.Runs
+  alias Mix.Tasks.Haven.AgentProbe, as: AgentProbeTask
 
   setup do
     original = Application.get_env(:haven, :agents)
@@ -210,6 +214,31 @@ defmodule Haven.AgentProbeTest do
            ]
 
     refute Jason.encode!(inventory) =~ "hidden-value"
+  end
+
+  test "agent probe inventory task suppresses debug logs by default and restores logger level" do
+    previous_level = Logger.level()
+    Logger.configure(level: :debug)
+    on_exit(fn -> Logger.configure(level: previous_level) end)
+
+    Application.put_env(:haven, :agents, %{
+      "candidate" => %{executable: "sh", args: ["-c", "cat"]}
+    })
+
+    log =
+      capture_log([level: :debug], fn ->
+        output =
+          capture_io(fn ->
+            AgentProbeTask.run(["--list-agents", "--workspace", File.cwd!()])
+          end)
+
+        assert output =~ "Configured agents:"
+        assert output =~ "candidate"
+        refute output =~ "QUERY OK"
+      end)
+
+    refute log =~ "QUERY OK"
+    assert Logger.level() == :debug
   end
 
   test "preflights an ACP agent without sending a prompt" do

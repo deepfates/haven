@@ -142,6 +142,10 @@ Use `--list-agents --preflight` when a command is only a probe candidate. The
 preflight creates a short durable run and verifies ACP initialization plus
 session creation, surfacing failures such as a generic shell command that starts
 successfully but answers the ACP `initialize` request incorrectly.
+Probe CLI output suppresses debug-level application logs by default so the
+inventory, preflight, and report summaries remain readable as evidence. Add
+`--verbose` when debugging the probe task itself and you need the current
+logger level preserved.
 
 Use `--list-agents --registry` to fetch the public ACP Registry and print
 npx-backed agent command suggestions, including the `HAVEN_AGENTS_JSON` shape

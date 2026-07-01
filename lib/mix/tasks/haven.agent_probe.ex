@@ -43,6 +43,9 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   Use repeated `--redact value` or `--redact-env ENV_VAR` flags to replace
   sensitive strings in the printed and written report with `[REDACTED]`.
   Use `--report path.json` to write the full probe report as pretty JSON.
+  By default, the task suppresses debug-level application logs so preflight and
+  probe output remains readable as evidence. Add `--verbose` to keep the
+  current logger level while debugging the task itself.
   Use `--load-runs N` with `--report` to write an aggregate report proving N
   separate durable runs completed through the same configured agent path.
   Use `--load-concurrency N` with `--load-runs` to run up to N child probes at
@@ -79,7 +82,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     list_agents: :boolean,
     preflight: :boolean,
     registry: :boolean,
-    save_registry_agent: :string
+    save_registry_agent: :string,
+    verbose: :boolean
   ]
 
   @aliases [a: :agent, w: :workspace, p: :prompt, t: :timeout]
@@ -95,29 +99,46 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     opts = normalize_opts(opts)
     report_path = Keyword.get(opts, :report)
 
-    cond do
-      agent_id = Keyword.get(opts, :save_registry_agent) ->
-        save_registry_agent!(agent_id, Keyword.fetch!(opts, :workspace))
+    with_probe_log_level(opts, fn ->
+      cond do
+        agent_id = Keyword.get(opts, :save_registry_agent) ->
+          save_registry_agent!(agent_id, Keyword.fetch!(opts, :workspace))
 
-      Keyword.get(opts, :list_agents, false) ->
-        print_agent_inventory(
-          Keyword.fetch!(opts, :workspace),
-          Keyword.get(opts, :preflight, false),
-          Keyword.get(opts, :timeout, 5_000),
-          Keyword.get(opts, :registry, false)
-        )
+        Keyword.get(opts, :list_agents, false) ->
+          print_agent_inventory(
+            Keyword.fetch!(opts, :workspace),
+            Keyword.get(opts, :preflight, false),
+            Keyword.get(opts, :timeout, 5_000),
+            Keyword.get(opts, :registry, false)
+          )
 
-      true ->
-        case run_probe(opts) do
-          {:ok, report} ->
-            print_any_report(report)
-            write_report(report, report_path)
+        true ->
+          case run_probe(opts) do
+            {:ok, report} ->
+              print_any_report(report)
+              write_report(report, report_path)
 
-          {:error, reason, report} ->
-            print_any_report(report)
-            write_report(report, report_path)
-            Mix.raise("Agent probe failed: #{reason}")
-        end
+            {:error, reason, report} ->
+              print_any_report(report)
+              write_report(report, report_path)
+              Mix.raise("Agent probe failed: #{reason}")
+          end
+      end
+    end)
+  end
+
+  defp with_probe_log_level(opts, fun) do
+    if Keyword.get(opts, :verbose, false) do
+      fun.()
+    else
+      previous_level = Logger.level()
+      Logger.configure(level: :info)
+
+      try do
+        fun.()
+      after
+        Logger.configure(level: previous_level)
+      end
     end
   end
 
