@@ -387,6 +387,10 @@ defmodule HavenWeb.RunLive do
   defp can_continue_failed?(%{status: "failed", archived_at: nil}), do: true
   defp can_continue_failed?(_run), do: false
 
+  defp control_notice(%{archived_at: archived_at}, _live?) when not is_nil(archived_at) do
+    "This run is archived. Its history is review-only and cannot accept prompts, reconnects, restarts, or cancellation."
+  end
+
   defp control_notice(%{status: "failed"}, _live?) do
     "This run failed. Restart it before sending another prompt."
   end
@@ -416,6 +420,10 @@ defmodule HavenWeb.RunLive do
        when status in ["initializing", "running", "waiting"],
        do: nil
 
+  defp cancel_disabled_reason(%{archived_at: archived_at}, _live?) when not is_nil(archived_at) do
+    "This run is archived. There is no live turn to cancel."
+  end
+
   defp cancel_disabled_reason(%{status: "failed"}, _live?) do
     "This run failed. Restart it instead of cancelling."
   end
@@ -429,6 +437,9 @@ defmodule HavenWeb.RunLive do
   end
 
   defp cancel_disabled_reason(_run, _live?), do: "There is no active turn to cancel."
+
+  defp recovery_attention(%{archived_at: archived_at}, _live?) when not is_nil(archived_at),
+    do: nil
 
   defp recovery_attention(%{status: "failed"}, _live?) do
     %{
@@ -1735,6 +1746,21 @@ defmodule HavenWeb.RunLive do
             </header>
 
             <section id="run-thread" class="flex flex-col gap-3">
+              <section
+                :if={@run.archived_at}
+                id="run-archive-card"
+                class="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+              >
+                <p class="text-xs font-semibold uppercase text-zinc-500">Review-only</p>
+                <h2 class="mt-1 text-base font-semibold text-zinc-950">Archived history</h2>
+                <p class="mt-2 text-sm text-zinc-700">
+                  This run was archived at {Calendar.strftime(
+                    @run.archived_at,
+                    "%Y-%m-%d %H:%M:%S"
+                  )}. Its transcript, decisions, files, terminals, and timeline remain inspectable, but no live agent process will be reconnected from this record.
+                </p>
+              </section>
+
               <section
                 :if={@recovery_attention}
                 id="run-recovery-card"

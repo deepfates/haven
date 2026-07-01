@@ -169,6 +169,10 @@ Evidence:
 - LiveView integration tests verify archived runs remain intentionally
   inspectable through an Archived inbox filter with archived timestamps, instead
   of becoming invisible durable records.
+- LiveView integration tests verify archived run detail renders a review-only
+  history card, disables prompt/cancel controls with archived-state language,
+  and does not render reconnect, restart, retry, or failure-continuation
+  recovery controls.
 - Browser smoke verifies a failed run can be archived from History and
   disappears from the inbox without deleting its run record.
 - Browser inspection verifies the attention summary renders on desktop and a

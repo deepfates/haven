@@ -602,6 +602,27 @@ defmodule HavenWeb.RunLiveTest do
     refute Runs.started?(run.id)
   end
 
+  test "archived runs render as review-only history without recovery controls", %{conn: conn} do
+    run = insert_disconnected_run!("Archived failed history", "failed")
+    assert {:ok, archived_run} = Runs.archive_run(run.id)
+
+    {:ok, view, html} = live(conn, ~p"/runs/#{archived_run.id}")
+
+    assert html =~ "failed"
+    assert has_element?(view, "#run-archive-card", "Archived history")
+    assert has_element?(view, "#run-control-notice", "archived")
+    assert has_element?(view, "#send-prompt-button[disabled]")
+    assert has_element?(view, "#cancel-run-button[disabled]")
+    assert has_element?(view, ~s|#send-prompt-button[title*="archived"]|)
+    assert has_element?(view, ~s|#cancel-run-button[title*="archived"]|)
+    refute has_element?(view, "#run-recovery-card")
+    refute has_element?(view, "#run-recovery-action-button")
+    refute has_element?(view, "#retry-last-prompt-button")
+    refute has_element?(view, "#continue-after-failure-form")
+    refute has_element?(view, "#reconnect-run-button")
+    refute Runs.started?(archived_run.id)
+  end
+
   test "sends a prompt and appends user and agent turn events", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Prompt run"})
     stop_run_server_on_exit(run.id)
