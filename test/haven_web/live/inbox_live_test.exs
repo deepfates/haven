@@ -205,7 +205,8 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#inbox-queue-history", "1")
     assert has_element?(view, "#inbox-queue-archived", "1")
     assert has_element?(view, ~s|#inbox-queue-all[aria-current="page"]|)
-    refute has_element?(view, "#inbox-run-filters")
+    assert has_element?(view, "#inbox-run-filters:not([open])")
+    assert has_element?(view, "#inbox-run-filters summary", "Find runs")
 
     view
     |> element("#inbox-queue-running")
@@ -1160,12 +1161,14 @@ defmodule HavenWeb.InboxLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#inbox-search-form")
+    assert has_element?(view, "#inbox-run-filters:not([open])")
     assert has_element?(view, "#run_search")
 
     view
     |> form("#inbox-search-form", %{"run_search" => "project-alpha"})
     |> render_change()
 
+    assert has_element?(view, "#inbox-run-filters[open]")
     assert has_element?(view, "article", "Docs cleanup")
     refute has_element?(view, "article", "Payment bug")
     assert has_element?(view, "#inbox-queue-all", "1")

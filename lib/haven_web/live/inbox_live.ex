@@ -2076,49 +2076,68 @@ defmodule HavenWeb.InboxLive do
             </.form>
           </details>
 
-          <form
-            id="inbox-search-form"
-            phx-change="search_runs"
-            phx-submit="search_runs"
-            class="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_minmax(12rem,18rem)_auto]"
+          <details
+            id="inbox-run-filters"
+            open={active_run_facets?(@run_search, @agent_filter, @workspace_filter)}
+            class="rounded-lg border border-zinc-200 bg-white"
           >
-            <.input
-              id="run_search"
-              name="run_search"
-              value={@run_search}
-              type="search"
-              label="Search runs"
-              placeholder="Title, folder, agent, status, activity"
-              autocomplete="off"
-            />
-            <.input
-              id="agent_filter"
-              name="agent_filter"
-              value={@agent_filter}
-              type="select"
-              label="Agent"
-              prompt="All agents"
-              options={@agent_filter_options}
-            />
-            <.input
-              id="workspace_filter"
-              name="workspace_filter"
-              value={@workspace_filter}
-              type="select"
-              label="Workspace"
-              prompt="All workspaces"
-              options={@workspace_filter_options}
-            />
-            <button
-              :if={active_run_facets?(@run_search, @agent_filter, @workspace_filter)}
-              id="clear-inbox-search"
-              type="button"
-              class="mb-2 h-10 self-end rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
-              phx-click="clear_run_search"
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-zinc-800 marker:hidden">
+              <span class="inline-flex min-w-0 items-center gap-2">
+                <.icon name="hero-magnifying-glass" class="size-4 shrink-0 text-zinc-500" />
+                <span>Find runs</span>
+              </span>
+              <span class="truncate text-xs font-medium text-zinc-500">
+                <%= if active_run_facets?(@run_search, @agent_filter, @workspace_filter) do %>
+                  Filtered
+                <% else %>
+                  Search, agent, folder
+                <% end %>
+              </span>
+            </summary>
+            <form
+              id="inbox-search-form"
+              phx-change="search_runs"
+              phx-submit="search_runs"
+              class="grid gap-2 border-t border-zinc-200 p-3 lg:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_minmax(12rem,18rem)_auto]"
             >
-              Clear
-            </button>
-          </form>
+              <.input
+                id="run_search"
+                name="run_search"
+                value={@run_search}
+                type="search"
+                label="Search runs"
+                placeholder="Title, folder, agent, status, activity"
+                autocomplete="off"
+              />
+              <.input
+                id="agent_filter"
+                name="agent_filter"
+                value={@agent_filter}
+                type="select"
+                label="Agent"
+                prompt="All agents"
+                options={@agent_filter_options}
+              />
+              <.input
+                id="workspace_filter"
+                name="workspace_filter"
+                value={@workspace_filter}
+                type="select"
+                label="Workspace"
+                prompt="All workspaces"
+                options={@workspace_filter_options}
+              />
+              <button
+                :if={active_run_facets?(@run_search, @agent_filter, @workspace_filter)}
+                id="clear-inbox-search"
+                type="button"
+                class="mb-2 h-10 self-end rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                phx-click="clear_run_search"
+              >
+                Clear
+              </button>
+            </form>
+          </details>
 
           <div
             :if={@filtered_runs_empty?}
