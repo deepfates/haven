@@ -139,7 +139,7 @@ defmodule HavenWeb.RunLive do
     file_changes = FileChanges.list_for_run(id)
     terminal_sessions = TerminalSessions.list_for_run(id)
     live? = Runs.started?(run)
-    agent_readiness = agent_readiness(run.agent)
+    agent_readiness = agent_readiness(run.agent, run.workspace)
     agent_probe_reports = Agents.accepted_probe_reports(run.agent)
 
     socket
@@ -1060,8 +1060,8 @@ defmodule HavenWeb.RunLive do
     end
   end
 
-  defp agent_readiness(agent) do
-    File.cwd!()
+  defp agent_readiness(agent, workspace) do
+    workspace
     |> AgentProbe.agent_inventory()
     |> Enum.find(&(&1.agent == agent))
     |> case do
@@ -1131,6 +1131,24 @@ defmodule HavenWeb.RunLive do
   defp agent_launch_class(_inventory) do
     badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
   end
+
+  defp agent_launch_cwd_scope_label(%{cwd: cwd}) when is_binary(cwd), do: "cwd #{cwd}"
+  defp agent_launch_cwd_scope_label(%{status: "ready"}), do: "cwd app default"
+  defp agent_launch_cwd_scope_label(_readiness), do: "cwd unknown"
+
+  defp agent_launch_env_scope_label(%{env_keys: keys}) when is_list(keys) do
+    keys =
+      keys
+      |> Enum.map(&to_string/1)
+      |> Enum.sort()
+
+    case keys do
+      [] -> "env none"
+      keys -> "env keys #{Enum.join(keys, ", ")}"
+    end
+  end
+
+  defp agent_launch_env_scope_label(_readiness), do: "env unknown"
 
   defp badge_class(extra_class) do
     [
@@ -1657,6 +1675,20 @@ defmodule HavenWeb.RunLive do
                         class="mt-1 truncate text-[11px] font-normal normal-case text-zinc-500"
                       >
                         {agent_evidence_reason(@agent_readiness, @agent_probe_reports)}
+                      </dd>
+                      <dd
+                        id="run-header-agent-cwd"
+                        class="mt-1 truncate text-[11px] font-normal normal-case text-zinc-500"
+                        title={agent_launch_cwd_scope_label(@agent_readiness)}
+                      >
+                        {agent_launch_cwd_scope_label(@agent_readiness)}
+                      </dd>
+                      <dd
+                        id="run-header-agent-env-keys"
+                        class="truncate text-[11px] font-normal normal-case text-zinc-500"
+                        title={agent_launch_env_scope_label(@agent_readiness)}
+                      >
+                        {agent_launch_env_scope_label(@agent_readiness)}
                       </dd>
                     </div>
                     <div id="run-header-session" class="min-w-0">

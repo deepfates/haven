@@ -47,6 +47,8 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-header-agent-launch", "Launch ready")
     assert has_element?(view, "#run-header-agent-trust", "Local harness")
     assert has_element?(view, "#run-header-agent-evidence-reason", "built-in stub-acp")
+    assert has_element?(view, "#run-header-agent-cwd", "cwd app default")
+    assert has_element?(view, "#run-header-agent-env-keys", "env none")
     assert has_element?(view, "#run-header-session", run.agent_session_id)
     assert has_element?(view, "#run-header-created")
     assert has_element?(view, "#run-header-updated")
@@ -77,6 +79,53 @@ defmodule HavenWeb.RunLiveTest do
 
     assert prompt_index < filters_index
     assert filters_index < facts_index
+  end
+
+  @tag :tmp_dir
+  test "renders run-specific configured agent launch scope without env values", %{
+    conn: conn,
+    tmp_dir: tmp_dir
+  } do
+    agent_cwd = Path.join(tmp_dir, "agent-workspace")
+    File.mkdir_p!(agent_cwd)
+
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "scoped-run-agent",
+               executable: "sh",
+               args: ["-c", "cat"],
+               cwd: "{workspace}",
+               env: %{
+                 "TOKEN" => "hidden-run-token",
+                 "WORKSPACE" => "{workspace}"
+               }
+             })
+
+    run =
+      %Run{}
+      |> Run.changeset(%{
+        title: "Scoped agent run",
+        agent: "scoped-run-agent",
+        workspace: agent_cwd,
+        status: "idle",
+        agent_session_id: "saved-session"
+      })
+      |> Repo.insert!()
+
+    Events.append!(run.id, "run_created", %{
+      "title" => run.title,
+      "workspace" => run.workspace,
+      "agent" => run.agent
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-header-agent", "scoped-run-agent")
+    assert has_element?(view, "#run-header-agent-launch", "Launch ready")
+    assert has_element?(view, "#run-header-agent-cwd", "cwd #{Path.expand(agent_cwd)}")
+    assert has_element?(view, "#run-header-agent-env-keys", "env keys TOKEN, WORKSPACE")
+
+    refute render(view) =~ "hidden-run-token"
   end
 
   test "mounting run detail reuses the loaded run when checking liveness", %{conn: conn} do
