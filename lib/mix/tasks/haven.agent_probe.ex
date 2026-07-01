@@ -577,6 +577,15 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       )
     end
 
+    if Map.get(report, :unsupported_client_capabilities, []) != [] do
+      Mix.shell().info("")
+      Mix.shell().info("Unsupported mediated capabilities:")
+
+      Enum.each(report.unsupported_client_capabilities, fn capability ->
+        Mix.shell().info("- #{unsupported_capability_label(capability)}")
+      end)
+    end
+
     if Map.get(report, :diagnostics, []) != [] do
       Mix.shell().info("")
       Mix.shell().info("Diagnostics:")
@@ -670,5 +679,21 @@ defmodule Mix.Tasks.Haven.AgentProbe do
 
   defp output_gap_label(%{"metric" => metric, "expected" => expected, "actual" => actual}) do
     "#{metric} expected >= #{expected}, got #{actual}"
+  end
+
+  defp unsupported_capability_label(%{
+         capability: capability,
+         missing_events: missing_events,
+         observed_events: observed_events
+       }) do
+    "#{capability}: missing #{Enum.join(missing_events, ", ")}; observed #{Enum.join(observed_events, ", ")}"
+  end
+
+  defp unsupported_capability_label(%{
+         "capability" => capability,
+         "missing_events" => missing_events,
+         "observed_events" => observed_events
+       }) do
+    "#{capability}: missing #{Enum.join(missing_events, ", ")}; observed #{Enum.join(observed_events, ", ")}"
   end
 end

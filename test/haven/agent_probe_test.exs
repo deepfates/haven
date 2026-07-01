@@ -373,6 +373,34 @@ defmodule Haven.AgentProbeTest do
     assert output =~ "turn_finished"
   end
 
+  test "agent probe task prints unsupported mediated capability summaries" do
+    output =
+      capture_io(fn ->
+        assert_raise Mix.Error, ~r/Agent probe failed: missing_expected_events/, fn ->
+          AgentProbeTask.run([
+            "--agent",
+            "stub-acp",
+            "--workspace",
+            File.cwd!(),
+            "--prompt",
+            "unknown-update",
+            "--expect-event",
+            "file_read_succeeded",
+            "--timeout",
+            "5000"
+          ])
+        end
+      end)
+
+    assert output =~ "Unsupported mediated capabilities:"
+
+    assert output =~
+             "fs/read_text_file: missing file_read_succeeded; observed tool_call_update"
+
+    assert output =~ "Diagnostics:"
+    assert output =~ "Expected Haven-mediated client capability events were missing"
+  end
+
   test "preflights an ACP agent without sending a prompt" do
     assert {:ok, report} =
              AgentProbe.preflight(
