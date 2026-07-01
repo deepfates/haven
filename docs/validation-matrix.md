@@ -197,6 +197,11 @@ Evidence:
   disappears from the inbox without deleting its run record.
 - Browser inspection verifies the attention summary renders on desktop and a
   390px mobile viewport without horizontal page overflow.
+- `MIX_ENV=dev mix haven.runtime_smoke --load-runs N` extends the dev-server
+  smoke with multiple disposable runs, alternating ordinary and bounded
+  long-output turns, then reloads rendered pages to verify run rows,
+  long-output markers, and cross-run isolation. The first recorded run is
+  `docs/runtime-smoke/2026-07-01-load-runs.md`.
 - Saved workspace rows now show derived readiness and run usage, including
   missing-on-disk folders plus active and archived run counts, so multi-folder
   triage exposes operational state without opening each run.
@@ -569,6 +574,9 @@ Evidence:
 - LiveView integration tests verify the Archived inbox lane exposes an explicit
   retention form, prunes only archived runs older than the selected cutoff, and
   preserves active plus recent archived history.
+- Runtime smoke can now exercise multi-run rendered isolation and bounded
+  long-output turns against the dev server with `--load-runs N`; this is still
+  local harness evidence, not realistic external-agent load proof.
 
 Still missing:
 

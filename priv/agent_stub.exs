@@ -121,6 +121,16 @@ defmodule StubAgent do
         send_prompt_result(prompt_id)
         state
 
+      String.starts_with?(text, "long-output") ->
+        chunk_count = long_output_chunk_count(text)
+
+        Enum.each(1..chunk_count, fn index ->
+          send_agent_text(request.session_id, "long-output-chunk-#{index} ")
+        end)
+
+        send_prompt_result(prompt_id)
+        state
+
       text == "read-file" ->
         request_id = state.next_permission_id
         session_id = request.session_id
@@ -447,6 +457,22 @@ defmodule StubAgent do
 
   defp prompt_text([{:text, %ACP.TextContent{text: text}} | _]), do: text
   defp prompt_text(_), do: ""
+
+  defp long_output_chunk_count(text) do
+    case String.split(text, ":", parts: 2) do
+      [_prefix, count] ->
+        count
+        |> String.trim()
+        |> Integer.parse()
+        |> case do
+          {count, ""} when count > 0 -> min(count, 500)
+          _invalid -> 40
+        end
+
+      _prompt ->
+        40
+    end
+  end
 
   defp permission_message({:selected, %ACP.SelectedPermissionOutcome{option_id: "allow"}}) do
     "Permission accepted. I would write notes.md now."

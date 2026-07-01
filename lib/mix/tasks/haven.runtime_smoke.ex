@@ -12,12 +12,16 @@ defmodule Mix.Tasks.Haven.RuntimeSmoke do
 
       MIX_ENV=dev mix haven.runtime_smoke
       MIX_ENV=dev mix haven.runtime_smoke --base-url http://127.0.0.1:4001
+      MIX_ENV=dev mix haven.runtime_smoke --load-runs 3
 
   The task requires dev routes to be enabled and a server to already be running.
   It creates a disposable workspace by default, starts a stub-backed run through
   `/dev/runs`, triggers permission/file/terminal capability paths, resolves the
   human decisions, and verifies the rendered inbox/run pages expose the
-  mobile-first thread, decision, and evidence disclosure surfaces.
+  mobile-first thread, decision, and evidence disclosure surfaces. With
+  `--load-runs N`, it also creates N additional disposable runs, drives them
+  independently, and verifies long-output rendering plus cross-run isolation
+  after reload.
   """
 
   @requirements ["app.config"]
@@ -35,9 +39,10 @@ defmodule Mix.Tasks.Haven.RuntimeSmoke do
     base_url = opts[:base_url]
     workspace = opts[:workspace]
     timeout_ms = opts[:timeout_ms]
+    load_runs = opts[:load_runs]
 
     Req.new(base_url: base_url, retry: false)
-    |> smoke!(workspace, timeout_ms)
+    |> smoke!(workspace, timeout_ms, load_runs)
   end
 
   defp parse_args!(args) do
@@ -46,7 +51,8 @@ defmodule Mix.Tasks.Haven.RuntimeSmoke do
         strict: [
           base_url: :string,
           workspace: :string,
-          timeout_ms: :integer
+          timeout_ms: :integer,
+          load_runs: :integer
         ],
         aliases: [
           u: :base_url,
@@ -57,7 +63,7 @@ defmodule Mix.Tasks.Haven.RuntimeSmoke do
 
     if rest != [] or invalid != [] do
       Mix.raise(
-        "Invalid arguments. Usage: mix haven.runtime_smoke [--base-url URL] [--workspace PATH]"
+        "Invalid arguments. Usage: mix haven.runtime_smoke [--base-url URL] [--workspace PATH] [--load-runs N]"
       )
     end
 
@@ -83,11 +89,12 @@ defmodule Mix.Tasks.Haven.RuntimeSmoke do
     [
       base_url: Keyword.get(opts, :base_url, @default_base_url),
       workspace: workspace,
-      timeout_ms: Keyword.get(opts, :timeout_ms, @default_timeout_ms)
+      timeout_ms: Keyword.get(opts, :timeout_ms, @default_timeout_ms),
+      load_runs: load_runs!(Keyword.get(opts, :load_runs, 0))
     ]
   end
 
-  defp smoke!(client, workspace, timeout_ms) do
+  defp smoke!(client, workspace, timeout_ms, load_runs) do
     title = "Runtime smoke #{System.system_time(:millisecond)}"
 
     inbox_html = get_html!(client, "/")
@@ -209,11 +216,76 @@ defmodule Mix.Tasks.Haven.RuntimeSmoke do
 
     assert_contains!(terminal_html, "run-thread", "run thread after terminal smoke")
 
+    if load_runs > 0 do
+      multi_run_load_smoke!(client, load_runs, timeout_ms)
+    end
+
     Mix.shell().info("Runtime smoke passed.")
     Mix.shell().info("  base_url: #{client.options[:base_url]}")
     Mix.shell().info("  workspace: #{workspace}")
     Mix.shell().info("  run_id: #{run["id"]}")
     Mix.shell().info("  run_url: #{client.options[:base_url]}#{run_path}")
+
+    if load_runs > 0 do
+      Mix.shell().info("  load_runs: #{load_runs}")
+    end
+  end
+
+  defp load_runs!(count) when is_integer(count) and count >= 0, do: count
+
+  defp load_runs!(count) do
+    Mix.raise("--load-runs must be a non-negative integer, got: #{inspect(count)}")
+  end
+
+  defp multi_run_load_smoke!(client, count, timeout_ms) do
+    runs =
+      1..count
+      |> Enum.map(fn index ->
+        workspace = create_smoke_workspace!()
+        title = "Runtime load smoke #{System.system_time(:millisecond)} #{index}"
+        run = create_run!(client, title, workspace)
+
+        %{index: index, title: title, workspace: workspace, run: run, path: "/runs/#{run["id"]}"}
+      end)
+
+    Enum.each(runs, fn item ->
+      sample = if rem(item.index, 2) == 1, do: "long-output", else: "echo"
+      sample_until_ok!(client, item.run["id"], sample, timeout_ms)
+    end)
+
+    Enum.each(runs, fn item ->
+      wait_until!(timeout_ms, "load run #{item.index} completes independently", fn ->
+        html = get_html!(client, item.path)
+
+        expected =
+          if rem(item.index, 2) == 1 do
+            ["run-thread", item.title, "long-output-chunk-1", "long-output-chunk-40"]
+          else
+            ["run-thread", item.title, "Echo: hello from LiveView"]
+          end
+
+        if contains_all?(html, expected) and isolated_from_other_load_runs?(html, item, runs) do
+          {:ok, html}
+        else
+          :retry
+        end
+      end)
+    end)
+
+    reloaded_inbox = get_html!(client, "/")
+
+    Enum.each(runs, fn item ->
+      assert_contains!(reloaded_inbox, item.title, "load run #{item.index} inbox row")
+    end)
+  end
+
+  defp isolated_from_other_load_runs?(html, current, runs) do
+    runs
+    |> Enum.reject(&(&1.run["id"] == current.run["id"]))
+    |> Enum.all?(fn other ->
+      not String.contains?(html, other.title) and
+        not String.contains?(html, other.run["id"])
+    end)
   end
 
   defp create_smoke_workspace! do

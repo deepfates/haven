@@ -54,6 +54,7 @@ rendered dev-server path and deterministic controls:
 
 ```bash
 MIX_ENV=dev mix haven.runtime_smoke
+MIX_ENV=dev mix haven.runtime_smoke --load-runs 3
 ```
 
 It checks dev migrations, renders the inbox, creates a stub-backed run through
@@ -61,7 +62,9 @@ It checks dev migrations, renders the inbox, creates a stub-backed run through
 page, triggers and resolves a generic permission request, approves ACP file
 read/write requests, verifies the written file, runs a deterministic terminal
 command, and verifies the thread/decision/evidence disclosure surfaces in
-rendered HTML.
+rendered HTML. With `--load-runs N`, it also creates N additional disposable
+runs, alternates ordinary and bounded long-output turns, reloads the rendered
+pages, and checks cross-run isolation.
 
 To probe any configured ACP agent through Haven's real run lifecycle:
 

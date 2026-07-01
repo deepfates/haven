@@ -61,6 +61,25 @@ defmodule HavenWeb.DevControllerTest do
     assert_receive {:event_appended, %{type: "terminal_created"}}, 1_000
     assert_receive {:event_appended, %{type: "terminal_output_succeeded"}}, 1_000
     assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    assert_sample_ok(run.id, "long-output")
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "long-output-chunk-1 "}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+
+    chunk_text =
+      run.id
+      |> Events.list_for_run()
+      |> Enum.filter(&(&1.type == "agent_message_chunk"))
+      |> Enum.map_join("", & &1.payload["text"])
+
+    assert chunk_text =~ "long-output-chunk-40"
   end
 
   defp assert_sample_ok(run_id, sample) do
