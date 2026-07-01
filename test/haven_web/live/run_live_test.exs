@@ -9,6 +9,7 @@ defmodule HavenWeb.RunLiveTest do
   alias Haven.Runs
   alias Haven.Runs.{Run, RunServer}
   alias Haven.TerminalSessions
+  alias Haven.Workspaces
 
   @agent_event_timeout 5_000
 
@@ -114,6 +115,34 @@ defmodule HavenWeb.RunLiveTest do
 
     assert prompt_index < filters_index
     assert filters_index < facts_index
+  end
+
+  @tag :tmp_dir
+  test "labels the run workspace with saved workspace state", %{conn: conn, tmp_dir: tmp_dir} do
+    assert {:ok, _workspace} =
+             Workspaces.create_workspace(%{
+               "name" => "Haven App",
+               "path" => tmp_dir
+             })
+
+    run =
+      %Run{}
+      |> Run.changeset(%{
+        title: "Saved workspace run",
+        agent: "stub-acp",
+        workspace: tmp_dir,
+        status: "idle"
+      })
+      |> Repo.insert!()
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-header-workspace", "Haven App")
+    assert has_element?(view, "#run-header-workspace-state", "Ready")
+    assert has_element?(view, "#run-header-workspace-saved-path", Path.expand(tmp_dir))
+    assert has_element?(view, "#run-facts-workspace", "Haven App")
+    assert has_element?(view, "#run-facts-workspace-state", "Ready")
+    assert has_element?(view, "#run-facts-workspace", Path.expand(tmp_dir))
   end
 
   @tag :tmp_dir

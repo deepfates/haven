@@ -12,6 +12,13 @@ defmodule Haven.Workspaces do
 
   def get_workspace!(id), do: Repo.get!(Workspace, id)
 
+  def get_workspace_by_path(nil), do: nil
+  def get_workspace_by_path(""), do: nil
+
+  def get_workspace_by_path(path) when is_binary(path) do
+    Repo.get_by(Workspace, path: Path.expand(path))
+  end
+
   def create_workspace(attrs) do
     %Workspace{}
     |> Workspace.changeset(attrs)

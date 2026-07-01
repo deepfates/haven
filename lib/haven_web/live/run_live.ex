@@ -9,6 +9,7 @@ defmodule HavenWeb.RunLive do
   alias Haven.Runs
   alias Haven.Runs.Run
   alias Haven.TerminalSessions
+  alias Haven.Workspaces
 
   @event_filters [
     {"all", "All"},
@@ -133,12 +134,14 @@ defmodule HavenWeb.RunLive do
     permission_audits = PermissionAudits.list_for_run(id)
     pending_permission = latest_pending_permission(events)
     live? = Runs.started?(run)
+    workspace_summary = workspace_summary(run.workspace)
     agent_readiness = agent_readiness(run.agent, run.workspace)
     agent_probe_reports = Agents.accepted_probe_reports(run.agent)
     agent_capability_gap_reports = Agents.capability_gap_reports(run.agent)
 
     socket
     |> assign(:run, run)
+    |> assign(:workspace_summary, workspace_summary)
     |> assign(:agent_readiness, agent_readiness)
     |> assign(:agent_probe_reports, agent_probe_reports)
     |> assign(:agent_capability_gap_reports, agent_capability_gap_reports)
@@ -1266,6 +1269,9 @@ defmodule HavenWeb.RunLive do
     end
   end
 
+  defp workspace_name(_path, %{name: name}), do: name
+  defp workspace_name(path, _workspace_summary), do: workspace_name(path)
+
   defp workspace_parent(nil), do: nil
   defp workspace_parent(""), do: nil
 
@@ -1277,6 +1283,47 @@ defmodule HavenWeb.RunLive do
     else
       parent
     end
+  end
+
+  defp workspace_summary(nil), do: nil
+  defp workspace_summary(""), do: nil
+
+  defp workspace_summary(path) do
+    case Workspaces.get_workspace_by_path(path) do
+      nil ->
+        nil
+
+      workspace ->
+        %{
+          id: workspace.id,
+          name: workspace.name,
+          path: workspace.path,
+          path_state: workspace_path_state(workspace.path)
+        }
+    end
+  end
+
+  defp workspace_path_state(path) do
+    if File.dir?(path), do: :ready, else: :missing
+  end
+
+  defp workspace_identity_label(nil), do: "Manual path"
+  defp workspace_identity_label(%{name: name}), do: name
+
+  defp workspace_state_label(nil), do: "Manual path"
+  defp workspace_state_label(%{path_state: :ready}), do: "Ready"
+  defp workspace_state_label(%{path_state: :missing}), do: "Missing"
+
+  defp workspace_state_class(%{path_state: :ready}) do
+    badge_class("border-emerald-200 bg-emerald-50 text-emerald-700")
+  end
+
+  defp workspace_state_class(%{path_state: :missing}) do
+    badge_class("border-amber-200 bg-amber-50 text-amber-700")
+  end
+
+  defp workspace_state_class(nil) do
+    badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
   end
 
   defp short_session_id(nil), do: "starting"
@@ -2071,7 +2118,13 @@ defmodule HavenWeb.RunLive do
                   >
                     <.icon name="hero-folder" class="size-4 shrink-0 text-zinc-400" />
                     <span class="truncate font-medium text-zinc-700">
-                      {workspace_name(@run.workspace)}
+                      {workspace_name(@run.workspace, @workspace_summary)}
+                    </span>
+                    <span
+                      id="run-header-workspace-state"
+                      class={["ml-1 shrink-0", workspace_state_class(@workspace_summary)]}
+                    >
+                      {workspace_state_label(@workspace_summary)}
                     </span>
                   </p>
                   <p
@@ -2080,6 +2133,13 @@ defmodule HavenWeb.RunLive do
                     class="mt-0.5 truncate text-xs text-zinc-500"
                   >
                     {workspace_parent(@run.workspace)}
+                  </p>
+                  <p
+                    :if={@workspace_summary}
+                    id="run-header-workspace-saved-path"
+                    class="mt-0.5 truncate text-xs text-zinc-500"
+                  >
+                    {@workspace_summary.path}
                   </p>
                   <dl
                     id="run-header-identity"
@@ -2924,6 +2984,19 @@ defmodule HavenWeb.RunLive do
                 <div id="run-facts-agent-cwd">
                   <dt class="text-zinc-500">Agent cwd</dt>
                   <dd class="break-all text-xs">{agent_launch_cwd_scope_label(@agent_readiness)}</dd>
+                </div>
+                <div id="run-facts-workspace">
+                  <dt class="text-zinc-500">Workspace</dt>
+                  <dd class="break-all text-xs">{workspace_identity_label(@workspace_summary)}</dd>
+                  <dd class="mt-1">
+                    <span
+                      id="run-facts-workspace-state"
+                      class={workspace_state_class(@workspace_summary)}
+                    >
+                      {workspace_state_label(@workspace_summary)}
+                    </span>
+                  </dd>
+                  <dd class="mt-1 break-all text-xs text-zinc-500">{@run.workspace}</dd>
                 </div>
                 <div id="run-facts-agent-env-keys">
                   <dt class="text-zinc-500">Agent env</dt>
