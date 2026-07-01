@@ -1344,8 +1344,8 @@ defmodule HavenWeb.RunLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <main id="haven-run" class="min-h-dvh bg-white text-zinc-950">
-        <section class="mx-auto grid max-w-6xl gap-4 px-4 py-4 md:grid-cols-[minmax(0,1fr)_320px] md:px-8 md:py-6">
-          <div class="space-y-4">
+        <section class="mx-auto grid max-w-6xl gap-4 px-4 py-4 md:px-8 md:py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div class="min-w-0 space-y-4">
             <header class="border-b border-zinc-200 pb-4">
               <div class="flex items-start justify-between gap-4">
                 <div class="min-w-0">
@@ -1508,6 +1508,33 @@ defmodule HavenWeb.RunLive do
                   <p id="pending-permission-decision-consequence" class="mt-1 text-amber-900">
                     {decision_summary.consequence}
                   </p>
+                </div>
+                <div id="pending-permission-primary-actions" class="mt-3 flex flex-wrap gap-2">
+                  <button
+                    :for={option <- @pending_permission.payload["options"]}
+                    class={[
+                      "h-10 rounded-md px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
+                      if(String.starts_with?(option["kind"], "allow"),
+                        do: "bg-zinc-950 text-white hover:bg-zinc-800",
+                        else: "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                      )
+                    ]}
+                    phx-click="resolve_permission"
+                    phx-value-request-id={@pending_permission.payload["request_id"]}
+                    phx-value-option-id={option["optionId"]}
+                    disabled={!@live?}
+                  >
+                    {option["name"]}
+                  </button>
+                  <button
+                    id="pending-permission-cancel-button"
+                    type="button"
+                    class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    phx-click="cancel"
+                    disabled={!@can_cancel?}
+                  >
+                    Cancel turn
+                  </button>
                 </div>
                 <dl
                   id="pending-permission-authority"
@@ -1682,33 +1709,6 @@ defmodule HavenWeb.RunLive do
                   </summary>
                   <pre class="mt-2 max-h-40 overflow-auto rounded-md bg-zinc-50 p-3 text-xs text-zinc-700"><%= Jason.encode!(get_in(@pending_permission.payload, ["toolCall", "rawInput"]) || %{}, pretty: true) %></pre>
                 </details>
-                <div class="mt-3 flex flex-wrap gap-2">
-                  <button
-                    :for={option <- @pending_permission.payload["options"]}
-                    class={[
-                      "h-10 rounded-md px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
-                      if(String.starts_with?(option["kind"], "allow"),
-                        do: "bg-zinc-950 text-white hover:bg-zinc-800",
-                        else: "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
-                      )
-                    ]}
-                    phx-click="resolve_permission"
-                    phx-value-request-id={@pending_permission.payload["request_id"]}
-                    phx-value-option-id={option["optionId"]}
-                    disabled={!@live?}
-                  >
-                    {option["name"]}
-                  </button>
-                  <button
-                    id="pending-permission-cancel-button"
-                    type="button"
-                    class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    phx-click="cancel"
-                    disabled={!@can_cancel?}
-                  >
-                    Cancel turn
-                  </button>
-                </div>
               </section>
 
               <section
@@ -1899,7 +1899,7 @@ defmodule HavenWeb.RunLive do
             </section>
           </div>
 
-          <aside class="space-y-4">
+          <aside class="min-w-0 space-y-4">
             <section class="rounded-lg border border-zinc-200 bg-white p-4 text-sm shadow-sm">
               <h2 class="font-semibold">Run facts</h2>
               <dl class="mt-3 space-y-2">

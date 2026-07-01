@@ -62,6 +62,10 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-terminal-sessions summary", "Terminal sessions")
 
     html = render(view)
+    assert html =~ "lg:grid-cols-[minmax(0,1fr)_320px]"
+    assert html =~ "min-w-0 space-y-4"
+    refute html =~ "md:grid-cols-[minmax(0,1fr)_320px]"
+
     prompt_index = :binary.match(html, ~s|id="run-prompt-form"|) |> elem(0)
     filters_index = :binary.match(html, ~s|id="timeline-filters"|) |> elem(0)
     facts_index = :binary.match(html, ~s|id="run-capability-policy"|) |> elem(0)
@@ -836,6 +840,18 @@ defmodule HavenWeb.RunLiveTest do
              "#pending-permission-decision-consequence",
              "Allow lets the agent proceed with this write request; deny blocks it."
            )
+
+    assert has_element?(view, "#pending-permission-primary-actions")
+    assert has_element?(view, "#pending-permission-primary-actions button", "Allow once")
+    assert has_element?(view, "#pending-permission-primary-actions button", "Deny")
+    assert has_element?(view, "#pending-permission-primary-actions", "Cancel turn")
+
+    summary_index = :binary.match(html, ~s|id="pending-permission-decision-summary"|) |> elem(0)
+    actions_index = :binary.match(html, ~s|id="pending-permission-primary-actions"|) |> elem(0)
+    authority_index = :binary.match(html, ~s|id="pending-permission-authority"|) |> elem(0)
+
+    assert summary_index < actions_index
+    assert actions_index < authority_index
 
     assert has_element?(view, "#pending-permission-request-id", to_string(request_id))
     assert has_element?(view, "#pending-permission-tool-call-id", "tool_#{request_id}")

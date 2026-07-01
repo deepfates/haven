@@ -208,6 +208,11 @@ Evidence:
 - LiveView integration tests verify the prompt/control panel is in the main run
   thread before timeline filters and side-rail evidence, so mobile users can
   continue a run without scrolling past the full activity history.
+- LiveView integration tests verify the run detail layout stays single-column
+  until desktop width and its grid columns can shrink, preventing tablet/mobile
+  overflow from long run facts.
+- Browser inspection verifies a waiting run detail page has no horizontal
+  overflow at a 656px viewport.
 - Event append now normalizes nested payload keys to strings before storage and
   PubSub broadcast, then rejects non-JSON-compatible values. Data-layer tests
   verify atom-keyed nested maps and lists are persisted and delivered as
@@ -316,6 +321,10 @@ Evidence:
   plain-language consequence of allow/deny decisions for generic file writes,
   file reads, proposed file changes, and terminal commands before exposing raw
   protocol details.
+- LiveView integration tests verify the active permission decision controls sit
+  directly below the plain-language consequence and before authority/raw
+  details, so the card behaves like a decision sheet rather than a form buried
+  under evidence.
 - Browser smoke verifies the same allow flow through the real rendered UI,
   including a rendered `permission_resolved` payload with
   `"actor": "local_user"`.
@@ -329,6 +338,8 @@ Evidence:
   `permission_resolution_ignored` with `reason: not_pending`, preserves
   `actor: local_user` and the attempted `option_id`, keeps the run `idle`, and
   does not recreate the pending permission card.
+- Browser inspection verifies the rendered waiting permission card exposes
+  Allow, Deny, and Cancel turn controls immediately below the decision summary.
 - Permission requests now create durable `permission_audits` rows that are
   updated on allow, deny, local-user cancellation, and system cancellation.
   LiveView integration tests verify the run detail sidebar renders the audit
