@@ -1,6 +1,8 @@
 defmodule HavenWeb.RunLive do
   use HavenWeb, :live_view
 
+  alias Haven.AgentProbe
+  alias Haven.Agents
   alias Haven.Events
   alias Haven.FileChanges
   alias Haven.PermissionAudits
@@ -127,9 +129,13 @@ defmodule HavenWeb.RunLive do
     file_changes = FileChanges.list_for_run(id)
     terminal_sessions = TerminalSessions.list_for_run(id)
     live? = Runs.started?(id)
+    agent_readiness = agent_readiness(run.agent)
+    agent_probe_reports = Agents.accepted_probe_reports(run.agent)
 
     socket
     |> assign(:run, run)
+    |> assign(:agent_readiness, agent_readiness)
+    |> assign(:agent_probe_reports, agent_probe_reports)
     |> assign(:capability_policy, Run.capability_policy(run.capability_policy))
     |> assign(:file_changes, file_changes)
     |> assign(:file_change_counts, file_change_counts(file_changes))
@@ -761,6 +767,80 @@ defmodule HavenWeb.RunLive do
     end
   end
 
+  defp agent_readiness(agent) do
+    File.cwd!()
+    |> AgentProbe.agent_inventory()
+    |> Enum.find(&(&1.agent == agent))
+    |> case do
+      nil -> %{}
+      readiness -> readiness
+    end
+  end
+
+  defp agent_evidence_label(_inventory, reports) when reports != [] do
+    pluralize_count(length(reports), "accepted probe")
+  end
+
+  defp agent_evidence_label(%{real_agent_candidate: true}, _reports), do: "Static candidate"
+  defp agent_evidence_label(%{status: "invalid"}, _reports), do: "Invalid command"
+  defp agent_evidence_label(_inventory, _reports), do: "Local harness"
+
+  defp agent_evidence_class(_inventory, reports) when reports != [] do
+    badge_class("border-emerald-200 bg-emerald-50 text-emerald-700")
+  end
+
+  defp agent_evidence_class(%{real_agent_candidate: true}, _reports) do
+    badge_class("border-sky-200 bg-sky-50 text-sky-700")
+  end
+
+  defp agent_evidence_class(%{status: "invalid"}, _reports) do
+    badge_class("border-rose-200 bg-rose-50 text-rose-700")
+  end
+
+  defp agent_evidence_class(_inventory, _reports) do
+    badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+  end
+
+  defp agent_evidence_reason(_inventory, reports) when reports != [] do
+    "validated committed reports prove accepted real-agent evidence"
+  end
+
+  defp agent_evidence_reason(%{real_agent_rejection_reasons: []}, _reports) do
+    "command resolves; not ACP evidence until preflight or a generated probe passes"
+  end
+
+  defp agent_evidence_reason(%{real_agent_rejection_reasons: reasons}, _reports)
+       when is_list(reasons),
+       do: Enum.join(reasons, "; ")
+
+  defp agent_evidence_reason(_inventory, _reports), do: "agent readiness unknown"
+
+  defp agent_launch_label(%{status: "ready"}), do: "Launch ready"
+  defp agent_launch_label(%{status: "invalid"}), do: "Launch blocked"
+  defp agent_launch_label(_inventory), do: "Launch unknown"
+
+  defp agent_launch_class(%{status: "ready"}) do
+    badge_class("border-emerald-200 bg-emerald-50 text-emerald-700")
+  end
+
+  defp agent_launch_class(%{status: "invalid"}) do
+    badge_class("border-rose-200 bg-rose-50 text-rose-700")
+  end
+
+  defp agent_launch_class(_inventory) do
+    badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+  end
+
+  defp badge_class(extra_class) do
+    [
+      "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase",
+      extra_class
+    ]
+  end
+
+  defp pluralize_count(1, singular), do: "1 #{singular}"
+  defp pluralize_count(count, singular), do: "#{count} #{singular}s"
+
   defp client_event_error(payload) do
     case payload["error"] do
       %{"message" => message, "data" => %{"reason" => reason}} ->
@@ -1194,6 +1274,26 @@ defmodule HavenWeb.RunLive do
                     <div id="run-header-agent" class="min-w-0">
                       <dt class="font-semibold uppercase text-zinc-500">Agent</dt>
                       <dd class="truncate font-mono">{@run.agent}</dd>
+                      <dd class="mt-1 flex flex-wrap gap-1">
+                        <span
+                          id="run-header-agent-launch"
+                          class={agent_launch_class(@agent_readiness)}
+                        >
+                          {agent_launch_label(@agent_readiness)}
+                        </span>
+                        <span
+                          id="run-header-agent-trust"
+                          class={agent_evidence_class(@agent_readiness, @agent_probe_reports)}
+                        >
+                          {agent_evidence_label(@agent_readiness, @agent_probe_reports)}
+                        </span>
+                      </dd>
+                      <dd
+                        id="run-header-agent-evidence-reason"
+                        class="mt-1 truncate text-[11px] font-normal normal-case text-zinc-500"
+                      >
+                        {agent_evidence_reason(@agent_readiness, @agent_probe_reports)}
+                      </dd>
                     </div>
                     <div id="run-header-session" class="min-w-0">
                       <dt class="font-semibold uppercase text-zinc-500">Session</dt>

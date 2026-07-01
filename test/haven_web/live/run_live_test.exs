@@ -1,6 +1,7 @@
 defmodule HavenWeb.RunLiveTest do
   use HavenWeb.ConnCase
 
+  alias Haven.Agents
   alias Haven.Events
   alias Haven.FileChanges
   alias Haven.PermissionAudits
@@ -43,6 +44,9 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-header-workspace", Path.basename(run.workspace))
     assert has_element?(view, "#run-header-workspace-path", Path.dirname(run.workspace))
     assert has_element?(view, "#run-header-agent", "stub-acp")
+    assert has_element?(view, "#run-header-agent-launch", "Launch ready")
+    assert has_element?(view, "#run-header-agent-trust", "Local harness")
+    assert has_element?(view, "#run-header-agent-evidence-reason", "built-in stub-acp")
     assert has_element?(view, "#run-header-session", run.agent_session_id)
     assert has_element?(view, "#run-header-created")
     assert has_element?(view, "#run-header-updated")
@@ -61,6 +65,29 @@ defmodule HavenWeb.RunLiveTest do
 
     assert prompt_index < filters_index
     assert filters_index < facts_index
+  end
+
+  test "renders accepted real-agent evidence in the run header", %{conn: conn} do
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "codex-acp",
+               executable: "sh",
+               args: ["-c", "cat"]
+             })
+
+    run = insert_run!("Evidence-backed run", "codex-acp")
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-header-agent", "codex-acp")
+    assert has_element?(view, "#run-header-agent-launch", "Launch ready")
+    assert has_element?(view, "#run-header-agent-trust", "3 accepted probes")
+
+    assert has_element?(
+             view,
+             "#run-header-agent-evidence-reason",
+             "validated committed reports"
+           )
   end
 
   test "ignores global inbox activity notifications while using run-scoped events", %{conn: conn} do
