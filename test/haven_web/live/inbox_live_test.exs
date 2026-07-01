@@ -817,6 +817,28 @@ defmodule HavenWeb.InboxLiveTest do
   end
 
   @tag :tmp_dir
+  test "stale saved workspace edit clicks show an error", %{conn: conn, tmp_dir: tmp_dir} do
+    assert {:ok, workspace} =
+             Workspaces.create_workspace(%{
+               "name" => "Edit gone",
+               "path" => tmp_dir
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#edit-workspace-#{workspace.id}")
+    assert {:ok, _workspace} = Workspaces.delete_workspace(workspace)
+
+    view
+    |> element("#edit-workspace-#{workspace.id}")
+    |> render_click()
+
+    assert render(view) =~ "That workspace was already deleted."
+    refute has_element?(view, "#workspace-#{workspace.id}")
+    refute has_element?(view, "#cancel-workspace-edit-button")
+  end
+
+  @tag :tmp_dir
   test "edits a saved workspace from the inbox picker", %{conn: conn, tmp_dir: tmp_dir} do
     next_dir = Path.join(tmp_dir, "next")
     File.mkdir_p!(next_dir)
@@ -880,6 +902,41 @@ defmodule HavenWeb.InboxLiveTest do
     assert run.title == "Edited workspace run"
     assert run.workspace == Path.expand(next_dir)
     assert_redirect(view, ~p"/runs/#{run.id}")
+  end
+
+  @tag :tmp_dir
+  test "stale saved workspace edit submit shows an error", %{conn: conn, tmp_dir: tmp_dir} do
+    next_dir = Path.join(tmp_dir, "next")
+    File.mkdir_p!(next_dir)
+
+    assert {:ok, workspace} =
+             Workspaces.create_workspace(%{
+               "name" => "Edit submit gone",
+               "path" => tmp_dir
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#edit-workspace-#{workspace.id}")
+    |> render_click()
+
+    assert has_element?(view, "#cancel-workspace-edit-button")
+    assert {:ok, _workspace} = Workspaces.delete_workspace(workspace)
+
+    view
+    |> form("#workspace-form", %{
+      "workspace_config" => %{
+        "id" => workspace.id,
+        "name" => "After gone",
+        "path" => next_dir
+      }
+    })
+    |> render_submit()
+
+    assert render(view) =~ "That workspace was already deleted."
+    refute has_element?(view, "#workspace-#{workspace.id}")
+    refute has_element?(view, "#cancel-workspace-edit-button")
   end
 
   @tag :tmp_dir
@@ -1668,6 +1725,63 @@ defmodule HavenWeb.InboxLiveTest do
     assert render(view) =~ "That agent setup was already deleted."
     refute has_element?(view, "#agent-config-already-gone-agent")
     refute has_element?(view, ~s|#agent option[value="already-gone-agent"]|)
+  end
+
+  test "stale agent setup edit clicks show an error", %{conn: conn} do
+    assert {:ok, agent_config} =
+             Agents.create_agent_config(%{
+               key: "edit-gone-agent",
+               executable: "mix",
+               args: ["before"]
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#edit-agent-config-edit-gone-agent")
+    assert {:ok, _agent_config} = Agents.delete_agent_config(agent_config)
+
+    view
+    |> element("#edit-agent-config-edit-gone-agent")
+    |> render_click()
+
+    assert render(view) =~ "That agent setup was already deleted."
+    refute has_element?(view, "#agent-config-edit-gone-agent")
+    refute has_element?(view, "#cancel-agent-config-edit-button")
+  end
+
+  test "stale agent setup edit submit shows an error", %{conn: conn} do
+    assert {:ok, agent_config} =
+             Agents.create_agent_config(%{
+               key: "edit-submit-gone-agent",
+               executable: "mix",
+               args: ["before"]
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> element("#edit-agent-config-edit-submit-gone-agent")
+    |> render_click()
+
+    assert has_element?(view, "#cancel-agent-config-edit-button")
+    assert {:ok, _agent_config} = Agents.delete_agent_config(agent_config)
+
+    view
+    |> form("#agent-config-form", %{
+      "agent_config" => %{
+        "id" => agent_config.id,
+        "key" => "after-gone-agent",
+        "executable" => "mix",
+        "args_text" => "after",
+        "cwd" => "",
+        "env_text" => ""
+      }
+    })
+    |> render_submit()
+
+    assert render(view) =~ "That agent setup was already deleted."
+    refute has_element?(view, "#agent-config-edit-submit-gone-agent")
+    refute has_element?(view, "#cancel-agent-config-edit-button")
   end
 
   test "groups runs into operational attention lanes", %{conn: conn} do

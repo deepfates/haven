@@ -146,17 +146,36 @@ defmodule HavenWeb.InboxLive do
          socket
          |> assign(:workspace_form, to_form(params, as: :workspace_config))
          |> assign(:workspace_error, form_error(changeset))}
+
+      {:missing, message} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, message)
+         |> reset_workspace_form()
+         |> refresh_workspace_assigns()
+         |> assign_runs()}
     end
   end
 
   def handle_event("edit_workspace", %{"id" => id}, socket) do
-    workspace = Workspaces.get_workspace!(id)
+    case Workspaces.get_workspace(id) do
+      nil ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "That workspace was already deleted.")
+         |> refresh_workspace_assigns()
+         |> assign_runs()}
 
-    {:noreply,
-     socket
-     |> assign(:workspace_form, to_form(workspace_form_params(workspace), as: :workspace_config))
-     |> assign(:workspace_error, nil)
-     |> assign(:editing_workspace_id, workspace.id)}
+      workspace ->
+        {:noreply,
+         socket
+         |> assign(
+           :workspace_form,
+           to_form(workspace_form_params(workspace), as: :workspace_config)
+         )
+         |> assign(:workspace_error, nil)
+         |> assign(:editing_workspace_id, workspace.id)}
+    end
   end
 
   def handle_event("cancel_workspace_edit", _params, socket) do
@@ -205,20 +224,36 @@ defmodule HavenWeb.InboxLive do
          socket
          |> assign(:agent_config_form, to_form(params, as: :agent_config))
          |> assign(:agent_config_error, form_error(changeset))}
+
+      {:missing, message} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, message)
+         |> reset_agent_config_form()
+         |> refresh_agent_config_assigns()
+         |> assign_runs()}
     end
   end
 
   def handle_event("edit_agent_config", %{"id" => id}, socket) do
-    agent_config = Agents.get_agent_config!(id)
+    case Agents.get_agent_config(id) do
+      nil ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "That agent setup was already deleted.")
+         |> refresh_agent_config_assigns()
+         |> assign_runs()}
 
-    {:noreply,
-     socket
-     |> assign(
-       :agent_config_form,
-       to_form(agent_config_form_params(agent_config), as: :agent_config)
-     )
-     |> assign(:agent_config_error, nil)
-     |> assign(:editing_agent_config_id, agent_config.id)}
+      agent_config ->
+        {:noreply,
+         socket
+         |> assign(
+           :agent_config_form,
+           to_form(agent_config_form_params(agent_config), as: :agent_config)
+         )
+         |> assign(:agent_config_error, nil)
+         |> assign(:editing_agent_config_id, agent_config.id)}
+    end
   end
 
   def handle_event("cancel_agent_config_edit", _params, socket) do
@@ -850,9 +885,10 @@ defmodule HavenWeb.InboxLive do
   end
 
   defp save_workspace(%{"id" => id}, attrs) when is_binary(id) and id != "" do
-    id
-    |> Workspaces.get_workspace!()
-    |> Workspaces.update_workspace(attrs)
+    case Workspaces.get_workspace(id) do
+      nil -> {:missing, "That workspace was already deleted."}
+      workspace -> Workspaces.update_workspace(workspace, attrs)
+    end
   end
 
   defp save_workspace(_params, attrs), do: Workspaces.create_workspace(attrs)
@@ -1055,9 +1091,10 @@ defmodule HavenWeb.InboxLive do
   end
 
   defp save_agent_config(%{"id" => id}, attrs) when is_binary(id) and id != "" do
-    id
-    |> Agents.get_agent_config!()
-    |> Agents.update_agent_config(attrs)
+    case Agents.get_agent_config(id) do
+      nil -> {:missing, "That agent setup was already deleted."}
+      agent_config -> Agents.update_agent_config(agent_config, attrs)
+    end
   end
 
   defp save_agent_config(_params, attrs), do: Agents.create_agent_config(attrs)
