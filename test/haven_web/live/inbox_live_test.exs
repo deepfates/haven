@@ -570,11 +570,20 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, ~s|#workspace_id option[value="#{workspace.id}"]|)
 
     view
+    |> form("#new-run-form", %{"workspace_id" => workspace.id})
+    |> render_change()
+
+    assert has_element?(view, "#new-run-selected-workspace", "Delete me")
+    assert has_element?(view, ~s|#workspace[value="#{Path.expand(tmp_dir)}"]|)
+
+    view
     |> element("#delete-workspace-#{workspace.id}")
     |> render_click()
 
     refute has_element?(view, "#workspace-#{workspace.id}")
     refute has_element?(view, ~s|#workspace_id option[value="#{workspace.id}"]|)
+    refute has_element?(view, "#new-run-selected-workspace")
+    assert has_element?(view, ~s|#workspace[value="#{File.cwd!()}"]|)
     assert Workspaces.list_workspaces() == []
   end
 
@@ -595,6 +604,13 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, ~s|#workspace_id option[value="#{workspace.id}"]|)
 
     view
+    |> form("#new-run-form", %{"workspace_id" => workspace.id})
+    |> render_change()
+
+    assert has_element?(view, "#new-run-selected-workspace", "Before repo")
+    assert has_element?(view, ~s|#workspace[value="#{Path.expand(tmp_dir)}"]|)
+
+    view
     |> element("#edit-workspace-#{workspace.id}")
     |> render_click()
 
@@ -612,6 +628,8 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(view, "#workspace-#{workspace.id}", "After repo")
     assert has_element?(view, ~s|#workspace_id option[value="#{workspace.id}"]|)
+    assert has_element?(view, "#new-run-selected-workspace", "After repo")
+    assert has_element?(view, ~s|#workspace[value="#{Path.expand(next_dir)}"]|)
     refute has_element?(view, "#cancel-workspace-edit-button")
 
     [updated] = Workspaces.list_workspaces()

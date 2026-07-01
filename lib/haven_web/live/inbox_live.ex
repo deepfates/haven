@@ -118,6 +118,7 @@ defmodule HavenWeb.InboxLive do
          |> put_flash(:info, "Workspace #{workspace.name} saved")
          |> reset_workspace_form()
          |> refresh_workspace_assigns()
+         |> sync_saved_workspace_selection(workspace)
          |> assign_runs()}
 
       {:error, changeset} ->
@@ -149,6 +150,7 @@ defmodule HavenWeb.InboxLive do
     {:noreply,
      socket
      |> put_flash(:info, "Workspace #{workspace.name} deleted")
+     |> clear_deleted_workspace_selection(workspace.id)
      |> refresh_workspace_assigns()
      |> assign_runs()}
   end
@@ -705,6 +707,42 @@ defmodule HavenWeb.InboxLive do
   end
 
   defp save_workspace(_params, attrs), do: Workspaces.create_workspace(attrs)
+
+  defp sync_saved_workspace_selection(socket, workspace) do
+    if form_value(socket.assigns.form, :workspace_id) == workspace.id do
+      assign(
+        socket,
+        :form,
+        socket |> current_run_form_params() |> Map.put("workspace", workspace.path) |> to_form()
+      )
+    else
+      socket
+    end
+  end
+
+  defp clear_deleted_workspace_selection(socket, deleted_workspace_id) do
+    if form_value(socket.assigns.form, :workspace_id) == deleted_workspace_id do
+      defaults = default_run_params()
+
+      assign(
+        socket,
+        :form,
+        socket
+        |> current_run_form_params()
+        |> Map.put("workspace_id", "")
+        |> Map.put("workspace", defaults["workspace"])
+        |> to_form()
+      )
+    else
+      socket
+    end
+  end
+
+  defp current_run_form_params(socket) do
+    Map.new(default_run_params(), fn {key, _default} ->
+      {key, form_value(socket.assigns.form, String.to_existing_atom(key))}
+    end)
+  end
 
   defp refresh_workspace_assigns(socket) do
     workspaces =
