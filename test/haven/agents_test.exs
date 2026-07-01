@@ -246,12 +246,16 @@ defmodule Haven.AgentsTest do
       "missing_expected_event_fields" => [],
       "errors" => %{},
       "events" => [
-        %{"seq" => 1, "type" => "run_created", "payload" => %{}},
+        %{
+          "seq" => 1,
+          "type" => "run_created",
+          "payload" => %{"agent" => agent, "workspace" => "/tmp/workspace"}
+        },
         %{"seq" => 2, "type" => "agent_process_started", "payload" => %{}},
         %{"seq" => 3, "type" => "agent_initialized", "payload" => %{}},
         %{"seq" => 4, "type" => "agent_session_started", "payload" => %{}},
         %{"seq" => 5, "type" => "turn_started", "payload" => %{}},
-        %{"seq" => 6, "type" => "user_message", "payload" => %{}},
+        %{"seq" => 6, "type" => "user_message", "payload" => %{"text" => "prove #{agent}"}},
         %{"seq" => 7, "type" => "turn_finished", "payload" => %{}}
       ]
     }

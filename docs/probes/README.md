@@ -16,6 +16,9 @@ production-grade Haven real-agent evidence when all of the following are true:
 - The ordered `events` list includes the minimum Haven lifecycle spine:
   `run_created`, `agent_process_started`, `agent_initialized`,
   `agent_session_started`, `turn_started`, `user_message`, and `turn_finished`.
+- The `run_created` event payload matches the report's `agent` and `workspace`,
+  and the `user_message` event payload matches the report's `prompt`, so
+  committed evidence cannot splice lifecycle rows from a different run story.
 - `expected_events` names the lifecycle or capability events required by the
   story being validated.
 - `missing_expected_events` is empty.

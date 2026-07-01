@@ -52,6 +52,7 @@ defmodule Haven.AgentProbeReport do
       |> require_no_errors(report)
       |> require_events(report)
       |> require_lifecycle_events(report)
+      |> require_report_identity_events(report)
       |> require_expected_events_present(report)
       |> require_expected_event_fields_present(report)
       |> Enum.reverse()
@@ -245,6 +246,53 @@ defmodule Haven.AgentProbeReport do
       errors
     else
       ["events must include full Haven run lifecycle: #{Enum.join(missing, ", ")}" | errors]
+    end
+  end
+
+  defp require_report_identity_events(errors, report) do
+    events = Map.get(report, "events", [])
+
+    errors
+    |> require_run_created_identity(report, events)
+    |> require_user_message_prompt(report, events)
+  end
+
+  defp require_run_created_identity(errors, report, events) do
+    case Enum.find(events, &match?(%{"type" => "run_created"}, &1)) do
+      %{"payload" => %{"agent" => agent, "workspace" => workspace}} ->
+        errors
+        |> require_matching_event_value(agent, report["agent"], "run_created payload agent")
+        |> require_matching_event_value(
+          workspace,
+          report["workspace"],
+          "run_created payload workspace"
+        )
+
+      _event ->
+        ["run_created event must include matching agent and workspace payload" | errors]
+    end
+  end
+
+  defp require_user_message_prompt(errors, report, events) do
+    case Enum.find(events, &match?(%{"type" => "user_message"}, &1)) do
+      %{"payload" => %{"text" => prompt}} ->
+        require_matching_event_value(
+          errors,
+          prompt,
+          report["prompt"],
+          "user_message payload text"
+        )
+
+      _event ->
+        ["user_message event must include matching prompt text payload" | errors]
+    end
+  end
+
+  defp require_matching_event_value(errors, value, expected, label) do
+    if value == expected do
+      errors
+    else
+      ["#{label} must match report metadata" | errors]
     end
   end
 

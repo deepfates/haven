@@ -587,6 +587,10 @@ Evidence:
 - Probe reports intended as real-agent evidence can require a real-agent guard;
   the guard rejects the built-in `stub-acp` and the configured local test
   harness scripts before writing a passing acceptance artifact.
+- Probe report validation now checks that the `run_created` event agrees with
+  the report's top-level agent/workspace and that the `user_message` event
+  agrees with the top-level prompt, so committed evidence artifacts cannot
+  silently splice metadata from one story with lifecycle rows from another.
 - `mix haven.agent_probe --list-agents` inventories configured agents, command
   resolution, static real-agent probe eligibility, rejection reasons, and
   redacted environment key names before a user attempts a real-agent probe. This

@@ -68,6 +68,39 @@ defmodule Haven.AgentProbeReportTest do
     assert "events must include full Haven run lifecycle: agent_process_started, agent_session_started, turn_started, user_message" in errors
   end
 
+  test "rejects reports whose run_created event does not match report metadata" do
+    report =
+      valid_report()
+      |> update_event("run_created", fn event ->
+        put_in(event, ["payload", "agent"], "other-agent")
+      end)
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+    assert "run_created payload agent must match report metadata" in errors
+  end
+
+  test "rejects reports whose run_created workspace does not match report metadata" do
+    report =
+      valid_report()
+      |> update_event("run_created", fn event ->
+        put_in(event, ["payload", "workspace"], "/other-workspace")
+      end)
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+    assert "run_created payload workspace must match report metadata" in errors
+  end
+
+  test "rejects reports whose user message does not match the report prompt" do
+    report =
+      valid_report()
+      |> update_event("user_message", fn event ->
+        put_in(event, ["payload", "text"], "different prompt")
+      end)
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+    assert "user_message payload text must match report metadata" in errors
+  end
+
   test "accepts reports with matching expected event fields" do
     report =
       valid_report()
@@ -106,12 +139,16 @@ defmodule Haven.AgentProbeReportTest do
         %{"event" => "terminal_output_succeeded", "field" => "exit_status", "value" => "0"}
       ])
       |> Map.put("events", [
-        %{"seq" => 1, "type" => "run_created", "payload" => %{}},
+        %{
+          "seq" => 1,
+          "type" => "run_created",
+          "payload" => %{"agent" => "real-agent", "workspace" => "/workspace"}
+        },
         %{"seq" => 2, "type" => "agent_process_started", "payload" => %{}},
         %{"seq" => 3, "type" => "agent_initialized", "payload" => %{}},
         %{"seq" => 4, "type" => "agent_session_started", "payload" => %{}},
         %{"seq" => 5, "type" => "turn_started", "payload" => %{}},
-        %{"seq" => 6, "type" => "user_message", "payload" => %{}},
+        %{"seq" => 6, "type" => "user_message", "payload" => %{"text" => "summarize"}},
         %{
           "seq" => 7,
           "type" => "terminal_output_succeeded",
@@ -132,12 +169,16 @@ defmodule Haven.AgentProbeReportTest do
         "turn_finished"
       ])
       |> Map.put("events", [
-        %{"seq" => 1, "type" => "run_created", "payload" => %{}},
+        %{
+          "seq" => 1,
+          "type" => "run_created",
+          "payload" => %{"agent" => "real-agent", "workspace" => "/workspace"}
+        },
         %{"seq" => 2, "type" => "agent_process_started", "payload" => %{}},
         %{"seq" => 3, "type" => "agent_initialized", "payload" => %{}},
         %{"seq" => 4, "type" => "agent_session_started", "payload" => %{}},
         %{"seq" => 5, "type" => "turn_started", "payload" => %{}},
-        %{"seq" => 6, "type" => "user_message", "payload" => %{}},
+        %{"seq" => 6, "type" => "user_message", "payload" => %{"text" => "summarize"}},
         %{
           "seq" => 7,
           "type" => "terminal_output_succeeded",
@@ -215,14 +256,27 @@ defmodule Haven.AgentProbeReportTest do
       "real_agent_evidence" => %{"required" => true, "accepted" => true},
       "redactions" => [],
       "events" => [
-        %{"seq" => 1, "type" => "run_created", "payload" => %{}},
+        %{
+          "seq" => 1,
+          "type" => "run_created",
+          "payload" => %{"agent" => "real-agent", "workspace" => "/workspace"}
+        },
         %{"seq" => 2, "type" => "agent_process_started", "payload" => %{}},
         %{"seq" => 3, "type" => "agent_initialized", "payload" => %{}},
         %{"seq" => 4, "type" => "agent_session_started", "payload" => %{}},
         %{"seq" => 5, "type" => "turn_started", "payload" => %{}},
-        %{"seq" => 6, "type" => "user_message", "payload" => %{}},
+        %{"seq" => 6, "type" => "user_message", "payload" => %{"text" => "summarize"}},
         %{"seq" => 7, "type" => "turn_finished", "payload" => %{"stopReason" => "end_turn"}}
       ]
     }
+  end
+
+  defp update_event(report, type, fun) do
+    Map.update!(report, "events", fn events ->
+      Enum.map(events, fn
+        %{"type" => ^type} = event -> fun.(event)
+        event -> event
+      end)
+    end)
   end
 end
