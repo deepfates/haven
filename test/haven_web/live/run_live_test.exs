@@ -677,6 +677,16 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
 
     assert html =~ "not connected"
+    assert has_element?(view, "#run-recovery-card", "Turn was interrupted")
+    assert has_element?(view, "#run-recovery-card", "unfinished saved turn")
+    assert has_element?(view, "#run-recovery-card", "records that old turn as failed")
+
+    assert has_element?(
+             view,
+             "#run-recovery-option-reconnect",
+             "Mark the unfinished saved turn failed"
+           )
+
     assert has_element?(view, "#reconnect-run-button", "Reconnect")
     assert has_element?(view, "#send-prompt-button[disabled]")
     assert has_element?(view, "#run-control-notice", "not connected")

@@ -177,6 +177,10 @@ Evidence:
 - LiveView tests verify inbox rows expose operational process-state hints for
   connected, disconnected, stale-decision, interrupted, failed, and closed runs,
   so persisted status is not mistaken for current agent liveness.
+- LiveView tests verify disconnected `running` or `initializing` rows move into
+  Needs You as interruptions, while truly live in-flight rows remain in
+  Running, so reload/crash state is triaged by real process liveness rather
+  than persisted status alone.
 - LiveView tests verify the inbox renders a compact attention summary above run
   creation and search, derived from the same lane counts, and that tapping it
   jumps to the most urgent lane instead of forcing users to scan every run.
@@ -545,6 +549,9 @@ Evidence:
   with an unterminated turn offer Reconnect, append a system `turn_failed`
   event for the stale turn, start a fresh ACP process, and reopen prompt
   controls without pretending the old turn is still live.
+- LiveView integration tests verify the interrupted run recovery card names the
+  unfinished saved turn and explains that reconnect records the old turn as
+  failed before attaching a fresh ACP session.
 - LiveView integration tests and browser smoke verify the post-reconnect
   transcript remains readable across resumed work: the old prompt, explicit
   reconnect boundary, system `turn_failed`, new user prompt, and new agent

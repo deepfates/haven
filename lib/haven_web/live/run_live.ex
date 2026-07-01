@@ -631,6 +631,16 @@ defmodule HavenWeb.RunLive do
   end
 
   defp recovery_attention(%{status: status}, false, _workspace_missing?)
+       when status in ["initializing", "running"] do
+    %{
+      title: "Turn was interrupted",
+      body:
+        "This run has an unfinished saved turn, but no live agent process is attached. Reconnect records that old turn as failed, then starts a fresh ACP session for this run.",
+      action: "Reconnect"
+    }
+  end
+
+  defp recovery_attention(%{status: status}, false, _workspace_missing?)
        when status != "closed" do
     %{
       title: "Run is not connected",
@@ -666,6 +676,14 @@ defmodule HavenWeb.RunLive do
       id: "restart",
       label: "Restart",
       description: "Start a fresh ACP session without sending a prompt yet."
+    }
+  end
+
+  defp recovery_action_row(%{title: "Turn was interrupted", action: "Reconnect"}) do
+    %{
+      id: "reconnect",
+      label: "Reconnect",
+      description: "Mark the unfinished saved turn failed, then attach a fresh ACP session."
     }
   end
 
