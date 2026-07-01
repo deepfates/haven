@@ -773,6 +773,9 @@ Evidence:
   `fs/write_text_file`, and `terminal`; LiveView tests verify inbox rows,
   Agent Setup evidence, run detail evidence, and inbox search expose those exact
   unsupported mediated families.
+- Capability gap summaries are now backed by the same negative-report validator
+  used by `mix haven.probe_reports`; malformed gap-shaped JSON is ignored
+  instead of being surfaced as trusted unsupported-capability evidence.
 - `mix haven.agent_probe --list-agents` now also prints committed capability
   gap families and their report paths for each configured real-agent candidate,
   so terminal inventory shows whether existing evidence declares

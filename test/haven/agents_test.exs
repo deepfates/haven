@@ -224,6 +224,13 @@ defmodule Haven.AgentsTest do
   @tag :tmp_dir
   test "summarizes capability gap reports by configured agent", %{tmp_dir: tmp_dir} do
     write_probe_report!(tmp_dir, "codex-gap.json", capability_gap_report("codex-acp"))
+
+    write_probe_report!(
+      tmp_dir,
+      "malformed-gap.json",
+      malformed_capability_gap_report("codex-acp")
+    )
+
     write_probe_report!(tmp_dir, "other-gap.json", capability_gap_report("other-acp"))
     write_probe_report!(tmp_dir, "positive.json", valid_probe_report("codex-acp"))
 
@@ -244,6 +251,10 @@ defmodule Haven.AgentsTest do
 
     assert Path.basename(path) == "codex-gap.json"
     refute Map.has_key?(reports_by_agent, "other-acp")
+
+    refute Enum.any?(reports_by_agent["codex-acp"], fn report ->
+             Path.basename(report.path) == "malformed-gap.json"
+           end)
   end
 
   @tag :tmp_dir
@@ -314,6 +325,10 @@ defmodule Haven.AgentsTest do
     |> Map.merge(%{
       "run_id" => "gap-#{agent}",
       "expected_events" => ["file_read_requested", "file_read_succeeded"],
+      "expected_event_fields" => [
+        %{"event" => "file_read_requested", "field" => "path", "value" => "README.md"},
+        %{"event" => "file_read_succeeded", "field" => "path", "value" => "README.md"}
+      ],
       "missing_expected_events" => ["file_read_requested", "file_read_succeeded"],
       "unsupported_client_capabilities" => [
         %{
@@ -327,6 +342,8 @@ defmodule Haven.AgentsTest do
       "diagnostics" => [
         %{
           "type" => "tool_call_only_capability_gap",
+          "message" =>
+            "Expected Haven-mediated client capability events were missing, but generic ACP tool_call activity was observed.",
           "missing_events" => ["file_read_requested", "file_read_succeeded"],
           "observed_events" => ["tool_call", "tool_call_update"]
         }
@@ -347,5 +364,14 @@ defmodule Haven.AgentsTest do
         %{"seq" => 9, "type" => "turn_finished", "payload" => %{}}
       ]
     })
+  end
+
+  defp malformed_capability_gap_report(agent) do
+    agent
+    |> capability_gap_report()
+    |> update_in(["diagnostics"], fn
+      [%{"type" => "tool_call_only_capability_gap"} = diagnostic] ->
+        [Map.delete(diagnostic, "message")]
+    end)
   end
 end

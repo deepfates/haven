@@ -135,6 +135,7 @@ defmodule Haven.Agents do
   defp capability_gap_report_summary(path) do
     with {:ok, content} <- File.read(path),
          {:ok, report} <- Jason.decode(content),
+         :ok <- AgentProbeReport.validate_failure(report),
          true <- capability_gap_report?(report) do
       [
         %{
