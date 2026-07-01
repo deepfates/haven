@@ -1869,6 +1869,18 @@ defmodule HavenWeb.InboxLive do
 
   defp agent_probe_redaction_args(_inventory), do: []
 
+  defp agent_probe_redaction_notice(%{env_keys: keys}) when is_list(keys) do
+    case agent_probe_redaction_args(%{env_keys: keys}) do
+      [] ->
+        nil
+
+      _args ->
+        "Generated probe commands include --redact-env for configured env keys. Add --redact for any stored or literal secret values that are not present in the shell environment."
+    end
+  end
+
+  defp agent_probe_redaction_notice(_inventory), do: nil
+
   defp probe_command(agent, args) do
     [
       "mix",
@@ -2890,6 +2902,7 @@ defmodule HavenWeb.InboxLive do
                     <% readiness = Map.get(@agent_inventory, agent_config.key, %{}) %>
                     <% probe_commands = agent_probe_commands(readiness) %>
                     <% probe_block_notice = agent_probe_block_notice(readiness) %>
+                    <% probe_redaction_notice = agent_probe_redaction_notice(readiness) %>
                     <% accepted_reports = Map.get(@agent_probe_reports, agent_config.key, []) %>
                     <% gap_reports = Map.get(@agent_capability_gap_reports, agent_config.key, []) %>
                     <div class="flex items-start justify-between gap-3">
@@ -3030,6 +3043,13 @@ defmodule HavenWeb.InboxLive do
                               </ul>
                             </div>
                             <div :if={probe_commands != []} class="space-y-2">
+                              <p
+                                :if={probe_redaction_notice}
+                                id={"agent-config-#{agent_config.key}-probe-redaction-notice"}
+                                class="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900"
+                              >
+                                {probe_redaction_notice}
+                              </p>
                               <div
                                 :for={probe <- probe_commands}
                                 id={"agent-config-#{agent_config.key}-probe-#{probe.id}"}

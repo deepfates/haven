@@ -796,6 +796,18 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(
              view,
+             "#agent-config-candidate-agent-probe-redaction-notice",
+             "Generated probe commands include --redact-env for configured env keys"
+           )
+
+    assert has_element?(
+             view,
+             "#agent-config-candidate-agent-probe-redaction-notice",
+             "Add --redact for any stored or literal secret values"
+           )
+
+    assert has_element?(
+             view,
              "#agent-config-candidate-agent-probe-terminal-denied",
              "Capability guard proof"
            )
