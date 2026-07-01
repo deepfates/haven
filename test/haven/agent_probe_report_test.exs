@@ -522,6 +522,13 @@ defmodule Haven.AgentProbeReportTest do
     assert "failures must be a list" in errors
   end
 
+  test "rejects load reports without explicit failures metadata" do
+    report = Map.delete(valid_load_report(), "failures")
+
+    assert {:error, errors} = AgentProbeReport.validate_load(report)
+    assert "failures must be present as an empty list for passed load reports" in errors
+  end
+
   test "rejects load reports whose child acceptance contracts drift" do
     report =
       update_in(valid_load_report(), ["reports"], fn [first, second] ->

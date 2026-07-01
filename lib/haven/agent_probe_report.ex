@@ -213,15 +213,18 @@ defmodule Haven.AgentProbeReport do
   end
 
   defp require_no_load_failures(errors, report) do
-    case Map.get(report, "failures", []) do
-      [] ->
+    case Map.fetch(report, "failures") do
+      {:ok, []} ->
         errors
 
-      failures when is_list(failures) ->
+      {:ok, failures} when is_list(failures) ->
         ["failures must be empty for passed load reports" | errors]
 
-      _failures ->
+      {:ok, _failures} ->
         ["failures must be a list" | errors]
+
+      :error ->
+        ["failures must be present as an empty list for passed load reports" | errors]
     end
   end
 
