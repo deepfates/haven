@@ -57,6 +57,13 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, ~s|#run-header-session[title="#{run.agent_session_id}"]|)
     assert has_element?(view, "#run-header-session", String.slice(run.agent_session_id, 0, 8))
     assert has_element?(view, "#run-header-updated", "Updated")
+    assert has_element?(view, "#run-header-status", "idle")
+
+    assert has_element?(
+             view,
+             ~s|#run-header-status[title="Persisted status is idle; process is connected."]|
+           )
+
     assert has_element?(view, ~s|#run-header-inbox-link[href="/"]|, "Inbox")
     refute has_element?(view, "#run-header-inbox-attention")
     refute has_element?(view, "#run-header-facts")
@@ -677,6 +684,13 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
 
     assert html =~ "not connected"
+    assert has_element?(view, "#run-header-status", "Interrupted")
+
+    assert has_element?(
+             view,
+             ~s|#run-header-status[title="Persisted status is running, but no live agent process is attached."]|
+           )
+
     assert has_element?(view, "#run-recovery-card", "Turn was interrupted")
     assert has_element?(view, "#run-recovery-card", "unfinished saved turn")
     assert has_element?(view, "#run-recovery-card", "records that old turn as failed")

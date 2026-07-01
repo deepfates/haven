@@ -608,6 +608,28 @@ defmodule HavenWeb.RunLive do
 
   defp cancel_disabled_reason(_run, _live?), do: "There is no active turn to cancel."
 
+  defp header_status_label(%{status: status}, false) when status in ["initializing", "running"],
+    do: "Interrupted"
+
+  defp header_status_label(run, _live?), do: run.status
+
+  defp header_status_title(%{status: status}, false) when status in ["initializing", "running"] do
+    "Persisted status is #{status}, but no live agent process is attached."
+  end
+
+  defp header_status_title(run, live?) do
+    process_state = if live?, do: "connected", else: "not connected"
+    "Persisted status is #{run.status}; process is #{process_state}."
+  end
+
+  defp header_status_class(%{status: status}, false) when status in ["initializing", "running"] do
+    "inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-sm font-medium text-rose-700"
+  end
+
+  defp header_status_class(_run, _live?) do
+    "inline-flex items-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm font-medium text-zinc-700"
+  end
+
   defp recovery_attention(%{archived_at: archived_at}, _live?, _workspace_missing?)
        when not is_nil(archived_at),
        do: nil
@@ -2415,8 +2437,13 @@ defmodule HavenWeb.RunLive do
                   </dl>
                 </div>
                 <div class="flex shrink-0 flex-col items-end gap-2">
-                  <span class="inline-flex items-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm font-medium text-zinc-700">
-                    {@run.status}
+                  <span
+                    id="run-header-status"
+                    title={header_status_title(@run, @live?)}
+                    aria-label={header_status_title(@run, @live?)}
+                    class={header_status_class(@run, @live?)}
+                  >
+                    {header_status_label(@run, @live?)}
                   </span>
                   <span
                     :if={@run.archived_at}

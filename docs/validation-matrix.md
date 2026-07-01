@@ -552,6 +552,9 @@ Evidence:
 - LiveView integration tests verify the interrupted run recovery card names the
   unfinished saved turn and explains that reconnect records the old turn as
   failed before attaching a fresh ACP session.
+- LiveView integration tests verify the run header labels disconnected
+  in-flight history as `Interrupted` instead of showing a misleading raw
+  `running` status badge.
 - LiveView integration tests and browser smoke verify the post-reconnect
   transcript remains readable across resumed work: the old prompt, explicit
   reconnect boundary, system `turn_failed`, new user prompt, and new agent
