@@ -2,7 +2,7 @@
 
 Date: 2026-07-01
 
-Verified application commit: `ae667d2e`
+Verified application commit: `02496359`
 
 Purpose: rerun the browser sanity gate after the mobile-first inbox/run
 simplification pass and current real-agent probe refresh, using the current dev
@@ -63,12 +63,16 @@ Run detail checks:
 - `#run-security-boundary` present.
 - On a disconnected waiting run, `#run-control-panel` remains available but no
   longer has the mobile `sticky` class while prompting is disabled.
+- A waiting permission card presents prompt context, consequence, and action
+  buttons first; policy chips, request ids, option summaries, and raw input are
+  available inside the closed `#pending-permission-details` / `Review details`
+  disclosure.
 - Run facts/details are available without dominating the primary header.
 - Page does not contain a pending migration or server error page.
 - No horizontal overflow at default or `390x844`.
 - Product-visible proof metadata is absent from the primary header path.
 
 This smoke record verifies the internal-alpha browser sanity gate at verified
-application commit `ae667d2e`. It does not change the production-grade boundary:
+application commit `02496359`. It does not change the production-grade boundary:
 real-agent Haven-mediated file and terminal capability proof remains proven only
 by the committed probe artifacts named in the probe documentation.
