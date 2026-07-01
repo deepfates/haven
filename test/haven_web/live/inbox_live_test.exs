@@ -30,6 +30,9 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#new-run-form")
     assert has_element?(view, "#agent")
     assert has_element?(view, "#workspace")
+    assert has_element?(view, "#new-run-advanced:not([open])")
+    assert has_element?(view, "#new-run-advanced summary", "Advanced")
+    assert has_element?(view, "#new-run-capability-policy", "Capability policy")
     assert has_element?(view, "#file_read_paths")
     assert has_element?(view, "#file_write_paths")
     assert has_element?(view, "#terminal_create_policy option[value='ask']")
@@ -74,6 +77,7 @@ defmodule HavenWeb.InboxLiveTest do
 
     {:ok, view, _html} = live(conn, ~p"/")
 
+    assert has_element?(view, "#new-run-advanced")
     assert has_element?(view, "#new-run-agent-key", "stub-acp")
     assert has_element?(view, "#new-run-agent-trust", "Local harness")
 

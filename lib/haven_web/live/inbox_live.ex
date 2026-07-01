@@ -1689,7 +1689,7 @@ defmodule HavenWeb.InboxLive do
                 <.icon name="hero-plus-circle" class="size-4 text-zinc-500" /> Start a run
               </span>
               <span class="text-xs font-medium text-zinc-500">
-                Goal, folder, agent, policy
+                Goal, folder, agent
               </span>
             </summary>
             <.form
@@ -1717,31 +1717,6 @@ defmodule HavenWeb.InboxLive do
                   options={@agent_options}
                 />
               </div>
-              <div
-                id="new-run-agent-evidence"
-                class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600"
-              >
-                <div class="flex flex-wrap items-center gap-2">
-                  <span id="new-run-agent-key" class="font-semibold text-zinc-950">
-                    {selected_agent}
-                  </span>
-                  <span
-                    id="new-run-agent-launch"
-                    class={agent_launch_class(selected_readiness)}
-                  >
-                    {agent_launch_label(selected_readiness)}
-                  </span>
-                  <span
-                    id="new-run-agent-trust"
-                    class={agent_evidence_class(selected_readiness, selected_reports)}
-                  >
-                    {agent_evidence_label(selected_readiness, selected_reports)}
-                  </span>
-                </div>
-                <p id="new-run-agent-evidence-reason" class="mt-1 truncate">
-                  {agent_evidence_reason(selected_readiness, selected_reports)}
-                </p>
-              </div>
               <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
                 <.input
                   field={@form[:workspace_id]}
@@ -1764,47 +1739,79 @@ defmodule HavenWeb.InboxLive do
                   Start
                 </button>
               </div>
-              <details class="rounded-md border border-zinc-200 px-3 py-2">
+              <details id="new-run-advanced" class="rounded-md border border-zinc-200 px-3 py-2">
                 <summary class="cursor-pointer text-sm font-medium text-zinc-700">
-                  Capability policy
+                  Advanced
                 </summary>
-                <div class="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(160px,0.7fr)]">
-                  <div class="grid gap-2">
-                    <.input
-                      field={@form[:file_read_policy]}
-                      type="select"
-                      label="File reads"
-                      options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
-                    />
-                    <.input
-                      field={@form[:file_read_paths]}
-                      type="text"
-                      label="Read paths"
-                      placeholder="README.md, docs"
-                      autocomplete="off"
-                    />
+                <div class="mt-3 grid gap-3">
+                  <div
+                    id="new-run-agent-evidence"
+                    class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600"
+                  >
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span id="new-run-agent-key" class="font-semibold text-zinc-950">
+                        {selected_agent}
+                      </span>
+                      <span
+                        id="new-run-agent-launch"
+                        class={agent_launch_class(selected_readiness)}
+                      >
+                        {agent_launch_label(selected_readiness)}
+                      </span>
+                      <span
+                        id="new-run-agent-trust"
+                        class={agent_evidence_class(selected_readiness, selected_reports)}
+                      >
+                        {agent_evidence_label(selected_readiness, selected_reports)}
+                      </span>
+                    </div>
+                    <p id="new-run-agent-evidence-reason" class="mt-1 truncate">
+                      {agent_evidence_reason(selected_readiness, selected_reports)}
+                    </p>
                   </div>
-                  <div class="grid gap-2">
-                    <.input
-                      field={@form[:file_write_policy]}
-                      type="select"
-                      label="File writes"
-                      options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
-                    />
-                    <.input
-                      field={@form[:file_write_paths]}
-                      type="text"
-                      label="Write paths"
-                      placeholder="notes, tmp/output.md"
-                      autocomplete="off"
-                    />
-                  </div>
-                  <.input
-                    field={@form[:terminal_create_policy]}
-                    type="select"
-                    label="Terminals"
-                    options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
-                  />
+                  <section id="new-run-capability-policy" class="grid gap-3">
+                    <h3 class="text-xs font-semibold uppercase text-zinc-500">
+                      Capability policy
+                    </h3>
+                    <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(160px,0.7fr)]">
+                      <div class="grid gap-2">
+                        <.input
+                          field={@form[:file_read_policy]}
+                          type="select"
+                          label="File reads"
+                          options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
+                        />
+                        <.input
+                          field={@form[:file_read_paths]}
+                          type="text"
+                          label="Read paths"
+                          placeholder="README.md, docs"
+                          autocomplete="off"
+                        />
+                      </div>
+                      <div class="grid gap-2">
+                        <.input
+                          field={@form[:file_write_policy]}
+                          type="select"
+                          label="File writes"
+                          options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
+                        />
+                        <.input
+                          field={@form[:file_write_paths]}
+                          type="text"
+                          label="Write paths"
+                          placeholder="notes, tmp/output.md"
+                          autocomplete="off"
+                        />
+                      </div>
+                      <.input
+                        field={@form[:terminal_create_policy]}
+                        type="select"
+                        label="Terminals"
+                        options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
+                      />
+                    </div>
+                  </section>
                 </div>
               </details>
             </.form>
