@@ -506,6 +506,13 @@ defmodule Haven.AgentProbeReportTest do
     assert "child report 2: real_agent_evidence must have required=true and accepted=true" in errors
   end
 
+  test "rejects load reports without redaction metadata" do
+    report = Map.delete(valid_load_report(), "redactions")
+
+    assert {:error, errors} = AgentProbeReport.validate_load(report)
+    assert "redactions must be a list" in errors
+  end
+
   test "rejects passed load reports that still record child failures" do
     report =
       valid_load_report()
@@ -785,6 +792,7 @@ defmodule Haven.AgentProbeReportTest do
       "expected_events" => ["agent_initialized", "turn_finished"],
       "expected_event_fields" => [],
       "failures" => [],
+      "redactions" => [],
       "child_windows" => [
         %{
           "index" => 1,

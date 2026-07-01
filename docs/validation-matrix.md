@@ -950,7 +950,10 @@ Evidence:
   output expectations through `expected_output`; validation requires matching
   `agent_output_metrics` and empty `missing_expected_output`. Load report
   validation requires at least two real-agent child reports, distinct durable
-  run ids, matching aggregate child metadata, and a passing aggregate status.
+  run ids, matching aggregate child metadata, top-level redaction metadata, and
+  a passing aggregate status. Generated aggregate load reports are redacted
+  with the same literal/env rules as child probe reports before they are
+  written.
   Concurrent load reports with `concurrency > 1` must also include child probe
   windows that show at least two overlapping runs, match the child report
   `run_id`s, order, and status, and have possible durations where `finished_at`

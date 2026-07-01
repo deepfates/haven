@@ -101,6 +101,33 @@ defmodule Haven.AgentProbeTest do
     assert report.redactions == [%{source: "env", name: name}]
   end
 
+  test "redacts sensitive values from aggregate load probe reports" do
+    secret = "load-secret-#{System.unique_integer([:positive])}"
+
+    assert {:ok, report} =
+             AgentProbe.run_load(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               prompt: "echo #{secret}",
+               load_runs: 2,
+               load_concurrency: 2,
+               expect_events: ["agent_initialized", "turn_finished"],
+               redact: secret,
+               timeout: 5_000
+             )
+
+    on_exit(fn ->
+      Enum.each(report.reports, &Runs.stop_run(&1.run_id))
+    end)
+
+    encoded = Jason.encode!(report)
+    refute encoded =~ secret
+    assert encoded =~ "[REDACTED]"
+    assert report.prompt == "echo [REDACTED]"
+    assert report.redactions == [%{source: "literal"}]
+    assert Enum.all?(report.reports, &(&1.redactions == [%{source: "literal"}]))
+  end
+
   test "can require real-agent evidence and reject the built-in stub" do
     assert {:error, :real_agent_required, report} =
              AgentProbe.run(

@@ -13,6 +13,8 @@ show:
 - `concurrency`, when present, is between 1 and `run_count`.
 - `status` is `passed`.
 - `failures` is present as an empty list.
+- Top-level `redactions` metadata is present, and aggregate prompts, failures,
+  child windows, and nested child reports are redacted before writing.
 - `reports` contains exactly `run_count` child reports.
 - Concurrent reports with `concurrency > 1` include `child_windows` whose
   timestamps show at least two overlapping child probe windows.

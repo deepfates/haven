@@ -1,6 +1,7 @@
 {
   "status": "passed",
   "prompt": "Summarize this workspace in one short sentence.",
+  "redactions": [],
   "kind": "agent_probe_load",
   "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
   "agent": "codex-acp",

@@ -140,6 +140,7 @@ defmodule Haven.AgentProbeReport do
       |> require_string(report, "workspace")
       |> require_string(report, "prompt")
       |> require_real_agent_load(report)
+      |> require_redactions(report)
       |> require_positive_integer(report, "run_count", 2)
       |> require_optional_load_concurrency(report)
       |> require_concurrent_child_windows(report)

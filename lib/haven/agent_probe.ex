@@ -304,6 +304,7 @@ defmodule Haven.AgentProbe do
       child_windows: child_windows,
       reports: child_reports
     }
+    |> apply_redactions(redactions(opts))
   end
 
   defp load_child_exception_report(opts, exception) do
