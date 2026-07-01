@@ -114,6 +114,40 @@ defmodule Haven.AgentProbeReportTest do
     assert "event 1 must include integer seq, string type, and object payload" in errors
   end
 
+  test "rejects blank expected event names" do
+    report = Map.put(valid_report(), "expected_events", ["agent_initialized", "   "])
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+    assert "expected_events must be a non-empty list of event names" in errors
+  end
+
+  test "rejects report events with blank types" do
+    report =
+      valid_report()
+      |> Map.put("expected_events", ["agent_initialized"])
+      |> Map.put("events", [
+        %{"seq" => 1, "type" => "   ", "payload" => %{}},
+        %{"seq" => 2, "type" => "agent_initialized", "payload" => %{}}
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+    assert "event 1 must include non-empty string type" in errors
+  end
+
+  test "rejects expected event fields with blank event or field names" do
+    report =
+      valid_report()
+      |> Map.put("expected_event_fields", [
+        %{"event" => " ", "field" => "payload.path", "value" => "README.md"},
+        %{"event" => "file_read_succeeded", "field" => " ", "value" => "README.md"}
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+
+    assert "expected_event_fields entry 1 must include string event, field, and value" in errors
+    assert "expected_event_fields entry 2 must include string event, field, and value" in errors
+  end
+
   test "validates report files" do
     path =
       Path.join(System.tmp_dir!(), "haven-valid-probe-report-#{System.unique_integer()}.json")

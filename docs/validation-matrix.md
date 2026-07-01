@@ -671,7 +671,9 @@ Evidence:
   terminal command, and exit status. Reports that claim Haven-mediated
   `file_*` or `terminal_*` expected events now require matching field-level
   expectations for those event types, so type-only capability evidence is not
-  accepted.
+  accepted. Report validation also rejects blank expected event names, blank
+  expected event-field names, and blank persisted event types, matching the
+  durable event envelope enforced by the app.
 
 Still missing:
 

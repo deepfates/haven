@@ -80,7 +80,7 @@ defmodule Haven.AgentProbeReport do
   defp require_expected_events(errors, report) do
     case Map.get(report, "expected_events") do
       events when is_list(events) and events != [] ->
-        if Enum.all?(events, &is_binary/1) do
+        if Enum.all?(events, &non_blank_string?/1) do
           errors
         else
           ["expected_events must be a non-empty list of event names" | errors]
@@ -145,14 +145,20 @@ defmodule Haven.AgentProbeReport do
   defp validate_event_field_expectation(
          errors,
          %{"event" => event, "field" => field, "value" => value},
-         _index
-       )
-       when is_binary(event) and event != "" and is_binary(field) and field != "" and
-              is_binary(value) do
-    errors
+         index
+       ) do
+    if non_blank_string?(event) and non_blank_string?(field) and is_binary(value) do
+      errors
+    else
+      invalid_event_field_expectation(errors, index)
+    end
   end
 
   defp validate_event_field_expectation(errors, _field, index) do
+    invalid_event_field_expectation(errors, index)
+  end
+
+  defp invalid_event_field_expectation(errors, index) do
     [
       "expected_event_fields entry #{index} must include string event, field, and value"
       | errors
@@ -186,11 +192,16 @@ defmodule Haven.AgentProbeReport do
   end
 
   defp validate_event(errors, %{"seq" => seq, "type" => type, "payload" => payload}, index)
-       when is_integer(seq) and is_binary(type) and type != "" and is_map(payload) do
-    if seq == index do
-      errors
-    else
-      ["event seq #{seq} must match ordered position #{index}" | errors]
+       when is_integer(seq) and is_binary(type) and is_map(payload) do
+    cond do
+      String.trim(type) == "" ->
+        ["event #{index} must include non-empty string type" | errors]
+
+      seq != index ->
+        ["event seq #{seq} must match ordered position #{index}" | errors]
+
+      true ->
+        errors
     end
   end
 
@@ -254,4 +265,6 @@ defmodule Haven.AgentProbeReport do
   defp event_field_label(%{"event" => event, "field" => field, "value" => value}) do
     "#{event}:#{field}=#{value}"
   end
+
+  defp non_blank_string?(value), do: is_binary(value) and String.trim(value) != ""
 end
