@@ -95,6 +95,18 @@ defmodule Haven.RunsTest do
     assert [%{type: "run_created"}] = Events.list_for_run(closed.id)
   end
 
+  test "started? reports false for terminal and archived history despite stale registry liveness" do
+    closed = insert_run!("Closed started boundary", "closed")
+    archived_source = insert_run!("Archived started boundary", "failed")
+    assert {:ok, archived} = Runs.archive_run(archived_source.id)
+
+    assert {:ok, _} = Registry.register(Haven.Runs.Registry, closed.id, :closed_stale)
+    assert {:ok, _} = Registry.register(Haven.Runs.Registry, archived.id, :archived_stale)
+
+    refute Runs.started?(closed.id)
+    refute Runs.started?(archived.id)
+  end
+
   test "prune_archived_before deletes only archived runs older than the cutoff" do
     old_archived =
       "Old archived run"

@@ -417,6 +417,10 @@ Evidence:
   stale registered processes cannot make terminal history writable again.
   Data-layer tests simulate stale registry liveness and verify no lifecycle
   events are appended.
+- `started?/1` now reports operational liveness rather than raw registry
+  presence: terminal and archived history return `false` even if stale registry
+  entries exist, keeping inbox and run-detail projections aligned with durable
+  state.
 - RunServer shutdown now explicitly tears down the ACP connection and port IO
   bridge.
 - Event ordering and persistence are covered by `test/haven/events_test.exs`.

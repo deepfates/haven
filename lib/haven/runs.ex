@@ -72,7 +72,11 @@ defmodule Haven.Runs do
   end
 
   def started?(run_id) do
-    match?([{_pid, _}], Registry.lookup(Haven.Runs.Registry, run_id))
+    case get_run!(run_id) do
+      %{archived_at: archived_at} when not is_nil(archived_at) -> false
+      %{status: status} when status in ["closed", "failed"] -> false
+      _run -> registry_started?(run_id)
+    end
   end
 
   def ensure_started(run_id) do
@@ -101,11 +105,11 @@ defmodule Haven.Runs do
       run.status == "closed" ->
         {:error, :closed_run}
 
-      started?(run_id) and run.status != "failed" ->
+      registry_started?(run_id) and run.status != "failed" ->
         {:error, :live_run}
 
       true ->
-        if started?(run_id), do: stop_run(run_id)
+        if registry_started?(run_id), do: stop_run(run_id)
 
         Events.append!(run_id, "run_reconnect_requested", %{
           "previous_status" => run.status
@@ -223,6 +227,10 @@ defmodule Haven.Runs do
   end
 
   defp archived?(%Run{archived_at: archived_at}), do: not is_nil(archived_at)
+
+  defp registry_started?(run_id) do
+    match?([{_pid, _}], Registry.lookup(Haven.Runs.Registry, run_id))
+  end
 
   defp last_user_prompt(run_id) do
     run_id
