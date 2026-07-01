@@ -658,6 +658,11 @@ Evidence:
   workspace-relative policy lists, and inspected after creation. Run detail
   tests also verify scoped and unrestricted path grants render as explicit
   policy chips in both the facts panel and pending decision card.
+- The run creation advanced panel now renders a compact Workspace authority
+  preview before launch. LiveView tests verify the default unrestricted file
+  scopes render as `All workspace paths`, scoped paths render as individual
+  chips, and terminal authority updates with the selected policy. Browser smoke
+  records the same preview at `390x844` without horizontal overflow.
 - `mix haven.agent_probe` now exercises a configured ACP agent through Haven's
   real run lifecycle, including run creation, ACP boot/session setup, prompting,
   optional permission resolution, per-run capability policy, durable event

@@ -39,6 +39,31 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#new-run-agent-evidence")
     assert has_element?(view, "#new-run-agent-key", "stub-acp")
     assert has_element?(view, "#new-run-agent-trust", "Local harness")
+    assert has_element?(view, "#new-run-workspace-authority")
+    assert has_element?(view, "#new-run-read-authority", "Ask")
+    assert has_element?(view, "#new-run-read-scope-all-workspace-paths", "All workspace paths")
+    assert has_element?(view, "#new-run-write-authority", "Ask")
+    assert has_element?(view, "#new-run-write-scope-all-workspace-paths", "All workspace paths")
+    assert has_element?(view, "#new-run-terminal-authority", "Allow")
+
+    view
+    |> form("#new-run-form", %{
+      "title" => "Review agent changes",
+      "file_read_policy" => "allow",
+      "file_read_paths" => " README.md, docs ",
+      "file_write_policy" => "deny",
+      "file_write_paths" => "notes, tmp/output.md",
+      "terminal_create_policy" => "ask"
+    })
+    |> render_change()
+
+    assert has_element?(view, "#new-run-read-authority", "Allow")
+    assert has_element?(view, "#new-run-read-scope-readme-md", "README.md")
+    assert has_element?(view, "#new-run-read-scope-docs", "docs")
+    assert has_element?(view, "#new-run-write-authority", "Deny")
+    assert has_element?(view, "#new-run-write-scope-notes", "notes")
+    assert has_element?(view, "#new-run-write-scope-tmp-output-md", "tmp/output.md")
+    assert has_element?(view, "#new-run-terminal-authority", "Ask")
 
     view
     |> form("#new-run-form", %{

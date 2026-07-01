@@ -1312,6 +1312,40 @@ defmodule HavenWeb.InboxLive do
 
   defp client_capability_event?(_type), do: false
 
+  defp policy_label("allow"), do: "Allow"
+  defp policy_label("deny"), do: "Deny"
+  defp policy_label(_ask), do: "Ask"
+
+  defp policy_scope_items(scopes) when is_list(scopes) and scopes != [], do: scopes
+  defp policy_scope_items(_scopes), do: ["All workspace paths"]
+
+  defp policy_scope_class(scopes) when is_list(scopes) and scopes != [] do
+    badge_class("border-sky-200 bg-sky-50 text-sky-700")
+  end
+
+  defp policy_scope_class(_scopes) do
+    badge_class("border-amber-200 bg-amber-50 text-amber-800")
+  end
+
+  defp policy_scope_id(scope) do
+    scope
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/, "-")
+    |> String.trim("-")
+    |> case do
+      "" -> "scope"
+      value -> value
+    end
+  end
+
+  defp policy_badge_class(decision) do
+    case decision do
+      "allow" -> badge_class("border-emerald-200 bg-emerald-50 text-emerald-700")
+      "deny" -> badge_class("border-rose-200 bg-rose-50 text-rose-700")
+      _ask -> badge_class("border-amber-200 bg-amber-50 text-amber-800")
+    end
+  end
+
   defp agent_launch_label(%{status: "ready"}), do: "Launch ready"
   defp agent_launch_label(%{status: "invalid"}), do: "Launch blocked"
   defp agent_launch_label(_inventory), do: "Launch unknown"
@@ -1826,6 +1860,11 @@ defmodule HavenWeb.InboxLive do
                   Advanced
                 </summary>
                 <div class="mt-3 grid gap-3">
+                  <% read_policy = form_value(@form, :file_read_policy) %>
+                  <% write_policy = form_value(@form, :file_write_policy) %>
+                  <% terminal_policy = form_value(@form, :terminal_create_policy) %>
+                  <% read_scopes = parse_path_scope(form_value(@form, :file_read_paths)) %>
+                  <% write_scopes = parse_path_scope(form_value(@form, :file_write_paths)) %>
                   <div
                     id="new-run-agent-evidence"
                     class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600"
@@ -1907,6 +1946,52 @@ defmodule HavenWeb.InboxLive do
                         options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
                       />
                     </div>
+                    <section
+                      id="new-run-workspace-authority"
+                      class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600"
+                    >
+                      <h4 class="font-semibold uppercase text-zinc-500">Workspace authority</h4>
+                      <dl class="mt-2 grid gap-2 sm:grid-cols-3">
+                        <div id="new-run-read-authority" class="min-w-0">
+                          <dt class="font-medium text-zinc-500">Reads</dt>
+                          <dd class="mt-1 flex flex-wrap gap-1">
+                            <span class={policy_badge_class(read_policy)}>
+                              {policy_label(read_policy)}
+                            </span>
+                            <span
+                              :for={scope <- policy_scope_items(read_scopes)}
+                              id={"new-run-read-scope-#{policy_scope_id(scope)}"}
+                              class={policy_scope_class(read_scopes)}
+                            >
+                              {scope}
+                            </span>
+                          </dd>
+                        </div>
+                        <div id="new-run-write-authority" class="min-w-0">
+                          <dt class="font-medium text-zinc-500">Writes</dt>
+                          <dd class="mt-1 flex flex-wrap gap-1">
+                            <span class={policy_badge_class(write_policy)}>
+                              {policy_label(write_policy)}
+                            </span>
+                            <span
+                              :for={scope <- policy_scope_items(write_scopes)}
+                              id={"new-run-write-scope-#{policy_scope_id(scope)}"}
+                              class={policy_scope_class(write_scopes)}
+                            >
+                              {scope}
+                            </span>
+                          </dd>
+                        </div>
+                        <div id="new-run-terminal-authority" class="min-w-0">
+                          <dt class="font-medium text-zinc-500">Terminals</dt>
+                          <dd class="mt-1">
+                            <span class={policy_badge_class(terminal_policy)}>
+                              {policy_label(terminal_policy)}
+                            </span>
+                          </dd>
+                        </div>
+                      </dl>
+                    </section>
                   </section>
                 </div>
               </details>
