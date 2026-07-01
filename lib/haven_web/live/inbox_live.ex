@@ -11,6 +11,7 @@ defmodule HavenWeb.InboxLive do
 
   @run_filters [
     {"all", "All"},
+    {"updated", "Updated"},
     {"needs_you", "Needs You"},
     {"running", "Running"},
     {"history", "History"},
@@ -265,6 +266,7 @@ defmodule HavenWeb.InboxLive do
     needs_you_recoveries = Enum.count(needs_you, &(&1.status == "failed"))
     unread_runs = Enum.count(work_runs, &(Map.get(&1, :unread_event_count, 0) > 0))
     unread_events = Enum.reduce(work_runs, 0, &(Map.get(&1, :unread_event_count, 0) + &2))
+    updated = Enum.filter(work_runs, &(Map.get(&1, :unread_event_count, 0) > 0))
     running = Enum.filter(work_runs, &(&1.status in ["initializing", "running"]))
 
     history =
@@ -272,8 +274,17 @@ defmodule HavenWeb.InboxLive do
 
     run_filter = socket.assigns[:run_filter] || "all"
 
-    {visible_needs_you, visible_running, visible_history, visible_diagnostics, visible_archived} =
-      visible_run_groups(run_filter, needs_you, running, history, diagnostics, archived_matches)
+    {visible_updated, visible_needs_you, visible_running, visible_history, visible_diagnostics,
+     visible_archived} =
+      visible_run_groups(
+        run_filter,
+        updated,
+        needs_you,
+        running,
+        history,
+        diagnostics,
+        archived_matches
+      )
 
     socket
     |> assign(:runs, runs)
@@ -289,6 +300,7 @@ defmodule HavenWeb.InboxLive do
     |> assign(:run_filters, @run_filters)
     |> assign(:run_filter_counts, %{
       "all" => length(work_runs),
+      "updated" => length(updated),
       "needs_you" => length(needs_you),
       "needs_you_decisions" => needs_you_decisions,
       "needs_you_recoveries" => needs_you_recoveries,
@@ -306,6 +318,7 @@ defmodule HavenWeb.InboxLive do
         inbox_attention_summary(socket.assigns.run_filter_counts)
       )
     end)
+    |> assign(:updated, visible_updated)
     |> assign(:needs_you, visible_needs_you)
     |> assign(:running, visible_running)
     |> assign(:history, visible_history)
@@ -314,8 +327,8 @@ defmodule HavenWeb.InboxLive do
     |> assign(
       :filtered_runs_empty?,
       (run_filter != "all" or active_run_facets?(run_search, agent_filter, workspace_filter)) and
-        visible_needs_you == [] and visible_running == [] and visible_history == [] and
-        visible_diagnostics == [] and visible_archived == []
+        visible_updated == [] and visible_needs_you == [] and visible_running == [] and
+        visible_history == [] and visible_diagnostics == [] and visible_archived == []
     )
     |> assign(
       :searched_runs_empty?,
@@ -325,57 +338,81 @@ defmodule HavenWeb.InboxLive do
   end
 
   defp visible_run_groups(
+         "updated",
+         updated,
+         _needs_you,
+         _running,
+         _history,
+         _diagnostics,
+         _archived
+       ),
+       do: {updated, [], [], [], [], []}
+
+  defp visible_run_groups(
          "needs_you",
+         _updated,
          needs_you,
          _running,
          _history,
          _diagnostics,
          _archived
        ),
-       do: {needs_you, [], [], [], []}
+       do: {[], needs_you, [], [], [], []}
 
   defp visible_run_groups(
          "running",
+         _updated,
          _needs_you,
          running,
          _history,
          _diagnostics,
          _archived
        ),
-       do: {[], running, [], [], []}
+       do: {[], [], running, [], [], []}
 
   defp visible_run_groups(
          "history",
+         _updated,
          _needs_you,
          _running,
          history,
          _diagnostics,
          _archived
        ),
-       do: {[], [], history, [], []}
+       do: {[], [], [], history, [], []}
 
   defp visible_run_groups(
          "diagnostics",
+         _updated,
          _needs_you,
          _running,
          _history,
          diagnostics,
          _archived
        ),
-       do: {[], [], [], diagnostics, []}
+       do: {[], [], [], [], diagnostics, []}
 
   defp visible_run_groups(
          "archived",
+         _updated,
          _needs_you,
          _running,
          _history,
          _diagnostics,
          archived
        ),
-       do: {[], [], [], [], archived}
+       do: {[], [], [], [], [], archived}
 
-  defp visible_run_groups(_filter, needs_you, running, history, _diagnostics, _archived),
-    do: {needs_you, running, history, [], []}
+  defp visible_run_groups(
+         _filter,
+         _updated,
+         needs_you,
+         running,
+         history,
+         _diagnostics,
+         _archived
+       ),
+       do: {[], needs_you, running, history, [], []}
 
   defp diagnostic_run?(%{purpose: "diagnostic"}), do: true
   defp diagnostic_run?(_run), do: false
@@ -1303,6 +1340,13 @@ defmodule HavenWeb.InboxLive do
 
   defp run_queue_caption("all", _counts), do: "Open work"
 
+  defp run_queue_caption("updated", %{"unread_events" => unread_events})
+       when unread_events > 0 do
+    pluralize_count(unread_events, "new event")
+  end
+
+  defp run_queue_caption("updated", _counts), do: "New activity"
+
   defp run_queue_caption("needs_you", counts) do
     decisions = Map.get(counts, "needs_you_decisions", 0)
     recoveries = Map.get(counts, "needs_you_recoveries", 0)
@@ -1361,7 +1405,7 @@ defmodule HavenWeb.InboxLive do
        })
        when unread_runs > 0 do
     %{
-      filter: "all",
+      filter: "updated",
       icon: "hero-bell-alert",
       label: "#{unread_runs} #{pluralize_word(unread_runs, "run")} updated",
       detail:
@@ -2379,6 +2423,20 @@ defmodule HavenWeb.InboxLive do
               No runs in this view.
             <% end %>
           </div>
+
+          <section :if={@updated != []} id="inbox-updated-section" class="space-y-2">
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Updated</h2>
+            <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+              <.run_card
+                :for={run <- @updated}
+                run={run}
+                show_archive={true}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
+              />
+            </div>
+          </section>
 
           <section :if={@needs_you != []} id="inbox-needs-you-section" class="space-y-2">
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Needs You</h2>

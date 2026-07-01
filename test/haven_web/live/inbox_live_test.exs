@@ -263,8 +263,19 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#inbox-attention-detail", "1 new event")
     assert has_element?(view, "#inbox-attention-detail", "1 running")
     assert has_element?(view, "#inbox-attention-detail", "2 history")
+    assert has_element?(view, "#inbox-queue-updated", "1")
     assert has_element?(view, "#inbox-queue-all", "1 new event")
     assert has_element?(view, "#run-#{unread.id}-unread", "1 new event")
+
+    view
+    |> element("#inbox-attention-primary")
+    |> render_click()
+
+    assert has_element?(view, ~s|#inbox-queue-updated[aria-current="page"]|)
+    assert has_element?(view, "#inbox-updated-section")
+    assert has_element?(view, "#run-#{unread.id}")
+    refute has_element?(view, "#run-#{running.id}")
+    refute has_element?(view, "#run-#{history.id}")
   end
 
   test "renders a tappable queue summary for many-run triage", %{conn: conn} do
@@ -280,6 +291,7 @@ defmodule HavenWeb.InboxLiveTest do
 
     assert has_element?(view, "#inbox-queue-summary")
     assert has_element?(view, "#inbox-queue-all", "5")
+    assert has_element?(view, "#inbox-queue-updated", "5")
     assert has_element?(view, "#inbox-queue-needs_you", "3")
     assert has_element?(view, "#inbox-queue-needs_you", "1 decision")
     assert has_element?(view, "#inbox-queue-needs_you", "2 recoveries")
@@ -298,6 +310,17 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{running.id}")
     refute has_element?(view, "#run-#{waiting.id}")
     refute has_element?(view, "#run-#{history.id}")
+
+    view
+    |> element("#inbox-queue-updated")
+    |> render_click()
+
+    assert has_element?(view, ~s|#inbox-queue-updated[aria-current="page"]|)
+    assert has_element?(view, "#inbox-updated-section")
+    assert has_element?(view, "#run-#{waiting.id}")
+    assert has_element?(view, "#run-#{failed.id}")
+    assert has_element?(view, "#run-#{running.id}")
+    assert has_element?(view, "#run-#{history.id}")
 
     view
     |> element("#inbox-queue-needs_you")
