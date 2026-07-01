@@ -264,6 +264,7 @@ defmodule Haven.AgentProbeReport do
        when is_integer(concurrency) and concurrency > 1 do
     windows = Map.get(report, "child_windows")
     run_count = Map.get(report, "run_count")
+    child_window_order_errors = child_window_order_errors(report, windows)
 
     cond do
       not is_list(windows) or windows == [] ->
@@ -277,6 +278,12 @@ defmodule Haven.AgentProbeReport do
           "child_windows entries must include index, run_id, status, started_at, and finished_at"
           | errors
         ]
+
+      not Enum.all?(windows, &valid_child_window_duration?/1) ->
+        ["child_windows finished_at must be after started_at" | errors]
+
+      child_window_order_errors != [] ->
+        child_window_order_errors ++ errors
 
       not overlapping_child_windows?(windows) ->
         [
@@ -309,6 +316,61 @@ defmodule Haven.AgentProbeReport do
   end
 
   defp valid_datetime?(_value), do: false
+
+  defp valid_child_window_duration?(%{"started_at" => started_at, "finished_at" => finished_at}) do
+    with {:ok, started_at, _offset} <- DateTime.from_iso8601(started_at),
+         {:ok, finished_at, _offset} <- DateTime.from_iso8601(finished_at) do
+      DateTime.compare(finished_at, started_at) == :gt
+    else
+      _error -> false
+    end
+  end
+
+  defp valid_child_window_duration?(_window), do: false
+
+  defp child_window_order_errors(%{"reports" => reports}, windows)
+       when is_list(reports) and is_list(windows) do
+    expected_windows =
+      reports
+      |> Enum.with_index(1)
+      |> Enum.filter(fn {report, _index} -> is_map(report) end)
+      |> Map.new(fn {report, index} -> {Map.get(report, "run_id"), index} end)
+
+    window_run_ids =
+      windows
+      |> Enum.map(&Map.get(&1, "run_id"))
+      |> MapSet.new()
+
+    child_run_ids =
+      expected_windows
+      |> Map.keys()
+      |> Enum.filter(&non_blank_string?/1)
+      |> MapSet.new()
+
+    []
+    |> then(fn errors ->
+      if MapSet.equal?(window_run_ids, child_run_ids) do
+        errors
+      else
+        ["child_windows run_ids must match load child report run_ids" | errors]
+      end
+    end)
+    |> then(fn errors ->
+      mismatched =
+        windows
+        |> Enum.reject(fn window ->
+          Map.get(expected_windows, window["run_id"]) == window["index"]
+        end)
+
+      if mismatched == [] do
+        errors
+      else
+        ["child_windows indexes must match load child report order" | errors]
+      end
+    end)
+  end
+
+  defp child_window_order_errors(_report, _windows), do: []
 
   defp overlapping_child_windows?(windows) do
     parsed =

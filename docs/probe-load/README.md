@@ -16,6 +16,9 @@ show:
 - `reports` contains exactly `run_count` child reports.
 - Concurrent reports with `concurrency > 1` include `child_windows` whose
   timestamps show at least two overlapping child probe windows.
+- Every `child_windows` entry must match a child report by `run_id`; its
+  `index` must match the child report order, and `finished_at` must be after
+  `started_at`.
 - Every child report was generated with `--require-real-agent`.
 - Every child report has a distinct durable Haven `run_id`.
 - Every child report agrees with the aggregate `agent`, `workspace`, and

@@ -581,6 +581,75 @@ defmodule Haven.AgentProbeReportTest do
     assert "child_windows must show at least two overlapping child probe windows when concurrency > 1" in errors
   end
 
+  test "rejects concurrent load reports whose child windows do not match child reports" do
+    report =
+      Map.put(valid_load_report(), "child_windows", [
+        %{
+          "index" => 1,
+          "run_id" => "run-1",
+          "status" => "idle",
+          "started_at" => "2026-07-01T00:00:00Z",
+          "finished_at" => "2026-07-01T00:00:05Z"
+        },
+        %{
+          "index" => 2,
+          "run_id" => "unrelated-run",
+          "status" => "idle",
+          "started_at" => "2026-07-01T00:00:01Z",
+          "finished_at" => "2026-07-01T00:00:06Z"
+        }
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate_load(report)
+    assert "child_windows run_ids must match load child report run_ids" in errors
+  end
+
+  test "rejects concurrent load reports whose child window indexes drift from report order" do
+    report =
+      Map.put(valid_load_report(), "child_windows", [
+        %{
+          "index" => 2,
+          "run_id" => "run-1",
+          "status" => "idle",
+          "started_at" => "2026-07-01T00:00:00Z",
+          "finished_at" => "2026-07-01T00:00:05Z"
+        },
+        %{
+          "index" => 1,
+          "run_id" => "run-2",
+          "status" => "idle",
+          "started_at" => "2026-07-01T00:00:01Z",
+          "finished_at" => "2026-07-01T00:00:06Z"
+        }
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate_load(report)
+    assert "child_windows indexes must match load child report order" in errors
+  end
+
+  test "rejects concurrent load reports with impossible child window duration" do
+    report =
+      Map.put(valid_load_report(), "child_windows", [
+        %{
+          "index" => 1,
+          "run_id" => "run-1",
+          "status" => "idle",
+          "started_at" => "2026-07-01T00:00:05Z",
+          "finished_at" => "2026-07-01T00:00:05Z"
+        },
+        %{
+          "index" => 2,
+          "run_id" => "run-2",
+          "status" => "idle",
+          "started_at" => "2026-07-01T00:00:01Z",
+          "finished_at" => "2026-07-01T00:00:06Z"
+        }
+      ])
+
+    assert {:error, errors} = AgentProbeReport.validate_load(report)
+    assert "child_windows finished_at must be after started_at" in errors
+  end
+
   test "validates load report files" do
     path = Path.join(System.tmp_dir!(), "haven-valid-probe-load-#{System.unique_integer()}.json")
 
