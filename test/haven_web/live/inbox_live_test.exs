@@ -711,6 +711,43 @@ defmodule HavenWeb.InboxLiveTest do
            )
   end
 
+  test "labels inbox rows with operational process state", %{conn: conn} do
+    disconnected = insert_run!("Disconnected history", "idle")
+    stale_decision = insert_run!("Stale permission", "waiting")
+    interrupted = insert_run!("Interrupted turn", "running")
+    closed = insert_run!("Closed history", "closed")
+    failed = insert_run!("Failed history", "failed")
+
+    {:ok, live_run} = Runs.create_run(%{"title" => "Connected work"})
+    stop_run_server_on_exit(live_run.id)
+    sync_run_server!(live_run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#run-#{disconnected.id}-operational-state", "Not connected")
+    assert has_element?(view, "#run-#{disconnected.id}-operational-state", "reconnect")
+    assert has_element?(view, "#run-#{stale_decision.id}-operational-state", "Stale decision")
+    assert has_element?(view, "#run-#{interrupted.id}-operational-state", "Interrupted")
+    assert has_element?(view, "#run-#{closed.id}-operational-state", "Read only")
+    assert has_element?(view, "#run-#{closed.id} a", "Review")
+    assert has_element?(view, "#run-#{failed.id}-operational-state", "Needs restart")
+    assert has_element?(view, "#run-#{live_run.id}-operational-state", "Ready")
+  end
+
+  test "searches inbox runs by operational state", %{conn: conn} do
+    insert_run!("Disconnected history", "idle")
+    insert_run!("Quiet history", "closed")
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "not connected"})
+    |> render_change()
+
+    assert has_element?(view, "article", "Disconnected history")
+    refute has_element?(view, "article", "Quiet history")
+  end
+
   test "updates latest activity when a run event arrives without a status change", %{conn: conn} do
     run = insert_run!("Live activity row", "idle")
 

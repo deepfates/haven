@@ -253,7 +253,9 @@ defmodule HavenWeb.InboxLive do
       |> Events.latest_by_run_id()
 
     Enum.map(runs, fn run ->
-      Map.put(run, :latest_event, Map.get(latest_events, run.id))
+      run
+      |> Map.put(:latest_event, Map.get(latest_events, run.id))
+      |> Map.put(:live?, Runs.started?(run.id))
     end)
   end
 
@@ -280,6 +282,8 @@ defmodule HavenWeb.InboxLive do
       run.agent,
       run.status,
       run_attention_label(run),
+      run_operational_label(run),
+      run_operational_hint(run),
       latest_activity(run.latest_event)
     ]
     |> Enum.reject(&is_nil/1)
@@ -573,7 +577,58 @@ defmodule HavenWeb.InboxLive do
 
   defp run_action_label(%{status: "waiting"}), do: "Decide"
   defp run_action_label(%{status: "failed"}), do: "Recover"
+  defp run_action_label(%{status: "closed"}), do: "Review"
+  defp run_action_label(%{archived_at: archived_at}) when not is_nil(archived_at), do: "Review"
   defp run_action_label(_run), do: "Open"
+
+  defp run_operational_label(%{archived_at: archived_at}) when not is_nil(archived_at),
+    do: "Archived"
+
+  defp run_operational_label(%{status: "failed"}), do: "Needs restart"
+  defp run_operational_label(%{status: "closed"}), do: "Read only"
+  defp run_operational_label(%{status: "waiting", live?: false}), do: "Stale decision"
+  defp run_operational_label(%{status: "waiting"}), do: "Waiting for you"
+
+  defp run_operational_label(%{status: status, live?: false})
+       when status in ["initializing", "running"],
+       do: "Interrupted"
+
+  defp run_operational_label(%{status: status}) when status in ["initializing", "running"],
+    do: "Live turn"
+
+  defp run_operational_label(%{status: "idle", live?: false}), do: "Not connected"
+  defp run_operational_label(%{status: "idle"}), do: "Ready"
+  defp run_operational_label(_run), do: nil
+
+  defp run_operational_hint(%{archived_at: archived_at}) when not is_nil(archived_at),
+    do: "Hidden from default triage; history is still inspectable."
+
+  defp run_operational_hint(%{status: "failed"}),
+    do: "Open the thread to restart the agent while preserving history."
+
+  defp run_operational_hint(%{status: "closed"}),
+    do: "History is available, but this run cannot accept more prompts."
+
+  defp run_operational_hint(%{status: "waiting", live?: false}),
+    do: "A durable decision is pending, but no agent process is attached."
+
+  defp run_operational_hint(%{status: "waiting"}),
+    do: "Open the thread to approve, deny, or cancel the pending request."
+
+  defp run_operational_hint(%{status: status, live?: false})
+       when status in ["initializing", "running"],
+       do: "The persisted turn is unfinished and needs reconnect handling."
+
+  defp run_operational_hint(%{status: status}) when status in ["initializing", "running"],
+    do: "The agent is working now; open the thread to watch or cancel it."
+
+  defp run_operational_hint(%{status: "idle", live?: false}),
+    do: "History is readable; reconnect before sending another prompt."
+
+  defp run_operational_hint(%{status: "idle"}),
+    do: "Connected and ready for the next prompt."
+
+  defp run_operational_hint(_run), do: nil
 
   defp run_filter_button_class(filter, active_filter) do
     [
@@ -855,9 +910,14 @@ defmodule HavenWeb.InboxLive do
       assigns
       |> assign_new(:show_archive, fn -> false end)
       |> assign(:attention_label, run_attention_label(assigns.run))
+      |> assign(:operational_label, run_operational_label(assigns.run))
+      |> assign(:operational_hint, run_operational_hint(assigns.run))
 
     ~H"""
-    <article class="border-b border-zinc-200 bg-white px-4 py-3 transition last:border-b-0 hover:bg-zinc-50">
+    <article
+      id={"run-#{@run.id}"}
+      class="border-b border-zinc-200 bg-white px-4 py-3 transition last:border-b-0 hover:bg-zinc-50"
+    >
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <h3 class="truncate text-sm font-semibold text-zinc-950">{@run.title}</h3>
@@ -894,6 +954,14 @@ defmodule HavenWeb.InboxLive do
             <span :if={latest_activity_time(@run.latest_event)} class="text-zinc-400">
               · {latest_activity_time(@run.latest_event)}
             </span>
+          </p>
+          <p
+            :if={@operational_label}
+            id={"run-#{@run.id}-operational-state"}
+            class="mt-1 truncate text-zinc-500"
+          >
+            <span class="font-medium text-zinc-700">{@operational_label}</span>
+            <span :if={@operational_hint}>{" · "}{@operational_hint}</span>
           </p>
         </div>
         <div class="flex shrink-0 items-center gap-2">

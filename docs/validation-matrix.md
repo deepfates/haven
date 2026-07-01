@@ -104,11 +104,16 @@ Evidence:
 - LiveView tests verify inbox rows project the latest meaningful run event and
   refresh that activity when a new event arrives without requiring a run status
   change.
+- LiveView tests verify inbox rows expose operational process-state hints for
+  connected, disconnected, stale-decision, interrupted, failed, and closed runs,
+  so persisted status is not mistaken for current agent liveness.
 - LiveView tests verify the inbox can filter the attention surface to All,
   Needs You, Running, or History while preserving lane counts and empty states.
 - LiveView tests verify the inbox can search visible run facts across title,
   workspace path, agent key, status, attention state, and latest activity while
   preserving lane counts and clear/no-match states.
+- LiveView tests verify inbox search includes operational state text such as
+  `not connected`, making stale work findable without opening every run.
 - Browser smoke verifies the rendered inbox can start a real run with an
   explicit workspace and that the run detail/ACP launch args reflect it.
 - Browser smoke verifies a run waiting on permission moves into the rendered
