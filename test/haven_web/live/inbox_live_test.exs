@@ -588,6 +588,10 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#agent-config-candidate-agent-launch", "Launch ready")
     assert has_element?(view, "#agent-config-candidate-agent-cwd", "cwd app default")
     assert has_element?(view, "#agent-config-candidate-agent-env-keys", "env keys SECRET")
+    assert has_element?(view, "#agent-config-candidate-agent-auth-scope")
+    assert has_element?(view, "#agent-config-candidate-agent-auth-env", "Credential env")
+    assert has_element?(view, "#agent-config-candidate-agent-env-substitution", "Static env")
+    assert render(view) =~ "Credential-like keys are present: SECRET"
     assert has_element?(view, "#agent-config-candidate-agent-launch-summary", "exec sh")
     assert has_element?(view, "#agent-config-candidate-agent-launch-summary", "2 args")
     assert has_element?(view, "#agent-config-candidate-agent-launch-summary", "1 env key")
@@ -698,6 +702,42 @@ defmodule HavenWeb.InboxLiveTest do
            )
 
     refute render(view) =~ "hidden-value"
+  end
+
+  test "classifies saved agent env auth and workspace substitution without exposing values", %{
+    conn: conn
+  } do
+    assert {:ok, _agent_config} =
+             Agents.create_agent_config(%{
+               key: "workspace-env-agent",
+               executable: "sh",
+               args: ["-c", "cat"],
+               env: %{
+                 "WORKSPACE" => "{workspace}",
+                 "MODE" => "local"
+               }
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(
+             view,
+             "#agent-config-workspace-env-agent-env-keys",
+             "env keys MODE, WORKSPACE"
+           )
+
+    assert has_element?(view, "#agent-config-workspace-env-agent-auth-env", "Plain env")
+
+    assert has_element?(
+             view,
+             "#agent-config-workspace-env-agent-env-substitution",
+             "Uses workspace env"
+           )
+
+    html = render(view)
+    assert html =~ "Environment variables are configured"
+    refute html =~ "MODE=local"
+    refute html =~ "WORKSPACE={workspace}"
   end
 
   test "surfaces accepted committed probe reports for saved agent configs", %{conn: conn} do

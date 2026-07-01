@@ -426,8 +426,8 @@ Not yet proven:
 - Authentication flows and product-grade agent/workspace configuration,
   including OS-native workspace browse affordances; persisted workspace
   name/path records, persisted agent command definitions, basic inbox
-  create/edit/delete, and env injection exist for launched agents, but
-  interactive auth is not proven.
+  create/edit/delete, env injection for launched agents, and secret-redacted
+  env/auth readiness labels exist, but interactive auth is not proven.
 - Authenticated user identity on permission decisions; current actor metadata is
   local/system classification only.
 

@@ -793,6 +793,87 @@ defmodule HavenWeb.InboxLive do
     end
   end
 
+  defp agent_config_env_auth_label(agent_config) do
+    env = agent_config_env(agent_config)
+    keys = Map.keys(env)
+
+    cond do
+      keys == [] ->
+        "No auth env"
+
+      Enum.any?(keys, &credential_env_key?/1) ->
+        "Credential env"
+
+      true ->
+        "Plain env"
+    end
+  end
+
+  defp agent_config_env_auth_class(agent_config) do
+    env = agent_config_env(agent_config)
+
+    cond do
+      env == %{} ->
+        badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+
+      Enum.any?(Map.keys(env), &credential_env_key?/1) ->
+        badge_class("border-amber-200 bg-amber-50 text-amber-700")
+
+      true ->
+        badge_class("border-sky-200 bg-sky-50 text-sky-700")
+    end
+  end
+
+  defp agent_config_env_substitution_label(agent_config) do
+    env = agent_config_env(agent_config)
+
+    cond do
+      env == %{} ->
+        "No env substitution"
+
+      Enum.any?(env, fn {_key, value} -> String.contains?(value, "{workspace}") end) ->
+        "Uses workspace env"
+
+      true ->
+        "Static env"
+    end
+  end
+
+  defp agent_config_env_auth_reason(agent_config) do
+    env = agent_config_env(agent_config)
+    keys = env |> Map.keys() |> Enum.map(&to_string/1) |> Enum.sort()
+    credential_keys = Enum.filter(keys, &credential_env_key?/1)
+
+    cond do
+      keys == [] ->
+        "No environment variables will be injected into this agent."
+
+      credential_keys != [] ->
+        "Credential-like keys are present: #{Enum.join(credential_keys, ", ")}. Values stay hidden in Haven's setup views and launch evidence."
+
+      true ->
+        "Environment variables are configured; Haven shows key names only and keeps values out of setup and launch evidence."
+    end
+  end
+
+  defp agent_config_env(agent_config) do
+    case agent_config.env do
+      env when is_map(env) ->
+        Map.new(env, fn {key, value} -> {to_string(key), to_string(value)} end)
+
+      _env ->
+        %{}
+    end
+  end
+
+  defp credential_env_key?(key) do
+    key = String.upcase(to_string(key))
+
+    Enum.any?(["TOKEN", "SECRET", "KEY", "AUTH", "PASSWORD", "CREDENTIAL"], fn marker ->
+      String.contains?(key, marker)
+    end)
+  end
+
   defp parse_args(text) do
     text
     |> String.split("\n")
@@ -2131,6 +2212,24 @@ defmodule HavenWeb.InboxLive do
                           >
                             {agent_config_env_scope_label(agent_config)}
                           </p>
+                        </div>
+                        <div
+                          id={"agent-config-#{agent_config.key}-auth-scope"}
+                          class="mt-2 flex flex-wrap items-center gap-2"
+                          title={agent_config_env_auth_reason(agent_config)}
+                        >
+                          <span
+                            id={"agent-config-#{agent_config.key}-auth-env"}
+                            class={agent_config_env_auth_class(agent_config)}
+                          >
+                            {agent_config_env_auth_label(agent_config)}
+                          </span>
+                          <span
+                            id={"agent-config-#{agent_config.key}-env-substitution"}
+                            class="inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-600"
+                          >
+                            {agent_config_env_substitution_label(agent_config)}
+                          </span>
                         </div>
                         <div class="mt-2 flex flex-wrap items-center gap-2">
                           <span

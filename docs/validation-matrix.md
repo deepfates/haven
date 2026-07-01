@@ -102,6 +102,10 @@ Evidence:
   tests verify resolvable commands show executable, arg count, working-directory
   scope, and environment key names without leaking env values, while missing
   executables render as blocked before a run is started.
+- Saved agent setup rows expose env/auth readiness without secret disclosure:
+  LiveView tests verify credential-like env keys are labeled, workspace
+  substitutions are distinguished from static env, and env values are not
+  rendered in setup rows.
 - The inbox can edit and delete persisted agent command definitions; LiveView
   tests verify updated keys replace old picker options and deleted keys
   disappear from run creation.
