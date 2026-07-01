@@ -1643,8 +1643,21 @@ defmodule HavenWeb.RunLiveTest do
     assert diff_preview =~ "+++ haven-written.txt"
     assert diff_preview =~ "+written by Haven ACP\n"
     assert has_element?(view, "#pending-permission-card", "Write file")
-    assert has_element?(view, "#pending-permission-card", "written by Haven ACP")
-    assert has_element?(view, "#pending-permission-card", "diff_preview")
+    assert has_element?(view, "#pending-permission-proposed-file-change", "Proposed file change")
+    assert has_element?(view, "#pending-permission-proposed-file-path", "haven-written.txt")
+    assert has_element?(view, "#pending-permission-proposed-file-kind", "create")
+    assert has_element?(view, "#pending-permission-proposed-file-change-id", "file-write-")
+    assert has_element?(view, "#pending-permission-proposed-file-bytes", to_string(bytes))
+    assert has_element?(view, "#pending-permission-proposed-file-existing-bytes", "0")
+
+    assert has_element?(
+             view,
+             "#pending-permission-proposed-file-content",
+             "written by Haven ACP"
+           )
+
+    assert has_element?(view, "#pending-permission-proposed-file-diff", "--- /dev/null")
+    assert has_element?(view, "#pending-permission-proposed-file-diff", "+++ haven-written.txt")
 
     assert [pending_change] = FileChanges.list_for_run(run.id)
     assert pending_change.change_id

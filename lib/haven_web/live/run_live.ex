@@ -864,6 +864,16 @@ defmodule HavenWeb.RunLive do
   defp file_change_preview(nil), do: nil
   defp file_change_preview(preview), do: preview
 
+  defp proposed_file_change(%{payload: payload}) do
+    raw_input = get_in(payload, ["toolCall", "rawInput"]) || %{}
+
+    if raw_input["content_preview"] || raw_input["diff_preview"] do
+      raw_input
+    end
+  end
+
+  defp proposed_file_change(_permission), do: nil
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -984,6 +994,70 @@ defmodule HavenWeb.RunLive do
                     </dd>
                   </div>
                 </dl>
+                <% proposed_change = proposed_file_change(@pending_permission) %>
+                <section
+                  :if={proposed_change}
+                  id="pending-permission-proposed-file-change"
+                  class="mt-3 rounded-lg border border-zinc-200 bg-white p-3"
+                >
+                  <div class="flex min-w-0 items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="text-xs font-semibold uppercase text-zinc-500">
+                        Proposed file change
+                      </p>
+                      <p
+                        id="pending-permission-proposed-file-path"
+                        class="mt-1 truncate font-mono text-sm font-semibold text-zinc-950"
+                      >
+                        {proposed_change["path"]}
+                      </p>
+                    </div>
+                    <span
+                      id="pending-permission-proposed-file-kind"
+                      class="inline-flex shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-600"
+                    >
+                      {proposed_change["diff_kind"] || "unknown"}
+                    </span>
+                  </div>
+                  <dl class="mt-3 grid gap-2 text-xs text-zinc-700 sm:grid-cols-3">
+                    <div id="pending-permission-proposed-file-change-id">
+                      <dt class="font-semibold uppercase text-zinc-500">Change</dt>
+                      <dd class="break-all font-mono">{proposed_change["change_id"]}</dd>
+                    </div>
+                    <div id="pending-permission-proposed-file-bytes">
+                      <dt class="font-semibold uppercase text-zinc-500">Bytes</dt>
+                      <dd class="font-mono">{proposed_change["bytes"]}</dd>
+                    </div>
+                    <div id="pending-permission-proposed-file-existing-bytes">
+                      <dt class="font-semibold uppercase text-zinc-500">Existing bytes</dt>
+                      <dd class="font-mono">{proposed_change["existing_bytes"] || 0}</dd>
+                    </div>
+                  </dl>
+                  <pre
+                    :if={file_change_preview(proposed_change["content_preview"])}
+                    id="pending-permission-proposed-file-content"
+                    class="mt-3 max-h-32 overflow-auto rounded-md bg-zinc-950 p-3 text-xs text-zinc-50"
+                  ><%= proposed_change["content_preview"] %></pre>
+                  <p
+                    :if={proposed_change["content_truncated"]}
+                    id="pending-permission-proposed-file-content-truncated"
+                    class="mt-2 text-xs font-medium text-amber-700"
+                  >
+                    Content preview truncated.
+                  </p>
+                  <pre
+                    :if={file_change_preview(proposed_change["diff_preview"])}
+                    id="pending-permission-proposed-file-diff"
+                    class="mt-3 max-h-40 overflow-auto rounded-md bg-white p-3 text-xs text-zinc-800 ring-1 ring-zinc-200"
+                  ><%= proposed_change["diff_preview"] %></pre>
+                  <p
+                    :if={proposed_change["diff_truncated"]}
+                    id="pending-permission-proposed-file-diff-truncated"
+                    class="mt-2 text-xs font-medium text-amber-700"
+                  >
+                    Diff preview truncated.
+                  </p>
+                </section>
                 <dl class="mt-3 grid gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 sm:grid-cols-2">
                   <div id="pending-permission-request-id" class="min-w-0">
                     <dt class="font-semibold uppercase text-zinc-500">Request</dt>

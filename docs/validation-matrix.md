@@ -397,6 +397,10 @@ Evidence:
 - LiveView integration tests verify write permission requests include bounded
   proposed-content and line-oriented diff previews for human review, including
   independent truncation markers for large writes.
+- LiveView integration tests verify file-write permission cards render a
+  structured proposed-change review with path, change id, diff kind, byte
+  counts, content preview, and diff preview before approval, while preserving
+  the durable file-change projection.
 - ACP file writes now create durable `file_changes` rows at request time with
   path, local change id, pending/applied/denied/failed/cancelled status, diff
   kind, byte counts, bounded proposed-content preview, and bounded diff
