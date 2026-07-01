@@ -108,6 +108,9 @@ Evidence:
 - LiveView tests verify inbox rows project the latest meaningful run event and
   refresh that activity when a new event arrives without requiring a run status
   change.
+- Data-layer tests verify latest inbox activity is resolved as one newest event
+  per requested run, including duplicate and missing run ids, instead of
+  requiring callers to scan full run event histories.
 - LiveView tests verify inbox rows expose operational process-state hints for
   connected, disconnected, stale-decision, interrupted, failed, and closed runs,
   so persisted status is not mistaken for current agent liveness.

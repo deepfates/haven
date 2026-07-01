@@ -30,13 +30,18 @@ defmodule Haven.Events do
   def latest_by_run_id(run_ids) when is_list(run_ids) do
     run_ids = Enum.uniq(run_ids)
 
+    latest_seq_query =
+      from e in Event,
+        where: e.run_id in ^run_ids,
+        group_by: e.run_id,
+        select: %{run_id: e.run_id, seq: max(e.seq)}
+
     Event
-    |> where([e], e.run_id in ^run_ids)
-    |> order_by([e], desc: e.seq)
+    |> join(:inner, [e], latest in subquery(latest_seq_query),
+      on: e.run_id == latest.run_id and e.seq == latest.seq
+    )
     |> Repo.all()
-    |> Enum.reduce(%{}, fn event, acc ->
-      Map.put_new(acc, event.run_id, event)
-    end)
+    |> Map.new(fn event -> {event.run_id, event} end)
   end
 
   def subscribe(run_id), do: Phoenix.PubSub.subscribe(Haven.PubSub, topic(run_id))

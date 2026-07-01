@@ -392,6 +392,8 @@ Proven:
   distinguish app decisions from protocol and runtime activity.
 - The run timeline can be filtered by provenance so users can inspect app,
   user, agent, client, protocol, and runtime events separately.
+- Inbox latest-activity lookup resolves one newest event per requested run
+  without caller-side full-history scans.
 
 Not yet proven:
 
@@ -403,7 +405,7 @@ Not yet proven:
 - Terminal capability handling against real non-test external agents.
 - Interactive terminal sessions and process-tree kill behavior.
 - ACP-native session resume policy.
-- Multi-run load behavior.
+- Multi-run load behavior beyond latest-event lookup.
 - Long-running turn streaming under real output volume.
 - Prompt-id-level correlation for late chunks; current cancellation suppression
   is session-level because ACP session updates do not carry prompt ids in the

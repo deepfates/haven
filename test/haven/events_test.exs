@@ -59,4 +59,38 @@ defmodule Haven.EventsTest do
     assert [%{payload: stored_payload}] = Events.list_for_run(run.id)
     assert stored_payload == event.payload
   end
+
+  test "latest_by_run_id returns only the newest event for each requested run" do
+    alpha = insert_run!("Alpha")
+    beta = insert_run!("Beta")
+    missing = Ecto.UUID.generate()
+
+    Events.append!(alpha.id, "run_created", %{"title" => "Alpha"})
+    alpha_latest = Events.append!(alpha.id, "agent_message_chunk", %{"text" => "latest alpha"})
+    Events.append!(beta.id, "run_created", %{"title" => "Beta"})
+    beta_latest = Events.append!(beta.id, "turn_finished", %{"result" => "done"})
+
+    latest = Events.latest_by_run_id([alpha.id, beta.id, alpha.id, missing])
+
+    assert Map.keys(latest) |> Enum.sort() == Enum.sort([alpha.id, beta.id])
+    assert latest[alpha.id].id == alpha_latest.id
+    assert latest[alpha.id].payload["text"] == "latest alpha"
+    assert latest[beta.id].id == beta_latest.id
+    assert latest[beta.id].type == "turn_finished"
+  end
+
+  test "latest_by_run_id handles an empty run list" do
+    assert Events.latest_by_run_id([]) == %{}
+  end
+
+  defp insert_run!(title) do
+    %Run{}
+    |> Run.changeset(%{
+      title: title,
+      workspace: File.cwd!(),
+      agent: "stub-acp",
+      status: "idle"
+    })
+    |> Repo.insert!()
+  end
 end
