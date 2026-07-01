@@ -438,8 +438,8 @@ Known implementation limitations:
   to string-keyed JSON-style maps at append time and rejected if they contain
   non-JSON-compatible values, but formal per-event payload schemas are still
   missing.
-- Archived runs can be pruned through an explicit tested context API, but there
-  is no product retention schedule or UI yet.
+- Archived runs can be pruned through an explicit tested context API and inbox
+  UI, but there is no product retention schedule yet.
 - The UI is operational but not yet product-quality.
 - The stub agent is useful for deterministic tests but not representative of a
   full agent.

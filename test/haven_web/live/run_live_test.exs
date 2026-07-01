@@ -57,6 +57,14 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-evidence-decisions", "0")
     assert has_element?(view, "#run-evidence-file-changes", "0")
     assert has_element?(view, "#run-evidence-terminal-sessions", "0")
+    assert has_element?(view, "#run-section-nav")
+    assert has_element?(view, ~s|#run-nav-thread[href="#run-thread"]|, "Thread")
+    assert has_element?(view, "#run-nav-thread-count", "0")
+    assert has_element?(view, ~s|#run-nav-decisions[href="#run-permission-audit"]|, "Decisions")
+    assert has_element?(view, "#run-nav-decisions-count", "0")
+    assert has_element?(view, ~s|#run-nav-message[href="#run-control-panel"]|, "Message")
+    assert has_element?(view, ~s|#run-nav-evidence[href="#run-evidence-summary"]|, "Evidence")
+    assert has_element?(view, "#run-nav-evidence-count", "4")
     assert has_element?(view, "#run-thread")
     assert has_element?(view, "#timeline-filters summary", "Filter activity")
     assert has_element?(view, "#run-control-panel", "Message")
@@ -1094,6 +1102,14 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Needs approval"
     assert html =~ "Write file"
     assert has_element?(view, "#pending-permission-card")
+
+    assert has_element?(
+             view,
+             ~s|#run-nav-decisions[href="#pending-permission-card"]|,
+             "Decisions"
+           )
+
+    assert has_element?(view, "#run-nav-decisions-count", "1")
     assert has_element?(view, "#pending-permission-conversation-context", "Prompt context")
     assert has_element?(view, "#pending-permission-conversation-context", "permission")
     assert has_element?(view, "#pending-permission-decision-summary")

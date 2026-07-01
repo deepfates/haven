@@ -138,6 +138,8 @@ defmodule HavenWeb.RunLive do
     events = Events.list_for_run(id)
     file_changes = FileChanges.list_for_run(id)
     terminal_sessions = TerminalSessions.list_for_run(id)
+    permission_audits = PermissionAudits.list_for_run(id)
+    pending_permission = latest_pending_permission(events)
     live? = Runs.started?(run)
     agent_readiness = agent_readiness(run.agent, run.workspace)
     agent_probe_reports = Agents.accepted_probe_reports(run.agent)
@@ -149,12 +151,22 @@ defmodule HavenWeb.RunLive do
     |> assign(:capability_policy, Run.capability_policy(run.capability_policy))
     |> assign(:file_changes, file_changes)
     |> assign(:file_change_counts, file_change_counts(file_changes))
-    |> assign(:permission_audits, PermissionAudits.list_for_run(id))
+    |> assign(:permission_audits, permission_audits)
     |> assign(:terminal_sessions, terminal_sessions)
     |> assign(:terminal_session_counts, terminal_session_counts(terminal_sessions))
     |> assign(:events, events)
     |> assign(:conversation_messages, conversation_messages(events))
     |> assign(:turn_summaries, turn_summaries(events))
+    |> assign(
+      :run_nav_counts,
+      run_nav_counts(
+        events,
+        pending_permission,
+        permission_audits,
+        file_changes,
+        terminal_sessions
+      )
+    )
     |> assign_event_projection(events)
     |> assign(:live?, live?)
     |> assign(:can_prompt?, live? and run.status == "idle")
@@ -167,7 +179,31 @@ defmodule HavenWeb.RunLive do
     |> assign(:can_retry_last_prompt?, can_retry_last_prompt?(run, events))
     |> assign(:can_continue_failed?, can_continue_failed?(run))
     |> assign(:recovery_attention, recovery_attention(run, live?))
-    |> assign(:pending_permission, latest_pending_permission(events))
+    |> assign(:pending_permission, pending_permission)
+  end
+
+  defp run_nav_counts(
+         events,
+         pending_permission,
+         permission_audits,
+         file_changes,
+         terminal_sessions
+       ) do
+    decision_count = max(length(permission_audits), if(pending_permission, do: 1, else: 0))
+
+    evidence_count =
+      length(events) + length(permission_audits) + length(file_changes) +
+        length(terminal_sessions)
+
+    %{
+      thread: conversation_count(events),
+      decisions: decision_count,
+      evidence: evidence_count
+    }
+  end
+
+  defp conversation_count(events) do
+    Enum.count(events, &(&1.type in ["user_message", "agent_message_chunk"]))
   end
 
   defp assign_event_projection(socket, events) do
@@ -1902,6 +1938,70 @@ defmodule HavenWeb.RunLive do
                 </div>
               </div>
             </header>
+
+            <nav
+              id="run-section-nav"
+              aria-label="Run sections"
+              class="sticky top-0 z-10 -mx-4 overflow-x-auto border-b border-zinc-200 bg-white/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:rounded-lg md:border md:p-2 md:shadow-sm md:backdrop-blur-none"
+            >
+              <div class="flex min-w-max gap-2">
+                <a
+                  id="run-nav-thread"
+                  href="#run-thread"
+                  class="inline-flex h-10 items-center gap-2 rounded-md bg-zinc-950 px-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                >
+                  <.icon name="hero-chat-bubble-left-right" class="size-4" />
+                  <span>Thread</span>
+                  <span
+                    id="run-nav-thread-count"
+                    class="rounded bg-white/15 px-1.5 py-0.5 text-[11px]"
+                  >
+                    {@run_nav_counts.thread}
+                  </span>
+                </a>
+                <a
+                  id="run-nav-decisions"
+                  href={
+                    if(@pending_permission,
+                      do: "#pending-permission-card",
+                      else: "#run-permission-audit"
+                    )
+                  }
+                  class="inline-flex h-10 items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
+                  <.icon name="hero-hand-raised" class="size-4 text-amber-600" />
+                  <span>Decisions</span>
+                  <span
+                    id="run-nav-decisions-count"
+                    class="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600"
+                  >
+                    {@run_nav_counts.decisions}
+                  </span>
+                </a>
+                <a
+                  id="run-nav-message"
+                  href="#run-control-panel"
+                  class="inline-flex h-10 items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
+                  <.icon name="hero-paper-airplane" class="size-4 text-sky-600" />
+                  <span>Message</span>
+                </a>
+                <a
+                  id="run-nav-evidence"
+                  href="#run-evidence-summary"
+                  class="inline-flex h-10 items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
+                  <.icon name="hero-archive-box" class="size-4 text-zinc-500" />
+                  <span>Evidence</span>
+                  <span
+                    id="run-nav-evidence-count"
+                    class="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600"
+                  >
+                    {@run_nav_counts.evidence}
+                  </span>
+                </a>
+              </div>
+            </nav>
 
             <section id="run-thread" class="flex flex-col gap-3">
               <section

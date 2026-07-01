@@ -237,6 +237,10 @@ Evidence:
   streamed agent chunks into a plain conversation transcript, grouping adjacent
   agent chunks into one readable answer while preserving the underlying timeline
   events as evidence.
+- LiveView integration tests verify run detail exposes a mobile-first
+  Thread/Decisions/Message/Evidence section strip with state-derived counts and
+  anchors that point to the pending decision sheet when one exists, or decision
+  history otherwise.
 - LiveView integration tests verify run detail also projects persisted
   `turn_started` plus terminal turn-status events into a compact turn summary
   before the raw timeline, including completed and failed turns plus tool,
