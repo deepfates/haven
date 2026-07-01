@@ -2187,6 +2187,11 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#pending-permission-tool-call-id", "terminal_create_#{request_id}")
     assert has_element?(view, "#pending-permission-tool-status", "pending")
     assert has_element?(view, "#pending-permission-options", "Allow terminal (allow)")
+    assert has_element?(view, "#pending-permission-proposed-terminal", "Proposed terminal")
+    assert has_element?(view, "#pending-permission-proposed-terminal-command", "echo")
+    assert has_element?(view, "#pending-permission-proposed-terminal-args", "hello")
+    assert has_element?(view, "#pending-permission-proposed-terminal-cwd", run.workspace)
+    assert has_element?(view, "#pending-permission-proposed-terminal-env", "none")
     refute_receive {:event_appended, %{type: "terminal_created"}}, 100
 
     view

@@ -424,6 +424,9 @@ Evidence:
 - LiveView integration tests verify terminal creation can be approval-gated by
   per-run policy: approval continues terminal create/wait/output/release, while
   denial returns a permission error without emitting `terminal_created`.
+- LiveView integration tests verify terminal-create permission cards render a
+  structured proposed-terminal review with command, args, working directory,
+  and environment key names before approval.
 - LiveView integration tests drive the stub agent through real ACP
   `terminal/kill` for a direct `sleep` process, then verify durable kill, wait,
   output, release, and final turn events.

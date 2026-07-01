@@ -874,6 +874,34 @@ defmodule HavenWeb.RunLive do
 
   defp proposed_file_change(_permission), do: nil
 
+  defp proposed_terminal_request(%{payload: payload}) do
+    raw_input = get_in(payload, ["toolCall", "rawInput"]) || %{}
+
+    if raw_input["command"] && is_nil(raw_input["content_preview"]) &&
+         is_nil(raw_input["diff_preview"]) do
+      raw_input
+    end
+  end
+
+  defp proposed_terminal_request(_permission), do: nil
+
+  defp terminal_request_args_label(args) when is_list(args) and args != [],
+    do: Enum.join(args, " ")
+
+  defp terminal_request_args_label(_args), do: "none"
+
+  defp terminal_request_env_keys(nil), do: "none"
+  defp terminal_request_env_keys(env) when env == %{}, do: "none"
+
+  defp terminal_request_env_keys(env) when is_map(env) do
+    env
+    |> Map.keys()
+    |> Enum.sort()
+    |> Enum.join(", ")
+  end
+
+  defp terminal_request_env_keys(_env), do: "none"
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -1057,6 +1085,42 @@ defmodule HavenWeb.RunLive do
                   >
                     Diff preview truncated.
                   </p>
+                </section>
+                <% proposed_terminal = proposed_terminal_request(@pending_permission) %>
+                <section
+                  :if={proposed_terminal}
+                  id="pending-permission-proposed-terminal"
+                  class="mt-3 rounded-lg border border-zinc-200 bg-white p-3"
+                >
+                  <p class="text-xs font-semibold uppercase text-zinc-500">
+                    Proposed terminal
+                  </p>
+                  <p
+                    id="pending-permission-proposed-terminal-command"
+                    class="mt-1 break-all font-mono text-sm font-semibold text-zinc-950"
+                  >
+                    {proposed_terminal["command"]}
+                  </p>
+                  <dl class="mt-3 grid gap-2 text-xs text-zinc-700 sm:grid-cols-3">
+                    <div id="pending-permission-proposed-terminal-args">
+                      <dt class="font-semibold uppercase text-zinc-500">Args</dt>
+                      <dd class="break-all font-mono">
+                        {terminal_request_args_label(proposed_terminal["args"])}
+                      </dd>
+                    </div>
+                    <div id="pending-permission-proposed-terminal-cwd">
+                      <dt class="font-semibold uppercase text-zinc-500">Working directory</dt>
+                      <dd class="break-all font-mono">
+                        {proposed_terminal["cwd"] || @run.workspace}
+                      </dd>
+                    </div>
+                    <div id="pending-permission-proposed-terminal-env">
+                      <dt class="font-semibold uppercase text-zinc-500">Env keys</dt>
+                      <dd class="break-all font-mono">
+                        {terminal_request_env_keys(proposed_terminal["env"])}
+                      </dd>
+                    </div>
+                  </dl>
                 </section>
                 <dl class="mt-3 grid gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 sm:grid-cols-2">
                   <div id="pending-permission-request-id" class="min-w-0">
