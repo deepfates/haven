@@ -1395,6 +1395,112 @@ defmodule HavenWeb.RunLive do
                 </div>
               </section>
 
+              <section id="run-control-panel" class="rounded-lg border border-zinc-200 bg-white p-4">
+                <h2 class="font-semibold">Control</h2>
+                <p
+                  :if={@control_notice}
+                  id="run-control-notice"
+                  class="mt-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600"
+                >
+                  {@control_notice}
+                </p>
+                <.form
+                  id="run-prompt-form"
+                  for={to_form(%{})}
+                  phx-submit="send_prompt"
+                  class="mt-3 space-y-2"
+                >
+                  <textarea
+                    id="run-prompt"
+                    name="prompt"
+                    class="min-h-28 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                    placeholder="Prompt this run"
+                    disabled={!@can_prompt?}
+                    title={@prompt_disabled_reason}
+                    aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
+                  >{@prompt}</textarea>
+                  <div class="flex gap-2">
+                    <button
+                      id="send-prompt-button"
+                      class="h-10 flex-1 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={!@can_prompt?}
+                      title={@prompt_disabled_reason}
+                      aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
+                    >
+                      Send
+                    </button>
+                    <button
+                      id="cancel-run-button"
+                      type="button"
+                      class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      phx-click="cancel"
+                      disabled={!@can_cancel?}
+                      title={@cancel_disabled_reason}
+                      aria-describedby={if(@cancel_disabled_reason, do: "run-control-notice")}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </.form>
+                <div class="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    id="sample-echo-button"
+                    class="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    phx-click="sample_prompt"
+                    phx-value-text="hello from LiveView"
+                    disabled={!@can_prompt?}
+                    title={@prompt_disabled_reason}
+                    aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
+                  >
+                    Echo
+                  </button>
+                  <button
+                    id="sample-permission-button"
+                    class="rounded-md bg-amber-500 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    phx-click="sample_prompt"
+                    phx-value-text="permission"
+                    disabled={!@can_prompt?}
+                    title={@prompt_disabled_reason}
+                    aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
+                  >
+                    Ask permission
+                  </button>
+                  <button
+                    id="sample-read-file-button"
+                    class="rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-800 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    phx-click="sample_prompt"
+                    phx-value-text="read-file"
+                    disabled={!@can_prompt?}
+                    title={@prompt_disabled_reason}
+                    aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
+                  >
+                    Read file
+                  </button>
+                  <button
+                    id="sample-write-file-button"
+                    class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    phx-click="sample_prompt"
+                    phx-value-text="write-file"
+                    disabled={!@can_prompt?}
+                    title={@prompt_disabled_reason}
+                    aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
+                  >
+                    Write file
+                  </button>
+                  <button
+                    id="sample-terminal-button"
+                    class="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    phx-click="sample_prompt"
+                    phx-value-text="terminal"
+                    disabled={!@can_prompt?}
+                    title={@prompt_disabled_reason}
+                    aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
+                  >
+                    Terminal
+                  </button>
+                </div>
+              </section>
+
               <details id="timeline-filters" class="rounded-lg border border-zinc-200 bg-white p-3">
                 <summary class="cursor-pointer text-sm font-medium text-zinc-700">
                   Filter activity
@@ -1466,112 +1572,6 @@ defmodule HavenWeb.RunLive do
           </div>
 
           <aside class="space-y-4">
-            <section class="rounded-lg border border-zinc-200 bg-white p-4">
-              <h2 class="font-semibold">Control</h2>
-              <p
-                :if={@control_notice}
-                id="run-control-notice"
-                class="mt-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600"
-              >
-                {@control_notice}
-              </p>
-              <.form
-                id="run-prompt-form"
-                for={to_form(%{})}
-                phx-submit="send_prompt"
-                class="mt-3 space-y-2"
-              >
-                <textarea
-                  id="run-prompt"
-                  name="prompt"
-                  class="min-h-28 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
-                  placeholder="Prompt this run"
-                  disabled={!@can_prompt?}
-                  title={@prompt_disabled_reason}
-                  aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
-                >{@prompt}</textarea>
-                <div class="flex gap-2">
-                  <button
-                    id="send-prompt-button"
-                    class="h-10 flex-1 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={!@can_prompt?}
-                    title={@prompt_disabled_reason}
-                    aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
-                  >
-                    Send
-                  </button>
-                  <button
-                    id="cancel-run-button"
-                    type="button"
-                    class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    phx-click="cancel"
-                    disabled={!@can_cancel?}
-                    title={@cancel_disabled_reason}
-                    aria-describedby={if(@cancel_disabled_reason, do: "run-control-notice")}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </.form>
-              <div class="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  id="sample-echo-button"
-                  class="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                  phx-click="sample_prompt"
-                  phx-value-text="hello from LiveView"
-                  disabled={!@can_prompt?}
-                  title={@prompt_disabled_reason}
-                  aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
-                >
-                  Echo
-                </button>
-                <button
-                  id="sample-permission-button"
-                  class="rounded-md bg-amber-500 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
-                  phx-click="sample_prompt"
-                  phx-value-text="permission"
-                  disabled={!@can_prompt?}
-                  title={@prompt_disabled_reason}
-                  aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
-                >
-                  Ask permission
-                </button>
-                <button
-                  id="sample-read-file-button"
-                  class="rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-800 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
-                  phx-click="sample_prompt"
-                  phx-value-text="read-file"
-                  disabled={!@can_prompt?}
-                  title={@prompt_disabled_reason}
-                  aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
-                >
-                  Read file
-                </button>
-                <button
-                  id="sample-write-file-button"
-                  class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-                  phx-click="sample_prompt"
-                  phx-value-text="write-file"
-                  disabled={!@can_prompt?}
-                  title={@prompt_disabled_reason}
-                  aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
-                >
-                  Write file
-                </button>
-                <button
-                  id="sample-terminal-button"
-                  class="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                  phx-click="sample_prompt"
-                  phx-value-text="terminal"
-                  disabled={!@can_prompt?}
-                  title={@prompt_disabled_reason}
-                  aria-describedby={if(@prompt_disabled_reason, do: "run-control-notice")}
-                >
-                  Terminal
-                </button>
-              </div>
-            </section>
-
             <section class="rounded-lg border border-zinc-200 bg-white p-4 text-sm shadow-sm">
               <h2 class="font-semibold">Run facts</h2>
               <dl class="mt-3 space-y-2">

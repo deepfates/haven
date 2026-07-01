@@ -50,6 +50,14 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-permission-audit summary", "Permission audit")
     assert has_element?(view, "#run-file-changes summary", "File changes")
     assert has_element?(view, "#run-terminal-sessions summary", "Terminal sessions")
+
+    html = render(view)
+    prompt_index = :binary.match(html, ~s|id="run-prompt-form"|) |> elem(0)
+    filters_index = :binary.match(html, ~s|id="timeline-filters"|) |> elem(0)
+    facts_index = :binary.match(html, ~s|id="run-capability-policy"|) |> elem(0)
+
+    assert prompt_index < filters_index
+    assert filters_index < facts_index
   end
 
   test "ignores global inbox activity notifications while using run-scoped events", %{conn: conn} do

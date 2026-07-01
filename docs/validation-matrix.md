@@ -193,6 +193,9 @@ Evidence:
 - LiveView integration tests verify the run timeline can search persisted
   activity by event type and payload content without mutating the event log,
   including paired tool-call result evidence.
+- LiveView integration tests verify the prompt/control panel is in the main run
+  thread before timeline filters and side-rail evidence, so mobile users can
+  continue a run without scrolling past the full activity history.
 - Event append now normalizes nested payload keys to strings before storage and
   PubSub broadcast, then rejects non-JSON-compatible values. Data-layer tests
   verify atom-keyed nested maps and lists are persisted and delivered as
