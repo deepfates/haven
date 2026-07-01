@@ -2520,74 +2520,103 @@ defmodule HavenWeb.RunLive do
                 </div>
               </section>
 
-              <details id="timeline-filters" class="rounded-lg border border-zinc-200 bg-white p-3">
-                <summary class="cursor-pointer text-sm font-medium text-zinc-700">
-                  Filter activity
-                </summary>
-                <form
-                  id="timeline-search-form"
-                  phx-change="search_events"
-                  phx-submit="search_events"
-                  class="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
-                >
-                  <.input
-                    id="event_search"
-                    name="event_search"
-                    value={@event_search}
-                    type="search"
-                    label="Search activity"
-                    placeholder="Event type, tool id, path, command, output"
-                    autocomplete="off"
-                  />
-                  <button
-                    :if={@event_search != ""}
-                    id="clear-timeline-search"
-                    type="button"
-                    class="mb-2 h-10 self-end rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                    phx-click="clear_event_search"
-                  >
-                    Clear
-                  </button>
-                </form>
-                <div class="mt-3 flex flex-wrap items-center gap-2">
-                  <button
-                    :for={{kind, label} <- @event_filters}
-                    id={"timeline-filter-#{kind}"}
-                    type="button"
-                    phx-click="filter_events"
-                    phx-value-kind={kind}
-                    class={[
-                      "inline-flex h-8 items-center rounded-md border px-3 text-xs font-semibold transition",
-                      @event_filter == kind &&
-                        "border-zinc-950 bg-zinc-950 text-white",
-                      @event_filter != kind &&
-                        "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
-                    ]}
-                  >
-                    {label}
-                    <span class="ml-1 text-[11px] opacity-70">
-                      {Map.get(@event_counts, kind, 0)}
+              <details
+                id="run-activity-timeline"
+                class="group rounded-lg border border-zinc-200 bg-white p-3"
+              >
+                <summary class="cursor-pointer list-none marker:hidden">
+                  <span class="flex items-center justify-between gap-3">
+                    <span class="min-w-0">
+                      <span class="block text-sm font-semibold text-zinc-950">
+                        Activity timeline
+                      </span>
+                      <span class="mt-0.5 block text-xs text-zinc-500">
+                        Raw protocol, tool, file, terminal, and runtime events
+                      </span>
                     </span>
-                  </button>
+                    <span
+                      id="run-activity-timeline-count"
+                      class="rounded-md bg-zinc-100 px-2 py-1 font-mono text-xs text-zinc-600"
+                    >
+                      {@run_nav_counts.evidence}
+                    </span>
+                  </span>
+                </summary>
+
+                <div class="mt-3 hidden space-y-3 border-t border-zinc-200 pt-3 group-open:block">
+                  <details
+                    id="timeline-filters"
+                    class="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+                  >
+                    <summary class="cursor-pointer text-sm font-medium text-zinc-700">
+                      Filter activity
+                    </summary>
+                    <form
+                      id="timeline-search-form"
+                      phx-change="search_events"
+                      phx-submit="search_events"
+                      class="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
+                    >
+                      <.input
+                        id="event_search"
+                        name="event_search"
+                        value={@event_search}
+                        type="search"
+                        label="Search activity"
+                        placeholder="Event type, tool id, path, command, output"
+                        autocomplete="off"
+                      />
+                      <button
+                        :if={@event_search != ""}
+                        id="clear-timeline-search"
+                        type="button"
+                        class="mb-2 h-10 self-end rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                        phx-click="clear_event_search"
+                      >
+                        Clear
+                      </button>
+                    </form>
+                    <div class="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        :for={{kind, label} <- @event_filters}
+                        id={"timeline-filter-#{kind}"}
+                        type="button"
+                        phx-click="filter_events"
+                        phx-value-kind={kind}
+                        class={[
+                          "inline-flex h-8 items-center rounded-md border px-3 text-xs font-semibold transition",
+                          @event_filter == kind &&
+                            "border-zinc-950 bg-zinc-950 text-white",
+                          @event_filter != kind &&
+                            "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                        ]}
+                      >
+                        {label}
+                        <span class="ml-1 text-[11px] opacity-70">
+                          {Map.get(@event_counts, kind, 0)}
+                        </span>
+                      </button>
+                    </div>
+                  </details>
+                  <div
+                    :if={@timeline_entries == []}
+                    id="timeline-empty-filter"
+                    class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+                  >
+                    <%= if @event_search != "" do %>
+                      No events match this search.
+                    <% else %>
+                      No events match this filter.
+                    <% end %>
+                  </div>
+                  <.event
+                    :for={entry <- @timeline_entries}
+                    event={entry.event}
+                    result_event={entry.result_event}
+                    permission_audits={@permission_audits}
+                  />
                 </div>
               </details>
-              <div
-                :if={@timeline_entries == []}
-                id="timeline-empty-filter"
-                class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
-              >
-                <%= if @event_search != "" do %>
-                  No events match this search.
-                <% else %>
-                  No events match this filter.
-                <% end %>
-              </div>
-              <.event
-                :for={entry <- @timeline_entries}
-                event={entry.event}
-                result_event={entry.result_event}
-                permission_audits={@permission_audits}
-              />
             </section>
           </div>
 
