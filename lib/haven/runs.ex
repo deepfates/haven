@@ -57,12 +57,12 @@ defmodule Haven.Runs do
   end
 
   def start_run(run_id, opts \\ []) do
-    spec = {RunServer, Keyword.put(opts, :run_id, run_id)}
+    run = get_run!(run_id)
 
-    case DynamicSupervisor.start_child(Haven.Runs.Supervisor, spec) do
-      {:ok, pid} -> {:ok, pid}
-      {:error, {:already_started, pid}} -> {:ok, pid}
-      other -> other
+    if archived?(run) do
+      {:error, :archived_run}
+    else
+      start_unarchived_run(run_id, opts)
     end
   end
 
@@ -77,8 +77,9 @@ defmodule Haven.Runs do
 
       [] ->
         case get_run!(run_id) do
+          %{archived_at: archived_at} when not is_nil(archived_at) -> {:error, :archived_run}
           %{status: status} when status in ["closed", "failed"] -> {:error, :terminal_run}
-          _run -> start_run(run_id)
+          _run -> start_unarchived_run(run_id, [])
         end
     end
   end
@@ -87,6 +88,9 @@ defmodule Haven.Runs do
     run = get_run!(run_id)
 
     cond do
+      archived?(run) ->
+        {:error, :archived_run}
+
       run.status == "closed" ->
         {:error, :closed_run}
 
@@ -111,6 +115,9 @@ defmodule Haven.Runs do
     run = get_run!(run_id)
 
     cond do
+      archived?(run) ->
+        {:error, :archived_run}
+
       run.status != "failed" ->
         {:error, :not_failed}
 
@@ -197,6 +204,18 @@ defmodule Haven.Runs do
   end
 
   def subscribe, do: Phoenix.PubSub.subscribe(Haven.PubSub, "runs")
+
+  defp start_unarchived_run(run_id, opts) do
+    spec = {RunServer, Keyword.put(opts, :run_id, run_id)}
+
+    case DynamicSupervisor.start_child(Haven.Runs.Supervisor, spec) do
+      {:ok, pid} -> {:ok, pid}
+      {:error, {:already_started, pid}} -> {:ok, pid}
+      other -> other
+    end
+  end
+
+  defp archived?(%Run{archived_at: archived_at}), do: not is_nil(archived_at)
 
   defp last_user_prompt(run_id) do
     run_id

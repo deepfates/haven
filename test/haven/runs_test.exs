@@ -59,6 +59,21 @@ defmodule Haven.RunsTest do
     refute Runs.get_run!(running.id).archived_at
   end
 
+  test "archived runs are read-only and cannot be restarted" do
+    run = insert_run!("Archived boundary", "failed")
+    assert {:ok, archived} = Runs.archive_run(run.id)
+
+    assert {:error, :archived_run} = Runs.start_run(archived.id)
+    assert {:error, :archived_run} = Runs.ensure_started(archived.id)
+    assert {:error, :archived_run} = Runs.reconnect_run(archived.id)
+    assert {:error, :archived_run} = Runs.retry_last_prompt(archived.id)
+
+    assert [
+             %{type: "run_created"},
+             %{type: "run_archived"}
+           ] = Events.list_for_run(archived.id)
+  end
+
   test "prune_archived_before deletes only archived runs older than the cutoff" do
     old_archived =
       "Old archived run"
