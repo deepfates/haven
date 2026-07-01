@@ -53,10 +53,19 @@ defmodule Haven.AgentProbeReport do
 
   defp require_string(errors, report, key) do
     case Map.get(report, key) do
-      value when is_binary(value) and value != "" -> errors
-      _value -> ["#{key} must be a non-empty string" | errors]
+      value when is_binary(value) ->
+        if non_blank_string?(value) do
+          errors
+        else
+          invalid_string(errors, key)
+        end
+
+      _value ->
+        invalid_string(errors, key)
     end
   end
+
+  defp invalid_string(errors, key), do: ["#{key} must be a non-empty string" | errors]
 
   defp reject_stub_agent(errors, %{"agent" => "stub-acp"}) do
     ["agent must not be stub-acp" | errors]

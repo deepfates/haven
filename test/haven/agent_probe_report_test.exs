@@ -21,6 +21,21 @@ defmodule Haven.AgentProbeReportTest do
     assert "run_id must be a non-empty string" in errors
   end
 
+  test "rejects reports with whitespace-only required metadata" do
+    report =
+      valid_report()
+      |> Map.put("run_id", "   ")
+      |> Map.put("agent", "   ")
+      |> Map.put("workspace", "   ")
+      |> Map.put("prompt", "   ")
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+    assert "run_id must be a non-empty string" in errors
+    assert "agent must be a non-empty string" in errors
+    assert "workspace must be a non-empty string" in errors
+    assert "prompt must be a non-empty string" in errors
+  end
+
   test "rejects stub reports" do
     report = Map.put(valid_report(), "agent", "stub-acp")
 
