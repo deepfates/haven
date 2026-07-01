@@ -77,6 +77,8 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, ~s|#run-nav-evidence[href="#run-evidence-summary"]|, "Evidence")
     assert has_element?(view, "#run-nav-evidence-count", "4")
     assert has_element?(view, "#run-thread")
+    assert has_element?(view, "#run-thread-empty-state", "Ready for a prompt")
+    assert has_element?(view, "#run-thread-empty-state", "The agent is connected and waiting.")
     assert has_element?(view, "#run-activity-timeline:not([open])")
     assert has_element?(view, "#run-activity-timeline summary", "Activity timeline")
     assert has_element?(view, "#run-activity-timeline-count", "4")
@@ -3471,6 +3473,7 @@ defmodule HavenWeb.RunLiveTest do
     {:ok, reloaded, _html} = live(conn, ~p"/runs/#{run.id}")
     assert has_element?(reloaded, "#haven-run", "idle")
     assert has_element?(reloaded, "#run-conversation")
+    refute has_element?(reloaded, "#run-thread-empty-state")
 
     assert has_element?(
              reloaded,

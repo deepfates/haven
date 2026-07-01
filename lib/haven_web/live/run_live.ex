@@ -2396,6 +2396,25 @@ defmodule HavenWeb.RunLive do
               </section>
 
               <section
+                :if={
+                  @conversation_messages == [] and is_nil(@pending_permission) and
+                    is_nil(@recovery_attention) and is_nil(@run.archived_at)
+                }
+                id="run-thread-empty-state"
+                class="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-5 text-center"
+              >
+                <.icon name="hero-chat-bubble-left-right" class="mx-auto size-6 text-zinc-400" />
+                <h2 class="mt-2 text-sm font-semibold text-zinc-950">
+                  {if @can_prompt?, do: "Ready for a prompt", else: "No messages yet"}
+                </h2>
+                <p class="mt-1 text-sm text-zinc-500">
+                  {if @can_prompt?,
+                    do: "The agent is connected and waiting.",
+                    else: "This run has no conversation messages yet."}
+                </p>
+              </section>
+
+              <section
                 id="run-control-panel"
                 class={[
                   "bg-white",
