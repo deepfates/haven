@@ -240,11 +240,111 @@ defmodule HavenWeb.RunLive do
     [
       event.type,
       event_kind_label(event.type),
+      event_search_label(event),
       safe_json(event.payload),
       result_event && result_event.type,
+      result_event && event_search_label(result_event),
       result_event && safe_json(result_event.payload)
     ]
     |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+  end
+
+  defp event_search_label(%{type: "tool_call", payload: payload}) do
+    [
+      "Tool call",
+      tool_call_kind_label(payload["kind"] || "tool"),
+      payload["title"],
+      tool_call_path(payload),
+      get_in(payload, ["rawInput", "command"])
+    ]
+    |> search_label()
+  end
+
+  defp event_search_label(%{type: "tool_call_update", payload: payload}) do
+    [
+      "Tool result",
+      tool_result_label(payload["status"], tool_call_exit_code(payload)),
+      payload["title"],
+      tool_call_output(payload)
+    ]
+    |> search_label()
+  end
+
+  defp event_search_label(%{type: type, payload: payload})
+       when type in [
+              "agent_start_failed",
+              "agent_protocol_failed",
+              "agent_process_down"
+            ] do
+    [
+      "Runtime failure",
+      runtime_failure_title(type),
+      runtime_failure_reason(payload)
+    ]
+    |> search_label()
+  end
+
+  defp event_search_label(%{type: "turn_retry_requested"}), do: "Retry requested"
+  defp event_search_label(%{type: "turn_continue_requested"}), do: "Continue requested"
+  defp event_search_label(%{type: "turn_failed"}), do: "Turn failed"
+  defp event_search_label(%{type: "run_reconnect_requested"}), do: "Reconnect requested"
+
+  defp event_search_label(%{type: type, payload: payload})
+       when type in ["permission_resolved", "permission_resolution_ignored"] do
+    [
+      "Permission decision",
+      if(type == "permission_resolution_ignored",
+        do: "Stale decision ignored",
+        else: "Decision recorded"
+      ),
+      payload["option_id"],
+      payload["actor"],
+      payload["outcome"],
+      payload["reason"]
+    ]
+    |> search_label()
+  end
+
+  defp event_search_label(%{type: type})
+       when type in [
+              "file_read_requested",
+              "file_read_succeeded",
+              "file_read_failed",
+              "file_read_denied",
+              "file_write_requested",
+              "file_write_succeeded",
+              "file_write_failed",
+              "file_write_denied",
+              "terminal_create_requested",
+              "terminal_created",
+              "terminal_create_denied",
+              "terminal_create_failed",
+              "terminal_wait_requested",
+              "terminal_wait_succeeded",
+              "terminal_wait_failed",
+              "terminal_output_requested",
+              "terminal_output_succeeded",
+              "terminal_output_failed",
+              "terminal_release_requested",
+              "terminal_released",
+              "terminal_release_failed",
+              "terminal_kill_requested",
+              "terminal_kill_succeeded",
+              "terminal_kill_failed"
+            ] do
+    [client_event_tag(type), client_event_title(type), client_event_status(type)]
+    |> search_label()
+  end
+
+  defp event_search_label(_event), do: nil
+
+  defp search_label(parts) do
+    parts
+    |> List.flatten()
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(&to_string/1)
+    |> Enum.reject(&(&1 == ""))
     |> Enum.join(" ")
   end
 

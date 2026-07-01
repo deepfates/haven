@@ -669,6 +669,38 @@ defmodule HavenWeb.RunLiveTest do
     assert length(Events.list_for_run(run.id)) > 1
   end
 
+  test "searches timeline by rendered event labels", %{conn: conn} do
+    run = insert_run!("Timeline label search run", "stub-acp")
+
+    protocol_failure =
+      Events.append!(run.id, "agent_protocol_failed", %{
+        "reason" => "malformed_agent_output",
+        "agent" => "stub-acp",
+        "workspace" => run.workspace
+      })
+
+    continue_request =
+      Events.append!(run.id, "turn_continue_requested", %{
+        "prompt" => "try another route"
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    view
+    |> form("#timeline-search-form", %{"event_search" => "protocol failed"})
+    |> render_change()
+
+    assert has_element?(view, "#runtime-failure-#{protocol_failure.seq}", "Agent protocol failed")
+    refute has_element?(view, "#event-#{continue_request.seq}")
+
+    view
+    |> form("#timeline-search-form", %{"event_search" => "continue requested"})
+    |> render_change()
+
+    assert has_element?(view, "#event-#{continue_request.seq}", "Continue requested")
+    refute has_element?(view, "#runtime-failure-#{protocol_failure.seq}")
+  end
+
   test "renders ACP file tool calls as reviewable timeline evidence", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "File tool call projection"})
     stop_run_server_on_exit(run.id)

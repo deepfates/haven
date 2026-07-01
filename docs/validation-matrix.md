@@ -215,6 +215,9 @@ Evidence:
 - LiveView integration tests verify the run timeline can search persisted
   activity by event type and payload content without mutating the event log,
   including paired tool-call result evidence.
+- LiveView integration tests verify timeline search also matches rendered
+  human labels such as `Agent protocol failed` and `Continue requested`, so
+  users do not need to know raw event type names to find evidence.
 - LiveView integration tests verify the prompt/control panel is in the main run
   thread before timeline filters and side-rail evidence, so mobile users can
   continue a run without scrolling past the full activity history.

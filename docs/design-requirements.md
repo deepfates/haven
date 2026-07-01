@@ -152,6 +152,7 @@ Required content:
 - Prompt composer when the run can accept input.
 - Control actions: send, cancel, retry/restart where applicable.
 - Protocol metadata available without overwhelming the main reading path.
+- Timeline search by both raw event facts and rendered human labels.
 
 Required behavior:
 
