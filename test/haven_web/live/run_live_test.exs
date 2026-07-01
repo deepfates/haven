@@ -222,6 +222,10 @@ defmodule HavenWeb.RunLiveTest do
 
     {:ok, view, html} = live(conn, ~p"/runs/#{run.id}")
 
+    [pending_audit] = PermissionAudits.list_for_run(run.id)
+    assert pending_audit.status == "pending"
+    assert pending_audit.request_id == 42
+
     assert html =~ "not connected"
     assert has_element?(view, "#pending-permission-card", "Write file")
     assert has_element?(view, ~s|#pending-permission-card button[disabled]|)
@@ -259,6 +263,13 @@ defmodule HavenWeb.RunLiveTest do
 
     refute has_element?(view, "#pending-permission-card")
     assert render(view) =~ "connected"
+
+    [cancelled_audit] = PermissionAudits.list_for_run(run.id)
+    assert cancelled_audit.status == "cancelled"
+    assert cancelled_audit.selected_option_id == "cancelled"
+    assert cancelled_audit.outcome == "cancelled"
+    assert cancelled_audit.reason == "run_reconnect_requested"
+    assert cancelled_audit.actor == "system"
   end
 
   test "reconnect fails stale in-flight turns for disconnected running runs", %{conn: conn} do
@@ -3333,7 +3344,7 @@ defmodule HavenWeb.RunLiveTest do
   end
 
   defp append_permission_requested!(run_id, request_id) do
-    Events.append!(run_id, "permission_requested", %{
+    payload = %{
       "request_id" => request_id,
       "toolCall" => %{
         "id" => "tool-#{request_id}",
@@ -3345,6 +3356,9 @@ defmodule HavenWeb.RunLiveTest do
         %{"optionId" => "allow", "name" => "Allow", "kind" => "allow_once"},
         %{"optionId" => "deny", "name" => "Deny", "kind" => "reject_once"}
       ]
-    })
+    }
+
+    Events.append!(run_id, "permission_requested", payload)
+    PermissionAudits.create_pending!(run_id, :agent_permission, payload)
   end
 end

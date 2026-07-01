@@ -2,6 +2,7 @@ defmodule Haven.Runs do
   import Ecto.Query
 
   alias Haven.Events
+  alias Haven.PermissionAudits
   alias Haven.Repo
   alias Haven.Runs.{Run, RunServer}
 
@@ -276,13 +277,16 @@ defmodule Haven.Runs do
     |> Enum.map(& &1.payload["request_id"])
     |> Enum.reject(&MapSet.member?(resolved, to_string(&1)))
     |> Enum.each(fn request_id ->
-      Events.append!(run_id, "permission_resolved", %{
+      payload = %{
         "request_id" => request_id,
         "option_id" => "cancelled",
         "outcome" => "cancelled",
         "reason" => reason,
         "actor" => "system"
-      })
+      }
+
+      Events.append!(run_id, "permission_resolved", payload)
+      PermissionAudits.mark_resolved!(run_id, request_id, payload)
     end)
   end
 end
