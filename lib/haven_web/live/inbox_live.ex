@@ -297,7 +297,7 @@ defmodule HavenWeb.InboxLive do
         :latest_permission_request,
         latest_permission_request(permission_requests, latest_event)
       )
-      |> Map.put(:live?, Runs.started?(run.id))
+      |> Map.put(:live?, Runs.started?(run))
     end)
   end
 

@@ -119,6 +119,33 @@ defmodule Haven.RunsTest do
 
     refute Runs.started?(closed.id)
     refute Runs.started?(archived.id)
+    refute Runs.started?(closed)
+    refute Runs.started?(archived)
+  end
+
+  test "started? accepts an already loaded active run without refetching it" do
+    run = insert_run!("Loaded started boundary", "idle")
+    assert {:ok, _} = Registry.register(Haven.Runs.Registry, run.id, :live)
+
+    parent = self()
+    telemetry_id = "runs-started-loaded-run-#{System.unique_integer([:positive])}"
+
+    :ok =
+      :telemetry.attach(
+        telemetry_id,
+        [:haven, :repo, :query],
+        fn _event, _measurements, metadata, _config ->
+          send(parent, {:repo_query, metadata.query})
+        end,
+        nil
+      )
+
+    try do
+      assert Runs.started?(run)
+      refute_receive {:repo_query, _query}, 50
+    after
+      :telemetry.detach(telemetry_id)
+    end
   end
 
   test "prune_archived_before deletes only archived runs older than the cutoff" do

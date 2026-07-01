@@ -72,13 +72,15 @@ defmodule Haven.Runs do
     end
   end
 
-  def started?(run_id) do
-    case get_run!(run_id) do
+  def started?(%Run{} = run) do
+    case run do
       %{archived_at: archived_at} when not is_nil(archived_at) -> false
       %{status: status} when status in ["closed", "failed"] -> false
-      _run -> registry_started?(run_id)
+      %{id: run_id} -> registry_started?(run_id)
     end
   end
+
+  def started?(run_id), do: run_id |> get_run!() |> started?()
 
   def ensure_started(run_id) do
     case get_run!(run_id) do
