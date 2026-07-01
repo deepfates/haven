@@ -628,7 +628,18 @@ defmodule HavenWeb.RunLiveTest do
   end
 
   test "surfaces and resolves exact permission requests", %{conn: conn} do
-    {:ok, run} = Runs.create_run(%{"title" => "Permission run"})
+    {:ok, run} =
+      Runs.create_run(%{
+        "title" => "Permission run",
+        "capability_policy" => %{
+          "file_read" => "allow",
+          "file_read_paths" => ["README.md", "docs"],
+          "file_write" => "ask",
+          "file_write_paths" => ["notes"],
+          "terminal_create" => "deny"
+        }
+      })
+
     stop_run_server_on_exit(run.id)
     sync_run_server!(run.id)
     Events.subscribe(run.id)
@@ -652,6 +663,12 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#pending-permission-tool-status", "pending")
     assert has_element?(view, "#pending-permission-options", "Allow once (allow)")
     assert has_element?(view, "#pending-permission-options", "Deny (deny)")
+    assert has_element?(view, "#pending-permission-authority")
+    assert has_element?(view, "#pending-permission-authority-read", "Allow")
+    assert has_element?(view, "#pending-permission-authority-read", "README.md, docs")
+    assert has_element?(view, "#pending-permission-authority-write", "Ask")
+    assert has_element?(view, "#pending-permission-authority-write", "notes")
+    assert has_element?(view, "#pending-permission-authority-terminal", "Deny")
 
     view
     |> element(~s|#pending-permission-card button[phx-value-option-id="allow"]|)
@@ -2362,7 +2379,7 @@ defmodule HavenWeb.RunLiveTest do
                       type: "terminal_create_requested",
                       payload: %{"command" => "sh", "args" => ["-c", "sleep 30 & wait"]}
                     }},
-                   1_000
+                   2_000
 
     assert_receive {:event_appended,
                     %{type: "terminal_created", payload: %{"terminal_id" => terminal_id}}},

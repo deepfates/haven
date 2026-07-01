@@ -949,6 +949,41 @@ defmodule HavenWeb.RunLive do
                 <p class="mt-2 text-sm text-zinc-600">
                   The agent is blocked until you choose an option.
                 </p>
+                <dl
+                  id="pending-permission-authority"
+                  class="mt-3 grid gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 sm:grid-cols-3"
+                >
+                  <div id="pending-permission-authority-read" class="min-w-0">
+                    <dt class="font-semibold uppercase text-zinc-500">Reads</dt>
+                    <dd class="mt-1 flex flex-wrap items-center gap-1">
+                      <span class={policy_badge_class(@capability_policy["file_read"])}>
+                        {policy_label(@capability_policy["file_read"])}
+                      </span>
+                      <span class="break-all text-zinc-600">
+                        {policy_scope_label(@capability_policy["file_read_paths"])}
+                      </span>
+                    </dd>
+                  </div>
+                  <div id="pending-permission-authority-write" class="min-w-0">
+                    <dt class="font-semibold uppercase text-zinc-500">Writes</dt>
+                    <dd class="mt-1 flex flex-wrap items-center gap-1">
+                      <span class={policy_badge_class(@capability_policy["file_write"])}>
+                        {policy_label(@capability_policy["file_write"])}
+                      </span>
+                      <span class="break-all text-zinc-600">
+                        {policy_scope_label(@capability_policy["file_write_paths"])}
+                      </span>
+                    </dd>
+                  </div>
+                  <div id="pending-permission-authority-terminal" class="min-w-0">
+                    <dt class="font-semibold uppercase text-zinc-500">Terminals</dt>
+                    <dd class="mt-1">
+                      <span class={policy_badge_class(@capability_policy["terminal_create"])}>
+                        {policy_label(@capability_policy["terminal_create"])}
+                      </span>
+                    </dd>
+                  </div>
+                </dl>
                 <dl class="mt-3 grid gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 sm:grid-cols-2">
                   <div id="pending-permission-request-id" class="min-w-0">
                     <dt class="font-semibold uppercase text-zinc-500">Request</dt>

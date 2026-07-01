@@ -239,6 +239,9 @@ Evidence:
 - LiveView integration tests verify active permission cards expose the exact
   request id, tool call id, tool status, and option ids for generic agent
   permissions, file reads, and terminal creation before the user decides.
+- LiveView integration tests verify active permission cards also expose the
+  run's effective read, write, terminal, and path-scope authority, so decisions
+  can be made with policy context in the same surface.
 - Browser smoke verifies the same allow flow through the real rendered UI,
   including a rendered `permission_resolved` payload with
   `"actor": "local_user"`.
