@@ -145,7 +145,9 @@ successfully but answers the ACP `initialize` request incorrectly.
 Probe CLI output suppresses debug-level application logs by default so the
 inventory, preflight, and report summaries remain readable as evidence. Add
 `--verbose` when debugging the probe task itself and you need the current
-logger level preserved.
+logger level preserved. Inventory preflight also prints a final summary naming
+how many static real-agent candidates passed and which keys are ready for full
+evidence probes.
 
 Use `--list-agents --registry` to fetch the public ACP Registry and print
 npx-backed agent command suggestions, including the `HAVEN_AGENTS_JSON` shape

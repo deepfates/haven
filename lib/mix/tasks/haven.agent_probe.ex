@@ -246,44 +246,49 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     Mix.shell().info("")
     Mix.shell().info("Configured agents:")
 
-    Enum.each(inventory, fn agent ->
-      Mix.shell().info("- #{agent.agent}: #{agent.status}")
+    preflight_results =
+      Enum.reduce(inventory, [], fn agent, results ->
+        Mix.shell().info("- #{agent.agent}: #{agent.status}")
 
-      if agent.status == "ready" do
-        Mix.shell().info("  executable: #{agent.executable}")
-        Mix.shell().info("  args: #{inspect_args(agent.args)}")
-        Mix.shell().info("  cwd: #{agent.cwd || "(inherit)"}")
-        Mix.shell().info("  env keys: #{Enum.join(agent.env_keys, ", ")}")
-      else
-        Mix.shell().info("  error: #{agent.error}")
-      end
+        if agent.status == "ready" do
+          Mix.shell().info("  executable: #{agent.executable}")
+          Mix.shell().info("  args: #{inspect_args(agent.args)}")
+          Mix.shell().info("  cwd: #{agent.cwd || "(inherit)"}")
+          Mix.shell().info("  env keys: #{Enum.join(agent.env_keys, ", ")}")
+        else
+          Mix.shell().info("  error: #{agent.error}")
+        end
 
-      Mix.shell().info("  static real-agent probe candidate: #{agent.real_agent_candidate}")
+        Mix.shell().info("  static real-agent probe candidate: #{agent.real_agent_candidate}")
 
-      if agent.real_agent_rejection_reasons != [] do
-        Mix.shell().info(
-          "  rejection reasons: #{Enum.join(agent.real_agent_rejection_reasons, "; ")}"
-        )
-      else
-        Mix.shell().info(
-          "  evidence status: command resolves, but ACP compatibility is not proven until preflight or a full probe passes"
-        )
-      end
-
-      if agent.real_agent_candidate do
-        Mix.shell().info(
-          "  example: mix haven.agent_probe --agent #{agent.agent} --workspace #{workspace} --require-real-agent --expect-event agent_initialized --expect-event agent_session_started --expect-event turn_finished --report docs/probes/#{agent.agent}-basic.json"
-        )
-
-        if preflight? do
-          print_agent_preflight(agent.agent, workspace, preflight_timeout)
+        if agent.real_agent_rejection_reasons != [] do
+          Mix.shell().info(
+            "  rejection reasons: #{Enum.join(agent.real_agent_rejection_reasons, "; ")}"
+          )
         else
           Mix.shell().info(
-            "  preflight: not run (add --preflight to verify ACP initialize/session handshake before treating this as evidence)"
+            "  evidence status: command resolves, but ACP compatibility is not proven until preflight or a full probe passes"
           )
         end
-      end
-    end)
+
+        if agent.real_agent_candidate do
+          Mix.shell().info(
+            "  example: mix haven.agent_probe --agent #{agent.agent} --workspace #{workspace} --require-real-agent --expect-event agent_initialized --expect-event agent_session_started --expect-event turn_finished --report docs/probes/#{agent.agent}-basic.json"
+          )
+
+          if preflight? do
+            [print_agent_preflight(agent.agent, workspace, preflight_timeout) | results]
+          else
+            Mix.shell().info(
+              "  preflight: not run (add --preflight to verify ACP initialize/session handshake before treating this as evidence)"
+            )
+
+            results
+          end
+        else
+          results
+        end
+      end)
 
     Mix.shell().info("")
 
@@ -297,6 +302,10 @@ defmodule Mix.Tasks.Haven.AgentProbe do
         Mix.shell().info(
           "Static real-agent probe candidates: #{Enum.map_join(candidates, ", ", & &1.agent)}"
         )
+    end
+
+    if preflight? do
+      print_preflight_summary(Enum.reverse(preflight_results))
     end
 
     if registry? do
@@ -320,6 +329,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
          ) do
       {:ok, report} ->
         Mix.shell().info("  preflight: ok (run #{report.run_id}, status #{report.status})")
+        %{agent: agent, status: :ok, run_id: report.run_id}
 
       {:error, reason, report} ->
         Mix.shell().info("  preflight: failed (#{reason}, run #{report.run_id || "none"})")
@@ -335,8 +345,30 @@ defmodule Mix.Tasks.Haven.AgentProbe do
               "  preflight last event: #{event.type} #{Jason.encode!(event.payload)}"
             )
         end
+
+        %{agent: agent, status: :failed, run_id: report.run_id, reason: reason}
     end
   end
+
+  defp print_preflight_summary([]) do
+    Mix.shell().info("Preflight summary: no static real-agent probe candidates.")
+  end
+
+  defp print_preflight_summary(results) do
+    ok = Enum.filter(results, &(&1.status == :ok))
+    failed = Enum.filter(results, &(&1.status == :failed))
+
+    Mix.shell().info(
+      "Preflight summary: #{length(ok)}/#{length(results)} #{pluralize(length(results), "candidate")} passed ACP initialize/session handshake; #{length(failed)} failed."
+    )
+
+    if ok != [] do
+      Mix.shell().info("Preflight-ready agents: #{Enum.map_join(ok, ", ", & &1.agent)}")
+    end
+  end
+
+  defp pluralize(1, singular), do: singular
+  defp pluralize(_count, singular), do: singular <> "s"
 
   defp print_registry_suggestions do
     Mix.shell().info("")

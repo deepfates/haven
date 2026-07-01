@@ -116,7 +116,9 @@ plausible: it starts a short durable run for each probe candidate and verifies
 the ACP initialize/session handshake before you attempt a full evidence report.
 Probe output suppresses debug-level application logs by default so inventory,
 preflight, and report output stay readable as evidence. Add `--verbose` when
-debugging the probe task itself.
+debugging the probe task itself. Preflight inventory prints a final summary
+with how many static real-agent candidates passed and which agent keys are
+ready for full evidence probes.
 Use `--list-agents --registry` to fetch the public ACP Registry and print
 npx-backed agent command suggestions that can be supplied through
 `HAVEN_AGENTS_JSON`. Registry commands download and run third-party code; run

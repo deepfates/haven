@@ -241,6 +241,32 @@ defmodule Haven.AgentProbeTest do
     assert Logger.level() == :debug
   end
 
+  test "agent probe inventory preflight prints a concise candidate summary" do
+    Application.put_env(:haven, :agents, %{
+      "not-acp" => %{executable: "sh", args: ["-c", "cat"]}
+    })
+
+    output =
+      capture_io(fn ->
+        AgentProbeTask.run([
+          "--list-agents",
+          "--preflight",
+          "--workspace",
+          File.cwd!(),
+          "--timeout",
+          "1000"
+        ])
+      end)
+
+    assert output =~ "not-acp"
+    assert output =~ "preflight: failed"
+
+    assert output =~
+             "Preflight summary: 0/1 candidate passed ACP initialize/session handshake; 1 failed."
+
+    refute output =~ "Preflight-ready agents:"
+  end
+
   test "preflights an ACP agent without sending a prompt" do
     assert {:ok, report} =
              AgentProbe.preflight(
