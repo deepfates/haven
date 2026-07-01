@@ -560,7 +560,7 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-recovery-card", "Run failed")
     assert has_element?(view, "#run-recovery-action-button", "Restart")
     assert has_element?(view, "#reconnect-run-button", "Restart")
-    assert has_element?(view, "#run-control-notice", "Restart it before sending another prompt.")
+    assert has_element?(view, "#run-control-notice", "continue, retry, or restart")
     refute has_element?(view, "#retry-last-prompt-button")
 
     view
@@ -602,6 +602,7 @@ defmodule HavenWeb.RunLiveTest do
            )
 
     assert has_element?(view, "#retry-last-prompt-button", "Retry last prompt")
+    assert has_element?(view, "#retry-last-prompt-preview", "Last prompt")
     assert has_element?(view, "#retry-last-prompt-preview", "retry me")
     assert has_element?(view, "#run-recovery-action-button", "Restart")
 
@@ -641,6 +642,20 @@ defmodule HavenWeb.RunLiveTest do
     assert html =~ "Echo: retry me"
     assert html =~ "idle"
     refute has_element?(view, "#retry-last-prompt-button")
+  end
+
+  test "failed runs with stale pending permissions point to recovery before decisions", %{
+    conn: conn
+  } do
+    run = insert_disconnected_run!("Failed stale permission", "failed")
+    append_permission_requested!(run.id, 42)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-recovery-card", "Run failed")
+    assert has_element?(view, "#pending-permission-card", "Write file")
+    assert has_element?(view, "#run-control-notice", "continue, retry, or restart")
+    refute has_element?(view, "#run-control-review-decision-link")
   end
 
   test "continue with a new prompt restarts a failed run and preserves history", %{conn: conn} do

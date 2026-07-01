@@ -424,7 +424,7 @@ defmodule HavenWeb.RunLive do
   end
 
   defp control_notice(%{status: "failed"}, _live?) do
-    "This run failed. Restart it before sending another prompt."
+    "This run failed. Use the recovery options above to continue, retry, or restart."
   end
 
   defp control_notice(%{status: "closed"}, _live?) do
@@ -2221,13 +2221,14 @@ defmodule HavenWeb.RunLive do
                     <.icon name="hero-arrow-down-circle" class="size-3.5" /> View event
                   </a>
                 </div>
-                <p
+                <div
                   :if={@can_retry_last_prompt?}
                   id="retry-last-prompt-preview"
                   class="mt-3 line-clamp-3 rounded-md border border-rose-200 bg-white px-3 py-2 text-sm text-zinc-700"
                 >
-                  {@last_user_prompt}
-                </p>
+                  <p class="text-xs font-semibold uppercase text-rose-700">Last prompt</p>
+                  <p class="mt-1 whitespace-pre-wrap">{@last_user_prompt}</p>
+                </div>
                 <.form
                   :if={@can_continue_failed?}
                   id="continue-after-failure-form"
@@ -2597,7 +2598,7 @@ defmodule HavenWeb.RunLive do
                 >
                   <p>{@control_notice}</p>
                   <a
-                    :if={@pending_permission}
+                    :if={not is_nil(@pending_permission) and @run.status == "waiting"}
                     id="run-control-review-decision-link"
                     href="#pending-permission-card"
                     class="mt-2 inline-flex h-8 items-center justify-center rounded-md border border-amber-300 bg-amber-50 px-3 font-semibold text-amber-950 transition hover:bg-amber-100 sm:mt-0"
