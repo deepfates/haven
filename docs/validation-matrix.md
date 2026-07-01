@@ -137,6 +137,10 @@ Evidence:
 - LiveView tests verify the inbox renders a compact attention summary above run
   creation and search, derived from the same lane counts, and that tapping it
   jumps to the most urgent lane instead of forcing users to scan every run.
+- LiveView tests verify the inbox also renders a compact tappable queue summary
+  for All, Needs You, Running, History, and Archived counts, so users managing
+  many agents across folders can jump to a lane from the top of the mobile-first
+  inbox without treating the page as a dashboard.
 - LiveView tests verify the inbox can filter the attention surface to All,
   Needs You, Running, or History while preserving lane counts and empty states.
 - LiveView tests verify the inbox can search visible run facts across title,

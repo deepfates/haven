@@ -148,6 +148,41 @@ defmodule HavenWeb.InboxLiveTest do
     refute has_element?(view, "#run-#{history.id}")
   end
 
+  test "renders a tappable queue summary for many-run triage", %{conn: conn} do
+    waiting = insert_run!("Approve deploy", "waiting")
+    running = insert_run!("Index repository", "running")
+    history = insert_run!("Answered question", "idle")
+    archived = insert_run!("Old incident", "failed")
+    assert {:ok, _archived} = Runs.archive_run(archived.id)
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#inbox-queue-summary")
+    assert has_element?(view, "#inbox-queue-all", "3")
+    assert has_element?(view, "#inbox-queue-needs_you", "1")
+    assert has_element?(view, "#inbox-queue-running", "1")
+    assert has_element?(view, "#inbox-queue-history", "1")
+    assert has_element?(view, "#inbox-queue-archived", "1")
+    assert has_element?(view, ~s|#inbox-queue-all[aria-current="page"]|)
+
+    view
+    |> element("#inbox-queue-running")
+    |> render_click()
+
+    assert has_element?(view, ~s|#inbox-queue-running[aria-current="page"]|)
+    assert has_element?(view, "#run-#{running.id}")
+    refute has_element?(view, "#run-#{waiting.id}")
+    refute has_element?(view, "#run-#{history.id}")
+
+    view
+    |> element("#inbox-queue-archived")
+    |> render_click()
+
+    assert has_element?(view, "#inbox-archived-section")
+    assert has_element?(view, "#run-#{archived.id}")
+    refute has_element?(view, "#run-#{running.id}")
+  end
+
   test "keeps setup surfaces behind secondary inbox disclosures", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 

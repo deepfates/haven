@@ -842,6 +842,20 @@ defmodule HavenWeb.InboxLive do
     ]
   end
 
+  defp run_queue_button_class(filter, active_filter) do
+    [
+      "min-w-28 rounded-lg border px-3 py-2 text-left transition",
+      filter == active_filter && "border-zinc-950 bg-zinc-950 text-white",
+      filter != active_filter && "border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50"
+    ]
+  end
+
+  defp run_queue_caption("all"), do: "Open work"
+  defp run_queue_caption("needs_you"), do: "Decisions"
+  defp run_queue_caption("running"), do: "In flight"
+  defp run_queue_caption("history"), do: "Readable"
+  defp run_queue_caption("archived"), do: "Stored"
+
   defp inbox_attention_summary(%{
          "needs_you" => count,
          "running" => running,
@@ -1475,6 +1489,34 @@ defmodule HavenWeb.InboxLive do
               </span>
               <.icon name="hero-chevron-right" class="size-5 shrink-0 text-zinc-400" />
             </button>
+
+            <nav
+              id="inbox-queue-summary"
+              class="mt-3 flex gap-2 overflow-x-auto pb-1"
+              aria-label="Inbox queue summary"
+            >
+              <button
+                :for={{filter, label} <- @run_filters}
+                id={"inbox-queue-#{filter}"}
+                type="button"
+                class={run_queue_button_class(filter, @run_filter)}
+                phx-click="filter_runs"
+                phx-value-filter={filter}
+                aria-current={if(@run_filter == filter, do: "page")}
+              >
+                <span class="block text-xl font-semibold leading-none">
+                  {Map.get(@run_filter_counts, filter, 0)}
+                </span>
+                <span class="mt-1 block text-xs font-semibold">{label}</span>
+                <span class={[
+                  "mt-0.5 block truncate text-[11px]",
+                  @run_filter == filter && "text-zinc-300",
+                  @run_filter != filter && "text-zinc-500"
+                ]}>
+                  {run_queue_caption(filter)}
+                </span>
+              </button>
+            </nav>
           </section>
 
           <details
