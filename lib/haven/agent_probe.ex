@@ -44,6 +44,7 @@ defmodule Haven.AgentProbe do
       Keyword.get_values(opts, :expect_event) ++ Keyword.get(opts, :expect_events, [])
 
     expected_event_fields = expected_event_fields(opts)
+    expected_output = expected_output(opts)
 
     with {:ok, run} <-
            Runs.create_run(%{
@@ -58,9 +59,16 @@ defmodule Haven.AgentProbe do
       expected_events = Enum.uniq(expected_events)
 
       finished
-      |> redacted_report(prompt, expected_events, expected_event_fields, redactions)
+      |> redacted_report(
+        prompt,
+        expected_events,
+        expected_event_fields,
+        expected_output,
+        redactions
+      )
       |> validate_expected_events(expected_events)
       |> validate_expected_event_fields(expected_event_fields)
+      |> validate_expected_output()
       |> validate_real_agent(require_real_agent?)
     else
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -71,7 +79,8 @@ defmodule Haven.AgentProbe do
            prompt,
            changeset,
            expected_events,
-           expected_event_fields
+           expected_event_fields,
+           expected_output
          )
          |> apply_redactions(redactions)}
 
@@ -79,12 +88,25 @@ defmodule Haven.AgentProbe do
         {:error, reason,
          run_id
          |> Runs.get_run!()
-         |> redacted_report(prompt, expected_events, expected_event_fields, redactions)}
+         |> redacted_report(
+           prompt,
+           expected_events,
+           expected_event_fields,
+           expected_output,
+           redactions
+         )}
 
       {:error, reason} ->
         {:error, reason,
          agent
-         |> invalid_run_report(workspace, prompt, nil, expected_events, expected_event_fields)
+         |> invalid_run_report(
+           workspace,
+           prompt,
+           nil,
+           expected_events,
+           expected_event_fields,
+           expected_output
+         )
          |> apply_redactions(redactions)}
     end
   end
@@ -178,6 +200,7 @@ defmodule Haven.AgentProbe do
       Keyword.get_values(opts, :expect_event) ++ Keyword.get(opts, :expect_events, [])
 
     expected_event_fields = expected_event_fields(opts)
+    expected_output = expected_output(opts)
 
     reports =
       1..count
@@ -213,7 +236,8 @@ defmodule Haven.AgentProbe do
     report = %{
       load_report(opts, count, concurrency, child_reports, failures, child_windows)
       | expected_events: Enum.uniq(expected_events),
-        expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1)
+        expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1),
+        expected_output: expected_output_report(expected_output)
     }
 
     if failures == [] do
@@ -275,6 +299,7 @@ defmodule Haven.AgentProbe do
       status: if(failures == [], do: "passed", else: "failed"),
       expected_events: [],
       expected_event_fields: [],
+      expected_output: %{},
       failures: failures,
       child_windows: child_windows,
       reports: child_reports
@@ -290,6 +315,7 @@ defmodule Haven.AgentProbe do
       Keyword.get_values(opts, :expect_event) ++ Keyword.get(opts, :expect_events, [])
 
     expected_event_fields = expected_event_fields(opts)
+    expected_output = expected_output(opts)
 
     opts
     |> Keyword.get(:agent, "stub-acp")
@@ -298,7 +324,8 @@ defmodule Haven.AgentProbe do
       Keyword.get(opts, :prompt, "hello from Haven agent probe"),
       nil,
       expected_events,
-      expected_event_fields
+      expected_event_fields,
+      expected_output
     )
     |> Map.put(:status, "failed")
     |> Map.put(:diagnostics, [
@@ -564,26 +591,42 @@ defmodule Haven.AgentProbe do
     |> Enum.reject(&MapSet.member?(resolved, &1))
   end
 
-  defp report(run, prompt, expected_events, expected_event_fields) do
+  defp report(run, prompt, expected_events, expected_event_fields, expected_output) do
+    events = Events.list_for_run(run.id)
+
     %{
       run_id: run.id,
       agent: run.agent,
       workspace: run.workspace,
       status: run.status,
       prompt: prompt,
-      events: Enum.map(Events.list_for_run(run.id), &event_report/1),
+      events: Enum.map(events, &event_report/1),
       expected_events: expected_events,
       missing_expected_events: [],
       diagnostics: [],
       expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1),
-      missing_expected_event_fields: []
+      missing_expected_event_fields: [],
+      agent_output_metrics: agent_output_metrics(events),
+      expected_output: expected_output_report(expected_output),
+      missing_expected_output: []
     }
   end
 
-  defp redacted_report(run, prompt, expected_events, expected_event_fields, redactions) do
+  defp redacted_report(
+         run,
+         prompt,
+         expected_events,
+         expected_event_fields,
+         expected_output,
+         redactions
+       ) do
     run
-    |> report(prompt, expected_events, expected_event_fields)
+    |> report(prompt, expected_events, expected_event_fields, expected_output)
     |> apply_redactions(redactions)
+  end
+
+  defp redacted_report(run, prompt, expected_events, expected_event_fields, redactions) do
+    redacted_report(run, prompt, expected_events, expected_event_fields, %{}, redactions)
   end
 
   defp invalid_run_report(
@@ -592,7 +635,8 @@ defmodule Haven.AgentProbe do
          prompt,
          changeset,
          expected_events,
-         expected_event_fields
+         expected_event_fields,
+         expected_output \\ %{}
        ) do
     %{
       run_id: nil,
@@ -606,7 +650,11 @@ defmodule Haven.AgentProbe do
       missing_expected_events: [],
       diagnostics: [],
       expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1),
-      missing_expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1)
+      missing_expected_event_fields: Enum.map(expected_event_fields, &event_field_report/1),
+      agent_output_metrics: %{message_chunk_count: 0, text_char_count: 0},
+      expected_output: expected_output_report(expected_output),
+      missing_expected_output:
+        expected_output_missing(%{message_chunk_count: 0, text_char_count: 0}, expected_output)
     }
   end
 
@@ -717,6 +765,45 @@ defmodule Haven.AgentProbe do
     end
   end
 
+  defp validate_expected_output({:error, reason, report}), do: {:error, reason, report}
+
+  defp validate_expected_output({:ok, report}) do
+    missing = expected_output_missing(report.agent_output_metrics, report.expected_output)
+
+    if missing == [] do
+      {:ok, report}
+    else
+      {:error, :missing_expected_output, %{report | missing_expected_output: missing}}
+    end
+  end
+
+  defp expected_output_missing(metrics, expected_output) do
+    []
+    |> maybe_missing_minimum(
+      expected_output_value(expected_output, :min_agent_output_chars),
+      metrics.text_char_count,
+      :min_agent_output_chars
+    )
+    |> maybe_missing_minimum(
+      expected_output_value(expected_output, :min_agent_message_chunks),
+      metrics.message_chunk_count,
+      :min_agent_message_chunks
+    )
+  end
+
+  defp expected_output_value(expected_output, key) do
+    Map.get(expected_output, key) || Map.get(expected_output, to_string(key))
+  end
+
+  defp maybe_missing_minimum(missing, nil, _actual, _metric), do: missing
+
+  defp maybe_missing_minimum(missing, expected, actual, _metric) when actual >= expected,
+    do: missing
+
+  defp maybe_missing_minimum(missing, expected, actual, metric) do
+    [%{metric: metric, expected: expected, actual: actual} | missing]
+  end
+
   defp event_field_present?(events, %{event: event_type, field: field, value: expected}) do
     Enum.any?(events, fn event ->
       event.type == event_type and to_string(get_in(event.payload, field) || "") == expected
@@ -801,12 +888,46 @@ defmodule Haven.AgentProbe do
     }
   end
 
+  defp agent_output_metrics(events) do
+    chunks =
+      events
+      |> Enum.filter(&(&1.type == "agent_message_chunk"))
+      |> Enum.map(&get_in(&1.payload, ["text"]))
+      |> Enum.filter(&is_binary/1)
+
+    %{
+      message_chunk_count: length(chunks),
+      text_char_count: chunks |> Enum.join() |> String.length()
+    }
+  end
+
   defp event_field_report(%{event: event, field: field, value: value}) do
     %{
       event: event,
       field: Enum.join(field, "."),
       value: value
     }
+  end
+
+  defp expected_output(opts) do
+    %{}
+    |> maybe_put_expected_output(
+      :min_agent_output_chars,
+      Keyword.get(opts, :expect_min_agent_output_chars)
+    )
+    |> maybe_put_expected_output(
+      :min_agent_message_chunks,
+      Keyword.get(opts, :expect_min_agent_message_chunks)
+    )
+  end
+
+  defp maybe_put_expected_output(expected, _key, nil), do: expected
+  defp maybe_put_expected_output(expected, key, value), do: Map.put(expected, key, value)
+
+  defp expected_output_report(expected_output) do
+    expected_output
+    |> Enum.map(fn {key, value} -> {to_string(key), value} end)
+    |> Map.new()
   end
 
   defp apply_redactions(report, []), do: Map.put(report, :redactions, [])

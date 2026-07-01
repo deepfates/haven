@@ -604,6 +604,45 @@ defmodule Haven.AgentProbeTest do
            ]
   end
 
+  test "passes when expected agent output minimums are met" do
+    assert {:ok, report} =
+             AgentProbe.run(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               prompt: "hello from probe",
+               expect_min_agent_output_chars: 5,
+               expect_min_agent_message_chunks: 1,
+               timeout: 5_000
+             )
+
+    assert report.agent_output_metrics.text_char_count >= 5
+    assert report.agent_output_metrics.message_chunk_count >= 1
+
+    assert report.expected_output == %{
+             "min_agent_output_chars" => 5,
+             "min_agent_message_chunks" => 1
+           }
+
+    assert report.missing_expected_output == []
+  end
+
+  test "fails when expected agent output minimums are absent" do
+    assert {:error, :missing_expected_output, report} =
+             AgentProbe.run(
+               agent: "stub-acp",
+               workspace: File.cwd!(),
+               prompt: "hello from probe",
+               expect_min_agent_output_chars: 10_000,
+               expect_min_agent_message_chunks: 100,
+               timeout: 5_000
+             )
+
+    assert [
+             %{metric: :min_agent_message_chunks, expected: 100},
+             %{metric: :min_agent_output_chars, expected: 10_000}
+           ] = report.missing_expected_output
+  end
+
   test "fails when expected event payload fields are absent" do
     assert {:error, :missing_expected_event_fields, report} =
              AgentProbe.run(

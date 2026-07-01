@@ -75,15 +75,18 @@ defmodule Haven.AgentProbeReport do
       |> require_redactions(report)
       |> require_expected_events(report)
       |> require_expected_event_fields(report)
+      |> require_expected_output(report)
       |> require_capability_event_field_expectations(report)
       |> require_no_missing_events(report)
       |> require_no_missing_event_fields(report)
+      |> require_no_missing_output(report)
       |> require_no_errors(report)
       |> require_events(report)
       |> require_lifecycle_events(report)
       |> require_report_identity_events(report)
       |> require_expected_events_present(report)
       |> require_expected_event_fields_present(report)
+      |> require_expected_output_present(report)
       |> Enum.reverse()
 
     if errors == [], do: :ok, else: {:error, errors}
@@ -105,14 +108,17 @@ defmodule Haven.AgentProbeReport do
       |> require_redactions(report)
       |> require_expected_events(report)
       |> require_expected_event_fields(report)
+      |> require_expected_output(report)
       |> require_any_capability_event_field_expectation(report)
       |> require_missing_events(report)
       |> require_no_missing_event_fields(report)
+      |> require_no_missing_output(report)
       |> require_no_errors(report)
       |> require_events(report)
       |> require_lifecycle_events(report)
       |> require_report_identity_events(report)
       |> require_expected_events_absent(report)
+      |> require_expected_output_present(report)
       |> require_tool_call_gap_diagnostic(report)
       |> require_unsupported_client_capabilities(report)
       |> Enum.reverse()
@@ -138,6 +144,7 @@ defmodule Haven.AgentProbeReport do
       |> require_load_status(report)
       |> require_expected_events(report)
       |> require_expected_event_fields(report)
+      |> require_expected_output(report)
       |> require_load_reports(report)
       |> Enum.reverse()
 
@@ -422,6 +429,27 @@ defmodule Haven.AgentProbeReport do
     end
   end
 
+  defp require_expected_output(errors, report) do
+    case Map.get(report, "expected_output", %{}) do
+      output when is_map(output) ->
+        Enum.reduce(output, errors, fn
+          {key, value}, acc
+          when key in ["min_agent_output_chars", "min_agent_message_chunks"] and
+                 is_integer(value) and value >= 1 ->
+            acc
+
+          {key, _value}, acc when key in ["min_agent_output_chars", "min_agent_message_chunks"] ->
+            ["expected_output #{key} must be an integer >= 1" | acc]
+
+          {key, _value}, acc ->
+            ["expected_output contains unsupported key #{key}" | acc]
+        end)
+
+      _output ->
+        ["expected_output must be a map when present" | errors]
+    end
+  end
+
   defp require_capability_event_field_expectations(errors, report) do
     expected_events =
       report
@@ -512,6 +540,13 @@ defmodule Haven.AgentProbeReport do
     case Map.get(report, "missing_expected_event_fields", []) do
       [] -> errors
       _fields -> ["missing_expected_event_fields must be empty" | errors]
+    end
+  end
+
+  defp require_no_missing_output(errors, report) do
+    case Map.get(report, "missing_expected_output", []) do
+      [] -> errors
+      _output -> ["missing_expected_output must be empty" | errors]
     end
   end
 
@@ -972,6 +1007,47 @@ defmodule Haven.AgentProbeReport do
         "expected event fields are absent from events: #{Enum.map_join(missing, ", ", &event_field_label/1)}"
         | errors
       ]
+    end
+  end
+
+  defp require_expected_output_present(errors, report) do
+    expected_output = Map.get(report, "expected_output", %{})
+    metrics = Map.get(report, "agent_output_metrics", %{})
+
+    errors
+    |> require_output_metric(
+      expected_output,
+      metrics,
+      "min_agent_output_chars",
+      "text_char_count"
+    )
+    |> require_output_metric(
+      expected_output,
+      metrics,
+      "min_agent_message_chunks",
+      "message_chunk_count"
+    )
+  end
+
+  defp require_output_metric(errors, expected_output, metrics, expected_key, metric_key) do
+    case Map.fetch(expected_output, expected_key) do
+      {:ok, expected} when is_integer(expected) ->
+        case Map.get(metrics, metric_key) do
+          actual when is_integer(actual) and actual >= expected ->
+            errors
+
+          actual when is_integer(actual) ->
+            [
+              "agent_output_metrics #{metric_key} must be >= expected_output #{expected_key}"
+              | errors
+            ]
+
+          _actual ->
+            ["agent_output_metrics #{metric_key} must be an integer" | errors]
+        end
+
+      _other ->
+        errors
     end
   end
 

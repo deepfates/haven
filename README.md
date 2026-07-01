@@ -75,6 +75,7 @@ mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "read 
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "run tests" --expect-event terminal_created --expect-event terminal_output_succeeded --expect-event-field terminal_output_succeeded:payload.exit_status=0
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "run tests" --report docs/probes/my-agent-terminal.json
 mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "summarize this repo" --load-runs 2 --load-concurrency 2 --require-real-agent --report docs/probe-load/my-agent-load.json
+mix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt "write a long summary" --expect-min-agent-output-chars 1200 --expect-min-agent-message-chunks 8 --require-real-agent --report docs/probes/my-agent-long-output.json
 mix haven.agent_probe --list-agents --preflight --workspace /path/to/repo
 mix haven.agent_probe --list-agents --registry --workspace /path/to/repo
 ```
@@ -107,6 +108,9 @@ real-agent checks into acceptance contracts instead of best-effort smoke.
 Repeated `--expect-event-field EVENT:payload.path=value` flags also require
 specific event payload facts, such as the requested path, terminal command,
 permission decision, or exit status.
+`--expect-min-agent-output-chars N` and
+`--expect-min-agent-message-chunks N` require a minimum streamed agent response
+size for bounded long-output evidence.
 Use `--list-agents --preflight` first when a saved command merely looks
 plausible: it starts a short durable run for each probe candidate and verifies
 the ACP initialize/session handshake before you attempt a full evidence report.

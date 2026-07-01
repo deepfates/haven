@@ -275,6 +275,36 @@ defmodule Haven.AgentProbeReportTest do
     assert "expected_events must be a non-empty list of event names" in errors
   end
 
+  test "accepts reports with satisfied expected output minimums" do
+    report =
+      valid_report()
+      |> Map.put("expected_output", %{
+        "min_agent_output_chars" => 5,
+        "min_agent_message_chunks" => 1
+      })
+      |> Map.put("agent_output_metrics", %{"text_char_count" => 12, "message_chunk_count" => 2})
+      |> Map.put("missing_expected_output", [])
+
+    assert :ok = AgentProbeReport.validate(report)
+  end
+
+  test "rejects reports with overstated expected output minimums" do
+    report =
+      valid_report()
+      |> Map.put("expected_output", %{
+        "min_agent_output_chars" => 50,
+        "min_agent_message_chunks" => 3
+      })
+      |> Map.put("agent_output_metrics", %{"text_char_count" => 12, "message_chunk_count" => 2})
+      |> Map.put("missing_expected_output", [])
+
+    assert {:error, errors} = AgentProbeReport.validate(report)
+
+    assert "agent_output_metrics text_char_count must be >= expected_output min_agent_output_chars" in errors
+
+    assert "agent_output_metrics message_chunk_count must be >= expected_output min_agent_message_chunks" in errors
+  end
+
   test "rejects report events with blank types" do
     report =
       valid_report()

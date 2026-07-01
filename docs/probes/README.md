@@ -165,6 +165,12 @@ Use `--require-real-agent` on any report intended to count as production-grade
 Haven real-agent evidence. It rejects the built-in stub and the known local
 test harness scripts used by automated coverage.
 
+Use `--expect-min-agent-output-chars N` and
+`--expect-min-agent-message-chunks N` when the story needs bounded long-output
+evidence. Committed reports that declare these minimums must include
+`agent_output_metrics` that meet them and an empty `missing_expected_output`
+list.
+
 Committed `*.json` reports in this directory, plus named negative boundary
 reports in `docs/probe-failures/*.json` and aggregate load reports in
 `docs/probe-load/*.json`, are validated by
@@ -202,6 +208,11 @@ that story.
   and `turn_finished` through Haven's durable run lifecycle.
 - `codex-acp-basic.json`: earlier positive real-agent basic probe for the same
   adapter.
+- `codex-acp-long-output.json`: positive bounded long-output real-agent probe
+  for saved `codex-acp`. It requires at least 1,200 streamed output characters
+  and at least 8 `agent_message_chunk` events; the committed report records
+  1,632 characters across 305 chunks for durable run
+  `95ab6336-8370-4422-9c4b-6997a011a18e`.
 - `codex-acp-file-tool-call.json`: positive real-agent visibility evidence for
   file inspection through ACP `tool_call` / `tool_call_update`, not proof of
   Haven-mediated `fs/*` client request handling. The corresponding failed

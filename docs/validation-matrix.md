@@ -791,6 +791,16 @@ Evidence:
   `child_windows` prove overlapping child probe execution from
   `2026-07-01T09:24:13.791789Z` to `2026-07-01T09:24:22.091270Z`. This is
   basic concurrent real-agent evidence, not long-output or larger-fan-out proof.
+- `docs/probes/codex-acp-long-output.json` is the current committed positive
+  bounded long-output real-agent probe from 2026-07-01. It was generated
+  against saved `codex-acp` with `--require-real-agent`, produced durable run
+  `95ab6336-8370-4422-9c4b-6997a011a18e`, passed `agent_initialized`,
+  `agent_session_started`, `agent_message_chunk`, and `turn_finished`
+  expectations, and required at least 1,200 streamed output characters plus at
+  least 8 agent message chunks. The report records 1,632 characters across 305
+  `agent_message_chunk` events and is accepted by `mix haven.probe_reports`.
+  This is bounded single-run streaming evidence, not arbitrary long-duration or
+  larger-fan-out proof.
 - `docs/probes/codex-acp-file-tool-call.json` is a committed passing
   `--require-real-agent` report showing `codex-acp` can inspect a disposable
   workspace file and return a sentinel, but it does so through ACP
@@ -884,11 +894,13 @@ Evidence:
   app. Report validation accepts both generated payload field paths such as
   `path` and documented CLI paths such as `payload.path`. Failure report
   validation also requires explicit `unsupported_client_capabilities` for
-  tool-call-only mediated capability gaps. Load report validation requires at
-  least two real-agent child reports, distinct durable run ids, matching
-  aggregate child metadata, and a passing aggregate status. Concurrent load
-  reports with `concurrency > 1` must also include child probe windows that
-  show at least two overlapping runs.
+  tool-call-only mediated capability gaps. Reports can also declare bounded
+  output expectations through `expected_output`; validation requires matching
+  `agent_output_metrics` and empty `missing_expected_output`. Load report
+  validation requires at least two real-agent child reports, distinct durable
+  run ids, matching aggregate child metadata, and a passing aggregate status.
+  Concurrent load reports with `concurrency > 1` must also include child probe
+  windows that show at least two overlapping runs.
 
 Still missing:
 
@@ -907,8 +919,9 @@ Still missing:
   create-form comma fields plus post-creation scope chips.
 - Authenticated user identity and interactive auth flows for agents that require
   credentials.
-- Long-running-output real external agent load and larger-fan-out concurrency
-  beyond the current two-run `codex-acp` basic concurrent load report.
+- Longer-duration real external agent output and larger-fan-out concurrency
+  beyond the current bounded `codex-acp` long-output report and two-run
+  concurrent load report.
 
 ## Not Proven Yet
 
@@ -923,7 +936,7 @@ and should not be counted as complete until there is executable evidence.
 - Authentication flows for agents that require auth; configured env can pass
   secrets to launched agents, but no interactive auth flow is proven.
 - Session load/resume/fork/list support when agents expose it.
-- Long-running-output real external agent load and larger-fan-out concurrency.
+- Longer-duration real external agent output and larger-fan-out concurrency.
 - Product-grade workspace and agent configuration UI beyond saved rows,
   workspace readiness summaries, agent launch readiness, and agent inventory.
 - Authenticated user identity for permission decisions.

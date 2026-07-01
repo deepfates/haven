@@ -8,6 +8,7 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --terminal-create-policy deny --expect-event terminal_create_denied
       mix haven.agent_probe --agent my-agent --workspace . --prompt "run tests" --report docs/probes/my-agent.json
       mix haven.agent_probe --agent my-agent --workspace . --prompt "summarize this repo" --load-runs 3 --load-concurrency 2 --require-real-agent --report docs/probe-load/my-agent-load.json
+      mix haven.agent_probe --agent my-agent --workspace . --prompt "write a long summary" --expect-min-agent-output-chars 2000 --expect-min-agent-message-chunks 5 --require-real-agent --report docs/probes/my-agent-long-output.json
       mix haven.agent_probe --list-agents --workspace .
       mix haven.agent_probe --list-agents --preflight --workspace .
       mix haven.agent_probe --list-agents --registry --workspace .
@@ -33,6 +34,9 @@ defmodule Mix.Tasks.Haven.AgentProbe do
   produces the event types required by the acceptance story.
   Use repeated `--expect-event-field EVENT:payload.path=value` flags to make
   the probe fail unless at least one matching event has that payload value.
+  Use `--expect-min-agent-output-chars N` and
+  `--expect-min-agent-message-chunks N` to require a minimum streamed agent
+  response size.
   Use `--require-real-agent` for evidence intended to satisfy the production-grade
   real-agent validation milestone; it rejects the built-in stub and known test
   harnesses.
@@ -57,6 +61,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     timeout: :integer,
     load_runs: :integer,
     load_concurrency: :integer,
+    expect_min_agent_output_chars: :integer,
+    expect_min_agent_message_chunks: :integer,
     resolve_permissions: :string,
     expect_event: :keep,
     expect_event_field: :keep,
@@ -121,6 +127,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     |> Keyword.update(:report, nil, &Path.expand/1)
     |> normalize_load_runs()
     |> normalize_load_concurrency()
+    |> normalize_positive_integer(:expect_min_agent_output_chars)
+    |> normalize_positive_integer(:expect_min_agent_message_chunks)
     |> Keyword.update(:resolve_permissions, nil, &normalize_permission_resolution/1)
     |> normalize_path_scope(:file_read_paths)
     |> normalize_path_scope(:file_write_paths)
@@ -161,6 +169,21 @@ defmodule Mix.Tasks.Haven.AgentProbe do
         Mix.raise("--load-concurrency requires --load-runs")
 
       {:error, _load_runs} ->
+        opts
+    end
+  end
+
+  defp normalize_positive_integer(opts, key) do
+    case Keyword.fetch(opts, key) do
+      {:ok, value} when is_integer(value) and value >= 1 ->
+        opts
+
+      {:ok, value} ->
+        Mix.raise(
+          "Invalid --#{String.replace(to_string(key), "_", "-")} #{inspect(value)}; expected an integer >= 1"
+        )
+
+      :error ->
         opts
     end
   end
@@ -411,6 +434,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       Mix.shell().info("Expected events: #{Enum.join(report.expected_events, ", ")}")
     end
 
+    print_output_expectations(report)
+
     Mix.shell().info("")
     Mix.shell().info("Runs:")
 
@@ -441,6 +466,8 @@ defmodule Mix.Tasks.Haven.AgentProbe do
       Mix.shell().info("Expected events: #{Enum.join(report.expected_events, ", ")}")
     end
 
+    print_output_expectations(report)
+
     if Map.get(report, :expected_event_fields, []) != [] do
       Mix.shell().info(
         "Expected event fields: #{Enum.map_join(report.expected_event_fields, ", ", &event_field_label/1)}"
@@ -456,6 +483,12 @@ defmodule Mix.Tasks.Haven.AgentProbe do
     if Map.get(report, :missing_expected_event_fields, []) != [] do
       Mix.shell().info(
         "Missing expected event fields: #{Enum.map_join(report.missing_expected_event_fields, ", ", &event_field_label/1)}"
+      )
+    end
+
+    if Map.get(report, :missing_expected_output, []) != [] do
+      Mix.shell().info(
+        "Missing expected output: #{Enum.map_join(report.missing_expected_output, ", ", &output_gap_label/1)}"
       )
     end
 
@@ -499,5 +532,28 @@ defmodule Mix.Tasks.Haven.AgentProbe do
 
   defp event_field_label(%{"event" => event, "field" => field, "value" => value}) do
     "#{event}:#{field}=#{value}"
+  end
+
+  defp print_output_expectations(report) do
+    metrics = Map.get(report, :agent_output_metrics, %{})
+    expected = Map.get(report, :expected_output, %{})
+
+    if expected != %{} do
+      Mix.shell().info(
+        "Agent output: #{Map.get(metrics, :text_char_count, 0)} chars across #{Map.get(metrics, :message_chunk_count, 0)} chunks"
+      )
+
+      Mix.shell().info(
+        "Expected output: #{Enum.map_join(expected, ", ", fn {key, value} -> "#{key}>=#{value}" end)}"
+      )
+    end
+  end
+
+  defp output_gap_label(%{metric: metric, expected: expected, actual: actual}) do
+    "#{metric} expected >= #{expected}, got #{actual}"
+  end
+
+  defp output_gap_label(%{"metric" => metric, "expected" => expected, "actual" => actual}) do
+    "#{metric} expected >= #{expected}, got #{actual}"
   end
 end
