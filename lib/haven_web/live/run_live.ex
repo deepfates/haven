@@ -198,10 +198,12 @@ defmodule HavenWeb.RunLive do
 
   defp assign_inbox_attention_summary(socket) do
     summary = Runs.attention_summary(exclude_run_id: socket.assigns.run.id)
+    previous_summary = socket.assigns[:inbox_attention_summary]
 
     socket
     |> assign(:inbox_attention_summary, summary)
     |> assign(:page_title, run_page_title(socket.assigns.run, summary))
+    |> maybe_push_attention_notification(previous_summary, summary)
   end
 
   defp run_page_title(run, %{needs_you: needs_you}) when needs_you > 0 do
@@ -251,6 +253,48 @@ defmodule HavenWeb.RunLive do
 
   defp needs_you_label(1), do: "1 run needs you"
   defp needs_you_label(count), do: "#{count} runs need you"
+
+  defp maybe_push_attention_notification(socket, nil, _current), do: socket
+
+  defp maybe_push_attention_notification(socket, previous, current) do
+    if attention_increased?(previous, current) do
+      push_event(socket, "haven_attention_changed", attention_notification_payload(current, "/"))
+    else
+      socket
+    end
+  end
+
+  defp attention_increased?(previous, current) do
+    (current.needs_you > 0 and current.needs_you > previous.needs_you) or
+      (current.unread_events > 0 and current.unread_events > previous.unread_events) or
+      (current.unread_runs > 0 and current.unread_runs > previous.unread_runs)
+  end
+
+  defp attention_notification_payload(%{needs_you: needs_you} = summary, url)
+       when needs_you > 0 do
+    %{
+      title: "Haven: #{needs_you_label(needs_you)}",
+      body:
+        [
+          attention_count(summary.decisions, "decision"),
+          attention_count(summary.recoveries, "recovery"),
+          attention_count(summary.unread_events, "new event")
+        ]
+        |> Enum.reject(&is_nil/1)
+        |> Enum.join(" · "),
+      url: url,
+      urgency: "needs_you"
+    }
+  end
+
+  defp attention_notification_payload(%{unread_runs: unread_runs} = summary, url) do
+    %{
+      title: "Haven: #{pluralize_count(unread_runs, "updated run")}",
+      body: attention_count(summary.unread_events, "new event") || "New activity",
+      url: url,
+      urgency: "updated"
+    }
+  end
 
   defp latest_event_seq(events) do
     events

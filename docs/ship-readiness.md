@@ -9,8 +9,8 @@ hardening.
 Haven is past the "vibe spike" stage. It is a real Phoenix/OTP ACP client with
 durable runs, explicit permission decisions, an operational inbox, run detail
 threads, restart/reconnect paths, file and terminal capability handling through
-the local ACP harness, retained history, probe artifacts, and a serious
-validation matrix.
+the local ACP harness, opt-in browser notifications for new run attention,
+retained history, probe artifacts, and a serious validation matrix.
 
 Haven is not yet production-grade in the literal sense. The main missing proof
 is not another local UI polish pass. Haven now has local external-process proof
@@ -107,6 +107,11 @@ Production blockers:
   under realistic external-agent load. Bounded long-output and three-run
   concurrent real-agent basic evidence now exist for `codex-acp`, but they do
   not prove arbitrary duration or production-scale fan-out.
+- Notification behavior must stay trustworthy under real supervision use. The
+  current model covers in-app/page-title attention plus opt-in browser
+  notifications for rising attention while the page is hidden; production still
+  needs browser smoke across supported desktop/mobile targets and any needed
+  user preference boundaries.
 - Auth/auth-scope handling must be explicit enough that a user can understand
   which credentials are being used and where.
 - Security boundaries around workspace access must remain visible to users and

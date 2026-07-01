@@ -45,6 +45,94 @@ window.addEventListener("phx:clear_agent_config_form", ({detail}) => {
   }
 })
 
+const notificationStorageKey = "haven:browser-notifications"
+
+const browserNotificationsSupported = () =>
+  "Notification" in window && window.isSecureContext
+
+const browserNotificationsEnabled = () =>
+  browserNotificationsSupported() &&
+  Notification.permission === "granted" &&
+  window.localStorage.getItem(notificationStorageKey) === "enabled"
+
+const updateNotificationToggle = button => {
+  if (!button) return
+
+  if (!browserNotificationsSupported()) {
+    button.disabled = true
+    button.title = "Browser notifications are unavailable in this browser"
+    button.setAttribute("aria-label", button.title)
+    button.dataset.notificationState = "unsupported"
+  } else if (Notification.permission === "denied") {
+    button.disabled = true
+    button.title = "Browser notifications are blocked for Haven"
+    button.setAttribute("aria-label", button.title)
+    button.dataset.notificationState = "blocked"
+  } else if (browserNotificationsEnabled()) {
+    button.title = "Disable browser notifications for new run attention"
+    button.setAttribute("aria-label", button.title)
+    button.dataset.notificationState = "enabled"
+  } else {
+    button.title = "Enable browser notifications for new run attention"
+    button.setAttribute("aria-label", button.title)
+    button.dataset.notificationState = "disabled"
+  }
+}
+
+const updateNotificationToggles = () => {
+  for (const button of document.querySelectorAll("[data-haven-notification-toggle]")) {
+    updateNotificationToggle(button)
+  }
+}
+
+document.addEventListener("click", async event => {
+  const button = event.target.closest("[data-haven-notification-toggle]")
+  if (!button) return
+
+  event.preventDefault()
+
+  if (!browserNotificationsSupported() || Notification.permission === "denied") {
+    updateNotificationToggle(button)
+    return
+  }
+
+  if (browserNotificationsEnabled()) {
+    window.localStorage.removeItem(notificationStorageKey)
+    updateNotificationToggle(button)
+    return
+  }
+
+  const permission =
+    Notification.permission === "granted"
+      ? "granted"
+      : await Notification.requestPermission()
+
+  if (permission === "granted") {
+    window.localStorage.setItem(notificationStorageKey, "enabled")
+  }
+
+  updateNotificationToggle(button)
+})
+
+window.addEventListener("phx:haven_attention_changed", ({detail}) => {
+  if (!browserNotificationsEnabled() || !document.hidden) return
+
+  const notification = new Notification(detail.title || "Haven needs attention", {
+    body: detail.body || "Open Haven to review agent work.",
+    tag: `haven-${detail.urgency || "attention"}`,
+    renotify: true,
+  })
+
+  notification.onclick = () => {
+    window.focus()
+    if (detail.url) window.location.assign(detail.url)
+    notification.close()
+  }
+})
+
+document.addEventListener("DOMContentLoaded", updateNotificationToggles)
+window.addEventListener("phx:page-loading-stop", updateNotificationToggles)
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 

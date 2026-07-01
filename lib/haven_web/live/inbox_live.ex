@@ -291,6 +291,16 @@ defmodule HavenWeb.InboxLive do
         archived_matches
       )
 
+    attention_counts = %{
+      needs_you: length(needs_you),
+      decisions: needs_you_decisions,
+      recoveries: needs_you_recoveries,
+      unread_runs: unread_runs,
+      unread_events: unread_events
+    }
+
+    previous_attention_counts = socket.assigns[:attention_notification_counts]
+
     socket
     |> assign(:runs, runs)
     |> assign(:archived_runs, archived_runs)
@@ -316,6 +326,8 @@ defmodule HavenWeb.InboxLive do
       "diagnostics" => length(diagnostics),
       "archived" => length(archived_matches)
     })
+    |> assign(:attention_notification_counts, attention_counts)
+    |> maybe_push_attention_notification(previous_attention_counts, attention_counts)
     |> then(fn socket ->
       attention_summary = inbox_attention_summary(socket.assigns.run_filter_counts)
 
@@ -1470,6 +1482,48 @@ defmodule HavenWeb.InboxLive do
 
   defp inbox_page_title(_counts), do: "Haven"
 
+  defp maybe_push_attention_notification(socket, nil, _current), do: socket
+
+  defp maybe_push_attention_notification(socket, previous, current) do
+    if attention_increased?(previous, current) do
+      push_event(socket, "haven_attention_changed", attention_notification_payload(current, "/"))
+    else
+      socket
+    end
+  end
+
+  defp attention_increased?(previous, current) do
+    (current.needs_you > 0 and current.needs_you > previous.needs_you) or
+      (current.unread_events > 0 and current.unread_events > previous.unread_events) or
+      (current.unread_runs > 0 and current.unread_runs > previous.unread_runs)
+  end
+
+  defp attention_notification_payload(%{needs_you: needs_you} = counts, url)
+       when needs_you > 0 do
+    %{
+      title: "Haven: #{needs_you_label(needs_you)}",
+      body:
+        [
+          attention_detail(counts.decisions, "decision"),
+          attention_detail(counts.recoveries, "recovery"),
+          attention_detail(counts.unread_events, "new event")
+        ]
+        |> Enum.reject(&is_nil/1)
+        |> Enum.join(" · "),
+      url: url,
+      urgency: "needs_you"
+    }
+  end
+
+  defp attention_notification_payload(%{unread_runs: unread_runs} = counts, url) do
+    %{
+      title: "Haven: #{pluralize_count(unread_runs, "updated run")}",
+      body: attention_detail(counts.unread_events, "new event") || "New activity",
+      url: url,
+      urgency: "updated"
+    }
+  end
+
   defp badge_class(tone) do
     "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium " <>
       tone
@@ -2432,31 +2486,43 @@ defmodule HavenWeb.InboxLive do
           </header>
 
           <section id="inbox-attention-summary" class="border-b border-zinc-200 pb-4">
-            <button
-              id="inbox-attention-primary"
-              type="button"
-              class="flex w-full items-center justify-between gap-4 rounded-md px-1 py-2 text-left transition hover:bg-zinc-50"
-              phx-click="filter_runs"
-              phx-value-filter={@inbox_attention_summary.filter}
-            >
-              <span class="flex min-w-0 items-center gap-3">
-                <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-700">
-                  <.icon name={@inbox_attention_summary.icon} class="size-5" />
-                </span>
-                <span class="min-w-0">
-                  <span
-                    id="inbox-attention-label"
-                    class="block truncate text-base font-semibold text-zinc-950"
-                  >
-                    {@inbox_attention_summary.label}
+            <div class="flex items-center gap-2">
+              <button
+                id="inbox-attention-primary"
+                type="button"
+                class="flex min-w-0 flex-1 items-center justify-between gap-4 rounded-md px-1 py-2 text-left transition hover:bg-zinc-50"
+                phx-click="filter_runs"
+                phx-value-filter={@inbox_attention_summary.filter}
+              >
+                <span class="flex min-w-0 items-center gap-3">
+                  <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-700">
+                    <.icon name={@inbox_attention_summary.icon} class="size-5" />
                   </span>
-                  <span id="inbox-attention-detail" class="block truncate text-sm text-zinc-500">
-                    {@inbox_attention_summary.detail}
+                  <span class="min-w-0">
+                    <span
+                      id="inbox-attention-label"
+                      class="block truncate text-base font-semibold text-zinc-950"
+                    >
+                      {@inbox_attention_summary.label}
+                    </span>
+                    <span id="inbox-attention-detail" class="block truncate text-sm text-zinc-500">
+                      {@inbox_attention_summary.detail}
+                    </span>
                   </span>
                 </span>
-              </span>
-              <.icon name="hero-chevron-right" class="size-5 shrink-0 text-zinc-400" />
-            </button>
+                <.icon name="hero-chevron-right" class="size-5 shrink-0 text-zinc-400" />
+              </button>
+              <button
+                id="inbox-notification-toggle"
+                type="button"
+                data-haven-notification-toggle
+                title="Enable browser notifications for new run attention"
+                aria-label="Enable browser notifications for new run attention"
+                class="flex size-10 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <.icon name="hero-bell" class="size-5" />
+              </button>
+            </div>
 
             <nav
               id="inbox-queue-summary"

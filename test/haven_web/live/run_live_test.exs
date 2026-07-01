@@ -398,6 +398,13 @@ defmodule HavenWeb.RunLiveTest do
 
     Events.append!(other.id, "agent_message_chunk", %{"text" => "other run update"})
 
+    assert_push_event view, "haven_attention_changed", %{
+      title: "Haven: 1 updated run",
+      body: "1 new event",
+      url: "/",
+      urgency: "updated"
+    }
+
     assert has_element?(view, "#run-header-inbox-attention", "1 updated run")
     refute has_element?(view, "#run-thread", "other run update")
   end

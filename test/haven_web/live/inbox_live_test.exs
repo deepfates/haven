@@ -183,6 +183,13 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#inbox-attention-summary")
     assert has_element?(view, "#inbox-attention-label", "No runs yet")
     assert has_element?(view, "#inbox-attention-detail", "Ready when you are")
+    assert has_element?(view, "#inbox-notification-toggle")
+
+    assert has_element?(
+             view,
+             ~s|#inbox-notification-toggle[aria-label="Enable browser notifications for new run attention"]|
+           )
+
     assert has_element?(view, "#new-run-panel:not([open])")
     assert has_element?(view, "#inbox-first-run-empty", "No work runs yet.")
     assert has_element?(view, "#inbox-first-run-empty", "Open Start a run")
@@ -277,6 +284,25 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{unread.id}")
     refute has_element?(view, "#run-#{running.id}")
     refute has_element?(view, "#run-#{history.id}")
+  end
+
+  test "pushes a browser notification payload when unread run activity increases", %{conn: conn} do
+    run = insert_run!("Background answer", "idle")
+    assert {:ok, _run} = Runs.mark_viewed(run.id, 1)
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    Events.append!(run.id, "agent_message_chunk", %{"text" => "fresh note"})
+
+    assert_push_event view, "haven_attention_changed", %{
+      title: "Haven: 1 updated run",
+      body: "1 new event",
+      url: "/",
+      urgency: "updated"
+    }
+
+    assert has_element?(view, "#inbox-attention-label", "1 run updated")
+    assert has_element?(view, "#run-#{run.id}-unread", "1 new event")
   end
 
   test "renders a tappable queue summary for many-run triage", %{conn: conn} do
