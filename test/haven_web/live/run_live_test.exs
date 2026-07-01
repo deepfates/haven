@@ -2592,6 +2592,8 @@ defmodule HavenWeb.RunLiveTest do
     assert pending_change.diff_preview =~ "+written by Haven ACP\n"
     assert has_element?(view, "#run-nav-files-count", "1")
     assert has_element?(view, "#run-file-change-count", "1")
+    assert has_element?(view, ~s|#run-nav-files-count[title="1 pending"]|)
+    assert has_element?(view, ~s|#run-nav-files-count[aria-label="File changes: 1 pending"]|)
     assert has_element?(view, "#run-file-change-summary-label", "1 pending")
     assert has_element?(view, "#run-file-change-review-summary")
     assert has_element?(view, "#run-file-change-pending-count", "1")
@@ -3081,6 +3083,17 @@ defmodule HavenWeb.RunLiveTest do
 
     assert has_element?(view, "#run-terminal-session-count", "3")
     assert has_element?(view, "#run-nav-terminals-count", "3")
+
+    assert has_element?(
+             view,
+             ~s|#run-nav-terminals-count[title="1 running · 1 completed · 1 attention"]|
+           )
+
+    assert has_element?(
+             view,
+             ~s|#run-nav-terminals-count[aria-label="Terminal sessions: 1 running · 1 completed · 1 attention"]|
+           )
+
     assert has_element?(view, "#run-terminal-session-summary-label", "1 running")
     assert has_element?(view, "#run-terminal-session-summary-label", "1 completed")
     assert has_element?(view, "#run-terminal-session-summary-label", "1 attention")

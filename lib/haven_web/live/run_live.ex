@@ -2450,6 +2450,8 @@ defmodule HavenWeb.RunLive do
                   <span>Files</span>
                   <span
                     id="run-nav-files-count"
+                    title={file_change_summary_label(@file_change_counts)}
+                    aria-label={"File changes: #{file_change_summary_label(@file_change_counts)}"}
                     class="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600"
                   >
                     {length(@file_changes)}
@@ -2464,6 +2466,8 @@ defmodule HavenWeb.RunLive do
                   <span>Terminals</span>
                   <span
                     id="run-nav-terminals-count"
+                    title={terminal_session_summary_label(@terminal_session_counts)}
+                    aria-label={"Terminal sessions: #{terminal_session_summary_label(@terminal_session_counts)}"}
                     class="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600"
                   >
                     {length(@terminal_sessions)}
