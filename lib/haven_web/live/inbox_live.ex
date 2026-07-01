@@ -1356,9 +1356,13 @@ defmodule HavenWeb.InboxLive do
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">History</h2>
             <div
               :if={@history == []}
+              id="inbox-first-run-empty"
               class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
             >
-              No quiet runs yet. Start one above.
+              <p class="font-medium text-zinc-700">No runs yet.</p>
+              <p class="mt-1 text-sm">
+                Open Start a run to launch an agent in a folder.
+              </p>
             </div>
             <div
               :if={@history != []}

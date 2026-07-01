@@ -77,6 +77,16 @@ defmodule HavenWeb.InboxLiveTest do
     assert history_index < agent_setup_index
   end
 
+  test "renders a first-run empty state without opening setup panels", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#new-run-panel:not([open])")
+    assert has_element?(view, "#inbox-first-run-empty", "No runs yet.")
+    assert has_element?(view, "#inbox-first-run-empty", "Open Start a run")
+    assert has_element?(view, "#workspaces-panel:not([open])")
+    assert has_element?(view, "#agent-configs-panel:not([open])")
+  end
+
   test "keeps setup surfaces behind secondary inbox disclosures", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 

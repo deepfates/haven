@@ -85,6 +85,9 @@ Evidence:
   `Start a run` disclosure by default, so the open inbox is not dominated by
   setup fields on mobile, and failed run creation reopens the disclosure so
   validation errors are visible.
+- LiveView hierarchy tests verify a first-run empty inbox explains that no runs
+  exist yet and points users to the `Start a run` disclosure while keeping setup
+  panels closed.
 - Saved workspaces are stored in SQLite with a name and normalized directory
   path; LiveView tests verify the inbox picker can create a run from a saved
   workspace, editing the workspace updates the picker/run path, and deleting
