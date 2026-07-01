@@ -367,6 +367,9 @@ Proven:
 - Failed runs with a previous user prompt can retry the last prompt: Haven
   records retry intent, starts a fresh ACP session, resubmits the prompt, and
   preserves the failed transcript before the retry.
+- Failed runs can also continue with a different prompt from the recovery card:
+  Haven records continuation intent, starts a fresh ACP session, sends the new
+  prompt, and preserves the failed transcript before the continuation.
 - Configured external-agent commands can crash during a turn, restart as fresh
   ACP processes, and accept prompts after restart.
 - Runs that lose an agent while permission is pending fail visibly and resolve
@@ -411,8 +414,6 @@ Not yet proven:
 - Prompt-id-level correlation for late chunks; current cancellation suppression
   is session-level because ACP session updates do not carry prompt ids in the
   local evidence path.
-- Continue semantics after failure when the next useful action is not simply
-  resubmitting the last prompt.
 - Backpressure, log compaction, and transcript projection performance.
 - Security boundaries around workspace access, especially product-grade UI for
   richer configurable capability grants beyond the current create-form comma

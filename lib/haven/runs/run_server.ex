@@ -66,6 +66,7 @@ defmodule Haven.Runs.RunServer do
        cancelled_session_ids: MapSet.new(),
        agent_thought_redacted?: false,
        retry_prompt: Keyword.get(opts, :retry_prompt),
+       continue_prompt: Keyword.get(opts, :continue_prompt),
        terminals: %{}
      }}
   end
@@ -273,7 +274,7 @@ defmodule Haven.Runs.RunServer do
         state =
           state
           |> Map.put(:agent_session_id, session.session_id)
-          |> maybe_retry_prompt()
+          |> maybe_start_recovery_prompt()
 
         {:noreply, state}
       else
@@ -292,7 +293,7 @@ defmodule Haven.Runs.RunServer do
     :exit, reason -> {:error, {:protocol_exit, reason}}
   end
 
-  defp maybe_retry_prompt(%{retry_prompt: prompt} = state) when is_binary(prompt) do
+  defp maybe_start_recovery_prompt(%{retry_prompt: prompt} = state) when is_binary(prompt) do
     Events.append!(state.run_id, "turn_retry_requested", %{"prompt" => prompt})
 
     state
@@ -300,7 +301,15 @@ defmodule Haven.Runs.RunServer do
     |> start_prompt(prompt)
   end
 
-  defp maybe_retry_prompt(state), do: state
+  defp maybe_start_recovery_prompt(%{continue_prompt: prompt} = state) when is_binary(prompt) do
+    Events.append!(state.run_id, "turn_continue_requested", %{"prompt" => prompt})
+
+    state
+    |> Map.put(:continue_prompt, nil)
+    |> start_prompt(prompt)
+  end
+
+  defp maybe_start_recovery_prompt(state), do: state
 
   defp start_prompt(state, text) do
     id = state.next_id

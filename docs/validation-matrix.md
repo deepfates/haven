@@ -273,6 +273,13 @@ Evidence:
   expose `Retry last prompt`; clicking it starts a fresh ACP session, records
   `turn_retry_requested`, resubmits the prompt, receives the agent response, and
   returns the run to `idle` while preserving the prior failed transcript.
+- LiveView integration tests verify failed runs expose a continuation composer
+  in the recovery card; submitting a different prompt starts a fresh ACP
+  session, records `turn_continue_requested`, sends the new prompt, receives the
+  agent response, and returns the run to `idle` while preserving the failed
+  transcript.
+- Data-layer tests verify failed-run continuation rejects archived runs,
+  non-failed runs, and blank prompts before starting recovery work.
 - LiveView integration tests verify stale/direct prompt submission while a turn
   is already running is rejected as `{:error, :busy}` instead of starting a
   second concurrent turn.
@@ -287,8 +294,6 @@ Still missing:
 
 - Prompt-id-level correlation of late chunks when agents provide enough
   metadata; current suppression is session-level after cancellation.
-- Continue semantics for recoverable failures where the next user intent is not
-  simply resubmitting the last prompt.
 
 ### Permissions
 

@@ -168,6 +168,25 @@ defmodule Haven.Runs do
     end
   end
 
+  def continue_failed_run(run_id, prompt) when is_binary(prompt) do
+    run = get_run!(run_id)
+    prompt = String.trim(prompt)
+
+    cond do
+      archived?(run) ->
+        {:error, :archived_run}
+
+      run.status != "failed" ->
+        {:error, :not_failed}
+
+      prompt == "" ->
+        {:error, :blank_prompt}
+
+      true ->
+        reconnect_run(run_id, continue_prompt: prompt)
+    end
+  end
+
   def stop_run(run_id) do
     case Registry.lookup(Haven.Runs.Registry, run_id) do
       [{pid, _}] -> GenServer.call(pid, :shutdown, :infinity)

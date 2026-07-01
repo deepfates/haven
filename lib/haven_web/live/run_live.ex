@@ -46,6 +46,16 @@ defmodule HavenWeb.RunLive do
     {:noreply, assign(socket, :prompt, "") |> assign_run(socket.assigns.run.id)}
   end
 
+  def handle_event("continue_failed", %{"prompt" => prompt}, socket) do
+    prompt = String.trim(prompt)
+
+    if socket.assigns.can_continue_failed? and prompt != "" do
+      Runs.continue_failed_run(socket.assigns.run.id, prompt)
+    end
+
+    {:noreply, assign(socket, :prompt, "") |> assign_run(socket.assigns.run.id)}
+  end
+
   def handle_event("sample_prompt", %{"text" => text}, socket) do
     if socket.assigns.can_prompt? do
       Runs.send_prompt(socket.assigns.run.id, text)
@@ -153,6 +163,7 @@ defmodule HavenWeb.RunLive do
     |> assign(:cancel_disabled_reason, cancel_disabled_reason(run, live?))
     |> assign(:last_user_prompt, last_user_prompt(events))
     |> assign(:can_retry_last_prompt?, can_retry_last_prompt?(run, events))
+    |> assign(:can_continue_failed?, can_continue_failed?(run))
     |> assign(:recovery_attention, recovery_attention(run, live?))
     |> assign(:pending_permission, latest_pending_permission(events))
   end
@@ -264,13 +275,16 @@ defmodule HavenWeb.RunLive do
   end
 
   defp can_reconnect?(run, live?) do
-    run.status == "failed" or (not live? and run.status != "closed")
+    is_nil(run.archived_at) and (run.status == "failed" or (not live? and run.status != "closed"))
   end
 
-  defp can_retry_last_prompt?(%{status: "failed"}, events),
+  defp can_retry_last_prompt?(%{status: "failed", archived_at: nil}, events),
     do: is_binary(last_user_prompt(events))
 
   defp can_retry_last_prompt?(_run, _events), do: false
+
+  defp can_continue_failed?(%{status: "failed", archived_at: nil}), do: true
+  defp can_continue_failed?(_run), do: false
 
   defp control_notice(%{status: "failed"}, _live?) do
     "This run failed. Restart it before sending another prompt."
@@ -453,6 +467,11 @@ defmodule HavenWeb.RunLive do
             <p class="font-semibold text-zinc-900">Retry requested</p>
             <p class="mt-1 whitespace-pre-wrap text-sm text-zinc-600">
               {@event.payload["prompt"] || "Last prompt"}
+            </p>
+          <% "turn_continue_requested" -> %>
+            <p class="font-semibold text-zinc-900">Continue requested</p>
+            <p class="mt-1 whitespace-pre-wrap text-sm text-zinc-600">
+              {@event.payload["prompt"] || "Next prompt"}
             </p>
           <% "turn_failed" -> %>
             <p class="font-semibold text-rose-700">Turn failed</p>
@@ -1543,6 +1562,26 @@ defmodule HavenWeb.RunLive do
                 >
                   {@last_user_prompt}
                 </p>
+                <.form
+                  :if={@can_continue_failed?}
+                  id="continue-after-failure-form"
+                  for={to_form(%{})}
+                  phx-submit="continue_failed"
+                  class="mt-3 space-y-2"
+                >
+                  <textarea
+                    id="continue-after-failure-prompt"
+                    name="prompt"
+                    class="min-h-24 w-full rounded-md border border-rose-200 bg-white px-3 py-2 text-sm shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-rose-700 focus:ring-2 focus:ring-rose-700/10"
+                    placeholder="Continue with a new instruction"
+                  ></textarea>
+                  <button
+                    id="continue-after-failure-button"
+                    class="h-10 w-full rounded-md bg-rose-700 px-4 text-sm font-semibold text-white transition hover:bg-rose-800 sm:w-auto"
+                  >
+                    Continue with new prompt
+                  </button>
+                </.form>
                 <div class="mt-3 flex flex-wrap gap-2">
                   <button
                     :if={@can_retry_last_prompt?}

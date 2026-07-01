@@ -469,6 +469,70 @@ defmodule HavenWeb.RunLiveTest do
     refute has_element?(view, "#retry-last-prompt-button")
   end
 
+  test "continue with a new prompt restarts a failed run and preserves history", %{conn: conn} do
+    run = insert_disconnected_run!("Continue failed history", "failed")
+    Events.append!(run.id, "turn_started", %{"prompt" => "old failed prompt"})
+    Events.append!(run.id, "user_message", %{"text" => "old failed prompt"})
+    Events.append!(run.id, "turn_failed", %{"error" => "agent_protocol_failed"})
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-recovery-card", "Run failed")
+    assert has_element?(view, "#continue-after-failure-form")
+    assert has_element?(view, "#continue-after-failure-button", "Continue with new prompt")
+
+    view
+    |> form("#continue-after-failure-form", %{"prompt" => "try a different approach"})
+    |> render_submit()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "run_reconnect_requested",
+                      payload: %{"previous_status" => "failed"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "agent_process_started"}}, 1_000
+    assert_receive {:event_appended, %{type: "agent_session_started"}}, 1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "turn_continue_requested",
+                      payload: %{"prompt" => "try a different approach"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{type: "turn_started", payload: %{"prompt" => "try a different approach"}}},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "user_message",
+                      payload: %{"text" => "try a different approach"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Echo: try a different approach"}
+                    }},
+                   1_000
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, 1_000
+    wait_for_idle_session!(run.id)
+
+    html = render(view)
+    assert html =~ "old failed prompt"
+    assert html =~ "Continue requested"
+    assert html =~ "Echo: try a different approach"
+    assert html =~ "idle"
+    refute has_element?(view, "#continue-after-failure-form")
+  end
+
   test "closed runs render as read-only history with disabled controls", %{conn: conn} do
     run = insert_disconnected_run!("Closed history", "closed")
 

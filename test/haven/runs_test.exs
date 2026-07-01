@@ -116,11 +116,20 @@ defmodule Haven.RunsTest do
     assert {:error, :archived_run} = Runs.ensure_started(archived.id)
     assert {:error, :archived_run} = Runs.reconnect_run(archived.id)
     assert {:error, :archived_run} = Runs.retry_last_prompt(archived.id)
+    assert {:error, :archived_run} = Runs.continue_failed_run(archived.id, "next step")
 
     assert [
              %{type: "run_created"},
              %{type: "run_archived"}
            ] = Events.list_for_run(archived.id)
+  end
+
+  test "continue_failed_run only accepts nonblank prompts for failed runs" do
+    idle = insert_run!("Idle continue boundary", "idle")
+    failed = insert_run!("Failed continue boundary", "failed")
+
+    assert {:error, :not_failed} = Runs.continue_failed_run(idle.id, "next step")
+    assert {:error, :blank_prompt} = Runs.continue_failed_run(failed.id, "   ")
   end
 
   test "direct start_run refuses terminal history without appending lifecycle events" do
