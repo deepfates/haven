@@ -150,7 +150,7 @@ defmodule HavenWeb.InboxLiveTest do
        %{
          conn: conn
        } do
-    insert_run!("Quiet run", "idle")
+    run = insert_run!("Quiet run", "idle")
 
     {:ok, view, html} = live(conn, ~p"/")
 
@@ -159,6 +159,10 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#new-run-panel:not([open])")
     assert has_element?(view, "#new-run-panel summary", "Start a run")
     assert has_element?(view, "#new-run-form")
+    assert has_element?(view, "#run-#{run.id}-row-times", "Started")
+    assert has_element?(view, "#run-#{run.id}-row-times", "Updated")
+    assert has_element?(view, "#run-#{run.id}-started-at")
+    assert has_element?(view, "#run-#{run.id}-updated-at")
 
     history_index = :binary.match(html, "Quiet run") |> elem(0)
     new_run_index = :binary.match(html, ~s|id="new-run-panel"|) |> elem(0)

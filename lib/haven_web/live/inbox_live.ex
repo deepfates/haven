@@ -1252,6 +1252,9 @@ defmodule HavenWeb.InboxLive do
   defp latest_activity_time(%{inserted_at: inserted_at}),
     do: Calendar.strftime(inserted_at, "%H:%M:%S")
 
+  defp run_row_time(%DateTime{} = date_time), do: Calendar.strftime(date_time, "%H:%M:%S")
+  defp run_row_time(_date_time), do: "unknown"
+
   defp one_line(text) when is_binary(text) do
     text
     |> String.replace(~r/\s+/, " ")
@@ -1715,6 +1718,21 @@ defmodule HavenWeb.InboxLive do
             {latest_activity(@run)}
             <span :if={latest_activity_time(@run.latest_event)} class="text-zinc-400">
               · {latest_activity_time(@run.latest_event)}
+            </span>
+          </p>
+
+          <p
+            id={"run-#{@run.id}-row-times"}
+            class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-400"
+          >
+            <span id={"run-#{@run.id}-started-at"} class="inline-flex items-center gap-1">
+              <span class="font-medium text-zinc-500">Started</span>
+              <span class="font-mono">{run_row_time(@run.inserted_at)}</span>
+            </span>
+            <span aria-hidden="true">·</span>
+            <span id={"run-#{@run.id}-updated-at"} class="inline-flex items-center gap-1">
+              <span class="font-medium text-zinc-500">Updated</span>
+              <span class="font-mono">{run_row_time(@run.updated_at)}</span>
             </span>
           </p>
 
