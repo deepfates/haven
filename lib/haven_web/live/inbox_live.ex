@@ -164,13 +164,21 @@ defmodule HavenWeb.InboxLive do
   end
 
   def handle_event("delete_workspace", %{"id" => id}, socket) do
-    workspace = Workspaces.get_workspace!(id)
-    {:ok, _workspace} = Workspaces.delete_workspace(workspace)
+    socket =
+      case Workspaces.get_workspace(id) do
+        nil ->
+          put_flash(socket, :error, "That workspace was already deleted.")
+
+        workspace ->
+          {:ok, _workspace} = Workspaces.delete_workspace(workspace)
+
+          socket
+          |> put_flash(:info, "Workspace #{workspace.name} deleted")
+          |> clear_deleted_workspace_selection(workspace.id)
+      end
 
     {:noreply,
      socket
-     |> put_flash(:info, "Workspace #{workspace.name} deleted")
-     |> clear_deleted_workspace_selection(workspace.id)
      |> refresh_workspace_assigns()
      |> assign_runs()}
   end
@@ -218,13 +226,21 @@ defmodule HavenWeb.InboxLive do
   end
 
   def handle_event("delete_agent_config", %{"id" => id}, socket) do
-    agent_config = Agents.get_agent_config!(id)
-    {:ok, _agent_config} = Agents.delete_agent_config(agent_config)
+    socket =
+      case Agents.get_agent_config(id) do
+        nil ->
+          put_flash(socket, :error, "That agent setup was already deleted.")
+
+        agent_config ->
+          {:ok, _agent_config} = Agents.delete_agent_config(agent_config)
+
+          socket
+          |> put_flash(:info, "Agent #{agent_config.key} deleted")
+          |> reset_agent_config_form()
+      end
 
     {:noreply,
      socket
-     |> put_flash(:info, "Agent #{agent_config.key} deleted")
-     |> reset_agent_config_form()
      |> refresh_agent_config_assigns()
      |> assign_runs()}
   end

@@ -88,6 +88,8 @@ defmodule Haven.Agents do
     |> Repo.insert()
   end
 
+  def get_agent_config(id), do: Repo.get(AgentConfig, id)
+
   def get_agent_config!(id), do: Repo.get!(AgentConfig, id)
 
   def update_agent_config(%AgentConfig{} = agent_config, attrs) do

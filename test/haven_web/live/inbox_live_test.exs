@@ -795,6 +795,28 @@ defmodule HavenWeb.InboxLiveTest do
   end
 
   @tag :tmp_dir
+  test "stale saved workspace delete clicks show an error", %{conn: conn, tmp_dir: tmp_dir} do
+    assert {:ok, workspace} =
+             Workspaces.create_workspace(%{
+               "name" => "Already gone",
+               "path" => tmp_dir
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#delete-workspace-#{workspace.id}")
+    assert {:ok, _workspace} = Workspaces.delete_workspace(workspace)
+
+    view
+    |> element("#delete-workspace-#{workspace.id}")
+    |> render_click()
+
+    assert render(view) =~ "That workspace was already deleted."
+    refute has_element?(view, "#workspace-#{workspace.id}")
+    refute has_element?(view, ~s|#workspace_id option[value="#{workspace.id}"]|)
+  end
+
+  @tag :tmp_dir
   test "edits a saved workspace from the inbox picker", %{conn: conn, tmp_dir: tmp_dir} do
     next_dir = Path.join(tmp_dir, "next")
     File.mkdir_p!(next_dir)
@@ -1624,6 +1646,28 @@ defmodule HavenWeb.InboxLiveTest do
     refute has_element?(view, "#agent-config-edited-stub")
     refute has_element?(view, ~s|#agent option[value="edited-stub"]|)
     assert Agents.list_agent_configs() == []
+  end
+
+  test "stale agent setup delete clicks show an error", %{conn: conn} do
+    assert {:ok, agent_config} =
+             Agents.create_agent_config(%{
+               key: "already-gone-agent",
+               executable: "mix",
+               args: ["before"]
+             })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#delete-agent-config-already-gone-agent")
+    assert {:ok, _agent_config} = Agents.delete_agent_config(agent_config)
+
+    view
+    |> element("#delete-agent-config-already-gone-agent")
+    |> render_click()
+
+    assert render(view) =~ "That agent setup was already deleted."
+    refute has_element?(view, "#agent-config-already-gone-agent")
+    refute has_element?(view, ~s|#agent option[value="already-gone-agent"]|)
   end
 
   test "groups runs into operational attention lanes", %{conn: conn} do

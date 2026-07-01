@@ -148,6 +148,9 @@ Evidence:
 - The inbox can edit and delete persisted agent command definitions; LiveView
   tests verify updated keys replace old picker options and deleted keys
   disappear from run creation.
+- LiveView tests verify stale saved-workspace and saved-agent delete clicks
+  show user-visible errors and refresh setup rows instead of crashing when the
+  setup record has already been deleted elsewhere.
 - Data-layer and LiveView tests verify run creation rejects missing workspace
   directories before any run process starts.
 - The same test verifies waiting, running, and idle runs render in separate
