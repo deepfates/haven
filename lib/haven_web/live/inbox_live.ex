@@ -193,6 +193,7 @@ defmodule HavenWeb.InboxLive do
       Runs.list_runs()
       |> attach_latest_events()
       |> attach_agent_evidence(agent_inventory, agent_probe_reports)
+      |> sort_runs_by_activity()
 
     archived_runs =
       Runs.list_archived_runs()
@@ -307,6 +308,24 @@ defmodule HavenWeb.InboxLive do
       |> Map.put(:live?, Runs.started?(run))
     end)
   end
+
+  defp sort_runs_by_activity(runs) do
+    Enum.sort(runs, fn left, right ->
+      left_activity = run_activity_at(left)
+      right_activity = run_activity_at(right)
+
+      case DateTime.compare(left_activity, right_activity) do
+        :gt -> true
+        :lt -> false
+        :eq -> DateTime.compare(left.inserted_at, right.inserted_at) != :lt
+      end
+    end)
+  end
+
+  defp run_activity_at(%{latest_event: %{inserted_at: inserted_at}}), do: inserted_at
+  defp run_activity_at(%{updated_at: %DateTime{} = updated_at}), do: updated_at
+  defp run_activity_at(%{inserted_at: %DateTime{} = inserted_at}), do: inserted_at
+  defp run_activity_at(_run), do: ~U[1970-01-01 00:00:00Z]
 
   defp latest_permission_decision_run_ids(events) do
     events

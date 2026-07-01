@@ -120,6 +120,8 @@ Evidence:
 - LiveView tests verify inbox rows project the latest meaningful run event and
   refresh that activity when a new event arrives without requiring a run status
   change.
+- LiveView tests verify rows within a lane are ordered by latest activity, so a
+  fresh event on an otherwise unchanged run moves it ahead of stale rows.
 - LiveView tests verify failed runtime activity rows include bounded failure
   reasons such as missing cwd/startup errors, and that those reasons are
   searchable from the inbox.

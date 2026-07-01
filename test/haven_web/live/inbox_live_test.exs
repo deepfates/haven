@@ -1,7 +1,10 @@
 defmodule HavenWeb.InboxLiveTest do
   use HavenWeb.ConnCase
 
+  import Ecto.Query
+
   alias Haven.Events
+  alias Haven.Events.Event
   alias Haven.Agents
   alias Haven.Repo
   alias Haven.Runs
@@ -1220,6 +1223,34 @@ defmodule HavenWeb.InboxLiveTest do
     assert has_element?(view, "#run-#{run.id}-latest-activity", "Wrote file: notes/result.md")
   end
 
+  test "orders inbox rows by latest activity within each lane", %{conn: conn} do
+    quiet = insert_run!("Quiet older row", "idle")
+    active = insert_run!("Active newer row", "idle")
+
+    older_time = DateTime.add(DateTime.utc_now(:second), -120, :second)
+    newer_time = DateTime.add(older_time, 60, :second)
+
+    Repo.update_all(
+      from(e in Event, where: e.run_id == ^quiet.id),
+      set: [inserted_at: older_time, updated_at: older_time]
+    )
+
+    Repo.update_all(
+      from(e in Event, where: e.run_id == ^active.id),
+      set: [inserted_at: newer_time, updated_at: newer_time]
+    )
+
+    {:ok, view, html} = live(conn, ~p"/")
+
+    assert row_index(html, active.title) < row_index(html, quiet.title)
+
+    Events.append!(quiet.id, "agent_message_chunk", %{"text" => "fresh note"})
+
+    html = render(view)
+    assert has_element?(view, "#run-#{quiet.id}-latest-activity", "Agent: fresh note")
+    assert row_index(html, quiet.title) < row_index(html, active.title)
+  end
+
   test "moves live runs between attention lanes as their status changes", %{conn: conn} do
     {:ok, run} = Runs.create_run(%{"title" => "Lane movement run"})
     stop_run_server_on_exit(run.id)
@@ -1315,6 +1346,8 @@ defmodule HavenWeb.InboxLiveTest do
 
     run
   end
+
+  defp row_index(html, title), do: html |> :binary.match(title) |> elem(0)
 
   defp stop_run_server_on_exit(run_id) do
     on_exit(fn ->

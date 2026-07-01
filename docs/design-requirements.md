@@ -124,6 +124,7 @@ Required content:
 - Whether a permission or failure needs action.
 - Recovery guidance that distinguishes continue, retry, restart, and review
   states before the user opens the run.
+- Activity ordering by the latest meaningful event inside each operational lane.
 - Start time and last update time.
 
 Required actions:
