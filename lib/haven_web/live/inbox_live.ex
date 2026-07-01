@@ -237,9 +237,11 @@ defmodule HavenWeb.InboxLive do
       |> filter_runs_by_facets(agent_filter, workspace_filter)
       |> filter_runs_by_search(run_search)
 
-    needs_you = Enum.filter(visible_runs, &(&1.status == "waiting"))
+    needs_you = Enum.filter(visible_runs, &(&1.status in ["waiting", "failed"]))
     running = Enum.filter(visible_runs, &(&1.status in ["initializing", "running"]))
-    history = Enum.reject(visible_runs, &(&1.status in ["waiting", "initializing", "running"]))
+
+    history =
+      Enum.reject(visible_runs, &(&1.status in ["waiting", "failed", "initializing", "running"]))
 
     run_filter = socket.assigns[:run_filter] || "all"
 
@@ -1065,7 +1067,7 @@ defmodule HavenWeb.InboxLive do
   end
 
   defp run_queue_caption("all"), do: "Open work"
-  defp run_queue_caption("needs_you"), do: "Decisions"
+  defp run_queue_caption("needs_you"), do: "Action"
   defp run_queue_caption("running"), do: "In flight"
   defp run_queue_caption("history"), do: "Readable"
   defp run_queue_caption("archived"), do: "Stored"
@@ -1079,7 +1081,7 @@ defmodule HavenWeb.InboxLive do
     %{
       filter: "needs_you",
       icon: "hero-exclamation-circle",
-      label: "#{count} #{pluralize_word(count, "decision")}",
+      label: needs_you_label(count),
       detail: "#{running} running · #{history} history"
     }
   end
@@ -1113,6 +1115,9 @@ defmodule HavenWeb.InboxLive do
 
   defp pluralize_word(1, word), do: word
   defp pluralize_word(_count, word), do: "#{word}s"
+
+  defp needs_you_label(1), do: "1 run needs you"
+  defp needs_you_label(count), do: "#{count} runs need you"
 
   defp badge_class(tone) do
     "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium " <>
@@ -1875,6 +1880,7 @@ defmodule HavenWeb.InboxLive do
               <.run_card
                 :for={run <- @needs_you}
                 run={run}
+                show_archive={true}
                 agent_inventory={@agent_inventory}
                 agent_probe_reports={@agent_probe_reports}
                 agent_capability_gap_reports={@agent_capability_gap_reports}
