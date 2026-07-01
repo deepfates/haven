@@ -69,6 +69,16 @@ defmodule Haven.Events do
     |> Map.new(fn event -> {event.run_id, event} end)
   end
 
+  def permission_requests_by_run_id(run_ids) when is_list(run_ids) do
+    run_ids = Enum.uniq(run_ids)
+
+    Event
+    |> where([e], e.run_id in ^run_ids)
+    |> where([e], e.type == "permission_requested")
+    |> Repo.all()
+    |> Map.new(fn event -> {{event.run_id, to_string(event.payload["request_id"])}, event} end)
+  end
+
   def subscribe(run_id), do: Phoenix.PubSub.subscribe(Haven.PubSub, topic(run_id))
 
   def broadcast(run_id, message) do

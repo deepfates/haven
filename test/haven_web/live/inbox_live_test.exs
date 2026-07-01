@@ -991,6 +991,46 @@ defmodule HavenWeb.InboxLiveTest do
            )
   end
 
+  test "renders and searches latest permission decisions with request context", %{conn: conn} do
+    decided = insert_run!("Decision row", "idle")
+    quiet = insert_run!("Quiet row", "idle")
+
+    Events.append!(decided.id, "permission_requested", %{
+      "request_id" => 7,
+      "toolCall" => %{
+        "title" => "Write file",
+        "toolCallId" => "tool_7",
+        "rawInput" => %{"path" => "notes/result.md"}
+      },
+      "options" => [
+        %{"optionId" => "allow", "name" => "Allow once", "kind" => "allow_once"},
+        %{"optionId" => "deny", "name" => "Deny", "kind" => "reject_once"}
+      ]
+    })
+
+    Events.append!(decided.id, "permission_resolved", %{
+      "request_id" => 7,
+      "option_id" => "allow",
+      "outcome" => "selected",
+      "actor" => "local_user"
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(
+             view,
+             "#run-#{decided.id}-latest-activity",
+             "Decision recorded: allow for Write file"
+           )
+
+    view
+    |> form("#inbox-search-form", %{"run_search" => "write file"})
+    |> render_change()
+
+    assert has_element?(view, "#run-#{decided.id}", "Decision row")
+    refute has_element?(view, "#run-#{quiet.id}", "Quiet row")
+  end
+
   test "labels inbox rows with operational process state", %{conn: conn} do
     disconnected = insert_run!("Disconnected history", "idle")
     stale_decision = insert_run!("Stale permission", "waiting")

@@ -282,12 +282,44 @@ defmodule HavenWeb.InboxLive do
       |> Enum.map(& &1.id)
       |> Events.latest_by_run_id()
 
+    permission_requests =
+      latest_events
+      |> Map.values()
+      |> latest_permission_decision_run_ids()
+      |> Events.permission_requests_by_run_id()
+
     Enum.map(runs, fn run ->
+      latest_event = Map.get(latest_events, run.id)
+
       run
-      |> Map.put(:latest_event, Map.get(latest_events, run.id))
+      |> Map.put(:latest_event, latest_event)
+      |> Map.put(
+        :latest_permission_request,
+        latest_permission_request(permission_requests, latest_event)
+      )
       |> Map.put(:live?, Runs.started?(run.id))
     end)
   end
+
+  defp latest_permission_decision_run_ids(events) do
+    events
+    |> Enum.filter(&permission_decision_event?/1)
+    |> Enum.map(& &1.run_id)
+  end
+
+  defp permission_decision_event?(%{type: type})
+       when type in ["permission_resolved", "permission_resolution_ignored"],
+       do: true
+
+  defp permission_decision_event?(_event), do: false
+
+  defp latest_permission_request(permission_requests, %{run_id: run_id, payload: payload} = event) do
+    if permission_decision_event?(event) do
+      Map.get(permission_requests, {run_id, to_string(payload["request_id"])})
+    end
+  end
+
+  defp latest_permission_request(_permission_requests, _event), do: nil
 
   defp attach_agent_evidence(runs, agent_inventory, agent_probe_reports) do
     Enum.map(runs, fn run ->
@@ -355,7 +387,7 @@ defmodule HavenWeb.InboxLive do
         Map.get(run, :agent_readiness, %{}),
         Map.get(run, :agent_reports, [])
       ),
-      latest_activity(run.latest_event)
+      latest_activity(run)
     ]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" ")
@@ -791,52 +823,83 @@ defmodule HavenWeb.InboxLive do
 
   defp latest_activity(nil), do: "No events yet"
 
-  defp latest_activity(%{type: "permission_requested", payload: payload}) do
+  defp latest_activity(%{latest_event: latest_event} = run) do
+    latest_activity(latest_event, Map.get(run, :latest_permission_request))
+  end
+
+  defp latest_activity(event), do: latest_activity(event, nil)
+
+  defp latest_activity(%{type: "permission_requested", payload: payload}, _request) do
     title = get_in(payload, ["toolCall", "title"]) || "permission requested"
     "Needs decision: #{title}"
   end
 
-  defp latest_activity(%{type: "permission_resolved", payload: %{"option_id" => option_id}}) do
-    "Decision recorded: #{option_id}"
+  defp latest_activity(
+         %{type: "permission_resolved", payload: %{"option_id" => option_id}},
+         request
+       ) do
+    "Decision recorded: #{option_id}#{permission_request_suffix(request)}"
   end
 
-  defp latest_activity(%{type: "agent_message_chunk", payload: %{"text" => text}}) do
+  defp latest_activity(
+         %{type: "permission_resolution_ignored", payload: %{"option_id" => option_id}},
+         request
+       ) do
+    "Stale decision ignored: #{option_id}#{permission_request_suffix(request)}"
+  end
+
+  defp latest_activity(%{type: "agent_message_chunk", payload: %{"text" => text}}, _request) do
     "Agent: #{one_line(text)}"
   end
 
-  defp latest_activity(%{type: "user_message", payload: %{"text" => text}}) do
+  defp latest_activity(%{type: "user_message", payload: %{"text" => text}}, _request) do
     "You: #{one_line(text)}"
   end
 
-  defp latest_activity(%{type: "file_read_succeeded", payload: %{"path" => path}}) do
+  defp latest_activity(%{type: "file_read_succeeded", payload: %{"path" => path}}, _request) do
     "Read file: #{path}"
   end
 
-  defp latest_activity(%{type: "file_write_succeeded", payload: %{"path" => path}}) do
+  defp latest_activity(%{type: "file_write_succeeded", payload: %{"path" => path}}, _request) do
     "Wrote file: #{path}"
   end
 
-  defp latest_activity(%{type: "file_write_denied", payload: %{"path" => path}}) do
+  defp latest_activity(%{type: "file_write_denied", payload: %{"path" => path}}, _request) do
     "File write denied: #{path}"
   end
 
-  defp latest_activity(%{type: "terminal_created", payload: %{"command" => command}}) do
+  defp latest_activity(%{type: "terminal_created", payload: %{"command" => command}}, _request) do
     "Started terminal: #{command}"
   end
 
-  defp latest_activity(%{type: "terminal_output_succeeded", payload: %{"command" => command}}) do
+  defp latest_activity(
+         %{type: "terminal_output_succeeded", payload: %{"command" => command}},
+         _request
+       ) do
     "Terminal output: #{command}"
   end
 
-  defp latest_activity(%{type: "turn_finished"}), do: "Turn finished"
-  defp latest_activity(%{type: "turn_failed"}), do: "Turn failed"
-  defp latest_activity(%{type: "turn_cancelled"}), do: "Turn cancelled"
-  defp latest_activity(%{type: "agent_process_exited"}), do: "Agent process exited"
-  defp latest_activity(%{type: "agent_protocol_failed"}), do: "Agent protocol failed"
-  defp latest_activity(%{type: "agent_session_started"}), do: "Agent session started"
-  defp latest_activity(%{type: "agent_initialized"}), do: "Agent initialized"
-  defp latest_activity(%{type: "run_created"}), do: "Run created"
-  defp latest_activity(%{type: type}), do: event_label(type)
+  defp latest_activity(%{type: "turn_finished"}, _request), do: "Turn finished"
+  defp latest_activity(%{type: "turn_failed"}, _request), do: "Turn failed"
+  defp latest_activity(%{type: "turn_cancelled"}, _request), do: "Turn cancelled"
+  defp latest_activity(%{type: "agent_process_exited"}, _request), do: "Agent process exited"
+  defp latest_activity(%{type: "agent_protocol_failed"}, _request), do: "Agent protocol failed"
+  defp latest_activity(%{type: "agent_session_started"}, _request), do: "Agent session started"
+  defp latest_activity(%{type: "agent_initialized"}, _request), do: "Agent initialized"
+  defp latest_activity(%{type: "run_created"}, _request), do: "Run created"
+  defp latest_activity(%{type: type}, _request), do: event_label(type)
+
+  defp permission_request_suffix(nil), do: ""
+
+  defp permission_request_suffix(request) do
+    title = get_in(request.payload, ["toolCall", "title"])
+
+    if is_binary(title) and title != "" do
+      " for #{title}"
+    else
+      ""
+    end
+  end
 
   defp latest_activity_time(nil), do: nil
 
@@ -1211,7 +1274,7 @@ defmodule HavenWeb.InboxLive do
             Archived {Calendar.strftime(@run.archived_at, "%Y-%m-%d %H:%M:%S")}
           </p>
           <p id={"run-#{@run.id}-latest-activity"} class="mt-1 truncate text-zinc-700">
-            {latest_activity(@run.latest_event)}
+            {latest_activity(@run)}
             <span :if={latest_activity_time(@run.latest_event)} class="text-zinc-400">
               · {latest_activity_time(@run.latest_event)}
             </span>
