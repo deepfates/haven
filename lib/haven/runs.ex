@@ -93,8 +93,15 @@ defmodule Haven.Runs do
   defp category_count(categories, category), do: if(category in categories, do: 1, else: 0)
 
   defp attention_categories(run) do
+    if missing_workspace?(run) do
+      []
+    else
+      active_attention_categories(run)
+    end
+  end
+
+  defp active_attention_categories(run) do
     []
-    |> maybe_add_attention_category(:workspace, missing_workspace?(run))
     |> maybe_add_attention_category(:decision, run.status == "waiting")
     |> maybe_add_attention_category(:recovery, run.status == "failed")
     |> maybe_add_attention_category(

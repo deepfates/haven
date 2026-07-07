@@ -4,29 +4,46 @@ Branch: `inbox-inversion`
 
 ## What changed
 
-- Moved the first-viewport inbox priority to actions in real DOM order: `Start a run` now renders immediately after the inbox header, and `Find runs` follows it before attention, history, diagnostics, archived, and setup sections.
-- Updated the inbox hierarchy regression test to assert rendered HTML element order by DOM IDs instead of CSS order classes.
-- Added history pagination with a default page size of 25 and a `Show more` action.
-- Changed inbox attention classification so runs whose workspace path no longer exists do not inflate `Needs You` counts or the browser title badge. They remain visible as history rows with the existing `Workspace missing` row state.
-- Left the run-detail page untouched.
+- Changed the shared `Runs.attention_summary/1` classifier so missing-workspace runs do not add a `needs_you`/`workspaces` attention category.
+- Updated the focused regressions for the attention badge: an idle run whose workspace vanished no longer increments the shared summary, run-detail header badge, or run-detail browser title count.
+- Left the already-passed inbox DOM-order inversion and history pagination work untouched.
 
 ## Reproduce commands
 
 ```sh
-git checkout inbox-inversion
-mix format lib/haven_web/live/inbox_live.ex test/haven_web/live/inbox_live_test.exs
-mix test test/haven_web/live/inbox_live_test.exs
+git worktree add --detach /private/tmp/dee-inbx-build inbox-inversion
+cd /private/tmp/dee-inbx-build
+mix deps.get
+mix format lib/haven/runs.ex test/haven/runs_test.exs test/haven_web/live/run_live_test.exs
+mix test test/haven/runs_test.exs:51 test/haven_web/live/run_live_test.exs:436
+mix test test/haven/runs_test.exs
+mix test test/haven_web/live/run_live_test.exs
+mix test test/haven_web/live/run_live_test.exs:3845
 mix test
 mix precommit
+git status --short
+git log -1 --oneline
+```
+
+Coordinator fast-forward command from the main checkout:
+
+```sh
+git checkout inbox-inversion
+git merge --ff-only /private/tmp/dee-inbx-build
 ```
 
 ## Evidence
 
-- `mix format lib/haven_web/live/inbox_live.ex test/haven_web/live/inbox_live_test.exs` passed after rerunning with local Mix PubSub socket permissions.
-- `mix test test/haven_web/live/inbox_live_test.exs` passed: 61 tests, 0 failures.
-- `mix test` first hit an unrelated SQLite `Database busy` failure in `test/haven_web/live/run_live_test.exs:2317`; retry passed: 327 tests, 0 failures.
-- `mix precommit` passed after rerunning with local Mix PubSub socket permissions: probe reports validated, 327 tests, 0 failures.
+- `mix deps.get` completed in the detached worktree. It also reported Hex security advisories; that was filed separately as `hav-8oa2`.
+- `mix format lib/haven/runs.ex test/haven/runs_test.exs test/haven_web/live/run_live_test.exs` passed after rerunning with local Mix PubSub socket permissions.
+- `mix test test/haven/runs_test.exs:51 test/haven_web/live/run_live_test.exs:436` passed: 2 tests, 0 failures.
+- `mix test test/haven/runs_test.exs` passed: 24 tests, 0 failures.
+- `mix test test/haven_web/live/run_live_test.exs` failed: 78 tests, 1 failure. The failure is existing ticket `dic-bsqj`: `test/haven_web/live/run_live_test.exs:3845` expected `agent_session_started` but got `agent_protocol_failed` because `priv/agent_stub.exs` could not call `Haven.ACPWire.decode!/1`.
+- `mix test test/haven_web/live/run_live_test.exs:3845` reproduced the same `dic-bsqj` failure alone: 1 test, 1 failure.
+- `mix test` failed with the same single `dic-bsqj` failure: 327 tests, 1 failure.
+- `mix precommit` failed with the same single `dic-bsqj` failure after validating probe reports: 327 tests, 1 failure.
 
 ## Filed tickets
 
-- None in this bounce. Prior review already filed `hav-pves` for SQLite busy precommit flakes and `hav-sgnm` for `Runs.attention_summary/1` counting missing workspaces outside the inbox LiveView.
+- `hav-8oa2` - Haven deps include Hex security advisories.
+- Existing tickets observed but not duplicated: `dic-bsqj` covers the configured-stub ACP failure blocking full-suite/precommit green; `hav-sgnm` is the attention-summary defect fixed by this bounce; `hav-u19f` covers the stale Git `gc.log` warning emitted while committing.

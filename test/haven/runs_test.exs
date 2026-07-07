@@ -70,21 +70,21 @@ defmodule Haven.RunsTest do
     Events.append!(updated.id, "agent_message_chunk", %{"text" => "fresh note"})
 
     assert %{
-             needs_you: 4,
+             needs_you: 3,
              decisions: 1,
              recoveries: 1,
              interruptions: 1,
-             workspaces: 1,
+             workspaces: 0,
              unread_runs: 1,
              unread_events: 1
            } = Runs.attention_summary()
 
     assert %{
-             needs_you: 3,
+             needs_you: 2,
              decisions: 0,
              recoveries: 1,
              interruptions: 1,
-             workspaces: 1,
+             workspaces: 0,
              unread_runs: 1,
              unread_events: 1
            } =

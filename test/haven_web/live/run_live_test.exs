@@ -429,7 +429,7 @@ defmodule HavenWeb.RunLiveTest do
   end
 
   @tag :tmp_dir
-  test "surfaces missing workspaces elsewhere while reading one run", %{
+  test "does not badge idle missing workspaces elsewhere while reading one run", %{
     conn: conn,
     tmp_dir: tmp_dir
   } do
@@ -442,9 +442,9 @@ defmodule HavenWeb.RunLiveTest do
 
     {:ok, view, html} = live(conn, ~p"/runs/#{current.id}")
 
-    assert html =~ "(1) Current conversation - Haven"
-    assert has_element?(view, "#run-header-inbox-attention", "1 run needs you")
-    assert has_element?(view, ~s|#run-header-inbox-attention[title="1 workspace"]|)
+    assert html =~ "Current conversation - Haven"
+    refute html =~ "(1) Current conversation - Haven"
+    refute has_element?(view, "#run-header-inbox-attention")
   end
 
   test "surfaces interrupted work elsewhere while reading one run", %{conn: conn} do
