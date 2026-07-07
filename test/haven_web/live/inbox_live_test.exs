@@ -147,7 +147,7 @@ defmodule HavenWeb.InboxLiveTest do
     refute html =~ "super-secret"
   end
 
-  test "renders runs before secondary controls and setup panels in the mobile-first inbox hierarchy",
+  test "renders start and search controls above the run wall in the mobile-first inbox hierarchy",
        %{
          conn: conn
        } do
@@ -158,23 +158,42 @@ defmodule HavenWeb.InboxLiveTest do
     assert html =~ "Inbox"
     assert html =~ "History"
     assert has_element?(view, "#new-run-panel:not([open])")
+    assert has_element?(view, "#new-run-panel.order-2")
     assert has_element?(view, "#new-run-panel summary", "Start a run")
     assert has_element?(view, "#new-run-form")
+    assert has_element?(view, "#inbox-run-filters.order-3")
+    assert has_element?(view, "#inbox-attention-summary.order-4")
+    assert has_element?(view, "#inbox-history-section.order-5")
     assert has_element?(view, "#run-#{run.id}-row-times", "Started")
     assert has_element?(view, "#run-#{run.id}-row-times", "Activity")
     assert has_element?(view, "#run-#{run.id}-started-at")
     assert has_element?(view, "#run-#{run.id}-updated-at")
 
-    history_index = :binary.match(html, "Quiet run") |> elem(0)
-    new_run_index = :binary.match(html, ~s|id="new-run-panel"|) |> elem(0)
-    filters_index = :binary.match(html, ~s|id="inbox-run-filters"|) |> elem(0)
     workspace_index = :binary.match(html, "workspaces-panel") |> elem(0)
     agent_setup_index = :binary.match(html, "agent-configs-panel") |> elem(0)
+    history_index = :binary.match(html, "Quiet run") |> elem(0)
 
-    assert history_index < new_run_index
-    assert history_index < filters_index
     assert history_index < workspace_index
     assert history_index < agent_setup_index
+  end
+
+  test "paginates ordinary history with a sensible default page size", %{conn: conn} do
+    for index <- 1..26, do: insert_run!("History #{index}", "idle")
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(view, "#inbox-history-pagination")
+    assert has_element?(view, "#inbox-history-page-count", "Showing 25 of 26 history runs")
+    assert has_element?(view, "#show-more-history")
+    assert history_row_count(render(view)) == 25
+
+    view
+    |> element("#show-more-history")
+    |> render_click()
+
+    assert has_element?(view, "#inbox-history-page-count", "Showing 26 of 26 history runs")
+    assert history_row_count(render(view)) == 26
+    refute has_element?(view, "#show-more-history")
   end
 
   test "renders a first-run empty state without opening setup panels", %{conn: conn} do
@@ -191,16 +210,12 @@ defmodule HavenWeb.InboxLiveTest do
            )
 
     assert has_element?(view, "#new-run-panel:not([open])")
+    assert has_element?(view, "#new-run-panel.order-2")
+    assert has_element?(view, "#inbox-run-filters.order-3")
     assert has_element?(view, "#inbox-first-run-empty", "No work runs yet.")
     assert has_element?(view, "#inbox-first-run-empty", "Open Start a run")
     assert has_element?(view, "#workspaces-panel:not([open])")
     assert has_element?(view, "#agent-configs-panel:not([open])")
-
-    html = render(view)
-    empty_index = :binary.match(html, ~s|id="inbox-first-run-empty"|) |> elem(0)
-    new_run_index = :binary.match(html, ~s|id="new-run-panel"|) |> elem(0)
-
-    assert empty_index < new_run_index
   end
 
   test "renders an attention summary that jumps to the most urgent lane", %{conn: conn} do
@@ -434,7 +449,7 @@ defmodule HavenWeb.InboxLiveTest do
   end
 
   @tag :tmp_dir
-  test "moves idle runs with missing workspaces into needs-you", %{
+  test "keeps idle runs with missing workspaces out of needs-you", %{
     conn: conn,
     tmp_dir: tmp_dir
   } do
@@ -442,26 +457,29 @@ defmodule HavenWeb.InboxLiveTest do
     File.mkdir_p!(workspace)
     missing = insert_run!("Quiet run with missing folder", "idle", %{workspace: workspace})
     history = insert_run!("Ordinary history", "idle")
+    assert {:ok, _run} = Runs.mark_latest_viewed(missing.id)
+    assert {:ok, _run} = Runs.mark_latest_viewed(history.id)
     File.rm_rf!(workspace)
 
     {:ok, view, html} = live(conn, ~p"/")
 
-    assert html =~ "(1) Haven"
-    assert has_element?(view, "#inbox-attention-label", "1 run needs you")
-    assert has_element?(view, "#inbox-attention-detail", "1 workspace")
-    assert has_element?(view, "#inbox-queue-needs_you", "1 workspace")
-    assert has_element?(view, "#inbox-queue-history", "1")
-    assert has_element?(view, "#inbox-needs-you-section")
+    refute html =~ "runs need you"
+    assert has_element?(view, "#inbox-attention-label", "Caught up")
+    assert has_element?(view, "#inbox-attention-detail", "2 runs in history")
+    assert has_element?(view, "#inbox-queue-needs_you", "0")
+    assert has_element?(view, "#inbox-queue-history", "2")
+    refute has_element?(view, "#inbox-needs-you-section")
     assert has_element?(view, "#run-#{missing.id}-attention", "Workspace missing")
     assert has_element?(view, "#run-#{missing.id}-next-step", "Restore workspace")
     assert has_element?(view, "#inbox-history-section")
+    assert has_element?(view, "#run-#{missing.id}", "Quiet run with missing folder")
     assert has_element?(view, "#run-#{history.id}", "Ordinary history")
 
     view
     |> element("#inbox-queue-needs_you")
     |> render_click()
 
-    assert has_element?(view, "#run-#{missing.id}", "Quiet run with missing folder")
+    refute has_element?(view, "#run-#{missing.id}", "Quiet run with missing folder")
     refute has_element?(view, "#run-#{history.id}")
   end
 
@@ -2460,6 +2478,12 @@ defmodule HavenWeb.InboxLiveTest do
   end
 
   defp row_index(html, title), do: html |> :binary.match(title) |> elem(0)
+
+  defp history_row_count(html) do
+    html
+    |> then(&Regex.scan(~r/<article\s+id="run-/, &1))
+    |> length()
+  end
 
   defp stop_run_server_on_exit(run_id) do
     on_exit(fn ->

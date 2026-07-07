@@ -8,6 +8,7 @@ defmodule HavenWeb.InboxLive do
   alias Haven.Workspaces
 
   @env_name_regex ~r/^[A-Za-z_][A-Za-z0-9_]*$/
+  @history_page_size 25
 
   @run_filters [
     {"all", "All"},
@@ -30,6 +31,7 @@ defmodule HavenWeb.InboxLive do
      |> assign(:run_search, "")
      |> assign(:agent_filter, "")
      |> assign(:workspace_filter, "")
+     |> assign(:history_page, 1)
      |> assign(:new_run_open?, false)
      |> assign(:form, to_form(default_run_params()))
      |> assign(:workspace_form, to_form(default_workspace_params(), as: :workspace_config))
@@ -121,6 +123,7 @@ defmodule HavenWeb.InboxLive do
     {:noreply,
      socket
      |> assign(:run_filter, filter)
+     |> assign(:history_page, 1)
      |> assign_runs()}
   end
 
@@ -130,6 +133,7 @@ defmodule HavenWeb.InboxLive do
      |> assign(:run_search, normalize_search_query(Map.get(params, "run_search", "")))
      |> assign(:agent_filter, normalize_filter_value(Map.get(params, "agent_filter", "")))
      |> assign(:workspace_filter, normalize_filter_value(Map.get(params, "workspace_filter", "")))
+     |> assign(:history_page, 1)
      |> assign_runs()}
   end
 
@@ -139,6 +143,14 @@ defmodule HavenWeb.InboxLive do
      |> assign(:run_search, "")
      |> assign(:agent_filter, "")
      |> assign(:workspace_filter, "")
+     |> assign(:history_page, 1)
+     |> assign_runs()}
+  end
+
+  def handle_event("show_more_history", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:history_page, socket.assigns.history_page + 1)
      |> assign_runs()}
   end
 
@@ -361,8 +373,8 @@ defmodule HavenWeb.InboxLive do
 
     run_filter = socket.assigns[:run_filter] || "all"
 
-    {visible_updated, visible_needs_you, visible_running, visible_history, visible_diagnostics,
-     visible_archived} =
+    {visible_updated, visible_needs_you, visible_running, visible_history_all,
+     visible_diagnostics, visible_archived} =
       visible_run_groups(
         run_filter,
         updated,
@@ -372,6 +384,9 @@ defmodule HavenWeb.InboxLive do
         diagnostics,
         archived_matches
       )
+
+    history_page = max(socket.assigns[:history_page] || 1, 1)
+    visible_history = Enum.take(visible_history_all, history_page * @history_page_size)
 
     attention_counts = %{
       needs_you: length(needs_you),
@@ -425,6 +440,9 @@ defmodule HavenWeb.InboxLive do
     |> assign(:needs_you, visible_needs_you)
     |> assign(:running, visible_running)
     |> assign(:history, visible_history)
+    |> assign(:history_total_count, length(visible_history_all))
+    |> assign(:history_visible_count, length(visible_history))
+    |> assign(:history_has_more?, length(visible_history) < length(visible_history_all))
     |> assign(:diagnostics, visible_diagnostics)
     |> assign(:archived, visible_archived)
     |> assign(
@@ -520,7 +538,7 @@ defmodule HavenWeb.InboxLive do
   defp diagnostic_run?(%{purpose: "diagnostic"}), do: true
   defp diagnostic_run?(_run), do: false
 
-  defp run_needs_attention?(%{workspace_summary: %{path_state: :missing}}), do: true
+  defp run_needs_attention?(%{workspace_summary: %{path_state: :missing}}), do: false
   defp run_needs_attention?(%{status: status}) when status in ["waiting", "failed"], do: true
   defp run_needs_attention?(run), do: interrupted_run?(run)
 
@@ -2616,7 +2634,7 @@ defmodule HavenWeb.InboxLive do
     <Layouts.app flash={@flash}>
       <main id="haven-inbox" class="min-h-dvh bg-white text-zinc-950">
         <section class="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-4 md:px-8 md:py-6">
-          <header class="border-b border-zinc-200 pb-4">
+          <header class="order-1 border-b border-zinc-200 pb-4">
             <div>
               <p class="text-sm font-medium text-zinc-500">Haven</p>
               <h1 class="text-2xl font-semibold tracking-normal">Inbox</h1>
@@ -2624,7 +2642,7 @@ defmodule HavenWeb.InboxLive do
             </div>
           </header>
 
-          <section id="inbox-attention-summary" class="border-b border-zinc-200 pb-4">
+          <section id="inbox-attention-summary" class="order-4 border-b border-zinc-200 pb-4">
             <div class="flex items-center gap-2">
               <button
                 id="inbox-attention-primary"
@@ -2695,7 +2713,7 @@ defmodule HavenWeb.InboxLive do
           <div
             :if={@filtered_runs_empty?}
             id="inbox-filter-empty"
-            class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+            class="order-5 rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
           >
             <%= if @searched_runs_empty? do %>
               No runs match your filters.
@@ -2704,7 +2722,7 @@ defmodule HavenWeb.InboxLive do
             <% end %>
           </div>
 
-          <section :if={@updated != []} id="inbox-updated-section" class="space-y-2">
+          <section :if={@updated != []} id="inbox-updated-section" class="order-5 space-y-2">
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Updated</h2>
             <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
               <.run_card
@@ -2718,7 +2736,7 @@ defmodule HavenWeb.InboxLive do
             </div>
           </section>
 
-          <section :if={@needs_you != []} id="inbox-needs-you-section" class="space-y-2">
+          <section :if={@needs_you != []} id="inbox-needs-you-section" class="order-5 space-y-2">
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Needs You</h2>
             <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
               <.run_card
@@ -2732,7 +2750,7 @@ defmodule HavenWeb.InboxLive do
             </div>
           </section>
 
-          <section :if={@running != []} id="inbox-running-section" class="space-y-2">
+          <section :if={@running != []} id="inbox-running-section" class="order-5 space-y-2">
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Running</h2>
             <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
               <.run_card
@@ -2748,7 +2766,7 @@ defmodule HavenWeb.InboxLive do
           <section
             :if={@run_filter in ["all", "history"] and !@filtered_runs_empty?}
             id="inbox-history-section"
-            class="space-y-2"
+            class="order-5 space-y-2"
           >
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">History</h2>
             <div
@@ -2774,12 +2792,30 @@ defmodule HavenWeb.InboxLive do
                 agent_capability_gap_reports={@agent_capability_gap_reports}
               />
             </div>
+            <div
+              :if={@history != []}
+              id="inbox-history-pagination"
+              class="flex items-center justify-between gap-3 px-1 text-sm text-zinc-500"
+            >
+              <span id="inbox-history-page-count">
+                Showing {@history_visible_count} of {@history_total_count} history runs
+              </span>
+              <button
+                :if={@history_has_more?}
+                id="show-more-history"
+                type="button"
+                class="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-950"
+                phx-click="show_more_history"
+              >
+                Show more
+              </button>
+            </div>
           </section>
 
           <section
             :if={@run_filter == "diagnostics" and !@filtered_runs_empty?}
             id="inbox-diagnostics-section"
-            class="space-y-2"
+            class="order-5 space-y-2"
           >
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Diagnostics</h2>
             <p class="px-1 text-sm text-zinc-500">
@@ -2810,7 +2846,7 @@ defmodule HavenWeb.InboxLive do
           <section
             :if={@run_filter == "archived" and !@filtered_runs_empty?}
             id="inbox-archived-section"
-            class="space-y-2"
+            class="order-5 space-y-2"
           >
             <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Archived</h2>
             <section
@@ -2874,7 +2910,7 @@ defmodule HavenWeb.InboxLive do
           <details
             id="new-run-panel"
             open={@new_run_open? or @form.errors != []}
-            class="rounded-lg border border-zinc-200 bg-white"
+            class="order-2 rounded-lg border border-zinc-200 bg-white"
           >
             <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-zinc-800 marker:hidden">
               <span class="inline-flex items-center gap-2">
@@ -3172,7 +3208,7 @@ defmodule HavenWeb.InboxLive do
           <details
             id="inbox-run-filters"
             open={active_run_facets?(@run_search, @agent_filter, @workspace_filter)}
-            class="rounded-lg border border-zinc-200 bg-white"
+            class="order-3 rounded-lg border border-zinc-200 bg-white"
           >
             <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-zinc-800 marker:hidden">
               <span class="inline-flex min-w-0 items-center gap-2">
@@ -3234,7 +3270,7 @@ defmodule HavenWeb.InboxLive do
 
           <details
             id="workspaces-panel"
-            class="group border-t border-zinc-200 pt-3"
+            class="group order-6 border-t border-zinc-200 pt-3"
           >
             <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-2 text-sm font-semibold text-zinc-700 marker:hidden">
               <span>Manage workspaces</span>
@@ -3366,7 +3402,7 @@ defmodule HavenWeb.InboxLive do
 
           <details
             id="agent-configs-panel"
-            class="group border-b border-zinc-200 pb-4"
+            class="group order-6 border-b border-zinc-200 pb-4"
           >
             <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-2 text-sm font-semibold text-zinc-700 marker:hidden">
               <span>Manage agents</span>
