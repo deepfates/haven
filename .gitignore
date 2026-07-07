@@ -40,3 +40,11 @@ npm-debug.log
 # Database files
 *.db
 *.db-*
+
+# fleet process artifacts, never committed (tracked in the fleet ledger instead)
+/REPORT.md
+/REPORT-*.md
+/VERDICT.md
+/VERDICT-*.md
+/.tickets/
+/FRESHREAD*.md
