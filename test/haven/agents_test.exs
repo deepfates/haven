@@ -5,12 +5,19 @@ defmodule Haven.AgentsTest do
 
   setup do
     original = Application.get_env(:haven, :agents)
+    original_cantrip_root = Application.get_env(:haven, :cantrip_root)
 
     on_exit(fn ->
       if original do
         Application.put_env(:haven, :agents, original)
       else
         Application.delete_env(:haven, :agents)
+      end
+
+      if original_cantrip_root do
+        Application.put_env(:haven, :cantrip_root, original_cantrip_root)
+      else
+        Application.delete_env(:haven, :cantrip_root)
       end
     end)
   end
@@ -23,6 +30,25 @@ defmodule Haven.AgentsTest do
     assert command.env == []
     assert ["-pa", _path | _rest] = command.args
     assert Enum.slice(command.args, -2, 2) == ["priv/agent_stub.exs", "/tmp/work"]
+  end
+
+  @tag :tmp_dir
+  test "resolves the built-in cantrip familiar ACP agent", %{tmp_dir: tmp_dir} do
+    Application.put_env(:haven, :cantrip_root, tmp_dir)
+
+    assert {:ok, command} = Agents.command("cantrip-familiar", "/tmp/work")
+    assert command.label == "cantrip-familiar"
+    assert command.executable == System.find_executable("mix")
+    assert command.args == ["cantrip.familiar", "--acp"]
+    assert command.cwd == tmp_dir
+    assert command.env == []
+  end
+
+  @tag :tmp_dir
+  test "lists cantrip familiar when its root is configured", %{tmp_dir: tmp_dir} do
+    Application.put_env(:haven, :cantrip_root, tmp_dir)
+
+    assert {"cantrip-familiar", "cantrip familiar"} in Agents.available()
   end
 
   @tag :tmp_dir
@@ -137,7 +163,10 @@ defmodule Haven.AgentsTest do
                env: %{"WORKSPACE" => "{workspace}"}
              })
 
-    assert Agents.available() == [{"stub-acp", "stub-acp"}, {"persisted", "persisted"}]
+    assert Agents.available() == [
+             {"stub-acp", "stub-acp"},
+             {"persisted", "persisted"}
+           ]
 
     assert {:ok, command} = Agents.command("persisted", tmp_dir)
     assert command.label == "persisted"
@@ -180,7 +209,11 @@ defmodule Haven.AgentsTest do
              })
 
     assert agent_config.key == "after"
-    assert Agents.available() == [{"stub-acp", "stub-acp"}, {"after", "after"}]
+
+    assert Agents.available() == [
+             {"stub-acp", "stub-acp"},
+             {"after", "after"}
+           ]
 
     assert {:error, {:unknown_agent, "before"}} = Agents.command("before", "/repo")
     assert {:ok, command} = Agents.command("after", "/repo")
@@ -289,10 +322,15 @@ defmodule Haven.AgentsTest do
                executable: "sh"
              })
 
-    assert Agents.available() == [{"stub-acp", "stub-acp"}, {"temporary", "temporary"}]
+    assert Agents.available() == [
+             {"stub-acp", "stub-acp"},
+             {"temporary", "temporary"}
+           ]
+
     assert {:ok, _agent_config} = Agents.delete_agent_config(agent_config)
 
     assert Agents.available() == [{"stub-acp", "stub-acp"}]
+
     assert {:error, {:unknown_agent, "temporary"}} = Agents.command("temporary", "/repo")
   end
 

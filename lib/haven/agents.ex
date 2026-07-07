@@ -37,11 +37,11 @@ defmodule Haven.Agents do
     configured =
       all_configured_agents()
       |> Map.keys()
-      |> Enum.reject(&(&1 == "stub-acp"))
+      |> Enum.reject(&(&1 in ["stub-acp", "cantrip-familiar"]))
       |> Enum.sort()
       |> Enum.map(&{&1, &1})
 
-    [{"stub-acp", "stub-acp"} | configured]
+    [{"stub-acp", "stub-acp"} | cantrip_available() ++ configured]
   end
 
   def list_agent_configs do
@@ -213,6 +213,20 @@ defmodule Haven.Agents do
     end
   end
 
+  def command("cantrip-familiar", _workspace) do
+    with {:ok, executable} <- resolve_executable("mix"),
+         {:ok, cwd} <- cantrip_root() do
+      {:ok,
+       %{
+         executable: executable,
+         args: ["cantrip.familiar", "--acp"],
+         cwd: cwd,
+         env: [],
+         label: "cantrip-familiar"
+       }}
+    end
+  end
+
   def command(agent, workspace) when is_binary(agent) do
     case all_configured_agents()[agent] do
       nil -> {:error, {:unknown_agent, agent}}
@@ -234,6 +248,20 @@ defmodule Haven.Agents do
 
   defp configured_agents do
     Application.get_env(:haven, :agents, %{})
+  end
+
+  defp cantrip_available do
+    case cantrip_root() do
+      {:ok, _root} -> [{"cantrip-familiar", "cantrip familiar"}]
+      {:error, _reason} -> []
+    end
+  end
+
+  defp cantrip_root do
+    case System.get_env("CANTRIP_ROOT") || Application.get_env(:haven, :cantrip_root) do
+      nil -> {:error, {:missing_cwd, "CANTRIP_ROOT"}}
+      root -> validate_cwd(root)
+    end
   end
 
   defp persisted_agents do

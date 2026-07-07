@@ -139,6 +139,14 @@ defmodule Haven.Runs.RunServer do
       valid_json_rpc_line?(line) ->
         {:noreply, state}
 
+      idle_agent_output?(state) ->
+        Events.append!(state.run_id, "agent_output_ignored", %{
+          "reason" => "non_protocol_idle_output",
+          "line" => String.trim_trailing(line)
+        })
+
+        {:noreply, state}
+
       true ->
         reason = "malformed_agent_output"
         run = Runs.get_run!(state.run_id)
@@ -257,26 +265,8 @@ defmodule Haven.Runs.RunServer do
          {:ok, _response} <- ACP.InitializeResponse.from_json(initialize_result) do
       Events.append!(state.run_id, "agent_initialized", %{})
 
-      with {:ok, session_result} <-
-             safe_protocol_call(fn ->
-               ACP.ClientSideConnection.new_session(
-                 state.conn,
-                 ACP.NewSessionRequest.new(run.workspace)
-               )
-             end),
-           {:ok, session} <- ACP.NewSessionResponse.from_json(session_result) do
-        Events.append!(state.run_id, "agent_session_started", %{
-          "agent_session_id" => session.session_id
-        })
-
-        Runs.update_status!(state.run_id, %{status: "idle", agent_session_id: session.session_id})
-
-        state =
-          state
-          |> Map.put(:agent_session_id, session.session_id)
-          |> maybe_start_recovery_prompt()
-
-        {:noreply, state}
+      with {:ok, state} <- maybe_authenticate_agent(state, initialize_result) do
+        start_agent_session(state, run)
       else
         {:error, reason} ->
           fail_agent_boot(state, run, "agent_protocol_failed", reason)
@@ -286,6 +276,107 @@ defmodule Haven.Runs.RunServer do
         fail_agent_boot(state, run, "agent_protocol_failed", reason)
     end
   end
+
+  defp maybe_authenticate_agent(state, initialize_result) do
+    case auth_method_id(initialize_result) do
+      nil ->
+        {:ok, state}
+
+      method_id ->
+        with {:ok, authenticate_result} <-
+               safe_protocol_call(fn ->
+                 ACP.ClientSideConnection.authenticate(
+                   state.conn,
+                   ACP.AuthenticateRequest.new(method_id)
+                 )
+               end),
+             {:ok, _response} <- ACP.AuthenticateResponse.from_json(authenticate_result) do
+          Events.append!(state.run_id, "agent_authenticated", %{"method_id" => method_id})
+          {:ok, state}
+        end
+    end
+  end
+
+  defp auth_method_id(%{"authMethods" => [%{"id" => method_id} | _rest]})
+       when is_binary(method_id) and method_id != "",
+       do: method_id
+
+  defp auth_method_id(_initialize_result), do: nil
+
+  defp start_agent_session(state, run) do
+    with {:ok, session_result} <-
+           safe_protocol_call(fn ->
+             ACP.ClientSideConnection.new_session(
+               state.conn,
+               new_session_request(run)
+             )
+           end),
+         {:ok, session} <- ACP.NewSessionResponse.from_json(session_result) do
+      Events.append!(state.run_id, "agent_session_started", %{
+        "agent_session_id" => session.session_id
+      })
+
+      Runs.update_status!(state.run_id, %{status: "idle", agent_session_id: session.session_id})
+
+      state =
+        state
+        |> Map.put(:agent_session_id, session.session_id)
+        |> maybe_start_recovery_prompt()
+
+      {:noreply, state}
+    else
+      {:error, reason} ->
+        fail_agent_boot(state, run, "agent_protocol_failed", reason)
+    end
+  end
+
+  defp new_session_request(run) do
+    %{
+      ACP.NewSessionRequest.new(run.workspace)
+      | mcp_servers: mcp_servers(run.workspace)
+    }
+  end
+
+  defp mcp_servers(workspace) do
+    :haven
+    |> Application.get_env(:mcp_servers, [])
+    |> Enum.flat_map(&mcp_server(&1, workspace))
+  end
+
+  defp mcp_server(%{"name" => _name} = server, workspace) do
+    server = substitute_workspace(server, workspace)
+
+    case ACP.McpServer.from_json(server) do
+      {:ok, server} -> [server]
+      _error -> []
+    end
+  end
+
+  defp mcp_server(%{name: name, command: command} = server, workspace) do
+    server
+    |> Map.new(fn {key, value} -> {to_string(key), value} end)
+    |> Map.put("name", name)
+    |> Map.put("command", command)
+    |> mcp_server(workspace)
+  end
+
+  defp mcp_server(_server, _workspace), do: []
+
+  defp substitute_workspace(value, workspace) when is_binary(value) do
+    String.replace(value, "{workspace}", workspace)
+  end
+
+  defp substitute_workspace(values, workspace) when is_list(values) do
+    Enum.map(values, &substitute_workspace(&1, workspace))
+  end
+
+  defp substitute_workspace(value, workspace) when is_map(value) do
+    Map.new(value, fn {key, nested_value} ->
+      {key, substitute_workspace(nested_value, workspace)}
+    end)
+  end
+
+  defp substitute_workspace(value, _workspace), do: value
 
   defp safe_protocol_call(fun) do
     fun.()
@@ -352,6 +443,10 @@ defmodule Haven.Runs.RunServer do
       "agent" => run.agent,
       "workspace" => run.workspace
     }
+  end
+
+  defp idle_agent_output?(state) do
+    state.pending_prompts == %{} and state.pending_permissions == %{}
   end
 
   @impl true

@@ -67,6 +67,8 @@ config :haven, HavenWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :haven, dev_routes: true
 
+config :haven, :cantrip_root, Path.expand("../../cantrip", __DIR__)
+
 config :haven, :agents, %{
   "malformed-agent" => %{
     executable: "mix",

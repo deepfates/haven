@@ -1,49 +1,40 @@
-# dee-inbx build report
+# dee-acpc build report
 
-Branch: `inbox-inversion`
+Branch: `feat/cantrip-agent`
 
 ## What changed
 
-- Changed the shared `Runs.attention_summary/1` classifier so missing-workspace runs do not add a `needs_you`/`workspaces` attention category.
-- Updated the focused regressions for the attention badge: an idle run whose workspace vanished no longer increments the shared summary, run-detail header badge, or run-detail browser title count.
-- Left the already-passed inbox DOM-order inversion and history pagination work untouched.
+- Registered `cantrip-familiar` as a built-in ACP agent when `CANTRIP_ROOT` or `config :haven, :cantrip_root` points at a cantrip checkout. Dev config points at the sibling fleet checkout.
+- Completed two ACP client gaps hit during integration:
+  - Haven now authenticates agents that advertise `authMethods` during `initialize`.
+  - Haven now injects configured MCP servers from `config :haven, :mcp_servers` into `session/new`, with `{workspace}` substitution.
+- Hardened stdio handling for real agents that print benign non-JSON startup/status lines while idle. Haven records `agent_output_ignored` instead of failing the run, while malformed output during active prompt work still fails.
+- Added regression coverage for cantrip agent resolution, advertised auth, MCP server injection, and idle non-protocol stdout.
 
 ## Reproduce commands
 
 ```sh
-git worktree add --detach /private/tmp/dee-inbx-build inbox-inversion
-cd /private/tmp/dee-inbx-build
-mix deps.get
-mix format lib/haven/runs.ex test/haven/runs_test.exs test/haven_web/live/run_live_test.exs
-mix test test/haven/runs_test.exs:51 test/haven_web/live/run_live_test.exs:436
-mix test test/haven/runs_test.exs
-mix test test/haven_web/live/run_live_test.exs
-mix test test/haven_web/live/run_live_test.exs:3845
-mix test
+cd /Users/deepfates/Hacking/github/deepfates/haven
+git checkout feat/cantrip-agent
+mix format
+mix test test/haven/agent_probe_test.exs:633 test/haven/agent_probe_test.exs:659 test/haven/agent_probe_test.exs:682 test/haven/agents_test.exs:35 test/haven/agents_test.exs:47
+mix test test/haven/agents_test.exs test/haven/agent_probe_test.exs
+mix haven.agent_probe --agent cantrip-familiar --workspace . --prompt "Reply with one short sentence confirming you are running through Haven." --timeout 120000 --expect-event agent_initialized --expect-event agent_session_started --expect-event turn_finished --expect-min-agent-message-chunks 1 --report docs/probes/cantrip-familiar-basic.json --show-events
 mix precommit
 git status --short
 git log -1 --oneline
 ```
 
-Coordinator fast-forward command from the main checkout:
-
-```sh
-git checkout inbox-inversion
-git merge --ff-only /private/tmp/dee-inbx-build
-```
-
 ## Evidence
 
-- `mix deps.get` completed in the detached worktree. It also reported Hex security advisories; that was filed separately as `hav-8oa2`.
-- `mix format lib/haven/runs.ex test/haven/runs_test.exs test/haven_web/live/run_live_test.exs` passed after rerunning with local Mix PubSub socket permissions.
-- `mix test test/haven/runs_test.exs:51 test/haven_web/live/run_live_test.exs:436` passed: 2 tests, 0 failures.
-- `mix test test/haven/runs_test.exs` passed: 24 tests, 0 failures.
-- `mix test test/haven_web/live/run_live_test.exs` failed: 78 tests, 1 failure. The failure is existing ticket `dic-bsqj`: `test/haven_web/live/run_live_test.exs:3845` expected `agent_session_started` but got `agent_protocol_failed` because `priv/agent_stub.exs` could not call `Haven.ACPWire.decode!/1`.
-- `mix test test/haven_web/live/run_live_test.exs:3845` reproduced the same `dic-bsqj` failure alone: 1 test, 1 failure.
-- `mix test` failed with the same single `dic-bsqj` failure: 327 tests, 1 failure.
-- `mix precommit` failed with the same single `dic-bsqj` failure after validating probe reports: 327 tests, 1 failure.
+- `mix format` passed.
+- Focused new regressions passed: 5 tests, 0 failures.
+- `mix test test/haven_web/live/run_live_test.exs:1820` passed after updating the stale-disconnect assertion to drive the LiveView event directly instead of clicking an already-disabled button.
+- `mix precommit` passed: probe reports validated; 332 tests, 0 failures.
+- Real cantrip launch improved past Haven's previous failure mode: Haven now ignores cantrip's non-JSON startup/build output while idle instead of failing an established session.
+- Real cantrip turn remains blocked by the sibling cantrip checkout failing to compile before ACP initialize completes. The failed command output reported undefined functions in `/Users/deepfates/Hacking/github/deepfates/cantrip/lib/cantrip/entity_server.ex`, including `reply_pending/2`, `reply_running/2`, `stop_runner/2`, `running_kind/1`, `append_control_event/4`, `close_loom/1`, `control_event/3`, `send_runner_control/2`, `append_boundary_steer/2`, `enqueue_pending/4`, `reply_all_pending_runner_down/2`, `start_next_pending/1`, and `pending_empty?/1`.
+- Because cantrip does not compile, I could not produce the requested real cantrip turn or permission-decision proof in this branch. I did not commit failed positive probe JSON under `docs/probes`.
 
 ## Filed tickets
 
-- `hav-8oa2` - Haven deps include Hex security advisories.
-- Existing tickets observed but not duplicated: `dic-bsqj` covers the configured-stub ACP failure blocking full-suite/precommit green; `hav-sgnm` is the attention-summary defect fixed by this bounce; `hav-u19f` covers the stale Git `gc.log` warning emitted while committing.
+- `dee-fkvx` - cantrip familiar ACP checkout does not compile under Haven launch.

@@ -37,6 +37,17 @@ defmodule StubAgent do
     state
   end
 
+  defp handle(%ACP.RPC.Request{method: "authenticate", id: id, params: params}, state) do
+    {:ok, _request} = ACP.AuthenticateRequest.from_json(params)
+
+    result =
+      ACP.AuthenticateResponse.new()
+      |> ACP.AuthenticateResponse.to_json()
+
+    ACPWire.send(ACP.RPC.Response.result(id, result))
+    state
+  end
+
   defp handle(%ACP.RPC.Request{method: "session/new", id: id, params: params}, state) do
     {:ok, _request} = ACP.NewSessionRequest.from_json(params)
 

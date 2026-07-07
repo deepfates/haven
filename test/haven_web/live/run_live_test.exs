@@ -1837,9 +1837,10 @@ defmodule HavenWeb.RunLiveTest do
     :ok = Runs.stop_run(run.id)
     refute Runs.started?(run.id)
 
-    view
-    |> element(~s|#pending-permission-card button[phx-value-option-id="allow"]|)
-    |> render_click()
+    render_click(view, "resolve_permission", %{
+      "request-id" => to_string(request_id),
+      "option-id" => "allow"
+    })
 
     html = render(view)
     assert html =~ "This run is not connected"
