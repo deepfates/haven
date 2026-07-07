@@ -15,6 +15,7 @@ defmodule Haven.FakeACPAgent do
       scenario: scenario,
       workspace: workspace,
       session_id: nil,
+      authenticated?: false,
       next_request_id: 1,
       awaiting_permissions: %{},
       awaiting_file: %{},
@@ -41,23 +42,53 @@ defmodule Haven.FakeACPAgent do
     result =
       ACP.ProtocolVersion.v1()
       |> ACP.InitializeResponse.new()
+      |> maybe_put_auth_methods(state.scenario)
       |> ACP.InitializeResponse.to_json()
 
     ACPWire.send(ACP.RPC.Response.result(id, result))
     state
   end
 
+  defp handle(%ACP.RPC.Request{method: "authenticate", id: id, params: params}, state) do
+    {:ok, request} = ACP.AuthenticateRequest.from_json(params)
+
+    if request.method_id == "fake-token" do
+      result =
+        ACP.AuthenticateResponse.new()
+        |> ACP.AuthenticateResponse.to_json()
+
+      ACPWire.send(ACP.RPC.Response.result(id, result))
+      %{state | authenticated?: true}
+    else
+      ACPWire.send(ACP.RPC.Response.error(id, ACP.Error.invalid_params()))
+      state
+    end
+  end
+
   defp handle(%ACP.RPC.Request{method: "session/new", id: id, params: params}, state) do
-    {:ok, _request} = ACP.NewSessionRequest.from_json(params)
-    session_id = "fake-session-#{System.unique_integer([:positive])}"
+    {:ok, request} = ACP.NewSessionRequest.from_json(params)
 
-    result =
-      session_id
-      |> ACP.NewSessionResponse.new()
-      |> ACP.NewSessionResponse.to_json()
+    cond do
+      state.scenario == "auth-required" and not state.authenticated? ->
+        ACPWire.send(ACP.RPC.Response.error(id, ACP.Error.new(-32_003, "auth required")))
+        state
 
-    ACPWire.send(ACP.RPC.Response.result(id, result))
-    %{state | session_id: session_id}
+      state.scenario == "mcp-session" and request.mcp_servers == [] ->
+        ACPWire.send(ACP.RPC.Response.error(id, ACP.Error.new(-32_602, "mcpServers required")))
+        state
+
+      true ->
+        session_id = "fake-session-#{System.unique_integer([:positive])}"
+
+        result =
+          session_id
+          |> ACP.NewSessionResponse.new()
+          |> ACP.NewSessionResponse.to_json()
+
+        ACPWire.send(ACP.RPC.Response.result(id, result))
+        if state.scenario == "idle-banner", do: IO.puts("fake idle banner")
+        %{state | session_id: session_id}
+    end
   end
 
   defp handle(%ACP.RPC.Request{method: "session/prompt", id: id, params: params}, state) do
@@ -99,6 +130,12 @@ defmodule Haven.FakeACPAgent do
   end
 
   defp handle(_message, state), do: state
+
+  defp maybe_put_auth_methods(response, "auth-required") do
+    %{response | auth_methods: [ACP.AuthMethod.new("fake-token", "Fake token")]}
+  end
+
+  defp maybe_put_auth_methods(response, _scenario), do: response
 
   defp handle_prompt("streaming", "partial-stream", prompt_id, session_id, state) do
     Enum.each(["Partial ", "streamed ", "answer."], fn text ->

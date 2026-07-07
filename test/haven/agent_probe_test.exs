@@ -10,12 +10,19 @@ defmodule Haven.AgentProbeTest do
 
   setup do
     original = Application.get_env(:haven, :agents)
+    original_mcp_servers = Application.get_env(:haven, :mcp_servers)
 
     on_exit(fn ->
       if original do
         Application.put_env(:haven, :agents, original)
       else
         Application.delete_env(:haven, :agents)
+      end
+
+      if original_mcp_servers do
+        Application.put_env(:haven, :mcp_servers, original_mcp_servers)
+      else
+        Application.delete_env(:haven, :mcp_servers)
       end
     end)
   end
@@ -621,6 +628,77 @@ defmodule Haven.AgentProbeTest do
            ]
 
     refute Runs.started?(report.run_id)
+  end
+
+  test "authenticates agents that advertise an auth method before creating a session" do
+    Application.put_env(:haven, :agents, %{
+      "fake-auth-required" => fake_agent_spec("auth-required")
+    })
+
+    assert {:ok, report} =
+             AgentProbe.preflight(
+               agent: "fake-auth-required",
+               workspace: File.cwd!(),
+               timeout: 15_000
+             )
+
+    assert event_types(report) == [
+             "run_created",
+             "agent_process_started",
+             "agent_initialized",
+             "agent_authenticated",
+             "agent_session_started"
+           ]
+
+    assert Enum.any?(report.events, fn
+             %{type: "agent_authenticated", payload: %{"method_id" => "fake-token"}} -> true
+             _event -> false
+           end)
+  end
+
+  test "injects configured MCP servers into new ACP sessions" do
+    Application.put_env(:haven, :agents, %{
+      "fake-mcp-session" => fake_agent_spec("mcp-session")
+    })
+
+    Application.put_env(:haven, :mcp_servers, [
+      %{"name" => "docs", "command" => "stdio-docs", "args" => ["--root", "{workspace}"]}
+    ])
+
+    assert {:ok, report} =
+             AgentProbe.preflight(
+               agent: "fake-mcp-session",
+               workspace: File.cwd!(),
+               timeout: 15_000
+             )
+
+    assert "agent_session_started" in event_types(report)
+  end
+
+  test "ignores non-protocol agent stdout while the run is idle" do
+    Application.put_env(:haven, :agents, %{
+      "fake-idle-banner" => fake_agent_spec("idle-banner")
+    })
+
+    assert {:ok, report} =
+             AgentProbe.preflight(
+               agent: "fake-idle-banner",
+               workspace: File.cwd!(),
+               timeout: 15_000
+             )
+
+    assert "agent_session_started" in event_types(report)
+
+    assert Enum.any?(report.events, fn
+             %{
+               type: "agent_output_ignored",
+               payload: %{"reason" => "non_protocol_idle_output", "line" => "fake idle banner"}
+             } ->
+               true
+
+             _event ->
+               false
+           end)
   end
 
   test "runs a load probe as multiple durable runs" do
