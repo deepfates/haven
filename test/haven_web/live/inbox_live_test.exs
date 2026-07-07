@@ -158,21 +158,28 @@ defmodule HavenWeb.InboxLiveTest do
     assert html =~ "Inbox"
     assert html =~ "History"
     assert has_element?(view, "#new-run-panel:not([open])")
-    assert has_element?(view, "#new-run-panel.order-2")
     assert has_element?(view, "#new-run-panel summary", "Start a run")
     assert has_element?(view, "#new-run-form")
-    assert has_element?(view, "#inbox-run-filters.order-3")
-    assert has_element?(view, "#inbox-attention-summary.order-4")
-    assert has_element?(view, "#inbox-history-section.order-5")
+    assert has_element?(view, "#inbox-run-filters")
+    assert has_element?(view, "#inbox-attention-summary")
+    assert has_element?(view, "#inbox-history-section")
     assert has_element?(view, "#run-#{run.id}-row-times", "Started")
     assert has_element?(view, "#run-#{run.id}-row-times", "Activity")
     assert has_element?(view, "#run-#{run.id}-started-at")
     assert has_element?(view, "#run-#{run.id}-updated-at")
 
+    new_run_index = html_element_index(html, "new-run-panel")
+    filters_index = html_element_index(html, "inbox-run-filters")
+    attention_index = html_element_index(html, "inbox-attention-summary")
+    history_section_index = html_element_index(html, "inbox-history-section")
     workspace_index = :binary.match(html, "workspaces-panel") |> elem(0)
     agent_setup_index = :binary.match(html, "agent-configs-panel") |> elem(0)
     history_index = :binary.match(html, "Quiet run") |> elem(0)
 
+    assert new_run_index < filters_index
+    assert filters_index < attention_index
+    assert attention_index < history_section_index
+    assert filters_index < history_index
     assert history_index < workspace_index
     assert history_index < agent_setup_index
   end
@@ -2478,6 +2485,8 @@ defmodule HavenWeb.InboxLiveTest do
   end
 
   defp row_index(html, title), do: html |> :binary.match(title) |> elem(0)
+
+  defp html_element_index(html, id), do: html |> :binary.match(~s|id="#{id}"|) |> elem(0)
 
   defp history_row_count(html) do
     html
