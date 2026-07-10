@@ -106,6 +106,19 @@ defmodule HavenWeb.RunLive do
     {:noreply, assign_run(socket, socket.assigns.run.id)}
   end
 
+  def handle_event("set_session_mode", %{"mode-id" => mode_id}, socket) do
+    socket =
+      if socket.assigns.session_modes do
+        socket.assigns.run.id
+        |> Runs.set_session_mode(mode_id)
+        |> assign_action_result(socket)
+      else
+        socket
+      end
+
+    {:noreply, assign_run(socket, socket.assigns.run.id)}
+  end
+
   def handle_event("retry_last_prompt", _params, socket) do
     socket =
       if socket.assigns.can_retry_last_prompt? do
@@ -200,6 +213,15 @@ defmodule HavenWeb.RunLive do
   defp action_error_message(:busy),
     do: "The agent is already working or waiting on a decision."
 
+  defp action_error_message(:no_active_session),
+    do: "There is no active agent session to switch permission modes on."
+
+  defp action_error_message(:modes_not_advertised),
+    do: "This agent did not advertise permission modes for the current session."
+
+  defp action_error_message(:unknown_mode),
+    do: "The agent does not advertise that permission mode. Refresh and try again."
+
   defp action_error_message({:missing_workspace, workspace}),
     do: "Restore the missing workspace before continuing: #{workspace}"
 
@@ -264,8 +286,51 @@ defmodule HavenWeb.RunLive do
     |> assign(:recovery_attention, recovery_attention(run, live?, workspace_missing?))
     |> assign(:latest_failure_summary, latest_failure_summary(events))
     |> assign(:pending_permission, pending_permission)
+    |> assign(:session_modes, session_modes(events, live?))
     |> assign_inbox_attention_summary()
   end
+
+  # Permission-mode switcher state, derived from the durable event log: the
+  # latest session start/load advertises the mode set (or clears it when the
+  # agent advertises none), and later mode-change events move the current
+  # marker. Only a live session can switch modes, so a dead run renders no
+  # control.
+  defp session_modes(_events, false), do: nil
+
+  defp session_modes(events, true) do
+    Enum.reduce(events, nil, fn
+      %{type: type, payload: payload}, _acc
+      when type in ["agent_session_started", "agent_session_loaded"] ->
+        parse_session_modes(payload["modes"])
+
+      %{type: "session_mode_changed", payload: %{"mode_id" => mode_id}}, %{} = acc
+      when is_binary(mode_id) ->
+        %{acc | current_mode_id: mode_id}
+
+      %{type: "current_mode_update", payload: %{"currentModeId" => mode_id}}, %{} = acc
+      when is_binary(mode_id) ->
+        %{acc | current_mode_id: mode_id}
+
+      _event, acc ->
+        acc
+    end)
+  end
+
+  defp parse_session_modes(%{"currentModeId" => current, "availableModes" => available})
+       when is_binary(current) and is_list(available) do
+    modes =
+      for %{"id" => id} = mode <- available, is_binary(id) do
+        %{id: id, name: mode["name"] || id, description: mode["description"]}
+      end
+
+    if modes == [] do
+      nil
+    else
+      %{current_mode_id: current, available_modes: modes}
+    end
+  end
+
+  defp parse_session_modes(_modes), do: nil
 
   defp assign_inbox_attention_summary(socket) do
     summary = Runs.attention_summary(exclude_run_id: socket.assigns.run.id)
@@ -3117,6 +3182,37 @@ defmodule HavenWeb.RunLive do
                   >
                     Review decision
                   </a>
+                </div>
+                <div
+                  :if={@session_modes}
+                  id="run-mode-switcher"
+                  class="mt-2 flex flex-wrap items-center gap-2"
+                >
+                  <span class="text-xs font-semibold uppercase text-zinc-500">
+                    Permission mode
+                  </span>
+                  <div class="flex flex-wrap gap-1" role="group" aria-label="Permission mode">
+                    <button
+                      :for={mode <- @session_modes.available_modes}
+                      type="button"
+                      id={"run-mode-option-#{mode.id}"}
+                      phx-click="set_session_mode"
+                      phx-value-mode-id={mode.id}
+                      data-current={mode.id == @session_modes.current_mode_id}
+                      aria-pressed={to_string(mode.id == @session_modes.current_mode_id)}
+                      disabled={mode.id == @session_modes.current_mode_id}
+                      title={mode.description}
+                      class={[
+                        "inline-flex h-8 items-center justify-center rounded-md border px-3 text-xs font-semibold transition",
+                        if(mode.id == @session_modes.current_mode_id,
+                          do: "border-zinc-950 bg-zinc-950 text-white",
+                          else: "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                        )
+                      ]}
+                    >
+                      {mode.name}
+                    </button>
+                  </div>
                 </div>
                 <.form
                   id="run-prompt-form"
