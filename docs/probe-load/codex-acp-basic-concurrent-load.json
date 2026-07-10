@@ -1,0 +1,2027 @@
+{
+  "status": "passed",
+  "prompt": "summarize this workspace in one short sentence",
+  "kind": "agent_probe_load",
+  "agent": "codex-acp",
+  "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
+  "run_count": 3,
+  "concurrency": 3,
+  "expected_events": [
+    "agent_initialized",
+    "agent_session_started",
+    "turn_finished"
+  ],
+  "reports": [
+    {
+      "status": "idle",
+      "events": [
+        {
+          "type": "run_created",
+          "seq": 1,
+          "payload": {
+            "agent": "codex-acp",
+            "capability_policy": {
+              "file_read": "ask",
+              "file_write": "ask",
+              "terminal_create": "allow"
+            },
+            "purpose": "diagnostic",
+            "title": "Agent probe: codex-acp 1/3",
+            "workspace": "/Users/deepfates/Hacking/github/deepfates/haven"
+          }
+        },
+        {
+          "type": "agent_process_started",
+          "seq": 2,
+          "payload": {
+            "agent": "codex-acp",
+            "args": [
+              "-y",
+              "@agentclientprotocol/codex-acp@1.0.1"
+            ],
+            "command": "codex-acp",
+            "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
+            "env": [],
+            "executable": "/opt/homebrew/bin/npx"
+          }
+        },
+        {
+          "type": "agent_initialized",
+          "seq": 3,
+          "payload": {}
+        },
+        {
+          "type": "agent_session_started",
+          "seq": 4,
+          "payload": {
+            "agent_session_id": "019f1ee7-3879-7af0-ab9c-2ce13c12cbb2"
+          }
+        },
+        {
+          "type": "turn_started",
+          "seq": 5,
+          "payload": {
+            "prompt": "summarize this workspace in one short sentence"
+          }
+        },
+        {
+          "type": "user_message",
+          "seq": 6,
+          "payload": {
+            "text": "summarize this workspace in one short sentence"
+          }
+        },
+        {
+          "type": "available_commands_update",
+          "seq": 7,
+          "payload": {
+            "availableCommands": [
+              {
+                "description": "List configured Model Context Protocol (MCP) tools.",
+                "name": "mcp"
+              },
+              {
+                "description": "List available skills.",
+                "name": "skills"
+              },
+              {
+                "description": "Display session configuration and token usage.",
+                "name": "status"
+              },
+              {
+                "description": "Review uncommitted changes, or review with custom instructions.",
+                "input": {
+                  "hint": "optional review instructions"
+                },
+                "name": "review"
+              },
+              {
+                "description": "Review changes relative to a base branch.",
+                "input": {
+                  "hint": "branch name"
+                },
+                "name": "review-branch"
+              },
+              {
+                "description": "Review a specific commit.",
+                "input": {
+                  "hint": "commit sha"
+                },
+                "name": "review-commit"
+              },
+              {
+                "description": "Summarize conversation to avoid hitting the context limit.",
+                "name": "compact"
+              },
+              {
+                "description": "Sign out of Codex. This option is available when you are logged in via ChatGPT.",
+                "name": "logout"
+              },
+              {
+                "description": "Control the in-app Browser. Use to open, navigate, inspect, test, click, type, screenshot, or verify local targets such as localhost, 127.0.0.1, ::1, file://, the current in-app browser tab, and websites shown side by side inside Codex.",
+                "name": "$browser:control-in-app-browser"
+              },
+              {
+                "description": "Create, edit, redline, and comment on `.docx`, Word, and Google Docs-targeted document artifacts inside the container, with a strict render-and-verify workflow. Use `render_docx.py` to generate page PNGs (and optional PDF) for visual QA, then iterate until layout is flawless before delivering the final document.",
+                "name": "$documents:documents"
+              },
+              {
+                "description": "Address actionable GitHub pull request review feedback. Use when the user wants to inspect unresolved review threads, requested changes, or inline review comments on a PR, then implement selected fixes. Use the GitHub app for PR metadata and flat comment reads, and use the bundled GraphQL script via `gh` whenever thread-level state, resolution status, or inline review context matters.",
+                "name": "$github:gh-address-comments"
+              },
+              {
+                "description": "Use when a user asks to debug or fix failing GitHub PR checks that run in GitHub Actions. Use the GitHub app from this plugin for PR metadata and patch context, and use `gh` for Actions check and log inspection before implementing any approved fix.",
+                "name": "$github:gh-fix-ci"
+              },
+              {
+                "description": "Triage and orient GitHub repository, pull request, and issue work through the connected GitHub app. Use when the user asks for general GitHub help, wants PR or issue summaries, or needs repository context before choosing a more specific GitHub workflow.",
+                "name": "$github:github"
+              },
+              {
+                "description": "Publish local changes to GitHub by confirming scope, committing intentionally, pushing the branch, and opening a draft PR through the GitHub app from this plugin, with `gh` used only as a fallback where connector coverage is insufficient.",
+                "name": "$github:yeet"
+              },
+              {
+                "description": "Read, create, inspect, render, and verify PDF files where visual layout matters. Use Poppler rendering plus Python tools such as reportlab, pdfplumber, and pypdf for generation and extraction.",
+                "name": "$pdf:pdf"
+              },
+              {
+                "description": "Create or edit PowerPoint or Google Slides decks",
+                "name": "$presentations:Presentations"
+              },
+              {
+                "description": "Use this skill when a user requests to create, modify, analyze, visualize, or work with spreadsheet files (`.xlsx`, `.xls`, `.csv`, `.tsv`) or Google Sheets-targeted spreadsheet artifacts with formulas, formatting, charts, tables, and recalculation.",
+                "name": "$spreadsheets:Spreadsheets"
+              },
+              {
+                "description": "Create or update a reusable personal Codex artifact-template skill. Use when the user invokes $template-creator or asks in natural language to create a template using, from, or based on an attached Word document, PowerPoint presentation, or Excel workbook, or explicitly asks to edit or update a passed artifact-template skill. Do not use for one-off artifact creation from an existing template.",
+                "name": "$template-creator:template-creator"
+              },
+              {
+                "description": "Generate or edit raster images when the task benefits from AI-created bitmap visuals such as photos, illustrations, textures, sprites, mockups, or transparent-background cutouts. Use when Codex should create a brand-new image, transform an existing image, or derive visual variants from references, and the output should be a bitmap asset rather than repo-native code or vector. Do not use when the task is better handled by editing existing SVG/vector/code-native assets, extending an established icon or logo system, or building the visual directly in HTML/CSS/canvas.",
+                "name": "$imagegen"
+              },
+              {
+                "description": "Use when the user asks how to build with OpenAI products or APIs, asks about Codex itself or choosing Codex surfaces, needs up-to-date official documentation with citations, help choosing the latest model for a use case, or model upgrade and prompt-upgrade guidance; use OpenAI docs MCP tools for non-Codex docs questions, use the Codex manual helper first for broad Codex self-knowledge, and restrict fallback browsing to official OpenAI domains.",
+                "name": "$openai-docs"
+              },
+              {
+                "description": "Create and scaffold plugin directories for Codex with a required `.codex-plugin/plugin.json`, optional plugin folders/files, valid manifest defaults, and personal-marketplace entries by default. Use when Codex needs to create a new personal plugin, add optional plugin structure, generate or update marketplace entries for plugin ordering and availability metadata, or update an existing local plugin during development with the CLI-driven cachebuster and reinstall flow.",
+                "name": "$plugin-creator"
+              },
+              {
+                "description": "Create or update a skill",
+                "name": "$skill-creator"
+              },
+              {
+                "description": "Install curated skills from openai/skills or other repos",
+                "name": "$skill-installer"
+              }
+            ],
+            "sessionUpdate": "available_commands_update"
+          }
+        },
+        {
+          "type": "session_info_update",
+          "seq": 8,
+          "payload": {
+            "_meta": {
+              "codex": {
+                "threadStatus": {
+                  "activeFlags": [],
+                  "type": "active"
+                }
+              }
+            },
+            "sessionUpdate": "session_info_update"
+          }
+        },
+        {
+          "type": "tool_call",
+          "seq": 9,
+          "payload": {
+            "_meta": {
+              "terminal_info": {
+                "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
+                "terminal_id": "call_NTRmFiWKp19DzdSmaUtCrkRP"
+              }
+            },
+            "content": [
+              {
+                "terminalId": "call_NTRmFiWKp19DzdSmaUtCrkRP",
+                "type": "terminal"
+              }
+            ],
+            "kind": "execute",
+            "rawInput": {
+              "command": "pwd && rg --files -g 'mix.exs' -g 'README*' -g 'lib/**' -g 'assets/**' -g 'config/**' | head -80",
+              "cwd": "/Users/deepfates/Hacking/github/deepfates/haven"
+            },
+            "sessionUpdate": "tool_call",
+            "status": "in_progress",
+            "title": "pwd && rg --files -g 'mix.exs' -g 'README*' -g 'lib/**' -g 'assets/**' -g 'config/**' | head -80",
+            "toolCallId": "call_NTRmFiWKp19DzdSmaUtCrkRP"
+          }
+        },
+        {
+          "type": "tool_call_update",
+          "seq": 10,
+          "payload": {
+            "_meta": {
+              "terminal_exit": {
+                "exit_code": 0,
+                "signal": null,
+                "terminal_id": "call_NTRmFiWKp19DzdSmaUtCrkRP"
+              },
+              "terminal_output_delta": {
+                "data": "/Users/deepfates/Hacking/github/deepfates/haven\nREADME.md\nassets/tsconfig.json\nassets/vendor/topbar.js\nassets/vendor/heroicons.js\nmix.exs\nassets/css/app.css\nlib/mix/tasks/haven.pending_migrations.ex\nlib/mix/tasks/haven.agent_probe.ex\nlib/mix/tasks/haven.runtime_smoke.ex\nlib/mix/tasks/haven.probe_reports.ex\nlib/haven_web/controllers/error_html.ex\nlib/haven_web/controllers/dev_controller.ex\ndocs/probe-load/README.md\nlib/haven_web/controllers/error_json.ex\nlib/haven_web/endpoint.ex\nlib/haven_web/components/layouts/root.html.heex\nlib/haven_web/components/layouts.ex\nlib/haven_web/components/core_components.ex\nlib/haven_web/router.ex\nlib/haven_web/gettext.ex\nlib/haven_web/telemetry.ex\nlib/haven_web.ex\nconfig/test.exs\nconfig/prod.exs\nconfig/config.exs\nconfig/dev.exs\nconfig/runtime.exs\nlib/haven_web/live/inbox_live.ex\nlib/haven_web/live/run_live.ex\nassets/js/app.js\nlib/haven/agent_probe_report.ex\nlib/haven/runs/acp_client_handler.ex\nlib/haven/runs/run_server.ex\nlib/haven/runs/run.ex\nlib/haven/repo.ex\nlib/haven/acp_client_side.ex\ndocs/probes/README.md\ndocs/probe-failures/README.md\ndocs/probe-workspaces/haven-capability/README.md\nlib/haven/terminals.ex\nlib/haven/agent_registry.ex\nlib/haven/file_changes.ex\nlib/haven/terminal_sessions.ex\nlib/haven/agent_probe.ex\nlib/haven/permission_audits.ex\nlib/haven/agents.ex\nlib/haven/port_io.ex\nlib/haven/events/event.ex\nlib/haven.ex\nlib/haven/events.ex\nlib/haven/runs.ex\nlib/haven/workspace_files.ex\nlib/haven/terminal_sessions/terminal_session.ex\nlib/haven/workspaces.ex\nlib/haven/mailer.ex\nlib/haven/acp_wire.ex\nlib/haven/application.ex\nlib/haven/permission_audits/permission_audit.ex\nlib/haven/agents/agent_config.ex\nlib/haven/workspaces/workspace.ex\nlib/haven/file_changes/file_change.ex\n",
+                "terminal_id": "call_NTRmFiWKp19DzdSmaUtCrkRP"
+              }
+            },
+            "rawOutput": {
+              "exit_code": 0,
+              "formatted_output": "/Users/deepfates/Hacking/github/deepfates/haven\nREADME.md\nassets/tsconfig.json\nassets/vendor/topbar.js\nassets/vendor/heroicons.js\nmix.exs\nassets/css/app.css\nlib/mix/tasks/haven.pending_migrations.ex\nlib/mix/tasks/haven.agent_probe.ex\nlib/mix/tasks/haven.runtime_smoke.ex\nlib/mix/tasks/haven.probe_reports.ex\nlib/haven_web/controllers/error_html.ex\nlib/haven_web/controllers/dev_controller.ex\ndocs/probe-load/README.md\nlib/haven_web/controllers/error_json.ex\nlib/haven_web/endpoint.ex\nlib/haven_web/components/layouts/root.html.heex\nlib/haven_web/components/layouts.ex\nlib/haven_web/components/core_components.ex\nlib/haven_web/router.ex\nlib/haven_web/gettext.ex\nlib/haven_web/telemetry.ex\nlib/haven_web.ex\nconfig/test.exs\nconfig/prod.exs\nconfig/config.exs\nconfig/dev.exs\nconfig/runtime.exs\nlib/haven_web/live/inbox_live.ex\nlib/haven_web/live/run_live.ex\nassets/js/app.js\nlib/haven/agent_probe_report.ex\nlib/haven/runs/acp_client_handler.ex\nlib/haven/runs/run_server.ex\nlib/haven/runs/run.ex\nlib/haven/repo.ex\nlib/haven/acp_client_side.ex\ndocs/probes/README.md\ndocs/probe-failures/README.md\ndocs/probe-workspaces/haven-capability/README.md\nlib/haven/terminals.ex\nlib/haven/agent_registry.ex\nlib/haven/file_changes.ex\nlib/haven/terminal_sessions.ex\nlib/haven/agent_probe.ex\nlib/haven/permission_audits.ex\nlib/haven/agents.ex\nlib/haven/port_io.ex\nlib/haven/events/event.ex\nlib/haven.ex\nlib/haven/events.ex\nlib/haven/runs.ex\nlib/haven/workspace_files.ex\nlib/haven/terminal_sessions/terminal_session.ex\nlib/haven/workspaces.ex\nlib/haven/mailer.ex\nlib/haven/acp_wire.ex\nlib/haven/application.ex\nlib/haven/permission_audits/permission_audit.ex\nlib/haven/agents/agent_config.ex\nlib/haven/workspaces/workspace.ex\nlib/haven/file_changes/file_change.ex\n"
+            },
+            "sessionUpdate": "tool_call_update",
+            "status": "completed",
+            "toolCallId": "call_NTRmFiWKp19DzdSmaUtCrkRP"
+          }
+        },
+        {
+          "type": "tool_call",
+          "seq": 11,
+          "payload": {
+            "_meta": {
+              "terminal_info": {
+                "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
+                "terminal_id": "call_0d8tveZKzHlJjwX0hoKDf0j3"
+              }
+            },
+            "content": [
+              {
+                "terminalId": "call_0d8tveZKzHlJjwX0hoKDf0j3",
+                "type": "terminal"
+              }
+            ],
+            "kind": "execute",
+            "rawInput": {
+              "command": "git status --short",
+              "cwd": "/Users/deepfates/Hacking/github/deepfates/haven"
+            },
+            "sessionUpdate": "tool_call",
+            "status": "in_progress",
+            "title": "git status --short",
+            "toolCallId": "call_0d8tveZKzHlJjwX0hoKDf0j3"
+          }
+        },
+        {
+          "type": "tool_call_update",
+          "seq": 12,
+          "payload": {
+            "_meta": {
+              "terminal_exit": {
+                "exit_code": 0,
+                "signal": null,
+                "terminal_id": "call_0d8tveZKzHlJjwX0hoKDf0j3"
+              },
+              "terminal_output_delta": {
+                "data": " M docs/probes/codex-acp-long-output.json\n M lib/haven_web/live/inbox_live.ex\n M lib/mix/tasks/haven.agent_probe.ex\n M test/haven/agent_probe_test.exs\n M test/haven_web/live/inbox_live_test.exs\n",
+                "terminal_id": "call_0d8tveZKzHlJjwX0hoKDf0j3"
+              }
+            },
+            "rawOutput": {
+              "exit_code": 0,
+              "formatted_output": " M docs/probes/codex-acp-long-output.json\n M lib/haven_web/live/inbox_live.ex\n M lib/mix/tasks/haven.agent_probe.ex\n M test/haven/agent_probe_test.exs\n M test/haven_web/live/inbox_live_test.exs\n"
+            },
+            "sessionUpdate": "tool_call_update",
+            "status": "completed",
+            "toolCallId": "call_0d8tveZKzHlJjwX0hoKDf0j3"
+          }
+        },
+        {
+          "type": "agent_update_unknown",
+          "seq": 13,
+          "payload": {
+            "session_id": "019f1ee7-3879-7af0-ab9c-2ce13c12cbb2",
+            "update": {
+              "sessionUpdate": "usage_update",
+              "size": 258400,
+              "used": 20163
+            },
+            "update_type": "usage_update"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 14,
+          "payload": {
+            "text": "H"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 15,
+          "payload": {
+            "text": "aven"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 16,
+          "payload": {
+            "text": " is"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 17,
+          "payload": {
+            "text": " a"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 18,
+          "payload": {
+            "text": " Phoenix"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 19,
+          "payload": {
+            "text": " web"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 20,
+          "payload": {
+            "text": " app"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 21,
+          "payload": {
+            "text": " for"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 22,
+          "payload": {
+            "text": " managing"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 23,
+          "payload": {
+            "text": " agent"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 24,
+          "payload": {
+            "text": " work"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 25,
+          "payload": {
+            "text": "spaces"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 26,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 27,
+          "payload": {
+            "text": " runs"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 28,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 29,
+          "payload": {
+            "text": " terminals"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 30,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 31,
+          "payload": {
+            "text": " file"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 32,
+          "payload": {
+            "text": " changes"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 33,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 34,
+          "payload": {
+            "text": " permission"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 35,
+          "payload": {
+            "text": " audits"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 36,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 37,
+          "payload": {
+            "text": " and"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 38,
+          "payload": {
+            "text": " probe"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 39,
+          "payload": {
+            "text": " reporting"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 40,
+          "payload": {
+            "text": "."
+          }
+        },
+        {
+          "type": "agent_update_unknown",
+          "seq": 41,
+          "payload": {
+            "session_id": "019f1ee7-3879-7af0-ab9c-2ce13c12cbb2",
+            "update": {
+              "sessionUpdate": "usage_update",
+              "size": 258400,
+              "used": 20857
+            },
+            "update_type": "usage_update"
+          }
+        },
+        {
+          "type": "session_info_update",
+          "seq": 42,
+          "payload": {
+            "_meta": {
+              "codex": {
+                "threadStatus": {
+                  "type": "idle"
+                }
+              }
+            },
+            "sessionUpdate": "session_info_update"
+          }
+        },
+        {
+          "type": "turn_finished",
+          "seq": 43,
+          "payload": {
+            "request_id": 1,
+            "result": {
+              "_meta": {
+                "quota": {
+                  "model_usage": [
+                    {
+                      "model": "gpt-5.5",
+                      "token_count": {
+                        "cachedInputTokens": 4992,
+                        "inputTokens": 15823,
+                        "outputTokens": 42,
+                        "reasoningOutputTokens": 9,
+                        "totalTokens": 20857
+                      }
+                    }
+                  ],
+                  "token_count": {
+                    "cachedInputTokens": 4992,
+                    "inputTokens": 15823,
+                    "outputTokens": 42,
+                    "reasoningOutputTokens": 9,
+                    "totalTokens": 20857
+                  }
+                }
+              },
+              "stopReason": "end_turn",
+              "usage": {
+                "cachedReadTokens": 4992,
+                "inputTokens": 15823,
+                "outputTokens": 42,
+                "thoughtTokens": 9,
+                "totalTokens": 20857
+              }
+            }
+          }
+        }
+      ],
+      "prompt": "summarize this workspace in one short sentence",
+      "diagnostics": [],
+      "agent": "codex-acp",
+      "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
+      "run_id": "09afb9cc-484f-4bef-abf2-64ffd46b3d7f",
+      "expected_events": [
+        "agent_initialized",
+        "agent_session_started",
+        "turn_finished"
+      ],
+      "agent_output_metrics": {
+        "text_char_count": 128,
+        "message_chunk_count": 27
+      },
+      "expected_output": {},
+      "expected_event_fields": [],
+      "missing_expected_events": [],
+      "missing_expected_event_fields": [],
+      "missing_expected_output": [],
+      "redactions": [],
+      "real_agent_evidence": {
+        "required": true,
+        "accepted": true
+      }
+    },
+    {
+      "status": "idle",
+      "events": [
+        {
+          "type": "run_created",
+          "seq": 1,
+          "payload": {
+            "agent": "codex-acp",
+            "capability_policy": {
+              "file_read": "ask",
+              "file_write": "ask",
+              "terminal_create": "allow"
+            },
+            "purpose": "diagnostic",
+            "title": "Agent probe: codex-acp 2/3",
+            "workspace": "/Users/deepfates/Hacking/github/deepfates/haven"
+          }
+        },
+        {
+          "type": "agent_process_started",
+          "seq": 2,
+          "payload": {
+            "agent": "codex-acp",
+            "args": [
+              "-y",
+              "@agentclientprotocol/codex-acp@1.0.1"
+            ],
+            "command": "codex-acp",
+            "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
+            "env": [],
+            "executable": "/opt/homebrew/bin/npx"
+          }
+        },
+        {
+          "type": "agent_initialized",
+          "seq": 3,
+          "payload": {}
+        },
+        {
+          "type": "agent_session_started",
+          "seq": 4,
+          "payload": {
+            "agent_session_id": "019f1ee7-38ad-7be1-9d91-c6f75e8be9f0"
+          }
+        },
+        {
+          "type": "turn_started",
+          "seq": 5,
+          "payload": {
+            "prompt": "summarize this workspace in one short sentence"
+          }
+        },
+        {
+          "type": "user_message",
+          "seq": 6,
+          "payload": {
+            "text": "summarize this workspace in one short sentence"
+          }
+        },
+        {
+          "type": "available_commands_update",
+          "seq": 7,
+          "payload": {
+            "availableCommands": [
+              {
+                "description": "List configured Model Context Protocol (MCP) tools.",
+                "name": "mcp"
+              },
+              {
+                "description": "List available skills.",
+                "name": "skills"
+              },
+              {
+                "description": "Display session configuration and token usage.",
+                "name": "status"
+              },
+              {
+                "description": "Review uncommitted changes, or review with custom instructions.",
+                "input": {
+                  "hint": "optional review instructions"
+                },
+                "name": "review"
+              },
+              {
+                "description": "Review changes relative to a base branch.",
+                "input": {
+                  "hint": "branch name"
+                },
+                "name": "review-branch"
+              },
+              {
+                "description": "Review a specific commit.",
+                "input": {
+                  "hint": "commit sha"
+                },
+                "name": "review-commit"
+              },
+              {
+                "description": "Summarize conversation to avoid hitting the context limit.",
+                "name": "compact"
+              },
+              {
+                "description": "Sign out of Codex. This option is available when you are logged in via ChatGPT.",
+                "name": "logout"
+              },
+              {
+                "description": "Control the in-app Browser. Use to open, navigate, inspect, test, click, type, screenshot, or verify local targets such as localhost, 127.0.0.1, ::1, file://, the current in-app browser tab, and websites shown side by side inside Codex.",
+                "name": "$browser:control-in-app-browser"
+              },
+              {
+                "description": "Create, edit, redline, and comment on `.docx`, Word, and Google Docs-targeted document artifacts inside the container, with a strict render-and-verify workflow. Use `render_docx.py` to generate page PNGs (and optional PDF) for visual QA, then iterate until layout is flawless before delivering the final document.",
+                "name": "$documents:documents"
+              },
+              {
+                "description": "Address actionable GitHub pull request review feedback. Use when the user wants to inspect unresolved review threads, requested changes, or inline review comments on a PR, then implement selected fixes. Use the GitHub app for PR metadata and flat comment reads, and use the bundled GraphQL script via `gh` whenever thread-level state, resolution status, or inline review context matters.",
+                "name": "$github:gh-address-comments"
+              },
+              {
+                "description": "Use when a user asks to debug or fix failing GitHub PR checks that run in GitHub Actions. Use the GitHub app from this plugin for PR metadata and patch context, and use `gh` for Actions check and log inspection before implementing any approved fix.",
+                "name": "$github:gh-fix-ci"
+              },
+              {
+                "description": "Triage and orient GitHub repository, pull request, and issue work through the connected GitHub app. Use when the user asks for general GitHub help, wants PR or issue summaries, or needs repository context before choosing a more specific GitHub workflow.",
+                "name": "$github:github"
+              },
+              {
+                "description": "Publish local changes to GitHub by confirming scope, committing intentionally, pushing the branch, and opening a draft PR through the GitHub app from this plugin, with `gh` used only as a fallback where connector coverage is insufficient.",
+                "name": "$github:yeet"
+              },
+              {
+                "description": "Read, create, inspect, render, and verify PDF files where visual layout matters. Use Poppler rendering plus Python tools such as reportlab, pdfplumber, and pypdf for generation and extraction.",
+                "name": "$pdf:pdf"
+              },
+              {
+                "description": "Create or edit PowerPoint or Google Slides decks",
+                "name": "$presentations:Presentations"
+              },
+              {
+                "description": "Use this skill when a user requests to create, modify, analyze, visualize, or work with spreadsheet files (`.xlsx`, `.xls`, `.csv`, `.tsv`) or Google Sheets-targeted spreadsheet artifacts with formulas, formatting, charts, tables, and recalculation.",
+                "name": "$spreadsheets:Spreadsheets"
+              },
+              {
+                "description": "Create or update a reusable personal Codex artifact-template skill. Use when the user invokes $template-creator or asks in natural language to create a template using, from, or based on an attached Word document, PowerPoint presentation, or Excel workbook, or explicitly asks to edit or update a passed artifact-template skill. Do not use for one-off artifact creation from an existing template.",
+                "name": "$template-creator:template-creator"
+              },
+              {
+                "description": "Generate or edit raster images when the task benefits from AI-created bitmap visuals such as photos, illustrations, textures, sprites, mockups, or transparent-background cutouts. Use when Codex should create a brand-new image, transform an existing image, or derive visual variants from references, and the output should be a bitmap asset rather than repo-native code or vector. Do not use when the task is better handled by editing existing SVG/vector/code-native assets, extending an established icon or logo system, or building the visual directly in HTML/CSS/canvas.",
+                "name": "$imagegen"
+              },
+              {
+                "description": "Use when the user asks how to build with OpenAI products or APIs, asks about Codex itself or choosing Codex surfaces, needs up-to-date official documentation with citations, help choosing the latest model for a use case, or model upgrade and prompt-upgrade guidance; use OpenAI docs MCP tools for non-Codex docs questions, use the Codex manual helper first for broad Codex self-knowledge, and restrict fallback browsing to official OpenAI domains.",
+                "name": "$openai-docs"
+              },
+              {
+                "description": "Create and scaffold plugin directories for Codex with a required `.codex-plugin/plugin.json`, optional plugin folders/files, valid manifest defaults, and personal-marketplace entries by default. Use when Codex needs to create a new personal plugin, add optional plugin structure, generate or update marketplace entries for plugin ordering and availability metadata, or update an existing local plugin during development with the CLI-driven cachebuster and reinstall flow.",
+                "name": "$plugin-creator"
+              },
+              {
+                "description": "Create or update a skill",
+                "name": "$skill-creator"
+              },
+              {
+                "description": "Install curated skills from openai/skills or other repos",
+                "name": "$skill-installer"
+              }
+            ],
+            "sessionUpdate": "available_commands_update"
+          }
+        },
+        {
+          "type": "session_info_update",
+          "seq": 8,
+          "payload": {
+            "_meta": {
+              "codex": {
+                "threadStatus": {
+                  "activeFlags": [],
+                  "type": "active"
+                }
+              }
+            },
+            "sessionUpdate": "session_info_update"
+          }
+        },
+        {
+          "type": "agent_thought_redacted",
+          "seq": 9,
+          "payload": {
+            "content_type": "text",
+            "first_chunk_length": 2,
+            "redacted": true
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 10,
+          "payload": {
+            "text": "I"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 11,
+          "payload": {
+            "text": "’ll"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 12,
+          "payload": {
+            "text": " quickly"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 13,
+          "payload": {
+            "text": " inspect"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 14,
+          "payload": {
+            "text": " the"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 15,
+          "payload": {
+            "text": " top"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 16,
+          "payload": {
+            "text": "-level"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 17,
+          "payload": {
+            "text": " files"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 18,
+          "payload": {
+            "text": " so"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 19,
+          "payload": {
+            "text": " the"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 20,
+          "payload": {
+            "text": " sentence"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 21,
+          "payload": {
+            "text": " reflects"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 22,
+          "payload": {
+            "text": " the"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 23,
+          "payload": {
+            "text": " actual"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 24,
+          "payload": {
+            "text": " project"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 25,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 26,
+          "payload": {
+            "text": " not"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 27,
+          "payload": {
+            "text": " just"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 28,
+          "payload": {
+            "text": " the"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 29,
+          "payload": {
+            "text": " framework"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 30,
+          "payload": {
+            "text": " note"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 31,
+          "payload": {
+            "text": "."
+          }
+        },
+        {
+          "type": "tool_call",
+          "seq": 32,
+          "payload": {
+            "_meta": {
+              "terminal_info": {
+                "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
+                "terminal_id": "call_l9Q1cuphBaAHeWr7mcE97QuM"
+              }
+            },
+            "content": [
+              {
+                "terminalId": "call_l9Q1cuphBaAHeWr7mcE97QuM",
+                "type": "terminal"
+              }
+            ],
+            "kind": "execute",
+            "rawInput": {
+              "command": "pwd",
+              "cwd": "/Users/deepfates/Hacking/github/deepfates/haven"
+            },
+            "sessionUpdate": "tool_call",
+            "status": "in_progress",
+            "title": "pwd",
+            "toolCallId": "call_l9Q1cuphBaAHeWr7mcE97QuM"
+          }
+        },
+        {
+          "type": "tool_call_update",
+          "seq": 33,
+          "payload": {
+            "_meta": {
+              "terminal_exit": {
+                "exit_code": 0,
+                "signal": null,
+                "terminal_id": "call_l9Q1cuphBaAHeWr7mcE97QuM"
+              },
+              "terminal_output_delta": {
+                "data": "/Users/deepfates/Hacking/github/deepfates/haven\n",
+                "terminal_id": "call_l9Q1cuphBaAHeWr7mcE97QuM"
+              }
+            },
+            "rawOutput": {
+              "exit_code": 0,
+              "formatted_output": "/Users/deepfates/Hacking/github/deepfates/haven\n"
+            },
+            "sessionUpdate": "tool_call_update",
+            "status": "completed",
+            "toolCallId": "call_l9Q1cuphBaAHeWr7mcE97QuM"
+          }
+        },
+        {
+          "type": "tool_call",
+          "seq": 34,
+          "payload": {
+            "kind": "read",
+            "sessionUpdate": "tool_call",
+            "status": "in_progress",
+            "title": "List files",
+            "toolCallId": "call_cxpOW1xVlgwsAZvV8zOiVLfK"
+          }
+        },
+        {
+          "type": "tool_call_update",
+          "seq": 35,
+          "payload": {
+            "rawOutput": {
+              "exit_code": 0,
+              "formatted_output": "assets/vendor/topbar.js\nassets/vendor/heroicons.js\nassets/tsconfig.json\nassets/js/app.js\nassets/css/app.css\nlib/haven_web/controllers/error_html.ex\nlib/haven_web/controllers/dev_controller.ex\nlib/haven_web/controllers/error_json.ex\nlib/haven_web/endpoint.ex\nlib/haven_web/live/inbox_live.ex\nlib/haven_web/live/run_live.ex\nlib/haven_web/components/layouts/root.html.heex\nlib/haven_web/components/layouts.ex\nlib/haven_web/components/core_components.ex\nlib/haven_web/router.ex\nlib/haven_web/gettext.ex\nlib/haven_web/telemetry.ex\nlib/haven_web.ex\nlib/haven/agent_probe_report.ex\nlib/haven/runs/acp_client_handler.ex\nlib/haven/runs/run_server.ex\nlib/haven/runs/run.ex\nlib/haven/repo.ex\nlib/haven/acp_client_side.ex\nlib/haven/events/event.ex\nlib/haven/permission_audits/permission_audit.ex\nlib/haven/application.ex\nlib/haven/acp_wire.ex\nlib/haven/workspaces.ex\nlib/haven/mailer.ex\nlib/haven/runs.ex\nlib/haven/workspace_files.ex\nlib/haven/workspaces/workspace.ex\nlib/haven/agents/agent_config.ex\nlib/haven/file_changes/file_change.ex\nlib/haven/terminals.ex\nlib/haven/agent_registry.ex\nlib/haven/file_changes.ex\nlib/haven/terminal_sessions.ex\nlib/haven/agent_probe.ex\nlib/haven/permission_audits.ex\nlib/haven/agents.ex\nlib/haven/port_io.ex\nlib/haven/terminal_sessions/terminal_session.ex\nlib/haven/events.ex\nlib/haven.ex\nlib/mix/tasks/haven.pending_migrations.ex\nlib/mix/tasks/haven.agent_probe.ex\nlib/mix/tasks/haven.runtime_smoke.ex\nlib/mix/tasks/haven.probe_reports.ex\nREADME.md\nmix.exs\nconfig/test.exs\nconfig/prod.exs\nconfig/config.exs\nconfig/dev.exs\nconfig/runtime.exs\ndocs/probes/README.md\ndocs/probe-failures/README.md\ndocs/probe-workspaces/haven-capability/README.md\ndocs/probe-load/README.md\n"
+            },
+            "sessionUpdate": "tool_call_update",
+            "status": "completed",
+            "toolCallId": "call_cxpOW1xVlgwsAZvV8zOiVLfK"
+          }
+        },
+        {
+          "type": "agent_update_unknown",
+          "seq": 36,
+          "payload": {
+            "session_id": "019f1ee7-38ad-7be1-9d91-c6f75e8be9f0",
+            "update": {
+              "sessionUpdate": "usage_update",
+              "size": 258400,
+              "used": 20186
+            },
+            "update_type": "usage_update"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 37,
+          "payload": {
+            "text": "The"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 38,
+          "payload": {
+            "text": " file"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 39,
+          "payload": {
+            "text": " layout"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 40,
+          "payload": {
+            "text": " shows"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 41,
+          "payload": {
+            "text": " a"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 42,
+          "payload": {
+            "text": " Phoenix"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 43,
+          "payload": {
+            "text": " app"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 44,
+          "payload": {
+            "text": " centered"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 45,
+          "payload": {
+            "text": " on"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 46,
+          "payload": {
+            "text": " agent"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 47,
+          "payload": {
+            "text": "/work"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 48,
+          "payload": {
+            "text": "space"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 49,
+          "payload": {
+            "text": " orches"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 50,
+          "payload": {
+            "text": "tration"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 51,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 52,
+          "payload": {
+            "text": " runs"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 53,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 54,
+          "payload": {
+            "text": " events"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 55,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 56,
+          "payload": {
+            "text": " terminals"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 57,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 58,
+          "payload": {
+            "text": " file"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 59,
+          "payload": {
+            "text": " changes"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 60,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 61,
+          "payload": {
+            "text": " and"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 62,
+          "payload": {
+            "text": " probe"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 63,
+          "payload": {
+            "text": " tooling"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 64,
+          "payload": {
+            "text": "."
+          }
+        },
+        {
+          "type": "tool_call",
+          "seq": 65,
+          "payload": {
+            "kind": "read",
+            "locations": [
+              {
+                "path": "/Users/deepfates/Hacking/github/deepfates/haven/README.md"
+              }
+            ],
+            "sessionUpdate": "tool_call",
+            "status": "in_progress",
+            "title": "Read file '/Users/deepfates/Hacking/github/deepfates/haven/README.md'",
+            "toolCallId": "call_1H2icqGRCxR5PVGAak4Acwbf"
+          }
+        },
+        {
+          "type": "tool_call_update",
+          "seq": 66,
+          "payload": {
+            "rawOutput": {
+              "exit_code": 0,
+              "formatted_output": "# Haven\n\nHaven is a Phoenix/OTP application for running ACP coding agents outside an IDE.\n\nThe core shape:\n\n- A durable run is stored in SQLite.\n- Each live run is owned by a supervised `RunServer` process.\n- The run process owns an ACP client connection to an external agent process.\n- Meaningful state transitions are appended as events.\n- LiveView renders an attention inbox and a run timeline from persisted state.\n- Permission requests become explicit decisions.\n- Reload reconstructs the run from the event log.\n\nSee [docs/design-requirements.md](docs/design-requirements.md) for the product\nand system requirements guiding the project. See\n[docs/validation-matrix.md](docs/validation-matrix.md) for what is currently\nproved by tests and browser smoke, and what remains unproven.\n\n## Run\n\n```bash\nmix ecto.setup\nmix phx.server\n```\n\nOpen [localhost:4000](http://localhost:4000).\n\nThe inbox can save frequently used workspace directories and reuse them from\nthe run form's saved-workspace picker. Manual workspace paths still work.\n\nThe run page includes sample controls:\n\n- `Echo` sends a complete prompt turn.\n- `Ask permission` triggers a permission request.\n- The approval card resolves the permission and lets the stub finish the turn.\n\nIn development, there are HTTP controls for deterministic local testing:\n\n```bash\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/echo\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/permission\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/read-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/write-file\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/sample/terminal\ncurl -X POST http://127.0.0.1:4000/dev/runs/RUN_ID/permissions/1/allow\ncurl -X POST http://127.0.0.1:4000/dev/runs \\\n  -H 'content-type: application/json' \\\n  -d '{\"title\":\"Malformed smoke\",\"agent\":\"malformed-agent\",\"workspace\":\"'\"$PWD\"'\"}'\n```\n\nWith `mix phx.server` running, the repeatable runtime smoke exercises the same\nrendered dev-server path and deterministic controls:\n\n```bash\nMIX_ENV=dev mix haven.runtime_smoke\nMIX_ENV=dev mix haven.runtime_smoke --load-runs 3\n```\n\nIt checks dev migrations, renders the inbox, creates a stub-backed run through\n`/dev/runs` in a disposable workspace, waits for startup events on the run\npage, triggers and resolves a generic permission request, approves ACP file\nread/write requests, verifies the written file, runs a deterministic terminal\ncommand, and verifies the thread/decision/evidence disclosure surfaces in\nrendered HTML. With `--load-runs N`, it also creates N additional disposable\nruns, alternates ordinary and bounded long-output turns, reloads the rendered\npages, and checks cross-run isolation.\n\nTo probe any configured ACP agent through Haven's real run lifecycle:\n\n```bash\nmix haven.agent_probe --agent stub-acp --workspace . --prompt \"hello\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"summarize this repo\"\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"read README.md\" --resolve-permissions allow\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --expect-event terminal_created --expect-event terminal_output_succeeded --expect-event-field terminal_output_succeeded:payload.exit_status=0\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"run tests\" --report docs/probes/my-agent-terminal.json\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"summarize this repo\" --load-runs 2 --load-concurrency 2 --require-real-agent --report docs/probe-load/my-agent-load.json\nmix haven.agent_probe --agent my-agent --workspace /path/to/repo --prompt \"write a long summary\" --expect-min-agent-output-chars 1200 --expect-min-agent-message-chunks 8 --require-real-agent --report docs/probes/my-agent-long-output.json\nmix haven.agent_probe --list-agents --preflight --workspace /path/to/repo\nmix haven.agent_probe --list-agents --registry --preflight --proof-commands --workspace /path/to/repo\n```\n\nConfigured agents can be supplied at runtime with `HAVEN_AGENTS_JSON`:\n\n```bash\nexport HAVEN_AGENTS_JSON='{\n  \"my-agent\": {\n    \"executable\": \"my-acp-agent\",\n    \"args\": [\"--stdio\", \"--workspace\", \"{workspace}\"],\n    \"cwd\": \"{workspace}\",\n    \"env\": {\"TOKEN\": \"...\"}\n  }\n}'\n```\n\n`executable` may be an absolute path or a command on `PATH`. `{workspace}` is\nsubstituted in `args`, `cwd`, and `env` values before Haven starts the agent.\nAgents can also be stored in SQLite through the inbox Agent Setup form or\n`Haven.Agents.create_agent_config/1`; the inbox supports basic create, edit,\nand delete for persisted commands, and persisted agent keys appear in the run\npicker alongside runtime configuration.\n\nThe probe creates a durable run, waits for ACP initialization/session creation,\nsends the prompt through `RunServer`, optionally resolves permission stalls, and\nprints a compact persisted event summary. Add `--show-events` when you need the\nfull event payloads in terminal output; `--report path.json` always writes the\nfull event list. Repeated `--expect-event` flags make the probe fail unless the\nrun emits the required Haven event types, turning real-agent checks into\nacceptance contracts instead of best-effort smoke.\nRepeated `--expect-event-field EVENT:payload.path=value` flags also require\nspecific event payload facts, such as the requested path, terminal command,\npermission decision, or exit status.\n`--expect-min-agent-output-chars N` and\n`--expect-min-agent-message-chunks N` require a minimum streamed agent response\nsize for bounded long-output evidence.\nUse `--list-agents --preflight` first when a saved command merely looks\nplausible: it starts a short durable run for each probe candidate and verifies\nthe ACP initialize/session handshake before you attempt a full evidence report.\nProbe output suppresses debug-level application logs by default so inventory,\npreflight, and report output stay readable as evidence. Add `--verbose` when\n"
+            },
+            "sessionUpdate": "tool_call_update",
+            "status": "completed",
+            "toolCallId": "call_1H2icqGRCxR5PVGAak4Acwbf"
+          }
+        },
+        {
+          "type": "tool_call",
+          "seq": 67,
+          "payload": {
+            "kind": "read",
+            "locations": [
+              {
+                "path": "/Users/deepfates/Hacking/github/deepfates/haven/mix.exs"
+              }
+            ],
+            "sessionUpdate": "tool_call",
+            "status": "in_progress",
+            "title": "Read file '/Users/deepfates/Hacking/github/deepfates/haven/mix.exs'",
+            "toolCallId": "call_OzDZYgoLF2Mnr67X7cKvfhYd"
+          }
+        },
+        {
+          "type": "tool_call_update",
+          "seq": 68,
+          "payload": {
+            "rawOutput": {
+              "exit_code": 0,
+              "formatted_output": "defmodule Haven.MixProject do\n  use Mix.Project\n\n  def project do\n    [\n      app: :haven,\n      version: \"0.1.0\",\n      elixir: \"~> 1.15\",\n      elixirc_paths: elixirc_paths(Mix.env()),\n      start_permanent: Mix.env() == :prod,\n      aliases: aliases(),\n      deps: deps(),\n      compilers: [:phoenix_live_view] ++ Mix.compilers(),\n      listeners: [Phoenix.CodeReloader]\n    ]\n  end\n\n  # Configuration for the OTP application.\n  #\n  # Type `mix help compile.app` for more information.\n  def application do\n    [\n      mod: {Haven.Application, []},\n      extra_applications: [:logger, :runtime_tools]\n    ]\n  end\n\n  def cli do\n    [\n      preferred_envs: [precommit: :test, \"haven.runtime_smoke\": :dev]\n    ]\n  end\n\n  # Specifies which paths to compile per environment.\n  defp elixirc_paths(:test), do: [\"lib\", \"test/support\"]\n  defp elixirc_paths(_), do: [\"lib\"]\n\n  # Specifies your project dependencies.\n  #\n  # Type `mix help deps` for examples and options.\n  defp deps do\n    [\n      {:phoenix, \"~> 1.8.7\"},\n      {:phoenix_ecto, \"~> 4.5\"},\n      {:ecto_sql, \"~> 3.13\"},\n      {:ecto_sqlite3, \">= 0.0.0\"},\n      {:phoenix_html, \"~> 4.1\"},\n      {:phoenix_live_reload, \"~> 1.2\", only: :dev},\n      {:phoenix_live_view, \"~> 1.1.0\"},\n      {:lazy_html, \">= 0.1.0\", only: :test},\n      {:phoenix_live_dashboard, \"~> 0.8.3\"},\n      {:esbuild, \"~> 0.10\", runtime: Mix.env() == :dev},\n      {:tailwind, \"~> 0.3\", runtime: Mix.env() == :dev},\n      {:heroicons,\n       github: \"tailwindlabs/heroicons\",\n       tag: \"v2.2.0\",\n       sparse: \"optimized\",\n       app: false,\n       compile: false,\n       depth: 1},\n      {:swoosh, \"~> 1.16\"},\n      {:req, \"~> 0.5\"},\n      {:telemetry_metrics, \"~> 1.0\"},\n      {:telemetry_poller, \"~> 1.0\"},\n      {:gettext, \"~> 1.0\"},\n      {:jason, \"~> 1.2\"},\n      {:agent_client_protocol, \"~> 0.1.0\"},\n      {:dns_cluster, \"~> 0.2.0\"},\n      {:bandit, \"~> 1.5\"}\n    ]\n  end\n\n  # Aliases are shortcuts or tasks specific to the current project.\n  # For example, to install project dependencies and perform other setup tasks, run:\n  #\n  #     $ mix setup\n  #\n  # See the documentation for `Mix` for more info on aliases.\n  defp aliases do\n    [\n      setup: [\"deps.get\", \"ecto.setup\", \"assets.setup\", \"assets.build\"],\n      \"ecto.setup\": [\"ecto.create\", \"ecto.migrate\", \"run priv/repo/seeds.exs\"],\n      \"ecto.reset\": [\"ecto.drop\", \"ecto.setup\"],\n      test: [\"ecto.create --quiet\", \"ecto.migrate --quiet\", \"test\"],\n      \"assets.setup\": [\"tailwind.install --if-missing\", \"esbuild.install --if-missing\"],\n      \"assets.build\": [\"compile\", \"tailwind haven\", \"esbuild haven\"],\n      \"assets.deploy\": [\n        \"tailwind haven --minify\",\n        \"esbuild haven --minify\",\n        \"phx.digest\"\n      ],\n      precommit: [\n        \"compile --warnings-as-errors\",\n        \"deps.unlock --unused\",\n        \"format\",\n        \"haven.probe_reports\",\n        \"test\"\n      ]\n    ]\n  end\nend\n"
+            },
+            "sessionUpdate": "tool_call_update",
+            "status": "completed",
+            "toolCallId": "call_OzDZYgoLF2Mnr67X7cKvfhYd"
+          }
+        },
+        {
+          "type": "agent_update_unknown",
+          "seq": 69,
+          "payload": {
+            "session_id": "019f1ee7-38ad-7be1-9d91-c6f75e8be9f0",
+            "update": {
+              "sessionUpdate": "usage_update",
+              "size": 258400,
+              "used": 20933
+            },
+            "update_type": "usage_update"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 70,
+          "payload": {
+            "text": "H"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 71,
+          "payload": {
+            "text": "aven"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 72,
+          "payload": {
+            "text": " is"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 73,
+          "payload": {
+            "text": " a"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 74,
+          "payload": {
+            "text": " Phoenix"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 75,
+          "payload": {
+            "text": "/"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 76,
+          "payload": {
+            "text": "OTP"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 77,
+          "payload": {
+            "text": " web"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 78,
+          "payload": {
+            "text": " app"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 79,
+          "payload": {
+            "text": " for"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 80,
+          "payload": {
+            "text": " running"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 81,
+          "payload": {
+            "text": " and"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 82,
+          "payload": {
+            "text": " observing"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 83,
+          "payload": {
+            "text": " ACP"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 84,
+          "payload": {
+            "text": " coding"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 85,
+          "payload": {
+            "text": " agents"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 86,
+          "payload": {
+            "text": " outside"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 87,
+          "payload": {
+            "text": " an"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 88,
+          "payload": {
+            "text": " IDE"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 89,
+          "payload": {
+            "text": "."
+          }
+        },
+        {
+          "type": "agent_update_unknown",
+          "seq": 90,
+          "payload": {
+            "session_id": "019f1ee7-38ad-7be1-9d91-c6f75e8be9f0",
+            "update": {
+              "sessionUpdate": "usage_update",
+              "size": 258400,
+              "used": 23366
+            },
+            "update_type": "usage_update"
+          }
+        },
+        {
+          "type": "session_info_update",
+          "seq": 91,
+          "payload": {
+            "_meta": {
+              "codex": {
+                "threadStatus": {
+                  "type": "idle"
+                }
+              }
+            },
+            "sessionUpdate": "session_info_update"
+          }
+        },
+        {
+          "type": "turn_finished",
+          "seq": 92,
+          "payload": {
+            "request_id": 1,
+            "result": {
+              "_meta": {
+                "quota": {
+                  "model_usage": [
+                    {
+                      "model": "gpt-5.5",
+                      "token_count": {
+                        "cachedInputTokens": 19840,
+                        "inputTokens": 3502,
+                        "outputTokens": 24,
+                        "reasoningOutputTokens": 0,
+                        "totalTokens": 23366
+                      }
+                    }
+                  ],
+                  "token_count": {
+                    "cachedInputTokens": 19840,
+                    "inputTokens": 3502,
+                    "outputTokens": 24,
+                    "reasoningOutputTokens": 0,
+                    "totalTokens": 23366
+                  }
+                }
+              },
+              "stopReason": "end_turn",
+              "usage": {
+                "cachedReadTokens": 19840,
+                "inputTokens": 3502,
+                "outputTokens": 24,
+                "thoughtTokens": 0,
+                "totalTokens": 23366
+              }
+            }
+          }
+        }
+      ],
+      "prompt": "summarize this workspace in one short sentence",
+      "diagnostics": [],
+      "agent": "codex-acp",
+      "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
+      "run_id": "9e4455ec-f9a6-4cc2-b5a1-1b10d40e7071",
+      "expected_events": [
+        "agent_initialized",
+        "agent_session_started",
+        "turn_finished"
+      ],
+      "agent_output_metrics": {
+        "text_char_count": 340,
+        "message_chunk_count": 70
+      },
+      "expected_output": {},
+      "expected_event_fields": [],
+      "missing_expected_events": [],
+      "missing_expected_event_fields": [],
+      "missing_expected_output": [],
+      "redactions": [],
+      "real_agent_evidence": {
+        "required": true,
+        "accepted": true
+      }
+    },
+    {
+      "status": "idle",
+      "events": [
+        {
+          "type": "run_created",
+          "seq": 1,
+          "payload": {
+            "agent": "codex-acp",
+            "capability_policy": {
+              "file_read": "ask",
+              "file_write": "ask",
+              "terminal_create": "allow"
+            },
+            "purpose": "diagnostic",
+            "title": "Agent probe: codex-acp 3/3",
+            "workspace": "/Users/deepfates/Hacking/github/deepfates/haven"
+          }
+        },
+        {
+          "type": "agent_process_started",
+          "seq": 2,
+          "payload": {
+            "agent": "codex-acp",
+            "args": [
+              "-y",
+              "@agentclientprotocol/codex-acp@1.0.1"
+            ],
+            "command": "codex-acp",
+            "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
+            "env": [],
+            "executable": "/opt/homebrew/bin/npx"
+          }
+        },
+        {
+          "type": "agent_initialized",
+          "seq": 3,
+          "payload": {}
+        },
+        {
+          "type": "agent_session_started",
+          "seq": 4,
+          "payload": {
+            "agent_session_id": "019f1ee7-3879-7132-a132-a999bb2bd3d8"
+          }
+        },
+        {
+          "type": "turn_started",
+          "seq": 5,
+          "payload": {
+            "prompt": "summarize this workspace in one short sentence"
+          }
+        },
+        {
+          "type": "user_message",
+          "seq": 6,
+          "payload": {
+            "text": "summarize this workspace in one short sentence"
+          }
+        },
+        {
+          "type": "available_commands_update",
+          "seq": 7,
+          "payload": {
+            "availableCommands": [
+              {
+                "description": "List configured Model Context Protocol (MCP) tools.",
+                "name": "mcp"
+              },
+              {
+                "description": "List available skills.",
+                "name": "skills"
+              },
+              {
+                "description": "Display session configuration and token usage.",
+                "name": "status"
+              },
+              {
+                "description": "Review uncommitted changes, or review with custom instructions.",
+                "input": {
+                  "hint": "optional review instructions"
+                },
+                "name": "review"
+              },
+              {
+                "description": "Review changes relative to a base branch.",
+                "input": {
+                  "hint": "branch name"
+                },
+                "name": "review-branch"
+              },
+              {
+                "description": "Review a specific commit.",
+                "input": {
+                  "hint": "commit sha"
+                },
+                "name": "review-commit"
+              },
+              {
+                "description": "Summarize conversation to avoid hitting the context limit.",
+                "name": "compact"
+              },
+              {
+                "description": "Sign out of Codex. This option is available when you are logged in via ChatGPT.",
+                "name": "logout"
+              },
+              {
+                "description": "Control the in-app Browser. Use to open, navigate, inspect, test, click, type, screenshot, or verify local targets such as localhost, 127.0.0.1, ::1, file://, the current in-app browser tab, and websites shown side by side inside Codex.",
+                "name": "$browser:control-in-app-browser"
+              },
+              {
+                "description": "Create, edit, redline, and comment on `.docx`, Word, and Google Docs-targeted document artifacts inside the container, with a strict render-and-verify workflow. Use `render_docx.py` to generate page PNGs (and optional PDF) for visual QA, then iterate until layout is flawless before delivering the final document.",
+                "name": "$documents:documents"
+              },
+              {
+                "description": "Address actionable GitHub pull request review feedback. Use when the user wants to inspect unresolved review threads, requested changes, or inline review comments on a PR, then implement selected fixes. Use the GitHub app for PR metadata and flat comment reads, and use the bundled GraphQL script via `gh` whenever thread-level state, resolution status, or inline review context matters.",
+                "name": "$github:gh-address-comments"
+              },
+              {
+                "description": "Use when a user asks to debug or fix failing GitHub PR checks that run in GitHub Actions. Use the GitHub app from this plugin for PR metadata and patch context, and use `gh` for Actions check and log inspection before implementing any approved fix.",
+                "name": "$github:gh-fix-ci"
+              },
+              {
+                "description": "Triage and orient GitHub repository, pull request, and issue work through the connected GitHub app. Use when the user asks for general GitHub help, wants PR or issue summaries, or needs repository context before choosing a more specific GitHub workflow.",
+                "name": "$github:github"
+              },
+              {
+                "description": "Publish local changes to GitHub by confirming scope, committing intentionally, pushing the branch, and opening a draft PR through the GitHub app from this plugin, with `gh` used only as a fallback where connector coverage is insufficient.",
+                "name": "$github:yeet"
+              },
+              {
+                "description": "Read, create, inspect, render, and verify PDF files where visual layout matters. Use Poppler rendering plus Python tools such as reportlab, pdfplumber, and pypdf for generation and extraction.",
+                "name": "$pdf:pdf"
+              },
+              {
+                "description": "Create or edit PowerPoint or Google Slides decks",
+                "name": "$presentations:Presentations"
+              },
+              {
+                "description": "Use this skill when a user requests to create, modify, analyze, visualize, or work with spreadsheet files (`.xlsx`, `.xls`, `.csv`, `.tsv`) or Google Sheets-targeted spreadsheet artifacts with formulas, formatting, charts, tables, and recalculation.",
+                "name": "$spreadsheets:Spreadsheets"
+              },
+              {
+                "description": "Create or update a reusable personal Codex artifact-template skill. Use when the user invokes $template-creator or asks in natural language to create a template using, from, or based on an attached Word document, PowerPoint presentation, or Excel workbook, or explicitly asks to edit or update a passed artifact-template skill. Do not use for one-off artifact creation from an existing template.",
+                "name": "$template-creator:template-creator"
+              },
+              {
+                "description": "Generate or edit raster images when the task benefits from AI-created bitmap visuals such as photos, illustrations, textures, sprites, mockups, or transparent-background cutouts. Use when Codex should create a brand-new image, transform an existing image, or derive visual variants from references, and the output should be a bitmap asset rather than repo-native code or vector. Do not use when the task is better handled by editing existing SVG/vector/code-native assets, extending an established icon or logo system, or building the visual directly in HTML/CSS/canvas.",
+                "name": "$imagegen"
+              },
+              {
+                "description": "Use when the user asks how to build with OpenAI products or APIs, asks about Codex itself or choosing Codex surfaces, needs up-to-date official documentation with citations, help choosing the latest model for a use case, or model upgrade and prompt-upgrade guidance; use OpenAI docs MCP tools for non-Codex docs questions, use the Codex manual helper first for broad Codex self-knowledge, and restrict fallback browsing to official OpenAI domains.",
+                "name": "$openai-docs"
+              },
+              {
+                "description": "Create and scaffold plugin directories for Codex with a required `.codex-plugin/plugin.json`, optional plugin folders/files, valid manifest defaults, and personal-marketplace entries by default. Use when Codex needs to create a new personal plugin, add optional plugin structure, generate or update marketplace entries for plugin ordering and availability metadata, or update an existing local plugin during development with the CLI-driven cachebuster and reinstall flow.",
+                "name": "$plugin-creator"
+              },
+              {
+                "description": "Create or update a skill",
+                "name": "$skill-creator"
+              },
+              {
+                "description": "Install curated skills from openai/skills or other repos",
+                "name": "$skill-installer"
+              }
+            ],
+            "sessionUpdate": "available_commands_update"
+          }
+        },
+        {
+          "type": "session_info_update",
+          "seq": 8,
+          "payload": {
+            "_meta": {
+              "codex": {
+                "threadStatus": {
+                  "activeFlags": [],
+                  "type": "active"
+                }
+              }
+            },
+            "sessionUpdate": "session_info_update"
+          }
+        },
+        {
+          "type": "agent_thought_redacted",
+          "seq": 9,
+          "payload": {
+            "content_type": "text",
+            "first_chunk_length": 2,
+            "redacted": true
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 10,
+          "payload": {
+            "text": "This"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 11,
+          "payload": {
+            "text": " workspace"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 12,
+          "payload": {
+            "text": " is"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 13,
+          "payload": {
+            "text": " a"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 14,
+          "payload": {
+            "text": " Phoenix"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 15,
+          "payload": {
+            "text": " "
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 16,
+          "payload": {
+            "text": "1"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 17,
+          "payload": {
+            "text": "."
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 18,
+          "payload": {
+            "text": "8"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 19,
+          "payload": {
+            "text": " web"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 20,
+          "payload": {
+            "text": " application"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 21,
+          "payload": {
+            "text": " with"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 22,
+          "payload": {
+            "text": " strict"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 23,
+          "payload": {
+            "text": " Live"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 24,
+          "payload": {
+            "text": "View"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 25,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 26,
+          "payload": {
+            "text": " Tail"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 27,
+          "payload": {
+            "text": "wind"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 28,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 29,
+          "payload": {
+            "text": " E"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 30,
+          "payload": {
+            "text": "cto"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 31,
+          "payload": {
+            "text": ","
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 32,
+          "payload": {
+            "text": " and"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 33,
+          "payload": {
+            "text": " test"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 34,
+          "payload": {
+            "text": " conventions"
+          }
+        },
+        {
+          "type": "agent_message_chunk",
+          "seq": 35,
+          "payload": {
+            "text": "."
+          }
+        },
+        {
+          "type": "agent_update_unknown",
+          "seq": 36,
+          "payload": {
+            "session_id": "019f1ee7-3879-7132-a132-a999bb2bd3d8",
+            "update": {
+              "sessionUpdate": "usage_update",
+              "size": 258400,
+              "used": 20077
+            },
+            "update_type": "usage_update"
+          }
+        },
+        {
+          "type": "session_info_update",
+          "seq": 37,
+          "payload": {
+            "_meta": {
+              "codex": {
+                "threadStatus": {
+                  "type": "idle"
+                }
+              }
+            },
+            "sessionUpdate": "session_info_update"
+          }
+        },
+        {
+          "type": "turn_finished",
+          "seq": 38,
+          "payload": {
+            "request_id": 1,
+            "result": {
+              "_meta": {
+                "quota": {
+                  "model_usage": [
+                    {
+                      "model": "gpt-5.5",
+                      "token_count": {
+                        "cachedInputTokens": 4992,
+                        "inputTokens": 15015,
+                        "outputTokens": 70,
+                        "reasoningOutputTokens": 38,
+                        "totalTokens": 20077
+                      }
+                    }
+                  ],
+                  "token_count": {
+                    "cachedInputTokens": 4992,
+                    "inputTokens": 15015,
+                    "outputTokens": 70,
+                    "reasoningOutputTokens": 38,
+                    "totalTokens": 20077
+                  }
+                }
+              },
+              "stopReason": "end_turn",
+              "usage": {
+                "cachedReadTokens": 4992,
+                "inputTokens": 15015,
+                "outputTokens": 70,
+                "thoughtTokens": 38,
+                "totalTokens": 20077
+              }
+            }
+          }
+        }
+      ],
+      "prompt": "summarize this workspace in one short sentence",
+      "diagnostics": [],
+      "agent": "codex-acp",
+      "workspace": "/Users/deepfates/Hacking/github/deepfates/haven",
+      "run_id": "51dd9c5a-4253-4ef8-b640-1b3c177959cf",
+      "expected_events": [
+        "agent_initialized",
+        "agent_session_started",
+        "turn_finished"
+      ],
+      "agent_output_metrics": {
+        "text_char_count": 107,
+        "message_chunk_count": 26
+      },
+      "expected_output": {},
+      "expected_event_fields": [],
+      "missing_expected_events": [],
+      "missing_expected_event_fields": [],
+      "missing_expected_output": [],
+      "redactions": [],
+      "real_agent_evidence": {
+        "required": true,
+        "accepted": true
+      }
+    }
+  ],
+  "failures": [],
+  "expected_output": {},
+  "expected_event_fields": [],
+  "redactions": [],
+  "child_windows": [
+    {
+      "index": 1,
+      "status": "idle",
+      "started_at": "2026-07-01T18:18:16.331641Z",
+      "run_id": "09afb9cc-484f-4bef-abf2-64ffd46b3d7f",
+      "finished_at": "2026-07-01T18:18:25.850433Z"
+    },
+    {
+      "index": 2,
+      "status": "idle",
+      "started_at": "2026-07-01T18:18:16.331671Z",
+      "run_id": "9e4455ec-f9a6-4cc2-b5a1-1b10d40e7071",
+      "finished_at": "2026-07-01T18:18:30.508071Z"
+    },
+    {
+      "index": 3,
+      "status": "idle",
+      "started_at": "2026-07-01T18:18:16.331690Z",
+      "run_id": "51dd9c5a-4253-4ef8-b640-1b3c177959cf",
+      "finished_at": "2026-07-01T18:18:26.105853Z"
+    }
+  ]
+}

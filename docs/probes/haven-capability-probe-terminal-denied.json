@@ -1,0 +1,161 @@
+{
+  "status": "idle",
+  "events": [
+    {
+      "type": "run_created",
+      "seq": 1,
+      "payload": {
+        "agent": "haven-capability-probe",
+        "capability_policy": {
+          "file_read": "ask",
+          "file_write": "ask",
+          "terminal_create": "deny"
+        },
+        "title": "Agent probe: haven-capability-probe",
+        "workspace": "/Users/deepfates/Hacking/github/deepfates/haven/docs/probe-workspaces/haven-capability"
+      }
+    },
+    {
+      "type": "agent_process_started",
+      "seq": 2,
+      "payload": {
+        "agent": "haven-capability-probe",
+        "args": [
+          "run",
+          "--no-start",
+          "--no-compile",
+          "--no-deps-check",
+          "priv/acp_agents/haven_capability_probe_agent.exs"
+        ],
+        "command": "haven-capability-probe",
+        "cwd": "/Users/deepfates/Hacking/github/deepfates/haven",
+        "env": [],
+        "executable": "/opt/homebrew/bin/mix"
+      }
+    },
+    {
+      "type": "agent_initialized",
+      "seq": 3,
+      "payload": {}
+    },
+    {
+      "type": "agent_session_started",
+      "seq": 4,
+      "payload": {
+        "agent_session_id": "haven-capability-probe-4802"
+      }
+    },
+    {
+      "type": "turn_started",
+      "seq": 5,
+      "payload": {
+        "prompt": "try to open a terminal"
+      }
+    },
+    {
+      "type": "user_message",
+      "seq": 6,
+      "payload": {
+        "text": "try to open a terminal"
+      }
+    },
+    {
+      "type": "terminal_create_requested",
+      "seq": 7,
+      "payload": {
+        "args": [
+          "--version"
+        ],
+        "command": "mix",
+        "env": [],
+        "session_id": "haven-capability-probe-4802"
+      }
+    },
+    {
+      "type": "capability_policy_applied",
+      "seq": 8,
+      "payload": {
+        "capability": "terminal_create",
+        "decision": "deny"
+      }
+    },
+    {
+      "type": "terminal_create_denied",
+      "seq": 9,
+      "payload": {
+        "args": [
+          "--version"
+        ],
+        "command": "mix",
+        "env": [],
+        "error": {
+          "code": -32003,
+          "data": {
+            "reason": "permission_denied",
+            "target": "terminal/create"
+          },
+          "message": "Permission denied"
+        },
+        "session_id": "haven-capability-probe-4802"
+      }
+    },
+    {
+      "type": "agent_message_chunk",
+      "seq": 10,
+      "payload": {
+        "text": "Terminal request failed: Permission denied"
+      }
+    },
+    {
+      "type": "turn_finished",
+      "seq": 11,
+      "payload": {
+        "request_id": 1,
+        "result": {
+          "stopReason": "end_turn"
+        }
+      }
+    }
+  ],
+  "prompt": "try to open a terminal",
+  "diagnostics": [],
+  "agent": "haven-capability-probe",
+  "workspace": "/Users/deepfates/Hacking/github/deepfates/haven/docs/probe-workspaces/haven-capability",
+  "run_id": "c0baf214-c673-4321-8862-cd8d0777ab35",
+  "expected_events": [
+    "terminal_create_requested",
+    "capability_policy_applied",
+    "terminal_create_denied",
+    "turn_finished"
+  ],
+  "agent_output_metrics": {
+    "text_char_count": 42,
+    "message_chunk_count": 1
+  },
+  "expected_output": {},
+  "expected_event_fields": [
+    {
+      "value": "mix",
+      "field": "command",
+      "event": "terminal_create_requested"
+    },
+    {
+      "value": "mix",
+      "field": "command",
+      "event": "terminal_create_denied"
+    },
+    {
+      "value": "deny",
+      "field": "decision",
+      "event": "capability_policy_applied"
+    }
+  ],
+  "missing_expected_events": [],
+  "missing_expected_event_fields": [],
+  "missing_expected_output": [],
+  "redactions": [],
+  "real_agent_evidence": {
+    "required": true,
+    "accepted": true
+  }
+}

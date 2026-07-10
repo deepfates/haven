@@ -1,0 +1,1108 @@
+# Haven Validation Matrix
+
+This document tracks whether the current Phoenix implementation actually serves
+the production-grade Haven product story: a non-IDE ACP client for durable,
+inspectable agent runs with explicit human decisions.
+
+For the current ship/no-ship cut line, see `docs/ship-readiness.md`. That
+document is the stop rule for avoiding endless local hardening before real-agent
+evidence exists.
+
+## Current Evidence
+
+- Unit and integration tests: `mix test`
+- Compile gate: `mix compile --warnings-as-errors`
+- Final project gate: `mix precommit`
+- Runtime migration gate before browser smoke: `MIX_ENV=dev mix
+  haven.pending_migrations` must report no pending migrations for the dev
+  database that backs `http://127.0.0.1:4000/`.
+- Runtime HTTP smoke: with the dev server running, `MIX_ENV=dev mix
+  haven.runtime_smoke` renders the real inbox/run pages, creates a run through
+  `/dev/runs` in a disposable workspace, triggers and resolves a generic
+  permission request, approves ACP file read/write requests, verifies the
+  written file, runs a deterministic terminal command, and verifies the thread,
+  decision, audit timestamp, and evidence disclosure surfaces in rendered HTML.
+- Responsive browser smoke: `docs/browser-smoke/2026-07-01-runtime-and-responsive.md`
+  records the current in-app browser check for the simplified inbox/run
+  hierarchy, absence of duplicate/dev surfaces, inspectable evidence/details,
+  and no page-level horizontal overflow at desktop/default and `390x844`
+  mobile viewport sizes.
+- Current alpha browser smoke:
+  `docs/browser-smoke/2026-07-01-alpha-current.md` reruns the browser sanity
+  gate at commit `7e91983a`, including default/current width and `390x844`
+  inbox/run detail overflow checks, closed secondary disclosures, and the
+  thread/decision/message/evidence hierarchy on a deterministic waiting-decision
+  run.
+- Workspace security policy browser smoke:
+  `docs/browser-smoke/2026-07-01-workspace-security-policy.md` verifies the
+  product-visible root boundary, blank path scope semantics, and terminal
+  working-directory boundary on both Start Run and run detail.
+- Alpha-cut browser smoke: `docs/browser-smoke/2026-07-01-alpha-cut.md`
+  reruns the same browser sanity gate for candidate commit `ca272cd9` and
+  runtime-smoke run `be122feb-0840-47ef-9307-c0b463559b0b`.
+- Agent probe harness: `mix haven.agent_probe --report` can produce durable JSON
+  evidence artifacts with explicit `--expect-event` acceptance checks; see
+  `docs/probes/README.md`.
+- Agent probe load harness: `mix haven.agent_probe --load-runs N --report` can
+  produce aggregate repeated-run evidence artifacts; see
+  `docs/probe-load/README.md`.
+- Runtime load smoke: `docs/runtime-smoke/2026-07-01-load-runs.md` records a
+  current dev-server `--load-runs 3` pass at commit `5ffb347c`, including
+  rendered page isolation across disposable runs; the current browser smoke
+  reuses the resulting primary run at application commit `7e91983a`.
+- LiveView integration: malformed ACP startup output records
+  `agent_protocol_failed`, marks the run `failed`, and does not restart the
+  agent process.
+- LiveView integration: inbox hierarchy tests verify runs render before
+  workspace/agent setup panels, and run-detail tests verify the conversation
+  thread exists with filter controls disclosed behind a summary element.
+- Browser smoke: create a run, trigger a permission request, approve it, trigger
+  and approve an ACP file read, trigger and approve an ACP file write, trigger a
+  deterministic terminal command, cancel an open non-permission turn, create a
+  run with an ACP terminal kill for a direct process, create a run with an
+  explicit workspace, reject a missing workspace at run creation, reload a
+  pending permission and deny it, cancel a waiting permission turn, submit a
+  stale permission decision and observe ignored resolution, reload disconnected
+  history, explicitly reconnect that history, verify post-reconnect transcript
+  projection across a resumed turn, restart after an actual agent crash,
+  trigger malformed ACP startup output, trigger malformed ACP output after a
+  successful session start, create a run with file-read allow, file-write deny,
+  and terminal-create deny policy, create a run with file-read/file-write path
+  scopes and inspect those effective scopes on run detail, and observe final
+  status plus persisted timeline events in the in-app browser.
+
+## Falsification Discipline
+
+Evidence for a user story should try to disprove the story, not only confirm a
+happy path. For every production-grade claim, keep these checks current:
+
+- State the claim narrowly enough that it could fail.
+- Run at least one negative or adversarial case: missing workspace, stale
+  permission decision, denied capability policy, malformed ACP output, crashed
+  agent, reload/reconnect, unsupported real-agent capability, or another case
+  that would falsify the claim.
+- Verify the actual browser/runtime database before browser smoke with
+  `MIX_ENV=dev mix haven.pending_migrations`; test database migrations do not
+  prove the running app at port 4000 can render.
+- Run `MIX_ENV=dev mix haven.runtime_smoke` before treating a local UI change as
+  runtime-verified. It is an automated rendered-HTML smoke for the dev server,
+  not a substitute for visual browser inspection when layout, responsiveness, or
+  real browser interaction behavior is the claim.
+- Prefer persisted state checks after live UI actions: reload the browser,
+  inspect durable events/projections, and confirm the state still holds.
+- Record useful failures as negative evidence. A failed real-agent probe with
+  `tool_call_only_capability_gap`, an ACP preflight failure, or an ignored stale
+  permission is evidence about the boundary of what Haven does and does not
+  prove.
+- Do not promote a story from "partially proven" to "proven" unless the evidence
+  covers the realistic happy path and the defined failure paths.
+
+## Proven Now
+
+### Inbox And Triage
+
+Status: partially proven.
+
+Evidence:
+
+- `test/haven_web/live/inbox_live_test.exs` creates a run from the inbox and
+  verifies navigation to run detail.
+- The inbox create form captures title, workspace, and agent choice; LiveView
+  tests verify selected workspace and configured agent are persisted into the
+  run record.
+- LiveView hierarchy tests verify run creation is available behind a closed
+  `Start a run` disclosure by default, so the open inbox is not dominated by
+  setup fields on mobile, and failed run creation reopens the disclosure so
+  validation errors are visible.
+- LiveView hierarchy tests verify a first-run empty inbox explains that no runs
+  exist yet and points users to the `Start a run` disclosure while keeping setup
+  panels closed.
+- Saved workspaces are stored in SQLite with a name and normalized directory
+  path; LiveView tests verify the inbox picker can create a run from a saved
+  workspace, editing the workspace updates the picker/run path, and deleting
+  the workspace removes it from the picker.
+- Persisted agent configurations are stored in SQLite and appear in the inbox
+  agent picker; LiveView tests verify a run can be created with a persisted
+  agent key.
+- The inbox has a basic Agent Setup form for saving a persisted ACP command
+  with key, executable, args, cwd, and env values; LiveView tests and browser
+  smoke verify the saved key appears in the run picker and can create a run.
+- Saved agent setup rows separate launch readiness from ACP proof: LiveView
+  tests verify resolvable commands show executable, arg count, working-directory
+  scope, and environment key names without leaking env values, while missing
+  executables render as blocked before a run is started.
+- Saved agent setup rows expose env/auth readiness without secret disclosure:
+  LiveView tests verify credential-like env keys are labeled, workspace
+  substitutions are distinguished from static env, and env values are not
+  rendered in setup rows.
+- Runtime, saved, and registry-derived agent environment names must be
+  process-safe names such as `API_TOKEN`; malformed keys are rejected or ignored
+  before launch evidence or probe commands can make them look trustworthy.
+- The Start Run agent evidence panel mirrors saved-agent auth scope before
+  launch: LiveView tests verify credential-like env keys are labeled and env
+  values remain hidden while the user is choosing an agent; browser smoke
+  verifies the same behavior in the running app.
+- Run detail mirrors the configured agent auth scope after launch: LiveView
+  tests verify credential-like env keys are labeled in run facts, only env key
+  names are shown, and env values stay hidden from run detail/evidence.
+- The inbox can edit and delete persisted agent command definitions; LiveView
+  tests verify updated keys replace old picker options and deleted keys
+  disappear from run creation.
+- LiveView tests verify stale saved-workspace and saved-agent edit, submit, and
+  delete actions show user-visible errors and refresh setup rows instead of
+  crashing when the setup record has already been deleted elsewhere.
+- LiveView tests verify stale saved-workspace selections are rejected at run
+  creation instead of silently falling back to a manual path when the saved
+  workspace has been deleted elsewhere.
+- Data-layer and LiveView tests verify run creation rejects missing workspace
+  directories before any run process starts.
+- The same test verifies waiting, running, and idle runs render in separate
+  attention lanes.
+- LiveView tests verify inbox rows expose explicit attention labels and primary
+  actions for runs needing human decisions or recovery, so users can distinguish
+  permission/failure work without opening each run.
+- LiveView tests verify inbox rows expose explicit next-step guidance derived
+  from durable status and current liveness, and archived failed runs are labeled
+  for review rather than recovery.
+- LiveView tests verify failed inbox rows name the actual recovery menu:
+  continue with a new prompt, retry the last prompt, or inspect the failure.
+- LiveView tests verify inbox rows project the latest meaningful run event and
+  refresh that activity when a new event arrives without requiring a run status
+  change.
+- LiveView tests verify rows within a lane are ordered by latest activity, so a
+  fresh event on an otherwise unchanged run moves it ahead of stale rows.
+- LiveView tests verify failed runtime activity rows include bounded failure
+  reasons such as missing cwd/startup errors, and that those reasons are
+  searchable from the inbox.
+- LiveView tests verify `turn_continue_requested` renders as a compact latest
+  activity row and is searchable from the inbox, so continued failed work is
+  visible in multi-run triage.
+- Data-layer tests verify latest inbox activity is resolved as one newest event
+  per requested run, including duplicate and missing run ids, instead of
+  requiring callers to scan full run event histories.
+- LiveView tests verify inbox rows expose operational process-state hints for
+  connected, disconnected, stale-decision, interrupted, failed, and closed runs,
+  so persisted status is not mistaken for current agent liveness.
+- LiveView tests verify disconnected `running` or `initializing` rows move into
+  Needs You as interruptions, while truly live in-flight rows remain in
+  Running, so reload/crash state is triaged by real process liveness rather
+  than persisted status alone.
+- Data-layer and LiveView tests verify the shared attention summary also counts
+  disconnected in-flight runs as interruptions, so the run detail Inbox badge
+  and page title surface interrupted work elsewhere instead of undercounting
+  other agents that need supervision.
+- Data-layer and LiveView tests verify the same shared attention summary counts
+  missing-workspace runs, so a user reading one run still sees vanished folders
+  elsewhere in the run detail Inbox badge and page title.
+- LiveView tests verify the inbox renders a compact attention summary above run
+  creation and search, derived from the same lane counts, and that tapping it
+  jumps to the most urgent lane instead of forcing users to scan every run.
+- LiveView tests verify the inbox also renders a compact tappable queue summary
+  for All, Needs You, Running, History, and Archived counts, so users managing
+  many agents across folders can jump to a lane from the top of the mobile-first
+  inbox without treating the page as a dashboard.
+- LiveView tests verify the inbox can filter the attention surface to All,
+  Needs You, Running, or History while preserving lane counts and empty states.
+- LiveView tests verify the inbox can search visible run facts across title,
+  workspace path, agent key, status, attention state, and latest activity while
+  preserving lane counts and clear/no-match states.
+- LiveView tests verify inbox rows distinguish saved workspace runs from manual
+  workspace paths, expose saved workspace readiness inline, and make saved
+  workspace names plus manual-path identity searchable from the inbox.
+- LiveView tests verify the inbox has explicit agent and workspace facets, so
+  users managing many agents across folders can narrow runs without encoding
+  those facts into free-text search; lane counts update through the facets.
+- LiveView tests verify inbox search includes operational state text such as
+  `not connected`, making stale work findable without opening every run.
+- Browser smoke verifies the rendered inbox can start a real run with an
+  explicit workspace and that the run detail/ACP launch args reflect it.
+- Browser smoke verifies a run waiting on permission moves into the rendered
+  `Needs You` lane, then returns to `History` after approval.
+- Browser smoke verifies a missing workspace path stays on the inbox, renders
+  `must be an existing directory`, and does not add the run to history.
+- Data-layer and LiveView integration tests verify terminal `failed`/`closed`
+  runs can be archived, active runs cannot be archived, and archive decisions
+  preserve run events while hiding the run from the default inbox.
+- LiveView tests verify stale inbox archive clicks surface an error when a run
+  becomes active before the click lands, and do not append a fake
+  `run_archived` event.
+- Data-layer tests verify archiving terminal history also stops any lingering
+  run process, so archived records are review-only in both durable state and
+  runtime liveness.
+- Data-layer tests verify archived runs are operationally read-only: direct
+  start, ensure-started, reconnect, and retry entry points all return
+  `{:error, :archived_run}` without appending new lifecycle events.
+- LiveView integration tests verify archived runs remain intentionally
+  inspectable through an Archived inbox filter with archived timestamps, instead
+  of becoming invisible durable records.
+- LiveView integration tests verify archived run detail renders a review-only
+  history card, disables prompt/cancel controls with archived-state language,
+  and does not render reconnect, restart, retry, or failure-continuation
+  recovery controls.
+- Browser smoke verifies a failed run can be archived from History and
+  disappears from the inbox without deleting its run record.
+- Browser inspection verifies the attention summary renders on desktop and a
+  390px mobile viewport without horizontal page overflow.
+- Browser smoke
+  `docs/browser-smoke/2026-07-01-workspace-row-identity.md` verifies the
+  rendered mobile inbox shows saved workspace identity chips in run rows while
+  preserving the no-horizontal-overflow invariant.
+- `MIX_ENV=dev mix haven.runtime_smoke --load-runs N` extends the dev-server
+  smoke with multiple disposable runs, alternating ordinary and bounded
+  long-output turns, then reloads rendered pages to verify run rows,
+  long-output markers, and cross-run isolation. The first recorded run is
+  `docs/runtime-smoke/2026-07-01-load-runs.md`.
+- Saved workspace rows now show derived readiness and run usage, including
+  missing-on-disk folders plus active and archived run counts, so multi-folder
+  triage exposes operational state without opening each run.
+- LiveView tests verify runs whose workspace path disappears move into Needs
+  You even when the run is otherwise idle, with explicit workspace counts and
+  restore-folder guidance, so missing folders are not hidden in ordinary
+  history.
+- Saved workspace rows now also show a lightweight Git branch identity when a
+  workspace has a `.git/HEAD`, giving multi-folder agent work a clearer repo
+  context without shelling out during LiveView refreshes.
+
+Still missing:
+
+- Richer workspace configuration metadata beyond path readiness, branch, and
+  run usage (for example trust/auth scope or OS-native folder identity).
+- OS-native workspace browse affordances.
+- Richer filtering beyond operational lanes, agent/workspace facets, and
+  free-text search.
+
+### Run Timeline
+
+Status: proven for the stub ACP lifecycle.
+
+Evidence:
+
+- `test/haven_web/live/run_live_test.exs` verifies startup events are persisted
+  and survive a fresh LiveView mount.
+- LiveView integration tests verify the run header exposes title-adjacent run
+  identity facts: agent key, session id, created timestamp, updated timestamp,
+  and run-workspace-resolved agent launch scope. Configured agent rows expose
+  effective cwd and env key names without rendering env values.
+- LiveView integration tests verify a non-message ACP `tool_call_update`
+  notification is preserved as a durable timeline event.
+- LiveView integration tests verify disconnected idle history renders without
+  spawning a new agent process or appending synthetic live events.
+- LiveView integration tests verify an explicit reconnect/restart request starts
+  a fresh ACP process for disconnected idle history and failed persisted runs.
+- LiveView integration tests verify disconnected and failed runs expose a
+  main-thread recovery card whose Reconnect/Restart action starts the fresh ACP
+  process while preserving the existing transcript.
+- Browser smoke verifies the timeline renders protocol-shaped events during a
+  real browser session, that disconnected history is visibly read-only, and that
+  clicking Reconnect appends recovery and startup events.
+- Browser smoke verifies a prompt-triggered non-message ACP `tool_call_update`
+  renders as a `Protocol` timeline event with the expected tool id and title,
+  then returns the run to `idle` with prompt controls enabled.
+- LiveView integration tests and browser smoke verify timeline events carry
+  explicit provenance labels and `data-event-kind` markers for app, user, agent,
+  client, protocol, and runtime events.
+- LiveView integration tests verify timeline controls can filter persisted
+  events by provenance without mutating the run event log.
+- LiveView integration tests verify the run timeline can search persisted
+  activity by event type and payload content without mutating the event log,
+  including paired tool-call result evidence.
+- LiveView integration tests verify timeline search also matches rendered
+  human labels such as `Agent protocol failed` and `Continue requested`, so
+  users do not need to know raw event type names to find evidence.
+- LiveView integration tests verify the prompt/control panel is in the main run
+  thread before timeline filters and side-rail evidence, so mobile users can
+  continue a run without scrolling past the full activity history.
+- LiveView integration tests verify the run detail projects user messages and
+  streamed agent chunks into a plain conversation transcript, grouping adjacent
+  agent chunks into one readable answer while preserving the underlying timeline
+  events as evidence.
+- LiveView integration tests verify run detail exposes a mobile-first
+  Thread/Decisions/Message/Evidence section strip with state-derived counts and
+  anchors that point to the pending decision sheet when one exists, or decision
+  history otherwise.
+- LiveView integration tests verify run detail also projects persisted
+  `turn_started` plus terminal turn-status events into a compact turn summary
+  before the raw timeline, including completed and failed turns plus tool,
+  decision, file, and terminal evidence counts.
+- LiveView integration tests verify the run detail layout stays single-column
+  until desktop width and its grid columns can shrink, preventing tablet/mobile
+  overflow from long run facts.
+- LiveView integration tests verify the run facts panel has a compact evidence
+  summary for timeline events, permission decisions, file changes, and terminal
+  sessions, so users can decide which details disclosure is worth opening.
+- Browser inspection verifies a waiting run detail page has no horizontal
+  overflow at a 656px viewport.
+- LiveView telemetry tests verify run detail reuses the already loaded run row
+  when checking process liveness, avoiding duplicate run fetches during mount.
+- Event append now normalizes nested payload keys to strings before storage and
+  PubSub broadcast, then rejects non-JSON-compatible values. Data-layer tests
+  verify atom-keyed nested maps and lists are persisted and delivered as
+  JSON-shaped payloads, and invalid terms fail before storage.
+- Event type values are trimmed and must remain nonblank before storage.
+  Data-layer tests verify blank event types are rejected without appending an
+  uninterpretable timeline row.
+- Event append now applies bounded payload schemas for UX-critical event types
+  such as run creation, user/agent messages, turn start, permission request and
+  resolution, session start, and capability policy decisions. Data-layer tests
+  verify malformed core events fail before storage while unknown JSON protocol
+  events remain accepted for ACP evolution.
+- Event append serializes sequence allocation per run in-process and retries the
+  database unique-index conflict path. Data-layer tests verify concurrent
+  append pressure preserves contiguous per-run sequence numbers without losing
+  payloads.
+
+Still missing:
+
+- Rich protocol event normalization.
+- Formal payload schemas for every protocol/client event beyond the bounded
+  core event schema checks.
+- Rich protocol grouping beyond the compact persisted turn summary and
+  provenance/search facets.
+
+### Prompting And Control
+
+Status: partially proven.
+
+Evidence:
+
+- LiveView integration tests submit the prompt form and verify `turn_started`,
+  `user_message`, `agent_message_chunk`, and `turn_finished` events.
+- A test-only fake ACP harness is launched through the configured external-agent
+  command path and verifies partial streamed chunks are appended durably in
+  order.
+- Agent probe integration tests launch the same configured external-agent
+  harness and verify durable file-read and terminal-command events through the
+  probe path, not only through the built-in `stub-acp` agent.
+- Tests assert the run detail returns to visible `idle` after completion.
+- LiveView integration tests cancel a run while it is blocked on permission and
+  verify the outstanding permission is durably resolved as cancelled.
+- LiveView integration tests cancel an open non-permission turn and verify the
+  run returns to visible `idle`.
+- LiveView integration tests and browser smoke verify prompt controls are
+  disabled while a turn is running, cancel remains available, and controls
+  reopen after the cancellation returns the run to `idle`.
+- LiveView integration tests verify disabled prompt controls explain why input
+  is unavailable for disconnected idle, disconnected waiting, disconnected
+  running, live running, failed, closed, and waiting-on-decision states, while
+  ready idle runs show no blocking notice.
+- LiveView integration tests verify disabled prompt, sample, and cancel
+  controls carry element-level explanations, while enabled controls do not keep
+  stale disabled-state tooltips.
+- LiveView integration tests verify recoverable disconnected and failed states
+  expose the next Reconnect/Restart action in the conversation path, not only in
+  secondary controls.
+- LiveView integration tests verify failed runs with a previous user prompt
+  expose `Retry last prompt`; clicking it starts a fresh ACP session, records
+  `turn_retry_requested`, resubmits the prompt, receives the agent response, and
+  returns the run to `idle` while preserving the prior failed transcript.
+- LiveView integration tests verify failed runs expose a continuation composer
+  in the recovery card; submitting a different prompt starts a fresh ACP
+  session, records `turn_continue_requested`, sends the new prompt, receives the
+  agent response, and returns the run to `idle` while preserving the failed
+  transcript.
+- Data-layer tests verify failed-run continuation rejects archived runs,
+  non-failed runs, and blank prompts before starting recovery work.
+- LiveView integration tests verify stale/direct prompt submission while a turn
+  is already running is rejected as `{:error, :busy}` instead of starting a
+  second concurrent turn.
+- LiveView integration tests run two live runs concurrently, send separate
+  prompts to each, and verify status, visible transcript, and persisted events
+  remain isolated by run id.
+- LiveView integration tests verify that late session updates after user
+  cancellation are recorded as ignored protocol updates instead of being
+  appended as fresh agent transcript chunks.
+
+Still missing:
+
+- Prompt-id-level correlation of late chunks when agents provide enough
+  metadata; current suppression is session-level after cancellation.
+
+### Permissions
+
+Status: proven for the stub allow, deny, cancel, reload, and stale-resolution
+flows.
+
+Evidence:
+
+- LiveView integration tests trigger a permission request, verify the active
+  permission card, approve the exact `request_id`, and verify the final agent
+  message.
+- LiveView integration tests deny the exact `request_id` and verify the stub
+  reports that the requested action will not be taken.
+- LiveView integration tests reload a waiting run and verify the pending
+  permission card is reconstructed from durable events.
+- LiveView integration tests cancel a waiting run and verify the pending
+  permission is resolved with a cancelled outcome.
+- A configured fake ACP harness can issue two simultaneous permission requests
+  for one prompt; LiveView integration verifies user cancellation resolves both
+  requests and suppresses late cancelled output.
+- LiveView integration tests attempt a stale duplicate permission resolution and
+  verify it is ignored without reopening the permission or changing the visible
+  idle state.
+- LiveView integration tests verify permission decisions record an actor class:
+  explicit allow, deny, reload-then-allow, user cancellation, and stale
+  duplicate attempts record `local_user`; agent crash cleanup of a pending
+  permission records `system`.
+- LiveView integration tests verify active permission cards expose the exact
+  request id, tool call id, tool status, and option ids for generic agent
+  permissions, file reads, and terminal creation before the user decides.
+- LiveView integration tests verify active permission cards also expose the
+  run's effective read, write, terminal, and path-scope authority, so decisions
+  can be made with policy context in the same surface.
+- LiveView integration tests verify active permission cards state the
+  plain-language consequence of allow/deny decisions for generic file writes,
+  file reads, proposed file changes, and terminal commands before exposing raw
+  protocol details.
+- LiveView integration tests verify active permission cards include the last
+  user prompt as prompt context and preserve it after reload, so a mobile user
+  can decide from the sheet without hunting through the timeline first.
+- LiveView integration tests verify the active permission decision controls sit
+  directly below the plain-language consequence and before authority/raw
+  details, so the card behaves like a decision sheet rather than a form buried
+  under evidence.
+- Browser smoke verifies the same allow flow through the real rendered UI,
+  including a rendered `permission_resolved` payload with
+  `"actor": "local_user"` and requested/resolved audit timing.
+- Browser smoke verifies a waiting permission survives a page reload and can be
+  denied from the rendered card, producing the denied agent response and final
+  `idle` state.
+- Browser smoke verifies cancellation while waiting on permission removes the
+  card, records a local-user cancelled permission resolution, suppresses the
+  late cancelled agent update, and returns the run to `idle`.
+- Browser smoke verifies a stale duplicate permission decision records
+  `permission_resolution_ignored` with `reason: not_pending`, preserves
+  `actor: local_user` and the attempted `option_id`, keeps the run `idle`, and
+  does not recreate the pending permission card.
+- Browser inspection verifies the rendered waiting permission card exposes
+  Allow, Deny, and Cancel turn controls immediately below the decision summary.
+- Permission requests now create durable `permission_audits` rows that are
+  updated on allow, deny, local-user cancellation, and system cancellation.
+  LiveView integration tests verify the run detail sidebar renders the audit
+  projection and that rows preserve request id, kind, title, raw input,
+  available options, selected option, outcome, actor class, requested/resolved
+  timestamps, and cancellation or stale-resolution reason.
+- Stale duplicate permission decisions now create an ignored audit row instead
+  of mutating the already-resolved request, making attempted late decisions
+  reviewable without reopening the active permission flow.
+- LiveView integration tests verify malformed pending permission payloads with
+  missing/invalid decision options still render an inspectable permission card,
+  show that no valid options are available, and do not crash the run detail.
+
+Still missing:
+
+- Authenticated user identity for audit trails; current metadata distinguishes
+  actor class, not a specific person.
+
+### Runtime And Persistence
+
+Status: partially proven.
+
+Evidence:
+
+- A supervised `RunServer` owns each live run.
+- `Haven.Agents` resolves the built-in `stub-acp` command and configured agent
+  keys from application env.
+- Configured agent executables are resolved either as absolute executable paths
+  or via `PATH`, and missing executables fail as explicit
+  `{:missing_executable, command}` errors before the port bridge starts.
+- Configured agent working directories are resolved after `{workspace}`
+  substitution and must exist before the command is considered launch-ready,
+  so a bad `cwd` is visible as `{:missing_cwd, path}` before a run starts.
+- Agent readiness inventory and inbox Agent Setup distinguish missing
+  executables from missing working directories, so launch-blocked external
+  agents show an actionable setup reason instead of a generic failure.
+- Run creation validates agent launch readiness before inserting durable run
+  history, so known-bad configured agents stay in the inbox with a form error
+  instead of creating an immediately failed run.
+- `HAVEN_AGENTS_JSON` can configure real ACP agent commands at runtime without
+  editing Elixir source/config files.
+- `Haven.Agents.create_agent_config/1` persists ACP agent command definitions
+  in SQLite, and `Haven.Agents.available/0` merges persisted configs with
+  runtime config for run creation.
+- `Haven.Workspaces.create_workspace/1` persists reusable workspace entries in
+  SQLite and validates that saved paths are existing directories.
+- The inbox can create persisted agent command definitions through the rendered
+  UI, including args and env text entry.
+- The `Haven.Agents` context can update and delete persisted agent command
+  definitions, and the inbox exposes those operations.
+- LiveView integration tests verify that an unknown run agent records
+  `agent_start_failed`, marks the run `failed`, and renders a readable runtime
+  failure card with the reason and agent name instead of falling back to the
+  stub or requiring raw JSON inspection.
+- LiveView integration tests verify a configured agent key launches the ACP
+  process, substitutes the selected workspace in args/cwd/env, starts the
+  process in the configured cwd, passes configured env to the spawned process,
+  and records the selected agent, executable, args, cwd, and env key names in
+  the timeline without recording env values.
+- Tests revealed and fixed a real status projection bug: `RunLive` now subscribes
+  to run-status broadcasts as well as event broadcasts, so the header does not
+  remain `running` after a completed turn.
+- Tests revealed and fixed protocol transport noise from launching the stub via
+  compiling `mix run`; the built-in stub now starts through `elixir` with the
+  app's current BEAM code paths so Mix compiler/build-lock output cannot
+  corrupt the ACP JSON stream.
+- LiveView integration tests trigger a non-zero stub exit and verify the run
+  records `agent_process_exited`, fails the in-flight turn, and renders a
+  visible `failed` state.
+- LiveView integration tests verify an agent disappearance while a permission
+  decision is pending fails the run and resolves the permission as cancelled by
+  the `system` actor, even when the port exit status is not available yet.
+- LiveView integration tests crash a live agent, click Restart on that same
+  failed run, and verify a fresh ACP process/session starts.
+- A configured fake ACP harness can crash on demand; LiveView integration
+  verifies Restart launches a fresh configured ACP process/session and accepts a
+  prompt after restart.
+- Tests revealed and fixed a run-server restart-loop bug: terminal `failed` and
+  `closed` runs are no longer auto-resurrected by LiveView mounts, and normal
+  RunServer exits are not restarted by the supervisor.
+- Tests and browser smoke verify LiveView mounts no longer auto-start
+  disconnected idle runs; old run history renders with controls disabled and a
+  `not connected` process state.
+- Tests and browser smoke verify explicit reconnect/restart appends
+  `run_reconnect_requested`, starts a fresh ACP process, and reconnects prompt
+  controls.
+- LiveView integration tests and browser smoke verify disconnected waiting runs
+  with stale durable permission requests render decision buttons disabled, offer
+  Reconnect, system-cancel the stale permission during reconnect, and start a
+  fresh ACP process without leaving the old permission card active.
+- LiveView integration tests verify stale permission cards explain that the
+  saved decision is no longer attached to a live agent process, that reconnect
+  cancels the stale request, and that the record remains in the permission
+  audit.
+- Data-layer tests verify direct permission resolution and cancel calls refuse
+  disconnected waiting runs without starting a fresh agent process or rewriting
+  the stale decision history.
+- LiveView integration tests verify a decision click that races with a run
+  disconnect shows a user-visible not-connected error, refreshes into stale
+  decision state, and does not record a fake resolution or ignored-resolution
+  event.
+- LiveView integration tests verify stale recovery controls surface backend
+  errors instead of silently refreshing: reconnect clicks that race with a
+  newly-live run show an already-connected error, and retry clicks that race
+  with a no-longer-failed run show a stale recovery error without appending a
+  reconnect event.
+- LiveView integration tests and browser smoke verify disconnected running runs
+  with an unterminated turn offer Reconnect, append a system `turn_failed`
+  event for the stale turn, start a fresh ACP process, and reopen prompt
+  controls without pretending the old turn is still live.
+- LiveView integration tests verify the interrupted run recovery card names the
+  unfinished saved turn and explains that reconnect records the old turn as
+  failed before attaching a fresh ACP session.
+- LiveView integration tests verify the run header labels disconnected
+  in-flight history as `Interrupted` instead of showing a misleading raw
+  `running` status badge.
+- LiveView integration tests and browser smoke verify the post-reconnect
+  transcript remains readable across resumed work: the old prompt, explicit
+  reconnect boundary, system `turn_failed`, new user prompt, and new agent
+  response all render together in sequence.
+- Tests and browser smoke verify terminal run archival hides old failed/closed
+  work from the default inbox while keeping durable run events.
+- Browser smoke verifies a run that actually recorded `agent_process_exited`
+  and `turn_failed` can be restarted from the rendered run detail, then reloads
+  with two process/session starts and final `idle` connected state.
+- LiveView integration tests verify malformed ACP startup output records
+  `agent_protocol_failed`, marks the run `failed`, renders a readable runtime
+  failure card with the protocol reason and agent name, and does not restart the
+  malformed agent process.
+- Browser smoke verifies malformed ACP startup output through the rendered run
+  detail: status remains `failed`, controls are disabled, process state is
+  `not connected`, runtime `agent_protocol_failed` is visible, and clicking
+  Restart appends `run_reconnect_requested` plus a second runtime failure
+  instead of hiding the error.
+- LiveView integration verifies archived failed run detail leads with explicit
+  archived review-only state in the header, so the durable `failed` status is
+  not mistaken for a recoverable live failure.
+- LiveView integration tests and browser smoke verify malformed agent output
+  after a successful ACP session has started records `agent_protocol_failed`,
+  fails the active turn with `malformed_agent_output`, marks the run `failed`,
+  and renders the failure in the timeline.
+- A configured fake ACP harness can emit a malformed frame after session startup;
+  LiveView integration verifies the same `agent_protocol_failed` and
+  `turn_failed` projection through the configured external-agent command path.
+- The `Run` schema now constrains persisted run statuses to the canonical
+  vocabulary: `idle`, `initializing`, `running`, `waiting`, `failed`, and
+  `closed`. Data-layer tests verify invalid statuses are rejected on both run
+  creation and status updates.
+- Direct `start_run/2` now refuses terminal `failed` and `closed` history with
+  `{:error, :terminal_run}` and does not append lifecycle events. Data-layer
+  tests preserve explicit reconnect/restart as the intentional recovery path.
+- `ensure_started/1` now checks durable run state before registry liveness, so
+  stale registered processes cannot make terminal history writable again.
+  Data-layer tests simulate stale registry liveness and verify no lifecycle
+  events are appended.
+- `started?/1` now reports operational liveness rather than raw registry
+  presence: terminal and archived history return `false` even if stale registry
+  entries exist, keeping inbox and run-detail projections aligned with durable
+  state.
+- RunServer shutdown now explicitly tears down the ACP connection and port IO
+  bridge.
+- `Haven.PortIO` preserves a final unterminated line when the spawned agent
+  exits, and notifies observers about that partial frame. Unit tests verify
+  both IO-device reads and raw observer diagnostics for truncated output.
+- `Haven.PortIO` reports the conventional closed-device `:ebadf` IO error for
+  writes attempted after the spawned process exits, without losing the recorded
+  exit status.
+- Event ordering and persistence are covered by `test/haven/events_test.exs`.
+- `Haven.Runs.prune_archived_before/1` provides an explicit retention boundary
+  for archived records. Data-layer tests verify it deletes only archived runs
+  older than a cutoff and cascades their event history while preserving active
+  and recent archived runs.
+- LiveView integration tests verify the Archived inbox lane exposes an explicit
+  retention form, prunes only archived runs older than the selected cutoff, and
+  preserves active plus recent archived history.
+- Runtime smoke can now exercise multi-run rendered isolation and bounded
+  long-output turns against the dev server with `--load-runs N`; this is still
+  local harness evidence, not realistic external-agent load proof.
+
+Still missing:
+
+- ACP session resume semantics; current reconnect starts a fresh process/session.
+- Broader concurrent multi-run behavior under realistic external-agent load.
+- Product-level retention scheduling and policy defaults around archived run
+  pruning.
+
+### Workspace Capabilities
+
+Status: partially proven for deterministic ACP requests.
+
+Evidence:
+
+- `Haven.WorkspaceFiles` handles `fs/read_text_file` and `fs/write_text_file`
+  requests inside the run workspace and rejects path escapes before touching the
+  filesystem.
+- `test/haven/workspace_files_test.exs` verifies read slicing, write behavior,
+  and outside-workspace rejection.
+- LiveView integration tests drive the stub agent through real ACP
+  `fs/read_text_file` and `fs/write_text_file` requests, verify durable
+  `file_read_*` and `file_write_*` events, verify the agent receives responses,
+  verify reads pause on a local permission decision before file content is
+  returned, verify write denial leaves the selected temporary workspace
+  unchanged, and verify approved writes land in that workspace.
+- Per-run file capability policy can include workspace-relative path scopes.
+  LiveView integration tests verify out-of-scope reads and writes are denied
+  before file content is returned or workspace writes occur, even when the
+  broader file capability decision is `allow`. Empty path scope lists are
+  treated as unrestricted workspace access, matching the inbox UI's blank scope
+  fields.
+- LiveView integration tests verify write permission requests include bounded
+  proposed-content and line-oriented diff previews for human review, including
+  independent truncation markers for large writes.
+- LiveView integration tests verify file-write permission cards render a
+  structured proposed-change review with path, change id, diff kind, byte
+  counts, content preview, and diff preview before approval, while preserving
+  the durable file-change projection.
+- ACP file writes now create durable `file_changes` rows at request time with
+  path, local change id, pending/applied/denied/failed/cancelled status, diff
+  kind, byte counts, bounded proposed-content preview, and bounded diff
+  preview. Data-context tests verify applied, denied, failed, and cancelled
+  lifecycle states. LiveView integration tests verify the run detail sidebar
+  starts empty, shows a pending proposed write before approval, updates it to
+  applied with the resolved path after approval, and shows denied writes with
+  their permission error. Browser smoke creates a run from the inbox with blank
+  file-write scopes, triggers the write-file sample, verifies a pending
+  file-change projection plus approval card, approves the write, verifies the
+  projection becomes applied with a resolved path, reloads the page, and
+  verifies the applied projection persists.
+- LiveView integration tests verify the file-change review surface summarizes
+  pending, applied, and blocked change counts, and labels each recorded change
+  as needing review, applied, or blocked with outcome-specific guidance.
+- `Haven.Terminals` runs short-lived non-interactive commands, captures stdout
+  and stderr, reports exit status, and rejects terminal working directories
+  outside the run workspace.
+- LiveView integration tests drive the stub agent through real ACP
+  `terminal/create`, `terminal/wait_for_exit`, `terminal/output`, and
+  `terminal/release` requests, verify durable `terminal_*` events, verify the
+  agent receives output and exit status, and verify the final turn returns to
+  visible `idle`.
+- LiveView integration tests verify terminal creation can be approval-gated by
+  per-run policy: approval continues terminal create/wait/output/release, while
+  denial returns a permission error without emitting `terminal_created`.
+- LiveView integration tests verify terminal-create permission cards render a
+  structured proposed-terminal review with command, args, working directory,
+  and environment key names before approval.
+- LiveView integration tests drive the stub agent through real ACP
+  `terminal/kill` for a direct `sleep` process, then verify durable kill, wait,
+  output, release, and final turn events.
+- `test/haven/terminals_test.exs` verifies terminal kill recursively terminates
+  a shell-launched background `sleep` child, not only the direct shell process.
+- LiveView integration tests drive the stub agent through ACP `terminal/kill`
+  for a shell-launched child process and verify durable kill, wait, output,
+  final agent message, release, and final `idle` projection.
+- Browser smoke verifies the rendered UI can trigger permission-gated ACP file
+  read and write requests, approve them through the rendered permission card,
+  see the proposed write content before approval, and trigger a deterministic
+  terminal command, plus an ACP terminal kill for a direct process, with visible
+  timeline events and final `idle` state.
+- Per-run capability policies can be selected when creating a run. LiveView
+  integration tests verify file reads can be auto-allowed, file writes can be
+  auto-denied, terminal creation can be approval-gated, and terminal creation
+  can be auto-denied without opening a permission card or spawning a terminal
+  process, while durable `capability_policy_applied` events record automatic
+  policy decisions. Browser smoke verifies the same policy controls and
+  rendered run timeline behavior. The run detail facts panel also renders the
+  effective policy, with LiveView and browser coverage verifying the
+  post-creation inspection path. Inbox and run-detail LiveView tests verify
+  file path scopes can be entered during run creation, normalized into
+  workspace-relative policy lists, and inspected after creation. Run detail
+  tests also verify scoped and unrestricted path grants render as explicit
+  policy chips in the facts panel and inside the pending decision card's
+  on-demand review details.
+- The run creation advanced panel now renders a compact Workspace authority
+  preview before launch. LiveView tests verify the default unrestricted file
+  scopes render as `All workspace paths`, scoped paths render as individual
+  chips, and terminal authority updates with the selected policy. Browser smoke
+  records the same preview at `390x844` without horizontal overflow.
+- The product workspace boundary is now documented in
+  `docs/workspace-access-policy.md` and surfaced in both Start Run and run
+  detail. LiveView tests verify users can see that the workspace root is the
+  authority boundary, blank scopes mean all workspace paths, scoped paths narrow
+  access, and terminal working directories must stay inside the workspace.
+- `mix haven.agent_probe` now exercises a configured ACP agent through Haven's
+  real run lifecycle, including run creation, ACP boot/session setup, prompting,
+  optional permission resolution, per-run capability policy, durable event
+  reporting, explicit `--expect-event` acceptance checks, and field-level
+  `--expect-event-field EVENT:payload.path=value` checks. The probe can write a
+  pretty JSON report with `--report`, giving real-agent validation a durable
+  artifact format instead of a copied terminal transcript. Current automated
+  coverage runs this probe against `stub-acp`, including file policy allow,
+  scoped file policy deny, and terminal-create policy deny stories, and against
+  the configured test-only fake ACP harness for file-read, terminal-command,
+  and approval-gated terminal-command stories.
+  The committed `haven-capability-probe` reports now run the same probe path
+  against a local external stdio ACP process outside the built-in stub and fake
+  test harness, with expectations for the specific file and terminal stories.
+  Third-party production-agent proof still requires running the same probe
+  against a production ACP adapter with expectations for the story being
+  validated.
+- Probe reports support literal and environment-derived redaction before
+  printing or writing JSON, which lowers the risk of committing real-agent
+  evidence artifacts that contain secrets echoed by agents or tools.
+- Probe reports intended as real-agent evidence can require a real-agent guard;
+  the guard rejects the built-in `stub-acp` and the configured local test
+  harness scripts before writing a passing acceptance artifact.
+- Probe report validation now checks that the `run_created` event agrees with
+  the report's top-level agent/workspace and that the `user_message` event
+  agrees with the top-level prompt, so committed evidence artifacts cannot
+  silently splice metadata from one story with lifecycle rows from another.
+- `mix haven.agent_probe --list-agents` inventories configured agents, command
+  resolution, static real-agent probe eligibility, rejection reasons, and
+  redacted environment key names before a user attempts a real-agent probe. This
+  is intentionally weaker than evidence: a command can resolve and still fail
+  ACP preflight.
+- `mix haven.agent_probe --list-agents --preflight` can turn probe candidacy
+  into an explicit ACP boot check by creating short durable runs for eligible
+  candidates and verifying `agent_initialized` plus `agent_session_started`
+  before a user attempts a full evidence report.
+- `mix haven.agent_probe --list-agents --registry --preflight --proof-commands`
+  fetches the public ACP Registry, lists package and env key requirements, and
+  prints npx-backed `HAVEN_AGENTS_JSON` proof commands, so Haven can guide users
+  toward real ACP adapters such as `claude-acp`, `codex-acp`, and `gemini`
+  instead of relying on local shell placeholders.
+- Registry suggestions require both a nonblank agent id and an npx package
+  before Haven turns them into trial or saved-agent commands, so malformed
+  registry entries cannot become trusted agent keys.
+- `mix haven.agent_probe --save-registry-agent AGENT_ID` persists one registry
+  suggestion into the same Agent Setup table used by the UI, reducing the gap
+  between discovery and a preflighted saved command without treating the saved
+  command itself as evidence.
+- The inbox Agent Setup panel surfaces the same probe-readiness distinction for
+  saved agent configs, showing whether a saved command is only a static probe
+  candidate or a rejected local harness/invalid command, rendering basic boot,
+  field-checked file-read, file-write approval, terminal approval,
+  terminal-denial, bounded long-output, and small concurrent load
+  `--require-real-agent` report commands only for eligible probe candidates.
+  Those generated commands mirror the missing production-grade evidence
+  stories, explicitly warn that they are not ACP evidence until preflight or a
+  generated probe passes, include `--redact-env` for configured env key names
+  plus a reminder to add `--redact` for stored/plain values that are not present
+  in the shell environment, and never render environment values.
+- Agent inventory now also attaches the latest durable preflight run for the
+  selected workspace, so both the CLI inventory and inbox Agent Setup can show
+  `ACP preflight passed`, `ACP preflight failed`, or `ACP preflight not run`
+  separately from executable launch readiness.
+- Capability gap report summaries now preserve exact
+  `unsupported_client_capabilities` families such as `fs/read_text_file`,
+  `fs/write_text_file`, and `terminal`; LiveView tests verify inbox rows,
+  Agent Setup evidence, run detail evidence, and inbox search expose those exact
+  unsupported mediated families.
+- Capability gap summaries are now backed by the same negative-report validator
+  used by `mix haven.probe_reports`; malformed gap-shaped JSON is ignored
+  instead of being surfaced as trusted unsupported-capability evidence.
+- `mix haven.agent_probe --list-agents` now also prints committed capability
+  gap families and their report paths for each configured real-agent candidate,
+  so terminal inventory shows whether existing evidence declares
+  `fs/read_text_file`, `fs/write_text_file`, or `terminal` unsupported before a
+  user runs new proof commands.
+- Browser smoke verifies the Agent Setup panel also surfaces the public
+  registry discovery command with `--registry` and warns that registry commands
+  download and run third-party code before probing.
+- Browser smoke
+  `docs/browser-smoke/2026-07-01-capability-gap-family-labels.md` verifies the
+  rendered inbox carries those exact unsupported families into capability-gap
+  trust badges without a migration/error page or horizontal overflow.
+- Local inventory on this machine currently finds saved `/bin/sh -c cat`
+  commands that are runnable non-test probe candidates, but they are not
+  ACP-proven and do not satisfy the real-agent evidence requirement.
+- A short `--require-real-agent` probe against
+  `browser-candidate-1782737117083` starts `/bin/sh -c cat` but fails during
+  ACP initialization with `agent_protocol_failed` / `Method not found`, proving
+  that static probe candidacy is not enough to claim real-agent integration.
+- Local `--list-agents --preflight --timeout 2000` now reports all saved
+  `/bin/sh -c cat` candidates as `preflight: failed` with last event
+  `agent_protocol_failed`, preserving durable failed preflight runs for
+  inspection.
+- Local registry discovery succeeds with `npx` installed and surfaces current
+  npx-backed ACP adapters from the official registry, but no suggested adapter
+  should be treated as evidence until it has a passing `docs/probes/*.json`
+  report artifact.
+- A registry-configured `codex-acp` command passed Haven preflight locally:
+  `agent_initialized` and `agent_session_started` were recorded for a durable
+  run through `npx @agentclientprotocol/codex-acp@1.0.1`.
+- `mix haven.agent_probe --save-registry-agent codex-acp` now persists that
+  registry suggestion into the local Agent Setup table; local preflight against
+  the saved config passes, proving the registry-to-saved-agent workflow.
+- `docs/probes/codex-acp-basic.json` is a committed passing
+  `--require-real-agent` report from `npx @agentclientprotocol/codex-acp@1.0.1`
+  against the disposable workspace `/private/tmp/haven-acp-smoke`. It proves a
+  basic real external ACP turn: initialization, session start, user prompt,
+  streamed agent message chunks, an unknown `usage_update` session update
+  preserved as `agent_update_unknown`, and `turn_finished`.
+- `docs/probes/codex-acp-basic-current.json` is the current committed positive
+  real-agent basic probe from 2026-07-01. It was generated against saved
+  `codex-acp` with `--require-real-agent`, produced durable run
+  `2b8270f7-0707-4013-bd6e-18de0a08b5fd`, passed
+  `agent_initialized`, `agent_session_started`, and `turn_finished`
+  expectations, and is accepted by `mix haven.probe_reports`.
+- `docs/probe-load/codex-acp-basic-load.json` is the current committed positive
+  sequential multi-run real-agent probe from 2026-07-01. It was generated
+  against saved `codex-acp` with `--require-real-agent`, produced distinct
+  durable runs `e2f065c6-222e-4449-95b5-b83872f684ba` and
+  `95bbbea2-e75b-4d58-ad7b-97124c5c3082`, passed `agent_initialized`,
+  `agent_session_started`, and `turn_finished` expectations for each child run,
+  and is accepted by `mix haven.probe_reports`. This is repeated-run evidence,
+  not concurrent-load or long-output proof.
+- `docs/probe-load/codex-acp-basic-concurrent-load.json` is the current
+  committed positive concurrent multi-run real-agent probe from 2026-07-01. It
+  was generated against saved `codex-acp` with `--require-real-agent`,
+  `--load-runs 3`, and `--load-concurrency 3`, produced distinct durable runs
+  `09afb9cc-484f-4bef-abf2-64ffd46b3d7f`,
+  `9e4455ec-f9a6-4cc2-b5a1-1b10d40e7071`, and
+  `51dd9c5a-4253-4ef8-b640-1b3c177959cf`, passed `agent_initialized`,
+  `agent_session_started`, and `turn_finished` expectations for each child
+  run, and is accepted by `mix haven.probe_reports`. The report's
+  `child_windows` prove overlapping child probe execution from
+  `2026-07-01T18:18:16.331641Z` to `2026-07-01T18:18:30.508071Z`. This is
+  modest concurrent real-agent evidence, not long-output or production-scale
+  fan-out proof.
+- `docs/probes/codex-acp-long-output.json` is the current committed positive
+  bounded long-output real-agent probe from 2026-07-01. It was generated
+  against saved `codex-acp` with `--require-real-agent`, produced durable run
+  `1d3154b8-71aa-417a-ac94-4cf9d5f41a7c`, passed `agent_initialized`,
+  `agent_session_started`, and `turn_finished` expectations, and required at
+  least 1,200 streamed output characters plus at least 8 agent message chunks.
+  The report records 2,892 characters across 627 `agent_message_chunk` events
+  and is accepted by `mix haven.probe_reports`.
+  This is bounded single-run streaming evidence, not arbitrary long-duration or
+  larger-fan-out proof.
+- `docs/probes/codex-acp-file-tool-call.json` is a committed passing
+  `--require-real-agent` report showing `codex-acp` can inspect a disposable
+  workspace file and return a sentinel, but it does so through ACP
+  `tool_call`/`tool_call_update` session updates rather than Haven's
+  `fs/read_text_file` client request handler.
+- `docs/probe-failures/codex-acp-file-mediated-negative.json` is a named failed
+  2026-07-01 attempt, refreshed as durable run
+  `23f2219e-aefa-4482-bf45-5ac13cf8ed2a`, to require
+  `capability_policy_applied`, `file_read_requested`, and
+  `file_read_succeeded` against saved `codex-acp` with explicit allow policy
+  scoped to `README.md` and `docs`. The agent still reads the file via generic
+  ACP `tool_call` / `tool_call_update`; the report declares
+  `fs/read_text_file` in `unsupported_client_capabilities`, so this counts as
+  explicit unsupported evidence for Haven-mediated proof with this agent class,
+  not positive `fs/*` proof.
+- `docs/probe-failures/codex-acp-file-write-mediated-negative.json` is a named
+  failed 2026-07-01 attempt, refreshed as durable run
+  `bfa0813b-0dd2-4b55-a382-bca8bacb75fa`, to require
+  `permission_requested`, `permission_resolved`, `file_write_requested`, and
+  `file_write_succeeded` against saved `codex-acp`. The agent wrote
+  `notes/haven-probe.txt` via generic ACP `tool_call` / `tool_call_update`; the
+  report declares `fs/write_text_file` in `unsupported_client_capabilities`, so
+  this is explicit unsupported evidence for Haven-mediated write proof with
+  this agent class, not positive `fs/*` proof.
+- Failed probe reports now include diagnostics when missing Haven-mediated
+  client capability events coincide with observed ACP `tool_call` /
+  `tool_call_update` activity. The current saved `codex-acp` file and terminal
+  mediated-capability attempts record this as `tool_call_only_capability_gap`,
+  making the boundary explicit in both CLI output and JSON reports.
+- Failed probe reports are now validated by `mix haven.probe_reports` alongside
+  positive reports. Negative boundary evidence must come from an accepted
+  `--require-real-agent` run, declare the missing expected client capability
+  events, include at least one field-level capability expectation, and carry a
+  `tool_call_only_capability_gap` diagnostic backed by actual tool-call events.
+  They must also include `unsupported_client_capabilities` entries for each
+  missing mediated capability family, so unsupported agent-class declarations
+  are machine-checkable instead of prose-only.
+- `docs/probes/codex-acp-terminal-tool-call.json` is a committed passing
+  `--require-real-agent` report showing `codex-acp` can execute a terminal
+  command and return a sentinel, but it does so through ACP
+  `tool_call`/`tool_call_update` session updates rather than Haven's
+  `terminal/create`, `terminal/output`, and related client request handlers.
+- `docs/probe-failures/codex-acp-terminal-mediated-negative.json` is a named
+  failed 2026-07-01 attempt, refreshed as durable run
+  `ad4e33f0-a544-4e63-b919-12bbd6fe3949`, to require
+  `permission_requested`, `permission_resolved`, `terminal_create_requested`,
+  `terminal_created`, `terminal_output_succeeded`, and `terminal_released`
+  against saved `codex-acp`. The agent still runs `mix --version` via generic
+  ACP `tool_call` / `tool_call_update`; the report declares `terminal` in
+  `unsupported_client_capabilities`, so this counts as explicit unsupported
+  evidence for Haven-mediated proof with this agent class, not positive
+  `terminal/*` proof.
+- `docs/probes/haven-capability-probe-basic.json` is a committed passing
+  `--require-real-agent` report against the local external
+  `haven-capability-probe` stdio ACP process. It proves initialization, session
+  start, a prompted turn, an agent message chunk, and `turn_finished` through
+  Haven's durable run lifecycle without using the built-in stub.
+- `docs/probes/haven-capability-probe-file-read.json` is a committed passing
+  report against the same local external ACP process proving Haven-mediated
+  `fs/read_text_file`: `file_read_requested`, policy application,
+  `file_read_succeeded`, the agent response, and `turn_finished`, with
+  field-level checks for `README.md`.
+- `docs/probes/haven-capability-probe-file-write-approval.json` is a committed
+  passing report proving approval-gated Haven-mediated `fs/write_text_file`
+  against the local external ACP process. It records the file-write request,
+  permission request and resolution, successful write to
+  `notes/haven-probe.txt`, and final turn completion.
+- `docs/probes/haven-capability-probe-terminal-approval.json` is a committed
+  passing report proving approval-gated Haven-mediated terminal execution
+  against the local external ACP process. It records terminal create, wait,
+  output, release, exit status `0`, and final turn completion for `mix
+  --version`.
+- `docs/probes/haven-capability-probe-terminal-denied.json` is a committed
+  passing report proving deny-policy handling for a local external ACP
+  `terminal/create` request. It records the request, the automatic deny
+  decision, `terminal_create_denied`, and final turn completion without opening
+  a terminal process.
+- These `haven-capability-probe-*` reports prove Haven's direct client
+  capability handlers with a committed external process. They are deliberately
+  narrower than ecosystem proof: `codex-acp` still shows direct file and
+  terminal work through generic `tool_call` / `tool_call_update`, with explicit
+  negative reports for Haven-mediated `fs/*` and `terminal/*` requests.
+- Haven now wraps the upstream Elixir ACP client-side decoder so newer/unknown
+  `session/update` variants are persisted as raw protocol events instead of
+  crashing the connection. This was required by `codex-acp`, which currently
+  emits `usage_update`.
+- Haven redacts agent thought chunks into a single `agent_thought_redacted`
+  marker per turn so real-agent probe reports and browser timelines do not
+  persist raw model scratchpad text.
+- The run timeline now renders ACP `tool_call` / `tool_call_update` file and
+  terminal activity as first-class reviewable evidence: file path, command,
+  working directory, status, exit code, and bounded output preview are projected
+  without requiring users to inspect raw JSON.
+- Matching `tool_call` starts and `tool_call_update` results are paired into one
+  review card in the timeline, so long real-agent runs show an action and its
+  result together while orphan updates remain visible as standalone protocol
+  evidence.
+- Haven-mediated `fs/*` and `terminal/*` client capability events now render as
+  structured timeline evidence instead of raw JSON: file paths, resolved paths,
+  command arguments, terminal ids, byte counts, exit statuses, and permission
+  errors are projected as labeled fields.
+- ACP terminal commands now also create durable `terminal_sessions` rows with
+  terminal id, command, args, cwd, executable, environment key names, OS pid,
+  lifecycle status, exit status, output byte count, bounded output preview, and
+  cleanup timestamps. Data-context tests verify bounded output storage and
+  killed/exited/released lifecycle semantics; LiveView integration tests verify
+  these rows are created and updated through real stub ACP terminal
+  create/wait/output/kill/release flows.
+- The run detail sidebar now renders durable terminal sessions as an operational
+  fact surface with command, terminal id, status, args, working directory,
+  executable, exit status, output bytes, env key names, and bounded output
+  preview. Browser smoke creates a run, triggers the terminal sample, verifies
+  the rendered terminal session, reloads the page, and verifies the same
+  persisted projection remains visible.
+- LiveView integration tests verify the terminal session surface summarizes
+  running, completed, and attention-needed session counts, and labels each
+  terminal session with outcome-specific guidance for running, exited, and
+  failed states.
+- `mix haven.probe_reports` validates committed `docs/probes/*.json` artifacts,
+  `docs/probe-failures/*.json` boundary artifacts, and
+  `docs/probe-load/*.json` aggregate load artifacts, and is part of
+  `mix precommit`, so real-agent evidence requirements are a gate rather than
+  only a documentation convention. Committed positive reports must
+  non-blankly name their durable Haven `run_id`, agent, workspace, and prompt.
+  They must carry redaction metadata that names literal/env redaction sources
+  without raw values, and can also require payload-field facts as well as event
+  types, so future Haven-mediated `fs/*` / `terminal/*` evidence can assert
+  details like requested path, terminal command, and exit status.
+  Reports that claim Haven-mediated `file_*` or `terminal_*` expected events
+  now require matching field-level expectations for those event types, so
+  type-only capability evidence is not accepted. Report validation also rejects
+  blank expected event names, blank expected event-field names, and blank
+  persisted event types, matching the durable event envelope enforced by the
+  app. Report validation accepts both generated payload field paths such as
+  `path` and documented CLI paths such as `payload.path`. Failure report
+  validation also requires explicit `unsupported_client_capabilities` for
+  tool-call-only mediated capability gaps. Reports can also declare bounded
+  output expectations through `expected_output`; validation requires matching
+  `agent_output_metrics` and empty `missing_expected_output`. Load report
+  validation requires at least two real-agent child reports, distinct durable
+  run ids, matching aggregate child metadata, top-level redaction metadata, and
+  a passing aggregate status. Generated aggregate load reports are redacted
+  with the same literal/env rules as child probe reports before they are
+  written.
+  Concurrent load reports with `concurrency > 1` must also include child probe
+  windows that show at least two overlapping runs, match the child report
+  `run_id`s, order, and status, and have possible durations where `finished_at`
+  is after `started_at`.
+
+Still missing:
+
+- Third-party production-agent coverage for Haven-mediated file requests
+  (`fs/read_text_file` / `fs/write_text_file`). Current positive coverage is a
+  committed local external ACP probe process; current `codex-acp` evidence
+  explicitly exercises generic tool calls instead.
+- Third-party production-agent coverage for Haven-mediated terminal requests
+  (`terminal/create`, `terminal/output`, `terminal/wait_for_exit`,
+  `terminal/release`, and `terminal/kill`). Current positive coverage is a
+  committed local external ACP probe process for create/wait/output/release and
+  denial, plus local stub coverage for kill.
+- Product-grade file artifact review; current evidence is a durable bounded
+  `file_changes` projection with review counts/outcome hints for
+  Haven-mediated writes, structured Haven-mediated client capability event
+  projections, and grouped compact `tool_call` projections for real
+  `codex-acp` file/terminal activity.
+- PTY-style interactive terminal sessions.
+- More expressive scoped-policy editing and grant modeling beyond the current
+  create-form comma fields plus post-creation scope chips.
+- Authenticated user identity and interactive auth flows for agents that require
+  credentials.
+- Longer-duration real external agent output and larger-fan-out concurrency
+  beyond the current bounded `codex-acp` long-output report and three-run
+  concurrent load report.
+
+## Not Proven Yet
+
+These are not cosmetic gaps. They are core to the production-grade Haven telos
+and should not be counted as complete until there is executable evidence.
+
+- Haven-mediated file read/write capability requests from a third-party
+  production ACP agent. A local external ACP probe now proves Haven's side of
+  the protocol, but not production-agent ecosystem behavior.
+- Haven-mediated terminal capability requests from a third-party production
+  ACP agent. A local external ACP probe now proves create/wait/output/release
+  and deny behavior, but not production-agent ecosystem behavior or interactive
+  terminal use.
+- Interactive terminal behavior.
+- Authentication flows for agents that require auth; configured env can pass
+  secrets to launched agents, but no interactive auth flow is proven.
+- Session load/resume/fork/list support when agents expose it.
+- Longer-duration real external agent output and larger-fan-out concurrency.
+- Product-grade workspace and agent configuration UI beyond saved rows,
+  workspace readiness summaries, agent launch readiness, and agent inventory.
+- Authenticated user identity for permission decisions.
+
+## Next Best Validation Work
+
+1. Find or configure a third-party production ACP-speaking adapter that
+   exercises Haven-mediated `fs/*` and `terminal/*` client requests, then
+   commit passing `--require-real-agent` reports for those stories.
+2. Add interactive-terminal evidence once the terminal model moves beyond
+   bounded non-interactive command execution.

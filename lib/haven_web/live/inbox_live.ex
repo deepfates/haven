@@ -1,0 +1,3758 @@
+defmodule HavenWeb.InboxLive do
+  use HavenWeb, :live_view
+
+  alias Haven.AgentProbe
+  alias Haven.Agents
+  alias Haven.Events
+  alias Haven.Runs
+  alias Haven.Workspaces
+
+  @env_name_regex ~r/^[A-Za-z_][A-Za-z0-9_]*$/
+  @history_page_size 25
+
+  @run_filters [
+    {"all", "All"},
+    {"updated", "Updated"},
+    {"needs_you", "Needs You"},
+    {"running", "Running"},
+    {"history", "History"},
+    {"diagnostics", "Diagnostics"},
+    {"archived", "Archived"}
+  ]
+
+  @impl true
+  def mount(_params, _session, socket) do
+    if connected?(socket), do: Runs.subscribe()
+
+    {:ok,
+     socket
+     |> assign(:page_title, "Haven")
+     |> assign(:run_filter, "all")
+     |> assign(:run_search, "")
+     |> assign(:agent_filter, "")
+     |> assign(:workspace_filter, "")
+     |> assign(:history_page, 1)
+     |> assign(:new_run_open?, false)
+     |> assign(:form, to_form(default_run_params()))
+     |> assign(:workspace_form, to_form(default_workspace_params(), as: :workspace_config))
+     |> assign(:workspace_error, nil)
+     |> assign(:editing_workspace_id, nil)
+     |> refresh_workspace_assigns()
+     |> assign(:retention_form, to_form(%{"cutoff_date" => ""}, as: :retention))
+     |> assign(:retention_error, nil)
+     |> assign(:agent_config_form, to_form(default_agent_config_params(), as: :agent_config))
+     |> assign(:agent_config_error, nil)
+     |> assign(:editing_agent_config_id, nil)
+     |> refresh_agent_config_assigns()
+     |> assign_runs()}
+  end
+
+  @impl true
+  def handle_event("create_run", params, socket) do
+    case validate_run_selection(params) do
+      :ok ->
+        attrs = run_attrs(params)
+
+        case Runs.create_run(attrs) do
+          {:ok, run} ->
+            {:noreply, push_navigate(socket, to: ~p"/runs/#{run.id}")}
+
+          {:error, changeset} ->
+            {:noreply,
+             socket
+             |> assign(:new_run_open?, true)
+             |> assign(:form, to_form(changeset))
+             |> assign_runs()}
+        end
+
+      {:error, message, form_params} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, message)
+         |> assign(:new_run_open?, true)
+         |> assign(:form, to_form(form_params))
+         |> refresh_workspace_assigns()
+         |> assign_runs()}
+    end
+  end
+
+  def handle_event("change_run", params, socket) do
+    {:noreply,
+     socket
+     |> assign(:new_run_open?, true)
+     |> assign(:form, to_form(run_form_params(params)))}
+  end
+
+  def handle_event("archive_run", %{"id" => id}, socket) do
+    socket =
+      id
+      |> Runs.archive_run()
+      |> assign_action_result(socket)
+
+    {:noreply, assign_runs(socket)}
+  end
+
+  def handle_event("mark_run_read", %{"id" => id}, socket) do
+    _ = Runs.mark_latest_viewed(id)
+    {:noreply, assign_runs(socket)}
+  end
+
+  def handle_event("prune_archived", %{"retention" => %{"cutoff_date" => cutoff_date}}, socket) do
+    case archived_retention_cutoff(cutoff_date) do
+      {:ok, cutoff} ->
+        count = Runs.prune_archived_before(cutoff)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Pruned #{count} archived #{run_count_label(count)}")
+         |> assign(:retention_form, to_form(%{"cutoff_date" => ""}, as: :retention))
+         |> assign(:retention_error, nil)
+         |> assign_runs()}
+
+      {:error, message} ->
+        {:noreply,
+         socket
+         |> assign(:retention_form, to_form(%{"cutoff_date" => cutoff_date}, as: :retention))
+         |> assign(:retention_error, message)}
+    end
+  end
+
+  def handle_event("filter_runs", %{"filter" => filter}, socket) do
+    filter = if valid_run_filter?(filter), do: filter, else: "all"
+
+    {:noreply,
+     socket
+     |> assign(:run_filter, filter)
+     |> assign(:history_page, 1)
+     |> assign_runs()}
+  end
+
+  def handle_event("search_runs", params, socket) do
+    {:noreply,
+     socket
+     |> assign(:run_search, normalize_search_query(Map.get(params, "run_search", "")))
+     |> assign(:agent_filter, normalize_filter_value(Map.get(params, "agent_filter", "")))
+     |> assign(:workspace_filter, normalize_filter_value(Map.get(params, "workspace_filter", "")))
+     |> assign(:history_page, 1)
+     |> assign_runs()}
+  end
+
+  def handle_event("clear_run_search", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:run_search, "")
+     |> assign(:agent_filter, "")
+     |> assign(:workspace_filter, "")
+     |> assign(:history_page, 1)
+     |> assign_runs()}
+  end
+
+  def handle_event("show_more_history", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:history_page, socket.assigns.history_page + 1)
+     |> assign_runs()}
+  end
+
+  def handle_event("save_workspace", %{"workspace_config" => params}, socket) do
+    case save_workspace(params, workspace_attrs(params)) do
+      {:ok, workspace} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Workspace #{workspace.name} saved")
+         |> reset_workspace_form()
+         |> refresh_workspace_assigns()
+         |> sync_saved_workspace_selection(workspace)
+         |> assign_runs()}
+
+      {:error, changeset} ->
+        {:noreply,
+         socket
+         |> assign(:workspace_form, to_form(params, as: :workspace_config))
+         |> assign(:workspace_error, form_error(changeset))}
+
+      {:missing, message} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, message)
+         |> reset_workspace_form()
+         |> refresh_workspace_assigns()
+         |> assign_runs()}
+    end
+  end
+
+  def handle_event("edit_workspace", %{"id" => id}, socket) do
+    case Workspaces.get_workspace(id) do
+      nil ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "That workspace was already deleted.")
+         |> refresh_workspace_assigns()
+         |> assign_runs()}
+
+      workspace ->
+        {:noreply,
+         socket
+         |> assign(
+           :workspace_form,
+           to_form(workspace_form_params(workspace), as: :workspace_config)
+         )
+         |> assign(:workspace_error, nil)
+         |> assign(:editing_workspace_id, workspace.id)}
+    end
+  end
+
+  def handle_event("cancel_workspace_edit", _params, socket) do
+    {:noreply, reset_workspace_form(socket)}
+  end
+
+  def handle_event("delete_workspace", %{"id" => id}, socket) do
+    socket =
+      case Workspaces.get_workspace(id) do
+        nil ->
+          put_flash(socket, :error, "That workspace was already deleted.")
+
+        workspace ->
+          {:ok, _workspace} = Workspaces.delete_workspace(workspace)
+
+          socket
+          |> put_flash(:info, "Workspace #{workspace.name} deleted")
+          |> clear_deleted_workspace_selection(workspace.id)
+      end
+
+    {:noreply,
+     socket
+     |> refresh_workspace_assigns()
+     |> assign_runs()}
+  end
+
+  def handle_event("save_agent_config", %{"agent_config" => params}, socket) do
+    with {:ok, attrs} <- agent_config_attrs(params),
+         {:ok, agent_config} <- save_agent_config(params, attrs) do
+      {:noreply,
+       socket
+       |> put_flash(:info, "Agent #{agent_config.key} saved")
+       |> reset_agent_config_form()
+       |> refresh_agent_config_assigns()
+       |> assign_runs()
+       |> push_event("clear_agent_config_form", %{id: "agent-config-form"})}
+    else
+      {:error, message} when is_binary(message) ->
+        {:noreply,
+         socket
+         |> assign(:agent_config_form, to_form(params, as: :agent_config))
+         |> assign(:agent_config_error, message)}
+
+      {:error, changeset} ->
+        {:noreply,
+         socket
+         |> assign(:agent_config_form, to_form(params, as: :agent_config))
+         |> assign(:agent_config_error, form_error(changeset))}
+
+      {:missing, message} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, message)
+         |> reset_agent_config_form()
+         |> refresh_agent_config_assigns()
+         |> assign_runs()}
+    end
+  end
+
+  def handle_event("edit_agent_config", %{"id" => id}, socket) do
+    case Agents.get_agent_config(id) do
+      nil ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "That agent setup was already deleted.")
+         |> refresh_agent_config_assigns()
+         |> assign_runs()}
+
+      agent_config ->
+        {:noreply,
+         socket
+         |> assign(
+           :agent_config_form,
+           to_form(agent_config_form_params(agent_config), as: :agent_config)
+         )
+         |> assign(:agent_config_error, nil)
+         |> assign(:editing_agent_config_id, agent_config.id)}
+    end
+  end
+
+  def handle_event("cancel_agent_config_edit", _params, socket) do
+    {:noreply, reset_agent_config_form(socket)}
+  end
+
+  def handle_event("delete_agent_config", %{"id" => id}, socket) do
+    socket =
+      case Agents.get_agent_config(id) do
+        nil ->
+          put_flash(socket, :error, "That agent setup was already deleted.")
+
+        agent_config ->
+          {:ok, _agent_config} = Agents.delete_agent_config(agent_config)
+
+          socket
+          |> put_flash(:info, "Agent #{agent_config.key} deleted")
+          |> reset_agent_config_form()
+      end
+
+    {:noreply,
+     socket
+     |> refresh_agent_config_assigns()
+     |> assign_runs()}
+  end
+
+  @impl true
+  def handle_info({:run_updated, _run}, socket), do: {:noreply, assign_runs(socket)}
+
+  def handle_info({:run_event_appended, _event}, socket), do: {:noreply, assign_runs(socket)}
+
+  defp assign_action_result({:ok, _result}, socket), do: socket
+
+  defp assign_action_result({:error, reason}, socket) do
+    put_flash(socket, :error, action_error_message(reason))
+  end
+
+  defp assign_action_result(_result, socket), do: socket
+
+  defp action_error_message(:not_archivable),
+    do: "Only failed or closed runs can be archived. This run is active now."
+
+  defp action_error_message(_reason), do: "That action could not be completed."
+
+  defp assign_runs(socket) do
+    agent_inventory = socket.assigns[:agent_inventory] || %{}
+    agent_probe_reports = socket.assigns[:agent_probe_reports] || %{}
+    agent_capability_gap_reports = socket.assigns[:agent_capability_gap_reports] || %{}
+    workspace_index = socket.assigns[:workspace_index] || %{}
+
+    runs =
+      Runs.list_runs()
+      |> attach_latest_events()
+      |> attach_workspace_context(workspace_index)
+      |> attach_agent_evidence(agent_inventory, agent_probe_reports, agent_capability_gap_reports)
+      |> sort_runs_by_activity()
+
+    archived_runs =
+      Runs.list_archived_runs()
+      |> attach_latest_events()
+      |> attach_workspace_context(workspace_index)
+      |> attach_agent_evidence(agent_inventory, agent_probe_reports, agent_capability_gap_reports)
+
+    run_search = socket.assigns[:run_search] || ""
+    agent_filter = socket.assigns[:agent_filter] || ""
+    workspace_filter = socket.assigns[:workspace_filter] || ""
+
+    visible_runs =
+      runs
+      |> filter_runs_by_facets(agent_filter, workspace_filter)
+      |> filter_runs_by_search(run_search)
+
+    archived_matches =
+      archived_runs
+      |> filter_runs_by_facets(agent_filter, workspace_filter)
+      |> filter_runs_by_search(run_search)
+
+    work_runs = Enum.reject(visible_runs, &diagnostic_run?/1)
+    diagnostics = Enum.filter(visible_runs, &diagnostic_run?/1)
+
+    needs_you = Enum.filter(work_runs, &run_needs_attention?/1)
+    needs_you_decisions = Enum.count(needs_you, &(&1.status == "waiting"))
+    needs_you_recoveries = Enum.count(needs_you, &(&1.status == "failed"))
+    needs_you_interruptions = Enum.count(needs_you, &interrupted_run?/1)
+    needs_you_workspaces = Enum.count(needs_you, &workspace_missing_run?/1)
+    unread_runs = Enum.count(work_runs, &(Map.get(&1, :unread_event_count, 0) > 0))
+    unread_events = Enum.reduce(work_runs, 0, &(Map.get(&1, :unread_event_count, 0) + &2))
+    updated = Enum.filter(work_runs, &(Map.get(&1, :unread_event_count, 0) > 0))
+    running = Enum.filter(work_runs, &live_in_flight_run?/1)
+
+    history =
+      Enum.reject(work_runs, &(run_needs_attention?(&1) or live_in_flight_run?(&1)))
+
+    run_filter = socket.assigns[:run_filter] || "all"
+
+    {visible_updated, visible_needs_you, visible_running, visible_history_all,
+     visible_diagnostics, visible_archived} =
+      visible_run_groups(
+        run_filter,
+        updated,
+        needs_you,
+        running,
+        history,
+        diagnostics,
+        archived_matches
+      )
+
+    history_page = max(socket.assigns[:history_page] || 1, 1)
+    visible_history = Enum.take(visible_history_all, history_page * @history_page_size)
+
+    attention_counts = %{
+      needs_you: length(needs_you),
+      decisions: needs_you_decisions,
+      recoveries: needs_you_recoveries,
+      interruptions: needs_you_interruptions,
+      workspaces: needs_you_workspaces,
+      unread_runs: unread_runs,
+      unread_events: unread_events
+    }
+
+    previous_attention_counts = socket.assigns[:attention_notification_counts]
+
+    socket
+    |> assign(:runs, runs)
+    |> assign(:archived_runs, archived_runs)
+    |> assign(:visible_runs, visible_runs)
+    |> assign(:visible_work_runs, work_runs)
+    |> assign(:visible_archived_runs, visible_archived)
+    |> assign(:run_search, run_search)
+    |> assign(:agent_filter, agent_filter)
+    |> assign(:workspace_filter, workspace_filter)
+    |> assign(:agent_filter_options, facet_options(runs ++ archived_runs, :agent))
+    |> assign(:workspace_filter_options, workspace_facet_options(runs ++ archived_runs))
+    |> assign(:run_filters, @run_filters)
+    |> assign(:run_filter_counts, %{
+      "all" => length(work_runs),
+      "updated" => length(updated),
+      "needs_you" => length(needs_you),
+      "needs_you_decisions" => needs_you_decisions,
+      "needs_you_recoveries" => needs_you_recoveries,
+      "needs_you_interruptions" => needs_you_interruptions,
+      "needs_you_workspaces" => needs_you_workspaces,
+      "unread_runs" => unread_runs,
+      "unread_events" => unread_events,
+      "running" => length(running),
+      "history" => length(history),
+      "diagnostics" => length(diagnostics),
+      "archived" => length(archived_matches)
+    })
+    |> assign(:attention_notification_counts, attention_counts)
+    |> maybe_push_attention_notification(previous_attention_counts, attention_counts)
+    |> then(fn socket ->
+      attention_summary = inbox_attention_summary(socket.assigns.run_filter_counts)
+
+      socket
+      |> assign(:inbox_attention_summary, attention_summary)
+      |> assign(:page_title, inbox_page_title(socket.assigns.run_filter_counts))
+    end)
+    |> assign(:updated, visible_updated)
+    |> assign(:needs_you, visible_needs_you)
+    |> assign(:running, visible_running)
+    |> assign(:history, visible_history)
+    |> assign(:history_total_count, length(visible_history_all))
+    |> assign(:history_visible_count, length(visible_history))
+    |> assign(:history_has_more?, length(visible_history) < length(visible_history_all))
+    |> assign(:diagnostics, visible_diagnostics)
+    |> assign(:archived, visible_archived)
+    |> assign(
+      :filtered_runs_empty?,
+      (run_filter != "all" or active_run_facets?(run_search, agent_filter, workspace_filter)) and
+        visible_updated == [] and visible_needs_you == [] and visible_running == [] and
+        visible_history == [] and visible_diagnostics == [] and visible_archived == []
+    )
+    |> assign(
+      :searched_runs_empty?,
+      active_run_facets?(run_search, agent_filter, workspace_filter) and work_runs == [] and
+        archived_matches == []
+    )
+  end
+
+  defp visible_run_groups(
+         "updated",
+         updated,
+         _needs_you,
+         _running,
+         _history,
+         _diagnostics,
+         _archived
+       ),
+       do: {updated, [], [], [], [], []}
+
+  defp visible_run_groups(
+         "needs_you",
+         _updated,
+         needs_you,
+         _running,
+         _history,
+         _diagnostics,
+         _archived
+       ),
+       do: {[], needs_you, [], [], [], []}
+
+  defp visible_run_groups(
+         "running",
+         _updated,
+         _needs_you,
+         running,
+         _history,
+         _diagnostics,
+         _archived
+       ),
+       do: {[], [], running, [], [], []}
+
+  defp visible_run_groups(
+         "history",
+         _updated,
+         _needs_you,
+         _running,
+         history,
+         _diagnostics,
+         _archived
+       ),
+       do: {[], [], [], history, [], []}
+
+  defp visible_run_groups(
+         "diagnostics",
+         _updated,
+         _needs_you,
+         _running,
+         _history,
+         diagnostics,
+         _archived
+       ),
+       do: {[], [], [], [], diagnostics, []}
+
+  defp visible_run_groups(
+         "archived",
+         _updated,
+         _needs_you,
+         _running,
+         _history,
+         _diagnostics,
+         archived
+       ),
+       do: {[], [], [], [], [], archived}
+
+  defp visible_run_groups(
+         _filter,
+         _updated,
+         needs_you,
+         running,
+         history,
+         _diagnostics,
+         _archived
+       ),
+       do: {[], needs_you, running, history, [], []}
+
+  defp diagnostic_run?(%{purpose: "diagnostic"}), do: true
+  defp diagnostic_run?(_run), do: false
+
+  defp run_needs_attention?(%{workspace_summary: %{path_state: :missing}}), do: false
+  defp run_needs_attention?(%{status: status}) when status in ["waiting", "failed"], do: true
+  defp run_needs_attention?(run), do: interrupted_run?(run)
+
+  defp workspace_missing_run?(%{workspace_summary: %{path_state: :missing}}), do: true
+  defp workspace_missing_run?(_run), do: false
+
+  defp interrupted_run?(%{status: status, live?: false})
+       when status in ["initializing", "running"],
+       do: true
+
+  defp interrupted_run?(_run), do: false
+
+  defp live_in_flight_run?(%{status: status, live?: true})
+       when status in ["initializing", "running"],
+       do: true
+
+  defp live_in_flight_run?(_run), do: false
+
+  defp run_purpose_label(%{purpose: "diagnostic"}), do: "Diagnostic"
+  defp run_purpose_label(_run), do: nil
+
+  defp valid_run_filter?(filter) do
+    Enum.any?(@run_filters, fn {value, _label} -> value == filter end)
+  end
+
+  defp archived_retention_cutoff(cutoff_date) when is_binary(cutoff_date) do
+    cutoff_date
+    |> String.trim()
+    |> Date.from_iso8601()
+    |> case do
+      {:ok, date} -> {:ok, DateTime.new!(date, ~T[00:00:00], "Etc/UTC")}
+      {:error, _reason} -> {:error, "Enter a cutoff date."}
+    end
+  end
+
+  defp archived_retention_cutoff(_cutoff_date), do: {:error, "Enter a cutoff date."}
+
+  defp run_count_label(1), do: "run"
+  defp run_count_label(_count), do: "runs"
+
+  defp attach_latest_events(runs) do
+    latest_events =
+      runs
+      |> Enum.map(& &1.id)
+      |> Events.latest_by_run_id()
+
+    permission_requests =
+      latest_events
+      |> Map.values()
+      |> latest_permission_decision_run_ids()
+      |> Events.permission_requests_by_run_id()
+
+    Enum.map(runs, fn run ->
+      latest_event = Map.get(latest_events, run.id)
+
+      run
+      |> Map.put(:latest_event, latest_event)
+      |> Map.put(:unread_event_count, unread_event_count(run, latest_event))
+      |> Map.put(
+        :latest_permission_request,
+        latest_permission_request(permission_requests, latest_event)
+      )
+      |> Map.put(:live?, Runs.started?(run))
+    end)
+  end
+
+  defp sort_runs_by_activity(runs) do
+    Enum.sort(runs, fn left, right ->
+      left_activity = run_activity_at(left)
+      right_activity = run_activity_at(right)
+
+      case DateTime.compare(left_activity, right_activity) do
+        :gt -> true
+        :lt -> false
+        :eq -> DateTime.compare(left.inserted_at, right.inserted_at) != :lt
+      end
+    end)
+  end
+
+  defp run_activity_at(%{latest_event: %{inserted_at: inserted_at}}), do: inserted_at
+  defp run_activity_at(%{updated_at: %DateTime{} = updated_at}), do: updated_at
+  defp run_activity_at(%{inserted_at: %DateTime{} = inserted_at}), do: inserted_at
+  defp run_activity_at(_run), do: ~U[1970-01-01 00:00:00Z]
+
+  defp run_activity_time(run), do: run |> run_activity_at() |> run_row_time()
+
+  defp unread_event_count(_run, nil), do: 0
+
+  defp unread_event_count(run, %{seq: latest_seq}) when is_integer(latest_seq) do
+    max(latest_seq - Map.get(run, :last_viewed_event_seq, 0), 0)
+  end
+
+  defp unread_event_count(_run, _latest_event), do: 0
+
+  defp latest_permission_decision_run_ids(events) do
+    events
+    |> Enum.filter(&permission_decision_event?/1)
+    |> Enum.map(& &1.run_id)
+  end
+
+  defp permission_decision_event?(%{type: type})
+       when type in ["permission_resolved", "permission_resolution_ignored"],
+       do: true
+
+  defp permission_decision_event?(_event), do: false
+
+  defp latest_permission_request(permission_requests, %{run_id: run_id, payload: payload} = event) do
+    if permission_decision_event?(event) do
+      Map.get(permission_requests, {run_id, to_string(payload["request_id"])})
+    end
+  end
+
+  defp latest_permission_request(_permission_requests, _event), do: nil
+
+  defp attach_agent_evidence(
+         runs,
+         agent_inventory,
+         agent_probe_reports,
+         agent_capability_gap_reports
+       ) do
+    Enum.map(runs, fn run ->
+      run
+      |> Map.put(:agent_readiness, Map.get(agent_inventory, run.agent, %{}))
+      |> Map.put(:agent_reports, Map.get(agent_probe_reports, run.agent, []))
+      |> Map.put(
+        :agent_capability_gap_reports,
+        Map.get(agent_capability_gap_reports, run.agent, [])
+      )
+    end)
+  end
+
+  defp attach_workspace_context(runs, workspace_index) do
+    Enum.map(runs, fn run ->
+      workspace_summary =
+        case Map.get(workspace_index, run.workspace) do
+          nil ->
+            %{
+              name: nil,
+              path: run.workspace,
+              path_state: workspace_path_state(run.workspace),
+              saved?: false
+            }
+
+          workspace ->
+            Map.put(workspace, :saved?, true)
+        end
+
+      Map.put(run, :workspace_summary, workspace_summary)
+    end)
+  end
+
+  defp normalize_search_query(query) when is_binary(query), do: String.trim(query)
+  defp normalize_search_query(_query), do: ""
+
+  defp normalize_filter_value(value) when is_binary(value), do: String.trim(value)
+  defp normalize_filter_value(_value), do: ""
+
+  defp active_run_facets?(run_search, agent_filter, workspace_filter) do
+    run_search != "" or agent_filter != "" or workspace_filter != ""
+  end
+
+  defp facet_options(runs, field) do
+    runs
+    |> Enum.map(&Map.get(&1, field))
+    |> Enum.filter(&is_binary/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.map(&{&1, &1})
+  end
+
+  defp workspace_facet_options(runs) do
+    runs
+    |> Enum.filter(&(is_binary(&1.workspace) and &1.workspace != ""))
+    |> Enum.uniq_by(& &1.workspace)
+    |> Enum.sort_by(&workspace_facet_label/1)
+    |> Enum.map(fn run -> {workspace_facet_label(run), run.workspace} end)
+  end
+
+  defp workspace_facet_label(%{workspace_summary: %{name: name}, workspace: path})
+       when is_binary(name) and name != "" do
+    "#{name} · #{path}"
+  end
+
+  defp workspace_facet_label(%{workspace: path}), do: path
+
+  defp filter_runs_by_facets(runs, "", ""), do: runs
+
+  defp filter_runs_by_facets(runs, agent_filter, workspace_filter) do
+    Enum.filter(runs, fn run ->
+      (agent_filter == "" or run.agent == agent_filter) and
+        (workspace_filter == "" or run.workspace == workspace_filter)
+    end)
+  end
+
+  defp filter_runs_by_search(runs, ""), do: runs
+
+  defp filter_runs_by_search(runs, query) do
+    normalized_query = String.downcase(query)
+
+    Enum.filter(runs, fn run ->
+      run
+      |> run_search_text()
+      |> String.downcase()
+      |> String.contains?(normalized_query)
+    end)
+  end
+
+  defp run_search_text(run) do
+    [
+      run.title,
+      run.workspace,
+      run_workspace_identity_label(Map.get(run, :workspace_summary)),
+      run_workspace_state_label(Map.get(run, :workspace_summary)),
+      run_workspace_saved_name(Map.get(run, :workspace_summary)),
+      run.agent,
+      run_purpose_label(run),
+      run.status,
+      run_attention_label(run),
+      run_operational_label(run),
+      run_operational_hint(run),
+      run_next_step_label(run),
+      agent_launch_label(Map.get(run, :agent_readiness, %{})),
+      agent_preflight_label(Map.get(run, :agent_readiness, %{})),
+      agent_preflight_reason(Map.get(run, :agent_readiness, %{})),
+      agent_evidence_label(Map.get(run, :agent_readiness, %{}), Map.get(run, :agent_reports, [])),
+      agent_evidence_reason(
+        Map.get(run, :agent_readiness, %{}),
+        Map.get(run, :agent_reports, [])
+      ),
+      capability_gap_label(Map.get(run, :agent_capability_gap_reports, [])),
+      capability_gap_reason(Map.get(run, :agent_capability_gap_reports, [])),
+      latest_activity(run)
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+  end
+
+  defp default_run_params do
+    %{
+      "title" => "",
+      "workspace" => File.cwd!(),
+      "workspace_id" => "",
+      "agent" => "stub-acp",
+      "file_read_policy" => "ask",
+      "file_read_paths" => "",
+      "file_write_policy" => "ask",
+      "file_write_paths" => "",
+      "terminal_create_policy" => "allow"
+    }
+  end
+
+  defp default_workspace_params do
+    %{
+      "id" => "",
+      "name" => "",
+      "path" => File.cwd!()
+    }
+  end
+
+  defp default_agent_config_params do
+    %{
+      "id" => "",
+      "key" => "",
+      "executable" => "",
+      "args_text" => "",
+      "cwd" => "",
+      "env_text" => ""
+    }
+  end
+
+  defp run_form_params(params) do
+    defaults = default_run_params()
+
+    form_params =
+      Map.new(defaults, fn {key, default} ->
+        {key, Map.get(params, key, default)}
+      end)
+
+    case selected_workspace_path(String.trim(form_params["workspace_id"])) do
+      nil -> form_params
+      path -> Map.put(form_params, "workspace", path)
+    end
+  end
+
+  defp validate_run_selection(params) do
+    workspace_id =
+      params
+      |> Map.get("workspace_id", "")
+      |> String.trim()
+
+    if workspace_id != "" and is_nil(Workspaces.get_workspace(workspace_id)) do
+      form_params =
+        params
+        |> run_form_params()
+        |> Map.put("workspace_id", "")
+
+      {:error,
+       "That saved workspace was deleted before the run started. Review the workspace path before starting again.",
+       form_params}
+    else
+      :ok
+    end
+  end
+
+  defp run_attrs(params) do
+    defaults = default_run_params()
+
+    title =
+      params
+      |> Map.get("title", defaults["title"])
+      |> String.trim()
+
+    workspace =
+      params
+      |> Map.get("workspace", defaults["workspace"])
+      |> String.trim()
+
+    workspace_id =
+      params
+      |> Map.get("workspace_id", defaults["workspace_id"])
+      |> String.trim()
+
+    agent =
+      params
+      |> Map.get("agent", defaults["agent"])
+      |> String.trim()
+
+    selected_workspace = selected_workspace_path(workspace_id)
+    file_read_policy = capability_policy_value(params, "file_read_policy")
+    file_read_paths = capability_path_scope_value(params, "file_read_paths")
+    file_write_policy = capability_policy_value(params, "file_write_policy")
+    file_write_paths = capability_path_scope_value(params, "file_write_paths")
+
+    terminal_create_policy =
+      capability_policy_value(params, "terminal_create_policy", ["ask", "allow", "deny"], "allow")
+
+    %{
+      "title" => if(title == "", do: "Untitled run", else: title),
+      "workspace" =>
+        cond do
+          selected_workspace -> selected_workspace
+          workspace == "" -> defaults["workspace"]
+          true -> Path.expand(workspace)
+        end,
+      "agent" => if(agent == "", do: defaults["agent"], else: agent),
+      "capability_policy" => %{
+        "file_read" => file_read_policy,
+        "file_read_paths" => file_read_paths,
+        "file_write" => file_write_policy,
+        "file_write_paths" => file_write_paths,
+        "terminal_create" => terminal_create_policy
+      }
+    }
+  end
+
+  defp capability_policy_value(params, key, allowed \\ ["ask", "allow", "deny"], default \\ "ask") do
+    case Map.get(params, key, default) do
+      value when is_binary(value) -> if(value in allowed, do: value, else: default)
+      _value -> default
+    end
+  end
+
+  defp capability_path_scope_value(params, key) do
+    params
+    |> Map.get(key, "")
+    |> parse_path_scope()
+  end
+
+  defp parse_path_scope(value) when is_binary(value) do
+    value
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp parse_path_scope(_value), do: []
+
+  defp selected_workspace_path(""), do: nil
+
+  defp selected_workspace_path(id) do
+    case Workspaces.get_workspace(id) do
+      nil -> nil
+      workspace -> workspace.path
+    end
+  end
+
+  defp workspace_attrs(params) do
+    %{
+      "id" => Map.get(params, "id", ""),
+      "name" => Map.get(params, "name", ""),
+      "path" => Map.get(params, "path", "")
+    }
+  end
+
+  defp save_workspace(%{"id" => id}, attrs) when is_binary(id) and id != "" do
+    case Workspaces.get_workspace(id) do
+      nil -> {:missing, "That workspace was already deleted."}
+      workspace -> Workspaces.update_workspace(workspace, attrs)
+    end
+  end
+
+  defp save_workspace(_params, attrs), do: Workspaces.create_workspace(attrs)
+
+  defp sync_saved_workspace_selection(socket, workspace) do
+    if form_value(socket.assigns.form, :workspace_id) == workspace.id do
+      assign(
+        socket,
+        :form,
+        socket |> current_run_form_params() |> Map.put("workspace", workspace.path) |> to_form()
+      )
+    else
+      socket
+    end
+  end
+
+  defp clear_deleted_workspace_selection(socket, deleted_workspace_id) do
+    if form_value(socket.assigns.form, :workspace_id) == deleted_workspace_id do
+      defaults = default_run_params()
+
+      assign(
+        socket,
+        :form,
+        socket
+        |> current_run_form_params()
+        |> Map.put("workspace_id", "")
+        |> Map.put("workspace", defaults["workspace"])
+        |> to_form()
+      )
+    else
+      socket
+    end
+  end
+
+  defp current_run_form_params(socket) do
+    Map.new(default_run_params(), fn {key, _default} ->
+      {key, form_value(socket.assigns.form, String.to_existing_atom(key))}
+    end)
+  end
+
+  defp refresh_workspace_assigns(socket) do
+    workspaces =
+      Workspaces.list_workspaces()
+      |> attach_workspace_usage()
+
+    socket
+    |> assign(:workspaces, workspaces)
+    |> assign(:workspace_index, Map.new(workspaces, &{&1.path, &1}))
+    |> assign(:workspace_options, workspace_options(workspaces))
+  end
+
+  defp attach_workspace_usage(workspaces) do
+    active_counts =
+      Runs.list_runs()
+      |> Enum.frequencies_by(& &1.workspace)
+
+    archived_counts =
+      Runs.list_archived_runs()
+      |> Enum.frequencies_by(& &1.workspace)
+
+    Enum.map(workspaces, fn workspace ->
+      workspace
+      |> Map.put(:path_state, workspace_path_state(workspace.path))
+      |> Map.put(:git_branch, workspace_git_branch(workspace.path))
+      |> Map.put(:active_run_count, Map.get(active_counts, workspace.path, 0))
+      |> Map.put(:archived_run_count, Map.get(archived_counts, workspace.path, 0))
+    end)
+  end
+
+  defp workspace_path_state(path) do
+    if File.dir?(path), do: :ready, else: :missing
+  end
+
+  defp workspace_git_branch(path) do
+    head_path = Path.join([path, ".git", "HEAD"])
+
+    with true <- File.regular?(head_path),
+         {:ok, head} <- File.read(head_path) do
+      parse_git_head(head)
+    else
+      _ -> nil
+    end
+  end
+
+  defp parse_git_head("ref: refs/heads/" <> branch) do
+    branch
+    |> String.trim()
+    |> then(fn
+      "" -> nil
+      branch -> branch
+    end)
+  end
+
+  defp parse_git_head(head) when is_binary(head) do
+    if String.trim(head) == "", do: nil, else: "detached"
+  end
+
+  defp workspace_options(workspaces) do
+    Enum.map(workspaces, fn workspace ->
+      {"#{workspace.name} · #{workspace.path}", workspace.id}
+    end)
+  end
+
+  defp selected_workspace_summary(_workspaces, ""), do: nil
+  defp selected_workspace_summary(_workspaces, nil), do: nil
+
+  defp selected_workspace_summary(workspaces, id) do
+    Enum.find(workspaces, &(&1.id == id))
+  end
+
+  defp workspace_path_badge_class(%{path_state: :ready}) do
+    "inline-flex h-6 items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 text-xs font-semibold text-emerald-700"
+  end
+
+  defp workspace_path_badge_class(_workspace) do
+    "inline-flex h-6 items-center rounded-md border border-rose-200 bg-rose-50 px-2 text-xs font-semibold text-rose-700"
+  end
+
+  defp workspace_path_label(%{path_state: :ready}), do: "Ready"
+  defp workspace_path_label(_workspace), do: "Missing"
+
+  defp workspace_branch_label(%{git_branch: branch}) when is_binary(branch),
+    do: "Branch #{branch}"
+
+  defp workspace_branch_label(_workspace), do: "No git branch"
+
+  defp workspace_usage_label(workspace) do
+    active_count = Map.get(workspace, :active_run_count, 0)
+    archived_count = Map.get(workspace, :archived_run_count, 0)
+
+    "#{pluralize_count(active_count, "active run")} · #{pluralize_count(archived_count, "archived run")}"
+  end
+
+  defp run_workspace_identity_label(%{saved?: true}), do: "Saved workspace"
+  defp run_workspace_identity_label(_workspace), do: "Manual path"
+
+  defp run_workspace_state_label(%{path_state: :ready}), do: "Ready"
+  defp run_workspace_state_label(%{path_state: :missing}), do: "Missing"
+  defp run_workspace_state_label(_workspace), do: nil
+
+  defp run_workspace_saved_name(%{name: name}) when is_binary(name), do: name
+  defp run_workspace_saved_name(_workspace), do: nil
+
+  defp run_workspace_badge_label(workspace) do
+    [run_workspace_identity_label(workspace), run_workspace_state_label(workspace)]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  defp run_workspace_badge_class(%{path_state: :ready}) do
+    "inline-flex shrink-0 items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-emerald-700"
+  end
+
+  defp run_workspace_badge_class(%{path_state: :missing}) do
+    "inline-flex shrink-0 items-center rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-rose-700"
+  end
+
+  defp run_workspace_badge_class(_workspace) do
+    "inline-flex shrink-0 items-center rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-600"
+  end
+
+  defp run_workspace_badge_title(%{saved?: false, path: path}) do
+    "Manual path: #{path}"
+  end
+
+  defp run_workspace_badge_title(%{saved?: true} = workspace) do
+    "#{workspace.name}: #{workspace.path}"
+  end
+
+  defp pluralize_count(1, singular), do: "1 #{singular}"
+  defp pluralize_count(count, "recovery"), do: "#{count} recoveries"
+  defp pluralize_count(count, singular), do: "#{count} #{singular}s"
+
+  defp reset_workspace_form(socket) do
+    socket
+    |> assign(:workspace_form, to_form(default_workspace_params(), as: :workspace_config))
+    |> assign(:workspace_error, nil)
+    |> assign(:editing_workspace_id, nil)
+  end
+
+  defp workspace_form_params(workspace) do
+    %{
+      "id" => workspace.id,
+      "name" => workspace.name,
+      "path" => workspace.path
+    }
+  end
+
+  defp agent_config_attrs(params) do
+    with {:ok, env} <- parse_env(Map.get(params, "env_text", "")) do
+      {:ok,
+       %{
+         "key" => Map.get(params, "key", ""),
+         "executable" => Map.get(params, "executable", ""),
+         "args" => parse_args(Map.get(params, "args_text", "")),
+         "cwd" => Map.get(params, "cwd", ""),
+         "env" => env
+       }}
+    end
+  end
+
+  defp save_agent_config(%{"id" => id}, attrs) when is_binary(id) and id != "" do
+    case Agents.get_agent_config(id) do
+      nil -> {:missing, "That agent setup was already deleted."}
+      agent_config -> Agents.update_agent_config(agent_config, attrs)
+    end
+  end
+
+  defp save_agent_config(_params, attrs), do: Agents.create_agent_config(attrs)
+
+  defp refresh_agent_config_assigns(socket) do
+    agent_configs = Agents.list_agent_configs()
+    agent_keys = Enum.map(agent_configs, & &1.key)
+
+    socket
+    |> assign(:agent_options, Agents.available())
+    |> assign(:agent_configs, agent_configs)
+    |> assign(:agent_inventory, agent_inventory_by_key())
+    |> assign(:agent_probe_reports, Agents.accepted_probe_reports_by_agent(agent_keys))
+    |> assign(:agent_capability_gap_reports, Agents.capability_gap_reports_by_agent(agent_keys))
+  end
+
+  defp agent_inventory_by_key do
+    File.cwd!()
+    |> AgentProbe.agent_inventory()
+    |> Map.new(&{&1.agent, &1})
+  end
+
+  defp reset_agent_config_form(socket) do
+    socket
+    |> assign(:agent_config_form, to_form(default_agent_config_params(), as: :agent_config))
+    |> assign(:agent_config_error, nil)
+    |> assign(:editing_agent_config_id, nil)
+  end
+
+  defp agent_config_form_params(agent_config) do
+    %{
+      "id" => agent_config.id,
+      "key" => agent_config.key,
+      "executable" => agent_config.executable,
+      "args_text" => agent_config_args_text(agent_config),
+      "cwd" => agent_config.cwd || "",
+      "env_text" => agent_config_env_text(agent_config)
+    }
+  end
+
+  defp agent_config_args_text(agent_config) do
+    agent_config.args
+    |> case do
+      %{"items" => items} when is_list(items) -> items
+      _ -> []
+    end
+    |> Enum.join("\n")
+  end
+
+  defp agent_config_env_text(agent_config) do
+    agent_config.env
+    |> case do
+      env when is_map(env) -> env
+      _ -> %{}
+    end
+    |> Enum.sort_by(fn {key, _value} -> key end)
+    |> Enum.map_join("\n", fn {key, value} -> "#{key}=#{value}" end)
+  end
+
+  defp agent_config_cwd_scope_label(%{cwd: nil}), do: "cwd app default"
+  defp agent_config_cwd_scope_label(%{cwd: ""}), do: "cwd app default"
+  defp agent_config_cwd_scope_label(%{cwd: cwd}), do: "cwd #{cwd}"
+
+  defp agent_config_env_scope_label(agent_config) do
+    agent_config.env
+    |> env_keys()
+    |> env_scope_label()
+  end
+
+  defp agent_readiness_env_scope_label(%{env_keys: keys}) when is_list(keys) do
+    keys
+    |> normalize_env_keys()
+    |> env_scope_label()
+  end
+
+  defp agent_readiness_env_scope_label(_readiness), do: "env unknown"
+
+  defp agent_config_env_auth_label(agent_config) do
+    agent_config
+    |> agent_config_env()
+    |> Map.keys()
+    |> env_auth_label()
+  end
+
+  defp agent_readiness_env_auth_label(%{env_keys: keys}) when is_list(keys) do
+    env_auth_label(keys)
+  end
+
+  defp agent_readiness_env_auth_label(_readiness), do: "Auth unknown"
+
+  defp agent_config_env_auth_class(agent_config) do
+    agent_config
+    |> agent_config_env()
+    |> Map.keys()
+    |> env_auth_class()
+  end
+
+  defp agent_readiness_env_auth_class(%{env_keys: keys}) when is_list(keys) do
+    env_auth_class(keys)
+  end
+
+  defp agent_readiness_env_auth_class(_readiness),
+    do: badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+
+  defp agent_config_env_auth_reason(agent_config) do
+    agent_config
+    |> agent_config_env()
+    |> Map.keys()
+    |> env_auth_reason("setup views and launch evidence")
+  end
+
+  defp agent_readiness_env_auth_reason(%{env_keys: keys}) when is_list(keys) do
+    env_auth_reason(keys, "launch evidence")
+  end
+
+  defp agent_readiness_env_auth_reason(_readiness), do: "Agent auth scope is unknown."
+
+  defp env_keys(env) when is_map(env), do: Map.keys(env) |> normalize_env_keys()
+  defp env_keys(_env), do: []
+
+  defp normalize_env_keys(keys) do
+    keys |> Enum.map(&to_string/1) |> Enum.sort()
+  end
+
+  defp env_scope_label([]), do: "env none"
+  defp env_scope_label(keys), do: "env keys #{Enum.join(keys, ", ")}"
+
+  defp env_auth_label(keys) do
+    keys = normalize_env_keys(keys)
+
+    cond do
+      keys == [] -> "No auth env"
+      Enum.any?(keys, &credential_env_key?/1) -> "Credential env"
+      true -> "Plain env"
+    end
+  end
+
+  defp env_auth_class(keys) do
+    keys = normalize_env_keys(keys)
+
+    cond do
+      keys == [] ->
+        badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+
+      Enum.any?(keys, &credential_env_key?/1) ->
+        badge_class("border-amber-200 bg-amber-50 text-amber-700")
+
+      true ->
+        badge_class("border-sky-200 bg-sky-50 text-sky-700")
+    end
+  end
+
+  defp env_auth_reason(keys, hidden_surface) do
+    keys = normalize_env_keys(keys)
+    credential_keys = Enum.filter(keys, &credential_env_key?/1)
+
+    cond do
+      keys == [] ->
+        "No environment variables will be injected into this agent."
+
+      credential_keys != [] ->
+        "Credential-like keys will be injected: #{Enum.join(credential_keys, ", ")}. Values stay hidden in Haven's #{hidden_surface}."
+
+      true ->
+        "Environment variable names will be injected into this agent; values stay hidden in Haven's #{hidden_surface}."
+    end
+  end
+
+  defp agent_config_env_substitution_label(agent_config) do
+    env = agent_config_env(agent_config)
+
+    cond do
+      env == %{} ->
+        "No env substitution"
+
+      Enum.any?(env, fn {_key, value} -> String.contains?(value, "{workspace}") end) ->
+        "Uses workspace env"
+
+      true ->
+        "Static env"
+    end
+  end
+
+  defp agent_config_env(agent_config) do
+    case agent_config.env do
+      env when is_map(env) ->
+        Map.new(env, fn {key, value} -> {to_string(key), to_string(value)} end)
+
+      _env ->
+        %{}
+    end
+  end
+
+  defp credential_env_key?(key) do
+    key = String.upcase(to_string(key))
+
+    Enum.any?(["TOKEN", "SECRET", "KEY", "AUTH", "PASSWORD", "CREDENTIAL"], fn marker ->
+      String.contains?(key, marker)
+    end)
+  end
+
+  defp parse_args(text) do
+    text
+    |> String.split("\n")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp parse_env(text) do
+    text
+    |> String.split("\n")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.reduce_while({:ok, %{}}, fn line, {:ok, env} ->
+      case String.split(line, "=", parts: 2) do
+        [key, value] ->
+          key = String.trim(key)
+
+          if String.match?(key, @env_name_regex) do
+            {:cont, {:ok, Map.put(env, key, String.trim(value))}}
+          else
+            {:halt, {:error, "Environment keys must use shell-safe names like API_TOKEN"}}
+          end
+
+        _ ->
+          {:halt, {:error, "Environment lines must use KEY=value"}}
+      end
+    end)
+  end
+
+  defp form_error(changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {message, _opts} -> message end)
+    |> Enum.map(fn {field, messages} -> "#{field} #{Enum.join(messages, ", ")}" end)
+    |> Enum.join("; ")
+  end
+
+  defp status_class("waiting"), do: badge_class("border-amber-200 bg-amber-50 text-amber-700")
+  defp status_class("running"), do: badge_class("border-sky-200 bg-sky-50 text-sky-700")
+  defp status_class("initializing"), do: badge_class("border-zinc-200 bg-zinc-50 text-zinc-700")
+  defp status_class("failed"), do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
+  defp status_class(_), do: badge_class("border-zinc-200 bg-white text-zinc-600")
+
+  defp archivable?(run), do: run.status in ["closed", "failed"]
+
+  defp run_attention_label(%{workspace_summary: %{path_state: :missing}}), do: "Workspace missing"
+  defp run_attention_label(%{status: "waiting"}), do: "Needs decision"
+  defp run_attention_label(%{status: "failed"}), do: "Needs recovery"
+  defp run_attention_label(run), do: if(interrupted_run?(run), do: "Interrupted")
+
+  defp run_attention_class(%{workspace_summary: %{path_state: :missing}}),
+    do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
+
+  defp run_attention_class(%{status: "waiting"}),
+    do: badge_class("border-amber-200 bg-amber-50 text-amber-700")
+
+  defp run_attention_class(%{status: "failed"}),
+    do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
+
+  defp run_attention_class(run) do
+    if interrupted_run?(run) do
+      badge_class("border-rose-200 bg-rose-50 text-rose-700")
+    end
+  end
+
+  defp run_action_label(%{archived_at: archived_at}) when not is_nil(archived_at), do: "Review"
+  defp run_action_label(%{workspace_summary: %{path_state: :missing}}), do: "Inspect"
+  defp run_action_label(%{status: "waiting"}), do: "Decide"
+  defp run_action_label(%{status: "failed"}), do: "Recover"
+  defp run_action_label(%{status: "closed"}), do: "Review"
+  defp run_action_label(run), do: if(interrupted_run?(run), do: "Reconnect", else: "Open")
+
+  defp run_next_step_label(%{archived_at: archived_at}) when not is_nil(archived_at),
+    do: "Review history"
+
+  defp run_next_step_label(%{workspace_summary: %{path_state: :missing}}),
+    do: "Restore workspace"
+
+  defp run_next_step_label(%{status: "waiting", live?: false}), do: "Reconnect before deciding"
+  defp run_next_step_label(%{status: "waiting"}), do: "Decide in thread"
+  defp run_next_step_label(%{status: "failed"}), do: "Continue, retry, or inspect failure"
+  defp run_next_step_label(%{status: "closed"}), do: "Review history"
+
+  defp run_next_step_label(%{status: status, live?: false})
+       when status in ["initializing", "running"],
+       do: "Reconnect run"
+
+  defp run_next_step_label(%{status: status}) when status in ["initializing", "running"],
+    do: "Watch or cancel"
+
+  defp run_next_step_label(%{status: "idle", live?: false}), do: "Reconnect to continue"
+  defp run_next_step_label(%{status: "idle"}), do: "Send next prompt"
+  defp run_next_step_label(_run), do: "Open thread"
+
+  defp run_operational_label(%{archived_at: archived_at}) when not is_nil(archived_at),
+    do: "Archived"
+
+  defp run_operational_label(%{workspace_summary: %{path_state: :missing}}),
+    do: "Workspace missing"
+
+  defp run_operational_label(%{status: "failed"}), do: "Needs recovery"
+  defp run_operational_label(%{status: "closed"}), do: "Read only"
+  defp run_operational_label(%{status: "waiting", live?: false}), do: "Stale decision"
+  defp run_operational_label(%{status: "waiting"}), do: "Waiting for you"
+
+  defp run_operational_label(%{status: status, live?: false})
+       when status in ["initializing", "running"],
+       do: "Interrupted"
+
+  defp run_operational_label(%{status: status}) when status in ["initializing", "running"],
+    do: "Live turn"
+
+  defp run_operational_label(%{status: "idle", live?: false}), do: "Not connected"
+  defp run_operational_label(%{status: "idle"}), do: "Ready"
+  defp run_operational_label(_run), do: nil
+
+  defp run_operational_hint(%{archived_at: archived_at}) when not is_nil(archived_at),
+    do: "Hidden from default triage; history is still inspectable."
+
+  defp run_operational_hint(%{workspace_summary: %{path_state: :missing}}),
+    do: "History is readable; restore the folder before reconnecting, deciding, or prompting."
+
+  defp run_operational_hint(%{status: "failed"}),
+    do: "Open the thread to continue, retry, or restart while preserving history."
+
+  defp run_operational_hint(%{status: "closed"}),
+    do: "History is available, but this run cannot accept more prompts."
+
+  defp run_operational_hint(%{status: "waiting", live?: false}),
+    do: "A durable decision is pending, but no agent process is attached."
+
+  defp run_operational_hint(%{status: "waiting"}),
+    do: "Open the thread to approve, deny, or cancel the pending request."
+
+  defp run_operational_hint(%{status: status, live?: false})
+       when status in ["initializing", "running"],
+       do: "The persisted turn is unfinished and needs reconnect handling."
+
+  defp run_operational_hint(%{status: status}) when status in ["initializing", "running"],
+    do: "The agent is working now; open the thread to watch or cancel it."
+
+  defp run_operational_hint(%{status: "idle", live?: false}),
+    do: "History is readable; reconnect before sending another prompt."
+
+  defp run_operational_hint(%{status: "idle"}),
+    do: "Connected and ready for the next prompt."
+
+  defp run_operational_hint(_run), do: nil
+
+  defp run_queue_button_class(filter, active_filter) do
+    [
+      "min-w-28 rounded-lg border px-3 py-2 text-left transition",
+      filter == active_filter && "border-zinc-950 bg-zinc-950 text-white",
+      filter != active_filter && "border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50"
+    ]
+  end
+
+  defp run_queue_caption("all", %{"unread_events" => unread_events}) when unread_events > 0 do
+    pluralize_count(unread_events, "new event")
+  end
+
+  defp run_queue_caption("all", _counts), do: "Open work"
+
+  defp run_queue_caption("updated", %{"unread_events" => unread_events})
+       when unread_events > 0 do
+    pluralize_count(unread_events, "new event")
+  end
+
+  defp run_queue_caption("updated", _counts), do: "New activity"
+
+  defp run_queue_caption("needs_you", counts) do
+    decisions = Map.get(counts, "needs_you_decisions", 0)
+    recoveries = Map.get(counts, "needs_you_recoveries", 0)
+    interruptions = Map.get(counts, "needs_you_interruptions", 0)
+    workspaces = Map.get(counts, "needs_you_workspaces", 0)
+
+    [
+      if(decisions > 0, do: pluralize_count(decisions, "decision")),
+      if(recoveries > 0, do: pluralize_count(recoveries, "recovery")),
+      if(interruptions > 0, do: pluralize_count(interruptions, "interruption")),
+      if(workspaces > 0, do: pluralize_count(workspaces, "workspace"))
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> "Action"
+      parts -> Enum.join(parts, " · ")
+    end
+  end
+
+  defp run_queue_caption("running", _counts), do: "In flight"
+  defp run_queue_caption("history", _counts), do: "Readable"
+  defp run_queue_caption("diagnostics", _counts), do: "Setup"
+  defp run_queue_caption("archived", _counts), do: "Stored"
+
+  defp inbox_attention_summary(%{
+         "needs_you" => count,
+         "needs_you_decisions" => decisions,
+         "needs_you_recoveries" => recoveries,
+         "needs_you_interruptions" => interruptions,
+         "needs_you_workspaces" => workspaces,
+         "unread_events" => unread_events,
+         "running" => running,
+         "history" => history
+       })
+       when count > 0 do
+    %{
+      filter: "needs_you",
+      icon: "hero-exclamation-circle",
+      label: needs_you_label(count),
+      detail:
+        [
+          attention_detail(decisions, "decision"),
+          attention_detail(recoveries, "recovery"),
+          attention_detail(interruptions, "interruption"),
+          attention_detail(workspaces, "workspace"),
+          attention_detail(unread_events, "new event"),
+          "#{running} running",
+          "#{history} history"
+        ]
+        |> Enum.reject(&is_nil/1)
+        |> Enum.join(" · ")
+    }
+  end
+
+  defp inbox_attention_summary(%{
+         "unread_runs" => unread_runs,
+         "unread_events" => unread_events,
+         "running" => running,
+         "history" => history
+       })
+       when unread_runs > 0 do
+    %{
+      filter: "updated",
+      icon: "hero-bell-alert",
+      label: "#{unread_runs} #{pluralize_word(unread_runs, "run")} updated",
+      detail:
+        [
+          attention_detail(unread_events, "new event"),
+          "#{running} running",
+          "#{history} history"
+        ]
+        |> Enum.reject(&is_nil/1)
+        |> Enum.join(" · ")
+    }
+  end
+
+  defp inbox_attention_summary(%{"running" => count, "history" => history}) when count > 0 do
+    %{
+      filter: "running",
+      icon: "hero-bolt",
+      label: "#{count} running",
+      detail: "#{history} history"
+    }
+  end
+
+  defp inbox_attention_summary(%{"history" => count}) when count > 0 do
+    %{
+      filter: "history",
+      icon: "hero-check-circle",
+      label: "Caught up",
+      detail: "#{count} #{pluralize_word(count, "run")} in history"
+    }
+  end
+
+  defp inbox_attention_summary(_counts) do
+    %{
+      filter: "all",
+      icon: "hero-inbox",
+      label: "No runs yet",
+      detail: "Ready when you are"
+    }
+  end
+
+  defp pluralize_word(1, word), do: word
+  defp pluralize_word(_count, word), do: "#{word}s"
+
+  defp attention_detail(0, _word), do: nil
+  defp attention_detail(count, word), do: pluralize_count(count, word)
+
+  defp needs_you_label(1), do: "1 run needs you"
+  defp needs_you_label(count), do: "#{count} runs need you"
+
+  defp inbox_page_title(%{"needs_you" => needs_you}) when needs_you > 0 do
+    "(#{needs_you}) Haven"
+  end
+
+  defp inbox_page_title(%{"unread_runs" => unread_runs}) when unread_runs > 0 do
+    "(#{unread_runs}) Haven"
+  end
+
+  defp inbox_page_title(_counts), do: "Haven"
+
+  defp maybe_push_attention_notification(socket, nil, _current), do: socket
+
+  defp maybe_push_attention_notification(socket, previous, current) do
+    if attention_increased?(previous, current) do
+      push_event(socket, "haven_attention_changed", attention_notification_payload(current, "/"))
+    else
+      socket
+    end
+  end
+
+  defp attention_increased?(previous, current) do
+    (current.needs_you > 0 and current.needs_you > previous.needs_you) or
+      (current.unread_events > 0 and current.unread_events > previous.unread_events) or
+      (current.unread_runs > 0 and current.unread_runs > previous.unread_runs)
+  end
+
+  defp attention_notification_payload(%{needs_you: needs_you} = counts, url)
+       when needs_you > 0 do
+    %{
+      title: "Haven: #{needs_you_label(needs_you)}",
+      body:
+        [
+          attention_detail(counts.decisions, "decision"),
+          attention_detail(counts.recoveries, "recovery"),
+          attention_detail(counts.interruptions, "interruption"),
+          attention_detail(counts.workspaces, "workspace"),
+          attention_detail(counts.unread_events, "new event")
+        ]
+        |> Enum.reject(&is_nil/1)
+        |> Enum.join(" · "),
+      url: url,
+      urgency: "needs_you"
+    }
+  end
+
+  defp attention_notification_payload(%{unread_runs: unread_runs} = counts, url) do
+    %{
+      title: "Haven: #{pluralize_count(unread_runs, "updated run")}",
+      body: attention_detail(counts.unread_events, "new event") || "New activity",
+      url: url,
+      urgency: "updated"
+    }
+  end
+
+  defp badge_class(tone) do
+    "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium " <>
+      tone
+  end
+
+  defp latest_activity(nil), do: "No events yet"
+
+  defp latest_activity(%{latest_event: latest_event} = run) do
+    latest_activity(latest_event, Map.get(run, :latest_permission_request))
+  end
+
+  defp latest_activity(event), do: latest_activity(event, nil)
+
+  defp latest_activity(%{type: "permission_requested", payload: payload}, _request) do
+    title = get_in(payload, ["toolCall", "title"]) || "permission requested"
+    "Needs decision: #{title}"
+  end
+
+  defp latest_activity(
+         %{type: "permission_resolved", payload: %{"option_id" => option_id}},
+         request
+       ) do
+    "Decision recorded: #{option_id}#{permission_request_suffix(request)}"
+  end
+
+  defp latest_activity(
+         %{type: "permission_resolution_ignored", payload: %{"option_id" => option_id}},
+         request
+       ) do
+    "Stale decision ignored: #{option_id}#{permission_request_suffix(request)}"
+  end
+
+  defp latest_activity(%{type: "agent_message_chunk", payload: %{"text" => text}}, _request) do
+    "Agent: #{one_line(text)}"
+  end
+
+  defp latest_activity(%{type: "user_message", payload: %{"text" => text}}, _request) do
+    "You: #{one_line(text)}"
+  end
+
+  defp latest_activity(%{type: "file_read_succeeded", payload: %{"path" => path}}, _request) do
+    "Read file: #{path}"
+  end
+
+  defp latest_activity(%{type: "file_write_succeeded", payload: %{"path" => path}}, _request) do
+    "Wrote file: #{path}"
+  end
+
+  defp latest_activity(%{type: "file_write_denied", payload: %{"path" => path}}, _request) do
+    "File write denied: #{path}"
+  end
+
+  defp latest_activity(%{type: "terminal_created", payload: %{"command" => command}}, _request) do
+    "Started terminal: #{command}"
+  end
+
+  defp latest_activity(
+         %{type: "terminal_output_succeeded", payload: %{"command" => command}},
+         _request
+       ) do
+    "Terminal output: #{command}"
+  end
+
+  defp latest_activity(%{type: "turn_finished"}, _request), do: "Turn finished"
+
+  defp latest_activity(%{type: "turn_failed", payload: payload}, _request),
+    do: failure_activity("Turn failed", payload)
+
+  defp latest_activity(
+         %{type: "turn_continue_requested", payload: %{"prompt" => prompt}},
+         _request
+       ) do
+    "Continue requested: #{String.slice(prompt, 0, 80)}"
+  end
+
+  defp latest_activity(%{type: "turn_continue_requested"}, _request),
+    do: "Continue requested"
+
+  defp latest_activity(%{type: "turn_cancelled"}, _request), do: "Turn cancelled"
+  defp latest_activity(%{type: "agent_process_exited"}, _request), do: "Agent process exited"
+
+  defp latest_activity(%{type: "agent_start_failed", payload: payload}, _request),
+    do: failure_activity("Agent start failed", payload)
+
+  defp latest_activity(%{type: "agent_protocol_failed", payload: payload}, _request),
+    do: failure_activity("Agent protocol failed", payload)
+
+  defp latest_activity(%{type: "agent_session_started"}, _request), do: "Agent session started"
+  defp latest_activity(%{type: "agent_initialized"}, _request), do: "Agent initialized"
+  defp latest_activity(%{type: "run_created"}, _request), do: "Run created"
+  defp latest_activity(%{type: type}, _request), do: event_label(type)
+
+  defp failure_activity(label, payload) do
+    case failure_reason(payload) do
+      nil -> label
+      reason -> "#{label}: #{reason}"
+    end
+  end
+
+  defp failure_reason(payload) when is_map(payload) do
+    case payload["reason"] || payload["error"] do
+      reason when is_binary(reason) -> one_line(reason)
+      nil -> nil
+      reason -> inspect(reason)
+    end
+  end
+
+  defp failure_reason(_payload), do: nil
+
+  defp permission_request_suffix(nil), do: ""
+
+  defp permission_request_suffix(request) do
+    title = get_in(request.payload, ["toolCall", "title"])
+
+    if is_binary(title) and title != "" do
+      " for #{title}"
+    else
+      ""
+    end
+  end
+
+  defp latest_activity_time(nil), do: nil
+
+  defp latest_activity_time(%{inserted_at: inserted_at}),
+    do: Calendar.strftime(inserted_at, "%H:%M:%S")
+
+  defp run_row_time(%DateTime{} = date_time), do: Calendar.strftime(date_time, "%H:%M:%S")
+  defp run_row_time(_date_time), do: "unknown"
+
+  defp one_line(text) when is_binary(text) do
+    text
+    |> String.replace(~r/\s+/, " ")
+    |> String.trim()
+  end
+
+  defp event_label(type) do
+    type
+    |> String.replace("_", " ")
+    |> String.capitalize()
+  end
+
+  defp form_value(form, field) do
+    form[field].value || default_run_params()[Atom.to_string(field)] || ""
+  end
+
+  defp new_run_start_block_reason(selected_workspace, workspace_value, selected_readiness) do
+    cond do
+      workspace_missing?(selected_workspace, workspace_value) ->
+        "Restore the workspace path before starting a run."
+
+      agent_launch_blocked?(selected_readiness) ->
+        agent_launch_summary(selected_readiness)
+
+      true ->
+        nil
+    end
+  end
+
+  defp workspace_missing?(%{path_state: :missing}, _workspace_value), do: true
+  defp workspace_missing?(%{path_state: :ready}, _workspace_value), do: false
+
+  defp workspace_missing?(_selected_workspace, workspace_value) do
+    workspace_value
+    |> workspace_path_from_form()
+    |> File.dir?()
+    |> Kernel.not()
+  end
+
+  defp workspace_path_from_form(workspace_value) when is_binary(workspace_value) do
+    workspace_value
+    |> String.trim()
+    |> case do
+      "" -> File.cwd!()
+      path -> Path.expand(path)
+    end
+  end
+
+  defp workspace_path_from_form(_workspace_value), do: File.cwd!()
+
+  defp agent_launch_blocked?(%{status: "invalid"}), do: true
+  defp agent_launch_blocked?(_readiness), do: false
+
+  defp agent_evidence_label(_inventory, reports) when reports != [] do
+    pluralize_count(length(reports), "accepted probe")
+  end
+
+  defp agent_evidence_label(%{real_agent_candidate: true}, _reports), do: "Static candidate"
+  defp agent_evidence_label(%{status: "invalid"}, _reports), do: "Invalid command"
+  defp agent_evidence_label(_inventory, _reports), do: "Local harness"
+
+  defp agent_evidence_class(_inventory, reports) when reports != [],
+    do: badge_class("border-emerald-200 bg-emerald-50 text-emerald-700")
+
+  defp agent_evidence_class(%{real_agent_candidate: true}, _reports),
+    do: badge_class("border-sky-200 bg-sky-50 text-sky-700")
+
+  defp agent_evidence_class(%{status: "invalid"}, _reports),
+    do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
+
+  defp agent_evidence_class(_inventory, _reports),
+    do: badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+
+  defp agent_evidence_reason(_inventory, reports) when reports != [] do
+    "validated committed reports prove accepted real-agent evidence"
+  end
+
+  defp agent_evidence_reason(%{real_agent_rejection_reasons: []}, _reports) do
+    "command resolves; not ACP evidence until preflight or a generated probe passes"
+  end
+
+  defp agent_evidence_reason(%{real_agent_rejection_reasons: reasons}, _reports)
+       when is_list(reasons),
+       do: Enum.join(reasons, "; ")
+
+  defp agent_evidence_reason(_inventory, _reports), do: "agent readiness unknown"
+
+  defp agent_preflight_label(%{latest_preflight: %{status: "passed"}}),
+    do: "ACP preflight passed"
+
+  defp agent_preflight_label(%{latest_preflight: %{status: "failed"}}),
+    do: "ACP preflight failed"
+
+  defp agent_preflight_label(%{latest_preflight: %{status: "unknown"}}),
+    do: "ACP preflight unclear"
+
+  defp agent_preflight_label(%{real_agent_candidate: true}), do: "ACP preflight not run"
+  defp agent_preflight_label(_inventory), do: nil
+
+  defp agent_preflight_class(%{latest_preflight: %{status: "passed"}}),
+    do: badge_class("border-emerald-200 bg-emerald-50 text-emerald-700")
+
+  defp agent_preflight_class(%{latest_preflight: %{status: "failed"}}),
+    do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
+
+  defp agent_preflight_class(%{latest_preflight: %{status: "unknown"}}),
+    do: badge_class("border-amber-200 bg-amber-50 text-amber-800")
+
+  defp agent_preflight_class(_inventory),
+    do: badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+
+  defp agent_preflight_reason(%{latest_preflight: %{status: "passed", run_id: run_id}}) do
+    "Latest durable preflight passed ACP initialize/session handshake in run #{run_id}."
+  end
+
+  defp agent_preflight_reason(%{
+         latest_preflight: %{status: "failed", run_id: run_id, failure_reason: reason}
+       })
+       when is_binary(reason) do
+    "Latest durable preflight failed in run #{run_id}: #{reason}"
+  end
+
+  defp agent_preflight_reason(%{latest_preflight: %{status: "failed", run_id: run_id}}) do
+    "Latest durable preflight failed in run #{run_id}."
+  end
+
+  defp agent_preflight_reason(%{latest_preflight: %{status: "unknown", run_id: run_id}}) do
+    "Latest durable preflight run #{run_id} did not clearly pass or fail."
+  end
+
+  defp agent_preflight_reason(%{real_agent_candidate: true}) do
+    "Run mix haven.agent_probe --list-agents --preflight before treating this command as ACP-ready."
+  end
+
+  defp agent_preflight_reason(_inventory), do: nil
+
+  defp agent_probe_report_label(report) do
+    report.path
+    |> Path.relative_to(File.cwd!())
+    |> then(fn path ->
+      "#{path} · #{pluralize_count(length(report.expected_events), "event")} · #{pluralize_count(length(report.expected_event_fields), "field")}"
+    end)
+  end
+
+  defp agent_evidence_detail_summary(reports, gaps, probes, probe_block_notice) do
+    [
+      evidence_summary_part(reports, "proof"),
+      evidence_summary_part(gaps, "gap"),
+      evidence_summary_part(probes, "probe"),
+      if(probe_block_notice, do: "probe blocked", else: nil)
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  defp evidence_summary_part([], _label), do: nil
+  defp evidence_summary_part(items, label), do: pluralize_count(length(items), label)
+
+  defp capability_gap_class do
+    badge_class("border-amber-200 bg-amber-50 text-amber-800")
+  end
+
+  defp capability_gap_label([]), do: nil
+
+  defp capability_gap_label(reports) do
+    pluralize_count(length(reports), "capability gap")
+  end
+
+  defp capability_gap_reason([]), do: nil
+
+  defp capability_gap_reason(reports) do
+    "real-agent probes observed generic ACP tool calls, not Haven-mediated #{capability_gap_family_label(reports)} handling"
+  end
+
+  defp capability_gap_family_label(reports) do
+    reports
+    |> capability_gap_families()
+    |> case do
+      [] -> "capability"
+      families -> Enum.join(families, "/")
+    end
+  end
+
+  defp capability_gap_families(reports) do
+    exact_families =
+      reports
+      |> Enum.flat_map(&Map.get(&1, :unsupported_client_capabilities, []))
+      |> Enum.map(fn
+        %{capability: capability} -> capability
+        %{"capability" => capability} -> capability
+        _capability -> nil
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    if exact_families == [] do
+      reports
+      |> Enum.flat_map(& &1.missing_expected_events)
+      |> Enum.filter(&client_capability_event?/1)
+      |> Enum.map(fn
+        "file_read" <> _rest -> "fs/read_text_file"
+        "file_write" <> _rest -> "fs/write_text_file"
+        "file_" <> _rest -> "fs"
+        "terminal_" <> _rest -> "terminal"
+        _event -> nil
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+      |> Enum.sort()
+    else
+      exact_families
+    end
+  end
+
+  defp capability_gap_report_label(report) do
+    capability_label =
+      report
+      |> List.wrap()
+      |> capability_gap_family_label()
+
+    report.path
+    |> Path.relative_to(File.cwd!())
+    |> then(fn path ->
+      "#{path} · #{capability_label} · missing #{Enum.join(report.missing_expected_events, ", ")}"
+    end)
+  end
+
+  defp client_capability_event?(type) when is_binary(type) do
+    String.starts_with?(type, "file_") or String.starts_with?(type, "terminal_")
+  end
+
+  defp client_capability_event?(_type), do: false
+
+  defp policy_label("allow"), do: "Allow"
+  defp policy_label("deny"), do: "Deny"
+  defp policy_label(_ask), do: "Ask"
+
+  defp policy_scope_items(scopes) when is_list(scopes) and scopes != [], do: scopes
+  defp policy_scope_items(_scopes), do: ["All workspace paths"]
+
+  defp policy_scope_class(scopes) when is_list(scopes) and scopes != [] do
+    badge_class("border-sky-200 bg-sky-50 text-sky-700")
+  end
+
+  defp policy_scope_class(_scopes) do
+    badge_class("border-amber-200 bg-amber-50 text-amber-800")
+  end
+
+  defp policy_scope_id(scope) do
+    scope
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/, "-")
+    |> String.trim("-")
+    |> case do
+      "" -> "scope"
+      value -> value
+    end
+  end
+
+  defp policy_badge_class(decision) do
+    case decision do
+      "allow" -> badge_class("border-emerald-200 bg-emerald-50 text-emerald-700")
+      "deny" -> badge_class("border-rose-200 bg-rose-50 text-rose-700")
+      _ask -> badge_class("border-amber-200 bg-amber-50 text-amber-800")
+    end
+  end
+
+  defp agent_launch_label(%{status: "ready"}), do: "Launch ready"
+  defp agent_launch_label(%{status: "invalid"}), do: "Launch blocked"
+  defp agent_launch_label(_inventory), do: "Launch unknown"
+
+  defp agent_launch_class(%{status: "ready"}),
+    do: badge_class("border-emerald-200 bg-emerald-50 text-emerald-700")
+
+  defp agent_launch_class(%{status: "invalid"}),
+    do: badge_class("border-rose-200 bg-rose-50 text-rose-700")
+
+  defp agent_launch_class(_inventory),
+    do: badge_class("border-zinc-200 bg-zinc-50 text-zinc-600")
+
+  defp agent_launch_summary(%{status: "ready"} = readiness) do
+    args = Map.get(readiness, :args, [])
+    env_keys = Map.get(readiness, :env_keys, [])
+
+    [
+      "exec #{Path.basename(Map.get(readiness, :executable, "unknown"))}",
+      pluralize_count(length(args), "arg"),
+      agent_launch_cwd_label(Map.get(readiness, :cwd)),
+      pluralize_count(length(env_keys), "env key")
+    ]
+    |> Enum.join(" · ")
+  end
+
+  defp agent_launch_summary(%{status: "invalid", error: error}) when is_binary(error) do
+    "Command cannot be resolved: #{error}"
+  end
+
+  defp agent_launch_summary(_inventory), do: "Command readiness has not been checked yet."
+
+  defp agent_launch_cwd_label(nil), do: "cwd app default"
+  defp agent_launch_cwd_label(cwd), do: "cwd #{Path.basename(cwd)}"
+
+  defp agent_probe_block_notice(%{latest_preflight: %{status: "failed"}}) do
+    "Proof commands are withheld because the latest durable ACP preflight failed. Rerun preflight after fixing initialize/session before running full probes."
+  end
+
+  defp agent_probe_block_notice(_inventory), do: nil
+
+  defp agent_probe_commands(%{latest_preflight: %{status: "failed"}}), do: []
+
+  defp agent_probe_commands(%{real_agent_candidate: true, agent: agent} = inventory) do
+    redaction_args = agent_probe_redaction_args(inventory)
+
+    [
+      %{
+        id: "basic",
+        label: "Basic boot proof",
+        command:
+          probe_command(
+            agent,
+            [
+              "--expect-event",
+              "agent_initialized",
+              "--expect-event",
+              "agent_session_started",
+              "--expect-event",
+              "turn_finished",
+              "--report",
+              "docs/probes/#{agent}-basic.json"
+            ] ++ redaction_args
+          )
+      },
+      %{
+        id: "terminal-denied",
+        label: "Capability guard proof",
+        command:
+          probe_command(
+            agent,
+            [
+              "--prompt",
+              "run mix --version through the client terminal capability",
+              "--terminal-create-policy",
+              "deny",
+              "--expect-event",
+              "terminal_create_requested",
+              "--expect-event",
+              "capability_policy_applied",
+              "--expect-event",
+              "terminal_create_denied",
+              "--expect-event",
+              "turn_finished",
+              "--expect-event-field",
+              "terminal_create_requested:payload.command=mix",
+              "--expect-event-field",
+              "capability_policy_applied:payload.decision=deny",
+              "--report",
+              "docs/probes/#{agent}-terminal-denied.json",
+              "--failure-report",
+              "docs/probe-failures/#{agent}-terminal-denied-mediated-negative.json"
+            ] ++ redaction_args
+          )
+      },
+      %{
+        id: "file-read",
+        label: "File read proof",
+        command:
+          probe_command(
+            agent,
+            [
+              "--prompt",
+              "read README.md through the client file-read capability",
+              "--file-read-policy",
+              "allow",
+              "--file-read-paths",
+              "README.md,docs",
+              "--expect-event",
+              "file_read_requested",
+              "--expect-event",
+              "capability_policy_applied",
+              "--expect-event",
+              "file_read_succeeded",
+              "--expect-event",
+              "turn_finished",
+              "--expect-event-field",
+              "file_read_requested:payload.path=README.md",
+              "--expect-event-field",
+              "file_read_succeeded:payload.path=README.md",
+              "--report",
+              "docs/probes/#{agent}-file-read.json",
+              "--failure-report",
+              "docs/probe-failures/#{agent}-file-mediated-negative.json"
+            ] ++ redaction_args
+          )
+      },
+      %{
+        id: "file-write-approval",
+        label: "File write approval proof",
+        command:
+          probe_command(
+            agent,
+            [
+              "--prompt",
+              "write Haven probe sentinel to notes/haven-probe.txt through the client file-write capability",
+              "--file-write-policy",
+              "ask",
+              "--file-write-paths",
+              "notes",
+              "--resolve-permissions",
+              "allow",
+              "--expect-event",
+              "file_write_requested",
+              "--expect-event",
+              "permission_requested",
+              "--expect-event",
+              "permission_resolved",
+              "--expect-event",
+              "file_write_succeeded",
+              "--expect-event",
+              "turn_finished",
+              "--expect-event-field",
+              "file_write_requested:payload.path=notes/haven-probe.txt",
+              "--expect-event-field",
+              "file_write_succeeded:payload.path=notes/haven-probe.txt",
+              "--report",
+              "docs/probes/#{agent}-file-write-approval.json",
+              "--failure-report",
+              "docs/probe-failures/#{agent}-file-write-mediated-negative.json"
+            ] ++ redaction_args
+          )
+      },
+      %{
+        id: "terminal-approval",
+        label: "Terminal approval proof",
+        command:
+          probe_command(
+            agent,
+            [
+              "--prompt",
+              "run mix --version through the client terminal capability",
+              "--terminal-create-policy",
+              "ask",
+              "--resolve-permissions",
+              "allow",
+              "--expect-event",
+              "terminal_create_requested",
+              "--expect-event",
+              "permission_requested",
+              "--expect-event",
+              "permission_resolved",
+              "--expect-event",
+              "terminal_created",
+              "--expect-event",
+              "terminal_output_succeeded",
+              "--expect-event",
+              "terminal_released",
+              "--expect-event",
+              "turn_finished",
+              "--expect-event-field",
+              "terminal_create_requested:payload.command=mix",
+              "--expect-event-field",
+              "terminal_output_succeeded:payload.exit_status=0",
+              "--report",
+              "docs/probes/#{agent}-terminal-approval.json",
+              "--failure-report",
+              "docs/probe-failures/#{agent}-terminal-mediated-negative.json"
+            ] ++ redaction_args
+          )
+      },
+      %{
+        id: "long-output",
+        label: "Long output proof",
+        command:
+          probe_command(
+            agent,
+            [
+              "--prompt",
+              "write a structured summary of this workspace in at least 1200 characters",
+              "--expect-event",
+              "agent_initialized",
+              "--expect-event",
+              "agent_session_started",
+              "--expect-event",
+              "turn_finished",
+              "--timeout",
+              "120000",
+              "--expect-min-agent-output-chars",
+              "1200",
+              "--expect-min-agent-message-chunks",
+              "8",
+              "--report",
+              "docs/probes/#{agent}-long-output.json"
+            ] ++ redaction_args
+          )
+      },
+      %{
+        id: "load-concurrent",
+        label: "Concurrent load proof",
+        command:
+          probe_command(
+            agent,
+            [
+              "--prompt",
+              "summarize this workspace in one short sentence",
+              "--load-runs",
+              "3",
+              "--load-concurrency",
+              "3",
+              "--expect-event",
+              "agent_initialized",
+              "--expect-event",
+              "agent_session_started",
+              "--expect-event",
+              "turn_finished",
+              "--report",
+              "docs/probe-load/#{agent}-basic-concurrent-load.json"
+            ] ++ redaction_args
+          )
+      }
+    ]
+  end
+
+  defp agent_probe_commands(_inventory), do: []
+
+  defp agent_probe_redaction_args(%{env_keys: keys}) when is_list(keys) do
+    keys
+    |> Enum.map(&to_string/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.flat_map(&["--redact-env", &1])
+  end
+
+  defp agent_probe_redaction_args(_inventory), do: []
+
+  defp agent_probe_redaction_notice(%{env_keys: keys}) when is_list(keys) do
+    case agent_probe_redaction_args(%{env_keys: keys}) do
+      [] ->
+        nil
+
+      _args ->
+        "Generated probe commands include --redact-env for configured env keys. Add --redact for any stored or literal secret values that are not present in the shell environment."
+    end
+  end
+
+  defp agent_probe_redaction_notice(_inventory), do: nil
+
+  defp probe_command(agent, args) do
+    [
+      "mix",
+      "haven.agent_probe",
+      "--agent",
+      agent,
+      "--workspace",
+      File.cwd!(),
+      "--require-real-agent"
+      | args
+    ]
+    |> Enum.map_join(" ", &shell_arg/1)
+  end
+
+  defp agent_registry_command do
+    [
+      "mix",
+      "haven.agent_probe",
+      "--list-agents",
+      "--registry",
+      "--preflight",
+      "--proof-commands",
+      "--workspace",
+      File.cwd!()
+    ]
+    |> Enum.map_join(" ", &shell_arg/1)
+  end
+
+  defp agent_registry_save_command do
+    [
+      "mix",
+      "haven.agent_probe",
+      "--save-registry-agent",
+      "AGENT_ID",
+      "--workspace",
+      File.cwd!()
+    ]
+    |> Enum.map_join(" ", &shell_arg/1)
+  end
+
+  defp shell_arg(value) do
+    value = to_string(value)
+
+    if String.match?(value, ~r/^[A-Za-z0-9_.,:\/=@+-]+$/) do
+      value
+    else
+      "'#{String.replace(value, "'", "'\"'\"'")}'"
+    end
+  end
+
+  defp workspace_name(nil), do: "No workspace"
+  defp workspace_name(""), do: "No workspace"
+
+  defp workspace_name(path) do
+    case Path.basename(path) do
+      "" -> path
+      "/" -> path
+      name -> name
+    end
+  end
+
+  defp workspace_parent(nil), do: nil
+  defp workspace_parent(""), do: nil
+
+  defp workspace_parent(path) do
+    parent = Path.dirname(path)
+
+    if parent == path do
+      nil
+    else
+      parent
+    end
+  end
+
+  defp run_card(assigns) do
+    agent_inventory = Map.get(assigns, :agent_inventory, %{})
+    agent_probe_reports = Map.get(assigns, :agent_probe_reports, %{})
+    agent_capability_gap_reports = Map.get(assigns, :agent_capability_gap_reports, %{})
+
+    assigns =
+      assigns
+      |> assign_new(:show_archive, fn -> false end)
+      |> assign(:attention_label, run_attention_label(assigns.run))
+      |> assign(:operational_label, run_operational_label(assigns.run))
+      |> assign(:operational_hint, run_operational_hint(assigns.run))
+      |> assign(:agent_readiness, Map.get(agent_inventory, assigns.run.agent, %{}))
+      |> assign(:agent_reports, Map.get(agent_probe_reports, assigns.run.agent, []))
+      |> assign(
+        :agent_capability_gap_reports,
+        Map.get(agent_capability_gap_reports, assigns.run.agent, [])
+      )
+
+    ~H"""
+    <article
+      id={"run-#{@run.id}"}
+      class="border-b border-zinc-200 bg-white px-3 py-2.5 transition last:border-b-0 hover:bg-zinc-50 sm:px-4"
+    >
+      <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3">
+        <div class="min-w-0 space-y-1">
+          <h3 class="truncate text-sm font-semibold text-zinc-950">
+            <.link
+              id={"run-#{@run.id}-title-link"}
+              navigate={~p"/runs/#{@run.id}"}
+              class="hover:text-zinc-700"
+            >
+              {@run.title}
+            </.link>
+          </h3>
+
+          <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+            <span
+              id={"run-#{@run.id}-workspace"}
+              title={@run.workspace}
+              class="inline-flex min-w-0 max-w-full items-center gap-1 truncate"
+            >
+              <.icon name="hero-folder" class="size-3.5 shrink-0 text-zinc-400" />
+              <span class="truncate font-medium text-zinc-700">
+                {workspace_name(@run.workspace)}
+              </span>
+            </span>
+            <span
+              :if={workspace_parent(@run.workspace)}
+              id={"run-#{@run.id}-workspace-path"}
+              class="hidden min-w-0 truncate text-zinc-400 sm:inline"
+            >
+              {workspace_parent(@run.workspace)}
+            </span>
+            <span
+              id={"run-#{@run.id}-workspace-kind"}
+              class={run_workspace_badge_class(@run.workspace_summary)}
+              title={run_workspace_badge_title(@run.workspace_summary)}
+            >
+              {run_workspace_badge_label(@run.workspace_summary)}
+            </span>
+            <span class="text-zinc-300">/</span>
+            <span id={"run-#{@run.id}-agent"} class="truncate">{@run.agent}</span>
+            <span
+              :if={diagnostic_run?(@run)}
+              id={"run-#{@run.id}-purpose"}
+              class="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-sky-700"
+            >
+              Diagnostic
+            </span>
+          </div>
+
+          <p id={"run-#{@run.id}-latest-activity"} class="mt-1 truncate text-zinc-700">
+            {latest_activity(@run)}
+            <span :if={latest_activity_time(@run.latest_event)} class="text-zinc-400">
+              · {latest_activity_time(@run.latest_event)}
+            </span>
+            <span
+              :if={@run.unread_event_count > 0}
+              id={"run-#{@run.id}-unread"}
+              class="ml-1 inline-flex rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-sky-700"
+            >
+              {pluralize_count(@run.unread_event_count, "new event")}
+            </span>
+          </p>
+
+          <p
+            id={"run-#{@run.id}-row-times"}
+            class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-400"
+          >
+            <span id={"run-#{@run.id}-started-at"} class="inline-flex items-center gap-1">
+              <span class="font-medium text-zinc-500">Started</span>
+              <span class="font-mono">{run_row_time(@run.inserted_at)}</span>
+            </span>
+            <span aria-hidden="true">·</span>
+            <span id={"run-#{@run.id}-updated-at"} class="inline-flex items-center gap-1">
+              <span class="font-medium text-zinc-500">Activity</span>
+              <span class="font-mono">{run_activity_time(@run)}</span>
+            </span>
+          </p>
+
+          <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            <span
+              id={"run-#{@run.id}-next-step"}
+              class="inline-flex min-w-0 max-w-full items-center gap-1 text-zinc-700"
+            >
+              <span class="font-semibold text-zinc-950">Next</span>
+              <span class="text-zinc-400">·</span>
+              <span class="truncate">{run_next_step_label(@run)}</span>
+            </span>
+            <span
+              :if={@operational_label}
+              id={"run-#{@run.id}-operational-state"}
+              class="hidden min-w-0 max-w-full items-center gap-1 text-zinc-500 sm:inline-flex"
+            >
+              <span class="font-medium text-zinc-700">{@operational_label}</span>
+              <span :if={@operational_hint} class="hidden truncate sm:inline">
+                {" · "}{@operational_hint}
+              </span>
+            </span>
+          </div>
+
+          <div class="hidden flex-wrap gap-1 sm:flex">
+            <span id={"run-#{@run.id}-agent-launch"} class={agent_launch_class(@agent_readiness)}>
+              {agent_launch_label(@agent_readiness)}
+            </span>
+            <span
+              id={"run-#{@run.id}-agent-trust"}
+              class={agent_evidence_class(@agent_readiness, @agent_reports)}
+              title={agent_evidence_reason(@agent_readiness, @agent_reports)}
+            >
+              {agent_evidence_label(@agent_readiness, @agent_reports)}
+            </span>
+            <span
+              :if={@agent_capability_gap_reports != []}
+              id={"run-#{@run.id}-agent-capability-gaps"}
+              class={capability_gap_class()}
+              title={capability_gap_reason(@agent_capability_gap_reports)}
+            >
+              {pluralize_count(length(@agent_capability_gap_reports), "capability gap")}
+            </span>
+            <span
+              :if={@run.archived_at}
+              id={"run-#{@run.id}-archived-at"}
+              class="inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-500"
+            >
+              Archived {Calendar.strftime(@run.archived_at, "%Y-%m-%d")}
+            </span>
+          </div>
+        </div>
+
+        <div class="flex shrink-0 flex-col items-end gap-2">
+          <div class="flex flex-col items-end gap-1">
+            <span class={[status_class(@run.status), @attention_label && "hidden sm:inline-flex"]}>
+              {@run.status}
+            </span>
+            <span
+              :if={@attention_label}
+              id={"run-#{@run.id}-attention"}
+              class={run_attention_class(@run)}
+            >
+              {@attention_label}
+            </span>
+          </div>
+          <.link
+            id={"run-#{@run.id}-primary-action"}
+            navigate={~p"/runs/#{@run.id}"}
+            class="inline-flex h-8 items-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+          >
+            {run_action_label(@run)}
+          </.link>
+          <button
+            :if={@run.unread_event_count > 0}
+            id={"mark-run-read-#{@run.id}"}
+            type="button"
+            class="inline-flex h-8 items-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-950"
+            phx-click="mark_run_read"
+            phx-value-id={@run.id}
+          >
+            Mark read
+          </button>
+          <button
+            :if={@show_archive and archivable?(@run)}
+            id={"archive-run-#{@run.id}"}
+            type="button"
+            title="Archive run"
+            class="hidden h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950 sm:inline-flex"
+            phx-click="archive_run"
+            phx-value-id={@run.id}
+          >
+            <.icon name="hero-archive-box" class="size-4" />
+          </button>
+        </div>
+      </div>
+    </article>
+    """
+  end
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <Layouts.app flash={@flash}>
+      <main id="haven-inbox" class="min-h-dvh bg-white text-zinc-950">
+        <section class="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-4 md:px-8 md:py-6">
+          <header class="order-1 border-b border-zinc-200 pb-4">
+            <div>
+              <p class="text-sm font-medium text-zinc-500">Haven</p>
+              <h1 class="text-2xl font-semibold tracking-normal">Inbox</h1>
+              <p class="mt-1 text-sm text-zinc-500">Agent work across your folders.</p>
+            </div>
+          </header>
+
+          <details
+            id="new-run-panel"
+            open={@new_run_open? or @form.errors != []}
+            class="order-2 rounded-lg border border-zinc-200 bg-white"
+          >
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-zinc-800 marker:hidden">
+              <span class="inline-flex items-center gap-2">
+                <.icon name="hero-plus-circle" class="size-4 text-zinc-500" /> Start a run
+              </span>
+              <span class="text-xs font-medium text-zinc-500">
+                Goal, folder, agent
+              </span>
+            </summary>
+            <.form
+              id="new-run-form"
+              for={@form}
+              phx-change="change_run"
+              phx-submit="create_run"
+              class="grid gap-3 border-t border-zinc-200 p-3"
+            >
+              <% selected_agent = form_value(@form, :agent) %>
+              <% selected_readiness = Map.get(@agent_inventory, selected_agent, %{}) %>
+              <% selected_reports = Map.get(@agent_probe_reports, selected_agent, []) %>
+              <% selected_gap_reports = Map.get(@agent_capability_gap_reports, selected_agent, []) %>
+              <% selected_workspace =
+                selected_workspace_summary(@workspaces, form_value(@form, :workspace_id)) %>
+              <% workspace_value = form_value(@form, :workspace) %>
+              <% start_block_reason =
+                new_run_start_block_reason(
+                  selected_workspace,
+                  workspace_value,
+                  selected_readiness
+                ) %>
+              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem]">
+                <.input
+                  field={@form[:title]}
+                  type="text"
+                  label="Run goal"
+                  placeholder="Review agent changes"
+                  autocomplete="off"
+                />
+                <.input
+                  field={@form[:agent]}
+                  type="select"
+                  label="Agent"
+                  options={@agent_options}
+                />
+              </div>
+              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+                <.input
+                  field={@form[:workspace_id]}
+                  type="select"
+                  label="Saved workspace"
+                  prompt="Manual path"
+                  options={@workspace_options}
+                />
+                <.input
+                  field={@form[:workspace]}
+                  type="text"
+                  label="Workspace"
+                  placeholder="/path/to/workspace"
+                  autocomplete="off"
+                />
+                <button
+                  id="start-run-button"
+                  class="mb-2 h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!is_nil(start_block_reason)}
+                  title={start_block_reason}
+                  aria-describedby={if(start_block_reason, do: "new-run-start-blocker")}
+                >
+                  Start
+                </button>
+              </div>
+              <p
+                :if={start_block_reason}
+                id="new-run-start-blocker"
+                class="-mt-1 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800"
+              >
+                {start_block_reason}
+              </p>
+              <div
+                id="new-run-agent-evidence"
+                class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600"
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <span id="new-run-agent-key" class="font-semibold text-zinc-950">
+                    {selected_agent}
+                  </span>
+                  <span id="new-run-agent-launch" class={agent_launch_class(selected_readiness)}>
+                    {agent_launch_label(selected_readiness)}
+                  </span>
+                  <span
+                    :if={agent_preflight_label(selected_readiness)}
+                    id="new-run-agent-preflight"
+                    class={agent_preflight_class(selected_readiness)}
+                    title={agent_preflight_reason(selected_readiness)}
+                  >
+                    {agent_preflight_label(selected_readiness)}
+                  </span>
+                  <span
+                    id="new-run-agent-trust"
+                    class={agent_evidence_class(selected_readiness, selected_reports)}
+                  >
+                    {agent_evidence_label(selected_readiness, selected_reports)}
+                  </span>
+                  <span
+                    :if={selected_gap_reports != []}
+                    id="new-run-agent-capability-gaps"
+                    class={capability_gap_class()}
+                  >
+                    {pluralize_count(length(selected_gap_reports), "capability gap")}
+                  </span>
+                </div>
+                <p id="new-run-agent-evidence-reason" class="mt-1 truncate">
+                  {agent_evidence_reason(selected_readiness, selected_reports)}
+                </p>
+                <div
+                  id="new-run-agent-auth-scope"
+                  class="mt-2 flex flex-wrap items-center gap-2"
+                  title={agent_readiness_env_auth_reason(selected_readiness)}
+                >
+                  <span
+                    id="new-run-agent-auth-env"
+                    class={agent_readiness_env_auth_class(selected_readiness)}
+                  >
+                    {agent_readiness_env_auth_label(selected_readiness)}
+                  </span>
+                  <span
+                    id="new-run-agent-env-keys"
+                    class="inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-600"
+                  >
+                    {agent_readiness_env_scope_label(selected_readiness)}
+                  </span>
+                </div>
+                <p
+                  :if={selected_gap_reports != []}
+                  id="new-run-agent-capability-gap-reason"
+                  class="mt-1 truncate text-amber-700"
+                >
+                  {capability_gap_reason(selected_gap_reports)}
+                </p>
+              </div>
+              <section
+                :if={selected_workspace}
+                id="new-run-selected-workspace"
+                class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600"
+              >
+                <div class="flex min-w-0 flex-wrap items-center gap-2">
+                  <span class="font-semibold text-zinc-950">
+                    {selected_workspace.name}
+                  </span>
+                  <span
+                    id="new-run-selected-workspace-path-state"
+                    class={workspace_path_badge_class(selected_workspace)}
+                  >
+                    {workspace_path_label(selected_workspace)}
+                  </span>
+                  <span
+                    id="new-run-selected-workspace-branch"
+                    class="inline-flex rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-600"
+                  >
+                    {workspace_branch_label(selected_workspace)}
+                  </span>
+                </div>
+                <p
+                  id="new-run-selected-workspace-path"
+                  title={selected_workspace.path}
+                  class="mt-1 truncate font-mono text-[11px] text-zinc-500"
+                >
+                  {selected_workspace.path}
+                </p>
+                <p id="new-run-selected-workspace-usage" class="mt-1 text-zinc-500">
+                  {workspace_usage_label(selected_workspace)}
+                </p>
+              </section>
+              <details id="new-run-advanced" class="rounded-md border border-zinc-200 px-3 py-2">
+                <summary class="cursor-pointer text-sm font-medium text-zinc-700">
+                  Advanced
+                </summary>
+                <div class="mt-3 grid gap-3">
+                  <% read_policy = form_value(@form, :file_read_policy) %>
+                  <% write_policy = form_value(@form, :file_write_policy) %>
+                  <% terminal_policy = form_value(@form, :terminal_create_policy) %>
+                  <% read_scopes = parse_path_scope(form_value(@form, :file_read_paths)) %>
+                  <% write_scopes = parse_path_scope(form_value(@form, :file_write_paths)) %>
+                  <section id="new-run-capability-policy" class="grid gap-3">
+                    <h3 class="text-xs font-semibold uppercase text-zinc-500">
+                      Capability policy
+                    </h3>
+                    <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(160px,0.7fr)]">
+                      <div class="grid gap-2">
+                        <.input
+                          field={@form[:file_read_policy]}
+                          type="select"
+                          label="File reads"
+                          options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
+                        />
+                        <.input
+                          field={@form[:file_read_paths]}
+                          type="text"
+                          label="Read paths"
+                          placeholder="README.md, docs"
+                          autocomplete="off"
+                        />
+                      </div>
+                      <div class="grid gap-2">
+                        <.input
+                          field={@form[:file_write_policy]}
+                          type="select"
+                          label="File writes"
+                          options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
+                        />
+                        <.input
+                          field={@form[:file_write_paths]}
+                          type="text"
+                          label="Write paths"
+                          placeholder="notes, tmp/output.md"
+                          autocomplete="off"
+                        />
+                      </div>
+                      <.input
+                        field={@form[:terminal_create_policy]}
+                        type="select"
+                        label="Terminals"
+                        options={[{"Ask", "ask"}, {"Allow", "allow"}, {"Deny", "deny"}]}
+                      />
+                    </div>
+                    <section
+                      id="new-run-workspace-authority"
+                      class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600"
+                    >
+                      <h4 class="font-semibold uppercase text-zinc-500">Workspace authority</h4>
+                      <dl class="mt-2 grid gap-2 sm:grid-cols-3">
+                        <div id="new-run-read-authority" class="min-w-0">
+                          <dt class="font-medium text-zinc-500">Reads</dt>
+                          <dd class="mt-1 flex flex-wrap gap-1">
+                            <span class={policy_badge_class(read_policy)}>
+                              {policy_label(read_policy)}
+                            </span>
+                            <span
+                              :for={scope <- policy_scope_items(read_scopes)}
+                              id={"new-run-read-scope-#{policy_scope_id(scope)}"}
+                              class={policy_scope_class(read_scopes)}
+                            >
+                              {scope}
+                            </span>
+                          </dd>
+                        </div>
+                        <div id="new-run-write-authority" class="min-w-0">
+                          <dt class="font-medium text-zinc-500">Writes</dt>
+                          <dd class="mt-1 flex flex-wrap gap-1">
+                            <span class={policy_badge_class(write_policy)}>
+                              {policy_label(write_policy)}
+                            </span>
+                            <span
+                              :for={scope <- policy_scope_items(write_scopes)}
+                              id={"new-run-write-scope-#{policy_scope_id(scope)}"}
+                              class={policy_scope_class(write_scopes)}
+                            >
+                              {scope}
+                            </span>
+                          </dd>
+                        </div>
+                        <div id="new-run-terminal-authority" class="min-w-0">
+                          <dt class="font-medium text-zinc-500">Terminals</dt>
+                          <dd class="mt-1">
+                            <span class={policy_badge_class(terminal_policy)}>
+                              {policy_label(terminal_policy)}
+                            </span>
+                          </dd>
+                        </div>
+                      </dl>
+                      <div
+                        id="new-run-security-boundary"
+                        class="mt-3 border-t border-zinc-100 pt-2"
+                      >
+                        <p class="font-semibold uppercase text-zinc-500">
+                          Workspace security boundary
+                        </p>
+                        <ul class="mt-1 grid gap-1 text-[11px] leading-5 text-zinc-600">
+                          <li id="new-run-security-boundary-root">
+                            Files are resolved inside the selected workspace root.
+                          </li>
+                          <li id="new-run-security-boundary-scopes">
+                            Blank path scopes mean all workspace paths; scoped paths narrow access.
+                          </li>
+                          <li id="new-run-security-boundary-terminal">
+                            Terminal working directories must stay inside the workspace.
+                          </li>
+                        </ul>
+                      </div>
+                    </section>
+                  </section>
+                </div>
+              </details>
+            </.form>
+          </details>
+
+          <details
+            id="inbox-run-filters"
+            open={active_run_facets?(@run_search, @agent_filter, @workspace_filter)}
+            class="order-3 rounded-lg border border-zinc-200 bg-white"
+          >
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-zinc-800 marker:hidden">
+              <span class="inline-flex min-w-0 items-center gap-2">
+                <.icon name="hero-magnifying-glass" class="size-4 shrink-0 text-zinc-500" />
+                <span>Find runs</span>
+              </span>
+              <span class="truncate text-xs font-medium text-zinc-500">
+                <%= if active_run_facets?(@run_search, @agent_filter, @workspace_filter) do %>
+                  Filtered
+                <% else %>
+                  Search, agent, folder
+                <% end %>
+              </span>
+            </summary>
+            <form
+              id="inbox-search-form"
+              phx-change="search_runs"
+              phx-submit="search_runs"
+              class="grid gap-2 border-t border-zinc-200 p-3 lg:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_minmax(12rem,18rem)_auto]"
+            >
+              <.input
+                id="run_search"
+                name="run_search"
+                value={@run_search}
+                type="search"
+                label="Search runs"
+                placeholder="Title, folder, agent, status, activity"
+                autocomplete="off"
+              />
+              <.input
+                id="agent_filter"
+                name="agent_filter"
+                value={@agent_filter}
+                type="select"
+                label="Agent"
+                prompt="All agents"
+                options={@agent_filter_options}
+              />
+              <.input
+                id="workspace_filter"
+                name="workspace_filter"
+                value={@workspace_filter}
+                type="select"
+                label="Workspace"
+                prompt="All workspaces"
+                options={@workspace_filter_options}
+              />
+              <button
+                :if={active_run_facets?(@run_search, @agent_filter, @workspace_filter)}
+                id="clear-inbox-search"
+                type="button"
+                class="mb-2 h-10 self-end rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                phx-click="clear_run_search"
+              >
+                Clear
+              </button>
+            </form>
+          </details>
+          <section id="inbox-attention-summary" class="order-4 border-b border-zinc-200 pb-4">
+            <div class="flex items-center gap-2">
+              <button
+                id="inbox-attention-primary"
+                type="button"
+                class="flex min-w-0 flex-1 items-center justify-between gap-4 rounded-md px-1 py-2 text-left transition hover:bg-zinc-50"
+                phx-click="filter_runs"
+                phx-value-filter={@inbox_attention_summary.filter}
+              >
+                <span class="flex min-w-0 items-center gap-3">
+                  <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-700">
+                    <.icon name={@inbox_attention_summary.icon} class="size-5" />
+                  </span>
+                  <span class="min-w-0">
+                    <span
+                      id="inbox-attention-label"
+                      class="block truncate text-base font-semibold text-zinc-950"
+                    >
+                      {@inbox_attention_summary.label}
+                    </span>
+                    <span id="inbox-attention-detail" class="block truncate text-sm text-zinc-500">
+                      {@inbox_attention_summary.detail}
+                    </span>
+                  </span>
+                </span>
+                <.icon name="hero-chevron-right" class="size-5 shrink-0 text-zinc-400" />
+              </button>
+              <button
+                id="inbox-notification-toggle"
+                type="button"
+                data-haven-notification-toggle
+                title="Enable browser notifications for new run attention"
+                aria-label="Enable browser notifications for new run attention"
+                class="flex size-10 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <.icon name="hero-bell" class="size-5" />
+              </button>
+            </div>
+
+            <nav
+              id="inbox-queue-summary"
+              class="mt-3 flex gap-2 overflow-x-auto pb-1"
+              aria-label="Inbox queue summary"
+            >
+              <button
+                :for={{filter, label} <- @run_filters}
+                id={"inbox-queue-#{filter}"}
+                type="button"
+                class={run_queue_button_class(filter, @run_filter)}
+                phx-click="filter_runs"
+                phx-value-filter={filter}
+                aria-current={if(@run_filter == filter, do: "page")}
+              >
+                <span class="block text-xl font-semibold leading-none">
+                  {Map.get(@run_filter_counts, filter, 0)}
+                </span>
+                <span class="mt-1 block text-xs font-semibold">{label}</span>
+                <span class={[
+                  "mt-0.5 block truncate text-[11px]",
+                  @run_filter == filter && "text-zinc-300",
+                  @run_filter != filter && "text-zinc-500"
+                ]}>
+                  {run_queue_caption(filter, @run_filter_counts)}
+                </span>
+              </button>
+            </nav>
+          </section>
+
+          <div
+            :if={@filtered_runs_empty?}
+            id="inbox-filter-empty"
+            class="order-5 rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+          >
+            <%= if @searched_runs_empty? do %>
+              No runs match your filters.
+            <% else %>
+              No runs in this view.
+            <% end %>
+          </div>
+
+          <section :if={@updated != []} id="inbox-updated-section" class="order-5 space-y-2">
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Updated</h2>
+            <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+              <.run_card
+                :for={run <- @updated}
+                run={run}
+                show_archive={true}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
+              />
+            </div>
+          </section>
+
+          <section :if={@needs_you != []} id="inbox-needs-you-section" class="order-5 space-y-2">
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Needs You</h2>
+            <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+              <.run_card
+                :for={run <- @needs_you}
+                run={run}
+                show_archive={true}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
+              />
+            </div>
+          </section>
+
+          <section :if={@running != []} id="inbox-running-section" class="order-5 space-y-2">
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Running</h2>
+            <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+              <.run_card
+                :for={run <- @running}
+                run={run}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
+              />
+            </div>
+          </section>
+
+          <section
+            :if={@run_filter in ["all", "history"] and !@filtered_runs_empty?}
+            id="inbox-history-section"
+            class="order-5 space-y-2"
+          >
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">History</h2>
+            <div
+              :if={@history == []}
+              id="inbox-first-run-empty"
+              class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+            >
+              <p class="font-medium text-zinc-700">No work runs yet.</p>
+              <p class="mt-1 text-sm">
+                Open Start a run to launch an agent in a folder.
+              </p>
+            </div>
+            <div
+              :if={@history != []}
+              class="overflow-hidden rounded-lg border border-zinc-200 bg-white"
+            >
+              <.run_card
+                :for={run <- @history}
+                run={run}
+                show_archive={true}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
+              />
+            </div>
+            <div
+              :if={@history != []}
+              id="inbox-history-pagination"
+              class="flex items-center justify-between gap-3 px-1 text-sm text-zinc-500"
+            >
+              <span id="inbox-history-page-count">
+                Showing {@history_visible_count} of {@history_total_count} history runs
+              </span>
+              <button
+                :if={@history_has_more?}
+                id="show-more-history"
+                type="button"
+                class="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-950"
+                phx-click="show_more_history"
+              >
+                Show more
+              </button>
+            </div>
+          </section>
+
+          <section
+            :if={@run_filter == "diagnostics" and !@filtered_runs_empty?}
+            id="inbox-diagnostics-section"
+            class="order-5 space-y-2"
+          >
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Diagnostics</h2>
+            <p class="px-1 text-sm text-zinc-500">
+              Probe and preflight runs are kept here so setup evidence stays inspectable without
+              crowding active work.
+            </p>
+            <div
+              :if={@diagnostics == []}
+              class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+            >
+              No diagnostic runs match this view.
+            </div>
+            <div
+              :if={@diagnostics != []}
+              class="overflow-hidden rounded-lg border border-zinc-200 bg-white"
+            >
+              <.run_card
+                :for={run <- @diagnostics}
+                run={run}
+                show_archive={true}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
+              />
+            </div>
+          </section>
+
+          <section
+            :if={@run_filter == "archived" and !@filtered_runs_empty?}
+            id="inbox-archived-section"
+            class="order-5 space-y-2"
+          >
+            <h2 class="px-1 text-xs font-semibold uppercase text-zinc-500">Archived</h2>
+            <section
+              id="archived-retention-panel"
+              class="rounded-lg border border-zinc-200 bg-zinc-50 p-3"
+            >
+              <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div class="min-w-0">
+                  <h3 class="text-sm font-semibold text-zinc-950">Retention</h3>
+                  <p class="mt-1 text-xs text-zinc-600">
+                    Delete archived runs older than the selected date. Active and recent archived runs are preserved.
+                  </p>
+                </div>
+                <.form
+                  id="archived-retention-form"
+                  for={@retention_form}
+                  phx-submit="prune_archived"
+                  class="grid gap-2 sm:min-w-80 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
+                >
+                  <.input
+                    field={@retention_form[:cutoff_date]}
+                    type="date"
+                    label="Archived before"
+                  />
+                  <button
+                    id="archived-retention-submit"
+                    class="mb-2 h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    Prune
+                  </button>
+                </.form>
+              </div>
+              <p
+                :if={@retention_error}
+                id="archived-retention-error"
+                class="mt-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
+              >
+                {@retention_error}
+              </p>
+            </section>
+            <div
+              :if={@archived == []}
+              class="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500"
+            >
+              No archived runs yet.
+            </div>
+            <div
+              :if={@archived != []}
+              class="overflow-hidden rounded-lg border border-zinc-200 bg-white"
+            >
+              <.run_card
+                :for={run <- @archived}
+                run={run}
+                agent_inventory={@agent_inventory}
+                agent_probe_reports={@agent_probe_reports}
+                agent_capability_gap_reports={@agent_capability_gap_reports}
+              />
+            </div>
+          </section>
+
+          <details
+            id="workspaces-panel"
+            class="group order-6 border-t border-zinc-200 pt-3"
+          >
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-2 text-sm font-semibold text-zinc-700 marker:hidden">
+              <span>Manage workspaces</span>
+              <span class="font-mono text-xs text-zinc-500">{length(@workspaces)}</span>
+            </summary>
+            <div class="grid grid-cols-[minmax(0,1fr)] gap-4 pt-3 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]">
+              <div class="min-w-0">
+                <h2 class="text-sm font-semibold uppercase text-zinc-500">Workspaces</h2>
+                <div
+                  id="workspace-list"
+                  class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white"
+                >
+                  <div
+                    :if={@workspaces == []}
+                    id="workspace-empty"
+                    class="px-4 py-5 text-sm text-zinc-500"
+                  >
+                    No saved workspaces yet.
+                  </div>
+                  <div
+                    :for={workspace <- @workspaces}
+                    id={"workspace-#{workspace.id}"}
+                    class="border-t border-zinc-100 px-4 py-3 first:border-t-0"
+                  >
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <p class="truncate text-sm font-semibold text-zinc-950">
+                            {workspace.name}
+                          </p>
+                          <span
+                            id={"workspace-#{workspace.id}-path-state"}
+                            class={workspace_path_badge_class(workspace)}
+                          >
+                            {workspace_path_label(workspace)}
+                          </span>
+                        </div>
+                        <p class="mt-1 truncate text-xs text-zinc-500">{workspace.path}</p>
+                        <p
+                          id={"workspace-#{workspace.id}-git-branch"}
+                          class="mt-1 truncate text-xs text-zinc-500"
+                        >
+                          {workspace_branch_label(workspace)}
+                        </p>
+                        <p
+                          id={"workspace-#{workspace.id}-run-usage"}
+                          class="mt-1 text-xs text-zinc-500"
+                        >
+                          {workspace_usage_label(workspace)}
+                        </p>
+                      </div>
+                      <div class="flex shrink-0 items-center gap-2">
+                        <button
+                          id={"edit-workspace-#{workspace.id}"}
+                          type="button"
+                          title="Edit workspace"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950"
+                          phx-click="edit_workspace"
+                          phx-value-id={workspace.id}
+                        >
+                          <.icon name="hero-pencil-square" class="size-4" />
+                        </button>
+                        <button
+                          id={"delete-workspace-#{workspace.id}"}
+                          type="button"
+                          title="Delete workspace"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                          phx-click="delete_workspace"
+                          phx-value-id={workspace.id}
+                        >
+                          <.icon name="hero-trash" class="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <.form
+                id="workspace-form"
+                for={@workspace_form}
+                phx-submit="save_workspace"
+                class="grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
+              >
+                <.input field={@workspace_form[:id]} type="hidden" />
+                <p
+                  :if={@workspace_error}
+                  id="workspace-error"
+                  class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+                >
+                  {@workspace_error}
+                </p>
+                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  <.input
+                    field={@workspace_form[:name]}
+                    type="text"
+                    label="Name"
+                    placeholder="Haven"
+                    autocomplete="off"
+                  />
+                  <.input
+                    field={@workspace_form[:path]}
+                    type="text"
+                    label="Path"
+                    placeholder="/path/to/repo"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button
+                    :if={@editing_workspace_id}
+                    id="cancel-workspace-edit-button"
+                    type="button"
+                    class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    phx-click="cancel_workspace_edit"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    id="save-workspace-button"
+                    class="h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                  >
+                    {if @editing_workspace_id, do: "Update Workspace", else: "Save Workspace"}
+                  </button>
+                </div>
+              </.form>
+            </div>
+          </details>
+
+          <details
+            id="agent-configs-panel"
+            class="group order-6 border-b border-zinc-200 pb-4"
+          >
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 py-2 text-sm font-semibold text-zinc-700 marker:hidden">
+              <span>Manage agents</span>
+              <span class="font-mono text-xs text-zinc-500">{length(@agent_configs)}</span>
+            </summary>
+            <div class="grid grid-cols-[minmax(0,1fr)] gap-4 pt-3 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)]">
+              <div class="min-w-0">
+                <h2 class="text-sm font-semibold uppercase text-zinc-500">Agent Setup</h2>
+                <div
+                  id="agent-registry-hint"
+                  class="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900"
+                >
+                  <div class="flex items-start gap-3">
+                    <.icon name="hero-sparkles" class="mt-0.5 size-4 shrink-0 text-sky-600" />
+                    <div class="min-w-0">
+                      <p class="font-semibold">Find real ACP agents from the public registry</p>
+                      <code
+                        id="agent-registry-command"
+                        class="mt-2 block overflow-x-auto rounded-md border border-sky-200 bg-white/80 px-2 py-1 text-[11px] leading-5 text-sky-950"
+                      >
+                        {agent_registry_command()}
+                      </code>
+                      <code
+                        id="agent-registry-save-command"
+                        class="mt-2 block overflow-x-auto rounded-md border border-sky-200 bg-white/80 px-2 py-1 text-[11px] leading-5 text-sky-950"
+                      >
+                        {agent_registry_save_command()}
+                      </code>
+                      <p class="mt-2 text-xs text-sky-800">
+                        Registry discovery lists package and env key requirements, then prints preflight and proof commands. Replace AGENT_ID to save one suggestion, then preflight the saved command with an approved workspace and auth scope before probing.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  id="agent-config-list"
+                  class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white"
+                >
+                  <div
+                    :if={@agent_configs == []}
+                    id="agent-config-empty"
+                    class="px-4 py-5 text-sm text-zinc-500"
+                  >
+                    No saved agent commands yet.
+                  </div>
+                  <div
+                    :for={agent_config <- @agent_configs}
+                    id={"agent-config-#{agent_config.key}"}
+                    class="border-t border-zinc-100 px-4 py-3 first:border-t-0"
+                  >
+                    <% readiness = Map.get(@agent_inventory, agent_config.key, %{}) %>
+                    <% probe_commands = agent_probe_commands(readiness) %>
+                    <% probe_block_notice = agent_probe_block_notice(readiness) %>
+                    <% probe_redaction_notice = agent_probe_redaction_notice(readiness) %>
+                    <% accepted_reports = Map.get(@agent_probe_reports, agent_config.key, []) %>
+                    <% gap_reports = Map.get(@agent_capability_gap_reports, agent_config.key, []) %>
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-zinc-950">{agent_config.key}</p>
+                        <p class="mt-1 truncate text-xs text-zinc-500">{agent_config.executable}</p>
+                        <div class="mt-2 grid gap-1 text-xs text-zinc-500 sm:grid-cols-2">
+                          <p
+                            id={"agent-config-#{agent_config.key}-cwd"}
+                            class="min-w-0 truncate"
+                            title={agent_config_cwd_scope_label(agent_config)}
+                          >
+                            {agent_config_cwd_scope_label(agent_config)}
+                          </p>
+                          <p
+                            id={"agent-config-#{agent_config.key}-env-keys"}
+                            class="min-w-0 truncate"
+                            title={agent_config_env_scope_label(agent_config)}
+                          >
+                            {agent_config_env_scope_label(agent_config)}
+                          </p>
+                        </div>
+                        <div
+                          id={"agent-config-#{agent_config.key}-auth-scope"}
+                          class="mt-2 flex flex-wrap items-center gap-2"
+                          title={agent_config_env_auth_reason(agent_config)}
+                        >
+                          <span
+                            id={"agent-config-#{agent_config.key}-auth-env"}
+                            class={agent_config_env_auth_class(agent_config)}
+                          >
+                            {agent_config_env_auth_label(agent_config)}
+                          </span>
+                          <span
+                            id={"agent-config-#{agent_config.key}-env-substitution"}
+                            class="inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-zinc-600"
+                          >
+                            {agent_config_env_substitution_label(agent_config)}
+                          </span>
+                        </div>
+                        <div class="mt-2 flex flex-wrap items-center gap-2">
+                          <span
+                            id={"agent-config-#{agent_config.key}-launch"}
+                            class={agent_launch_class(readiness)}
+                          >
+                            {agent_launch_label(readiness)}
+                          </span>
+                          <span
+                            :if={agent_preflight_label(readiness)}
+                            id={"agent-config-#{agent_config.key}-preflight"}
+                            class={agent_preflight_class(readiness)}
+                            title={agent_preflight_reason(readiness)}
+                          >
+                            {agent_preflight_label(readiness)}
+                          </span>
+                          <p
+                            id={"agent-config-#{agent_config.key}-launch-summary"}
+                            class="min-w-0 text-xs text-zinc-500"
+                          >
+                            {agent_launch_summary(readiness)}
+                          </p>
+                        </div>
+                        <p
+                          :if={agent_evidence_reason(readiness, accepted_reports)}
+                          id={"agent-config-#{agent_config.key}-evidence-reason"}
+                          class="mt-2 truncate text-xs text-zinc-500"
+                        >
+                          {agent_evidence_reason(readiness, accepted_reports)}
+                        </p>
+                        <details
+                          :if={
+                            accepted_reports != [] or gap_reports != [] or probe_commands != [] or
+                              probe_block_notice
+                          }
+                          id={"agent-config-#{agent_config.key}-evidence-details"}
+                          class="mt-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2"
+                        >
+                          <summary class="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-semibold text-zinc-700 marker:hidden">
+                            <span class="inline-flex items-center gap-2">
+                              <.icon
+                                name="hero-document-magnifying-glass"
+                                class="size-4 text-zinc-500"
+                              /> Evidence
+                            </span>
+                            <span class="text-[11px] font-medium text-zinc-500">
+                              {agent_evidence_detail_summary(
+                                accepted_reports,
+                                gap_reports,
+                                probe_commands,
+                                probe_block_notice
+                              )}
+                            </span>
+                          </summary>
+                          <div class="mt-2 space-y-2 border-t border-zinc-200 pt-2">
+                            <p
+                              :if={probe_block_notice}
+                              id={"agent-config-#{agent_config.key}-probe-blocked"}
+                              class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800"
+                            >
+                              {probe_block_notice}
+                            </p>
+                            <div
+                              :if={accepted_reports != []}
+                              id={"agent-config-#{agent_config.key}-accepted-probes"}
+                              class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2"
+                            >
+                              <p class="text-[11px] font-semibold uppercase text-emerald-800">
+                                Accepted probe evidence
+                              </p>
+                              <ul class="mt-1 space-y-1">
+                                <li
+                                  :for={report <- accepted_reports}
+                                  id={"agent-config-#{agent_config.key}-accepted-probe-#{Path.basename(report.path, ".json")}"}
+                                  class="truncate text-xs text-emerald-900"
+                                  title={report.prompt}
+                                >
+                                  {agent_probe_report_label(report)}
+                                </li>
+                              </ul>
+                            </div>
+                            <div
+                              :if={gap_reports != []}
+                              id={"agent-config-#{agent_config.key}-capability-gaps"}
+                              class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2"
+                            >
+                              <p class="text-[11px] font-semibold uppercase text-amber-800">
+                                Capability gaps
+                              </p>
+                              <ul class="mt-1 space-y-1">
+                                <li
+                                  :for={report <- gap_reports}
+                                  id={"agent-config-#{agent_config.key}-capability-gap-#{Path.basename(report.path, ".json")}"}
+                                  class="truncate text-xs text-amber-900"
+                                  title={report.prompt}
+                                >
+                                  {capability_gap_report_label(report)}
+                                </li>
+                              </ul>
+                            </div>
+                            <div :if={probe_commands != []} class="space-y-2">
+                              <p
+                                :if={probe_redaction_notice}
+                                id={"agent-config-#{agent_config.key}-probe-redaction-notice"}
+                                class="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900"
+                              >
+                                {probe_redaction_notice}
+                              </p>
+                              <div
+                                :for={probe <- probe_commands}
+                                id={"agent-config-#{agent_config.key}-probe-#{probe.id}"}
+                              >
+                                <p class="text-[11px] font-semibold uppercase text-zinc-500">
+                                  {probe.label}
+                                </p>
+                                <code
+                                  id={
+                                    if probe.id == "basic",
+                                      do: "agent-config-#{agent_config.key}-probe-command",
+                                      else:
+                                        "agent-config-#{agent_config.key}-probe-#{probe.id}-command"
+                                  }
+                                  class="mt-1 block overflow-x-auto rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] leading-5 text-zinc-700"
+                                >
+                                  {probe.command}
+                                </code>
+                              </div>
+                            </div>
+                            <p
+                              :if={gap_reports != []}
+                              id={"agent-config-#{agent_config.key}-capability-gap-reason"}
+                              class="truncate text-xs text-amber-700"
+                            >
+                              {capability_gap_reason(gap_reports)}
+                            </p>
+                          </div>
+                        </details>
+                      </div>
+                      <div class="flex shrink-0 items-center gap-2">
+                        <span
+                          id={"agent-config-#{agent_config.key}-evidence"}
+                          class={agent_evidence_class(readiness, accepted_reports)}
+                        >
+                          {agent_evidence_label(readiness, accepted_reports)}
+                        </span>
+                        <span
+                          :if={gap_reports != []}
+                          id={"agent-config-#{agent_config.key}-capability-gap-count"}
+                          class={capability_gap_class()}
+                        >
+                          {pluralize_count(length(gap_reports), "gap")}
+                        </span>
+                        <span class="rounded-full border border-zinc-200 px-2 py-1 text-xs text-zinc-500">
+                          {length(Map.get(agent_config.args || %{}, "items", []))} args
+                        </span>
+                        <button
+                          id={"edit-agent-config-#{agent_config.key}"}
+                          type="button"
+                          title="Edit agent"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950"
+                          phx-click="edit_agent_config"
+                          phx-value-id={agent_config.id}
+                        >
+                          <.icon name="hero-pencil-square" class="size-4" />
+                        </button>
+                        <button
+                          id={"delete-agent-config-#{agent_config.key}"}
+                          type="button"
+                          title="Delete agent"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                          phx-click="delete_agent_config"
+                          phx-value-id={agent_config.id}
+                        >
+                          <.icon name="hero-trash" class="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <.form
+                id="agent-config-form"
+                for={@agent_config_form}
+                phx-submit="save_agent_config"
+                phx-update="replace"
+                class="grid min-w-0 gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
+              >
+                <.input field={@agent_config_form[:id]} type="hidden" />
+                <p
+                  :if={@agent_config_error}
+                  id="agent-config-error"
+                  class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+                >
+                  {@agent_config_error}
+                </p>
+                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  <.input
+                    field={@agent_config_form[:key]}
+                    type="text"
+                    label="Agent key"
+                    placeholder="claude-local"
+                    autocomplete="off"
+                  />
+                  <.input
+                    field={@agent_config_form[:executable]}
+                    type="text"
+                    label="Executable"
+                    placeholder="agent-command"
+                    autocomplete="off"
+                  />
+                </div>
+                <.input
+                  field={@agent_config_form[:args_text]}
+                  type="textarea"
+                  label="Arguments"
+                  placeholder="--workspace\n{workspace}"
+                  rows="3"
+                />
+                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  <.input
+                    field={@agent_config_form[:cwd]}
+                    type="text"
+                    label="Working directory"
+                    placeholder="{workspace}"
+                    autocomplete="off"
+                  />
+                  <.input
+                    field={@agent_config_form[:env_text]}
+                    type="textarea"
+                    label="Environment"
+                    placeholder="TOKEN=..."
+                    rows="3"
+                  />
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button
+                    :if={@editing_agent_config_id}
+                    id="cancel-agent-config-edit-button"
+                    type="button"
+                    class="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    phx-click="cancel_agent_config_edit"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    id="save-agent-config-button"
+                    class="h-10 rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                  >
+                    {if @editing_agent_config_id, do: "Update Agent", else: "Save Agent"}
+                  </button>
+                </div>
+              </.form>
+            </div>
+          </details>
+        </section>
+      </main>
+    </Layouts.app>
+    """
+  end
+end
