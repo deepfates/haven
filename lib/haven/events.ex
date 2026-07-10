@@ -87,7 +87,13 @@ defmodule Haven.Events do
 
   defp topic(run_id), do: "runs:#{run_id}"
 
-  defp normalize_payload(payload) when is_map(payload) do
+  @doc """
+  Normalizes a payload the same way `append!/3` does before insert
+  (stringified keys, recursively). Public so callers that need to compare a
+  candidate payload against stored event payloads — e.g. the resumed-run
+  replay dedupe in `Haven.Runs.RunServer` — use the exact same canonical form.
+  """
+  def normalize_payload(payload) when is_map(payload) do
     Map.new(payload, fn {key, value} -> {to_string(key), normalize_payload_value(value)} end)
   end
 

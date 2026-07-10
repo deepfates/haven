@@ -394,6 +394,44 @@ defmodule HavenWeb.RunLiveTest do
     assert has_element?(view, "#run-thread", "Scoped event update")
   end
 
+  test "badges replayed events and summarizes the replay fold in the ledger", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "Replay ledger run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+
+    live_chunk =
+      Events.append!(run.id, "agent_message_chunk", %{"text" => "live before disconnect"})
+
+    settled =
+      Events.append!(run.id, "session_replay_settled", %{
+        "agent_session_id" => "sess-replay",
+        "folded" => %{"agent_message_chunk" => 1},
+        "folded_total" => 1,
+        "replayed_new" => 1
+      })
+
+    replayed =
+      Events.append!(run.id, "agent_message_chunk", %{
+        "text" => "note from detached turn",
+        "replay" => true
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#event-#{replayed.seq}-replay-badge", "Replayed")
+    refute has_element?(view, "#event-#{live_chunk.seq}-replay-badge")
+
+    assert has_element?(view, "#event-#{settled.seq}", "Session replay settled")
+
+    assert has_element?(
+             view,
+             "#event-#{settled.seq}",
+             "1 replayed event matched already-recorded history and folded"
+           )
+
+    assert has_element?(view, "#event-#{settled.seq}", "1 new replayed event landed")
+  end
+
   test "surfaces other unread run activity while reading one run", %{conn: conn} do
     current = insert_disconnected_run!("Current conversation")
     other = insert_disconnected_run!("Other conversation")

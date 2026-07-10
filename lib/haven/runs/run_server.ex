@@ -69,6 +69,7 @@ defmodule Haven.Runs.RunServer do
        session_modes: nil,
        retry_prompt: Keyword.get(opts, :retry_prompt),
        continue_prompt: Keyword.get(opts, :continue_prompt),
+       replay: nil,
        terminals: %{}
      }}
   end
@@ -127,8 +128,8 @@ defmodule Haven.Runs.RunServer do
           {:ext_notification, %ACP.ExtNotification{params: params}}}},
         state
       ) do
-    Events.append!(state.run_id, "agent_update_unknown", raw_session_update_payload(params))
-    {:noreply, state}
+    {:noreply,
+     append_session_event(state, "agent_update_unknown", raw_session_update_payload(params))}
   end
 
   def handle_info({:acp_stream, _event}, state), do: {:noreply, state}
@@ -187,6 +188,46 @@ defmodule Haven.Runs.RunServer do
     Runs.update_status!(state.run_id, %{status: "failed"})
     {:noreply, state}
   end
+
+  # End of the session/load replay window. The marker was self-sent right
+  # after the load response, so every replayed session/update notification
+  # (queued in the mailbox while the load call blocked) has been processed by
+  # the time it arrives. Report the fold tally loudly, then dispatch any
+  # deferred recovery prompt so replayed history lands in the ledger BEFORE
+  # the new turn starts.
+  def handle_info(
+        {:session_replay_settled, session_id},
+        %{replay: %{session_id: session_id} = replay} = state
+      ) do
+    Events.append!(state.run_id, "session_replay_settled", %{
+      "agent_session_id" => session_id,
+      "folded" => replay.folded,
+      "folded_total" => replay.folded |> Map.values() |> Enum.sum(),
+      "replayed_new" => replay.new_count
+    })
+
+    state = %{state | replay: nil}
+
+    state =
+      cond do
+        state.conn ->
+          maybe_start_recovery_prompt(state)
+
+        is_binary(state.retry_prompt) or is_binary(state.continue_prompt) ->
+          Events.append!(state.run_id, "recovery_prompt_abandoned", %{
+            "reason" => "agent_disconnected_during_replay"
+          })
+
+          %{state | retry_prompt: nil, continue_prompt: nil}
+
+        true ->
+          state
+      end
+
+    {:noreply, state}
+  end
+
+  def handle_info({:session_replay_settled, _session_id}, state), do: {:noreply, state}
 
   def handle_info({:EXIT, pid, :normal}, %{conn: %ACP.ClientSideConnection{conn: pid}} = state) do
     status = if state.port_io, do: PortIO.exit_status(state.port_io), else: nil
@@ -366,7 +407,7 @@ defmodule Haven.Runs.RunServer do
         state
         |> Map.put(:agent_session_id, session_id)
         |> Map.put(:session_modes, response.modes)
-        |> maybe_start_recovery_prompt()
+        |> begin_session_replay(session_id)
 
       {:resumed, state}
     else
@@ -1451,8 +1492,7 @@ defmodule Haven.Runs.RunServer do
   defp append_session_update(state, notification) do
     case notification.update do
       {:agent_message_chunk, %ACP.ContentChunk{content: {:text, %ACP.TextContent{text: text}}}} ->
-        Events.append!(state.run_id, "agent_message_chunk", %{"text" => text})
-        state
+        append_session_event(state, "agent_message_chunk", %{"text" => text})
 
       {:agent_thought_chunk, %ACP.ContentChunk{content: {:text, %ACP.TextContent{text: text}}}} ->
         append_redacted_agent_thought(state, %{
@@ -1464,11 +1504,12 @@ defmodule Haven.Runs.RunServer do
         append_redacted_agent_thought(state, %{})
 
       {:current_mode_update, %ACP.CurrentModeUpdate{current_mode_id: mode_id}} ->
-        Events.append!(
-          state.run_id,
-          "current_mode_update",
-          ACP.SessionNotification.to_json(notification)["update"]
-        )
+        state =
+          append_session_event(
+            state,
+            "current_mode_update",
+            ACP.SessionNotification.to_json(notification)["update"]
+          )
 
         case state.session_modes do
           %ACP.SessionModeState{} = modes ->
@@ -1479,13 +1520,89 @@ defmodule Haven.Runs.RunServer do
         end
 
       {type, _payload} ->
-        Events.append!(
-          state.run_id,
+        append_session_event(
+          state,
           Atom.to_string(type),
           ACP.SessionNotification.to_json(notification)["update"]
         )
+    end
+  end
 
-        state
+  # Replayed-history dedupe (dee-ndfx). session/load replays prior turns as
+  # session/update notifications, but the ledger already holds the original
+  # live events, so a resumed run would show its history twice. Between the
+  # load response and the :session_replay_settled marker every incoming
+  # session update is checked against a multiset of already-recorded events
+  # keyed by stable CONTENT identity {type, normalized payload} (the agent
+  # provides no per-event ids; this is exact content matching, never
+  # positional guessing). Byte-identical duplicates are folded — not
+  # re-appended — and every fold is tallied in one loud
+  # session_replay_settled event, so nothing disappears invisibly and the
+  # folded content already exists verbatim in the ledger. Genuinely new
+  # replayed events (content the ledger never recorded, e.g. turns that
+  # happened while Haven was detached, or agents that re-chunk their replay)
+  # are appended with a "replay" => true payload marker so their provenance
+  # stays visible.
+  defp begin_session_replay(state, session_id) do
+    seen =
+      state.run_id
+      |> Events.list_for_run()
+      |> Enum.reduce(%{}, fn event, acc ->
+        Map.update(acc, event_identity(event.type, event.payload), 1, &(&1 + 1))
+      end)
+
+    send(self(), {:session_replay_settled, session_id})
+
+    %{state | replay: %{session_id: session_id, seen: seen, folded: %{}, new_count: 0}}
+  end
+
+  defp append_session_event(%{replay: %{} = replay} = state, type, payload) do
+    case pop_seen_identity(replay.seen, replay_fold_identities(type, payload)) do
+      {:folded, seen} ->
+        folded = Map.update(replay.folded, type, 1, &(&1 + 1))
+        %{state | replay: %{replay | seen: seen, folded: folded}}
+
+      :new ->
+        Events.append!(state.run_id, type, Map.put(payload, "replay", true))
+        %{state | replay: %{replay | new_count: replay.new_count + 1}}
+    end
+  end
+
+  defp append_session_event(state, type, payload) do
+    Events.append!(state.run_id, type, payload)
+    state
+  end
+
+  # Haven records the prompt it sends as a "user_message" event; agents
+  # replay that same content back as a "user_message_chunk" update. Same
+  # content, two spellings — fold the replayed chunk against either.
+  defp replay_fold_identities("user_message_chunk" = type, payload) do
+    case payload do
+      %{"content" => %{"text" => text}} when is_binary(text) ->
+        [event_identity(type, payload), event_identity("user_message", %{"text" => text})]
+
+      _payload ->
+        [event_identity(type, payload)]
+    end
+  end
+
+  defp replay_fold_identities(type, payload), do: [event_identity(type, payload)]
+
+  # The "replay" marker is provenance, not content: strip it so events that
+  # landed as marked replays in an earlier resume still fold on later resumes.
+  defp event_identity(type, payload) do
+    {type, payload |> Events.normalize_payload() |> Map.delete("replay")}
+  end
+
+  defp pop_seen_identity(_seen, []), do: :new
+
+  defp pop_seen_identity(seen, [identity | rest]) do
+    case seen do
+      %{^identity => count} when count > 0 ->
+        {:folded, Map.put(seen, identity, count - 1)}
+
+      _no_remaining_match ->
+        pop_seen_identity(seen, rest)
     end
   end
 
@@ -1493,11 +1610,12 @@ defmodule Haven.Runs.RunServer do
     do: state
 
   defp append_redacted_agent_thought(state, payload) do
-    Events.append!(
-      state.run_id,
-      "agent_thought_redacted",
-      Map.merge(%{"redacted" => true}, payload)
-    )
+    state =
+      append_session_event(
+        state,
+        "agent_thought_redacted",
+        Map.merge(%{"redacted" => true}, payload)
+      )
 
     %{state | agent_thought_redacted?: true}
   end

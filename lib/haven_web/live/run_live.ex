@@ -1070,6 +1070,14 @@ defmodule HavenWeb.RunLive do
           <span class={event_kind_class(@event_kind)}>
             {@event_kind_label}
           </span>
+          <span
+            :if={@event.payload["replay"] == true}
+            id={"event-#{@event.seq}-replay-badge"}
+            class="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-violet-700"
+            title="Arrived via session/load replay after a resume, not live streaming."
+          >
+            Replayed
+          </span>
         </div>
         <span class="text-xs text-zinc-400">
           {Calendar.strftime(@event.inserted_at, "%H:%M:%S")}
@@ -1136,6 +1144,11 @@ defmodule HavenWeb.RunLive do
                     "terminal_kill_failed"
                   ] -> %>
             <.client_capability_event seq={@event.seq} type={@event.type} payload={@event.payload} />
+          <% "session_replay_settled" -> %>
+            <p class="font-semibold text-zinc-900">Session replay settled</p>
+            <p class="mt-1 text-sm text-zinc-600">
+              {session_replay_settled_summary(@event.payload)}
+            </p>
           <% "run_reconnect_requested" -> %>
             <p class="font-semibold text-zinc-900">Reconnect requested</p>
             <p class="mt-1 text-sm text-zinc-600">
@@ -1436,6 +1449,8 @@ defmodule HavenWeb.RunLive do
               "session_mode_changed",
               "session_mode_rejected",
               "session_mode_failed",
+              "session_replay_settled",
+              "recovery_prompt_abandoned",
               "agent_start_failed",
               "agent_protocol_failed"
             ] do
@@ -1443,6 +1458,25 @@ defmodule HavenWeb.RunLive do
   end
 
   defp event_kind(_type), do: "app"
+
+  defp session_replay_settled_summary(payload) do
+    folded_total = payload["folded_total"] || 0
+    replayed_new = payload["replayed_new"] || 0
+
+    folded_part =
+      case folded_total do
+        0 -> "No replayed events matched already-recorded history"
+        n -> "#{pluralize_count(n, "replayed event")} matched already-recorded history and folded"
+      end
+
+    new_part =
+      case replayed_new do
+        0 -> "no new replayed events landed"
+        n -> "#{pluralize_count(n, "new replayed event")} landed (marked Replayed)"
+      end
+
+    "#{folded_part}; #{new_part}."
+  end
 
   defp event_kind_label("user_message"), do: "User"
   defp event_kind_label("agent_message_chunk"), do: "Agent"
