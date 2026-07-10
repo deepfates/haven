@@ -4041,6 +4041,107 @@ defmodule HavenWeb.RunLiveTest do
     refute has_element?(reloaded, "#conversation-message-#{third_chunk.seq}")
   end
 
+  test "permission-mode switcher renders advertised modes and switches the session mode", %{
+    conn: conn
+  } do
+    original = Application.get_env(:haven, :agents)
+
+    on_exit(fn ->
+      if original do
+        Application.put_env(:haven, :agents, original)
+      else
+        Application.delete_env(:haven, :agents)
+      end
+    end)
+
+    Application.put_env(:haven, :agents, %{
+      "fake-resume" => %{
+        executable: System.find_executable("mix"),
+        args: [
+          "run",
+          "--no-compile",
+          "--no-start",
+          "test/support/fake_agent_runner.exs",
+          "resume",
+          "{workspace}"
+        ],
+        cwd: "{workspace}",
+        env: [{"MIX_ENV", "test"}]
+      }
+    })
+
+    {:ok, run} = Runs.create_run(%{"title" => "Mode switch run", "agent" => "fake-resume"})
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+
+    wait_for_idle_session!(run.id)
+    run = Runs.get_run!(run.id)
+    session_id = run.agent_session_id
+    on_exit(fn -> File.rm(Haven.FakeACPAgent.session_store_path(session_id)) end)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-mode-switcher", "Permission mode")
+    assert has_element?(view, "#run-mode-option-default", "Default")
+    assert has_element?(view, "#run-mode-option-plan", "Plan")
+    assert has_element?(view, "#run-mode-option-yolo", "YOLO")
+
+    assert has_element?(
+             view,
+             ~s|#run-mode-option-default[data-current][aria-pressed="true"][disabled]|
+           )
+
+    assert has_element?(view, ~s|#run-mode-option-plan[aria-pressed="false"]|)
+    refute has_element?(view, "#run-mode-option-plan[disabled]")
+
+    view |> element("#run-mode-option-plan") |> render_click()
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "session_mode_changed",
+                      payload: %{"agent_session_id" => ^session_id, "mode_id" => "plan"}
+                    }},
+                   @agent_event_timeout
+
+    assert has_element?(
+             view,
+             ~s|#run-mode-option-plan[data-current][aria-pressed="true"][disabled]|
+           )
+
+    assert has_element?(view, ~s|#run-mode-option-default[aria-pressed="false"]|)
+    refute has_element?(view, "#run-mode-option-default[disabled]")
+    assert render(view) =~ "session_mode_changed"
+  end
+
+  test "permission-mode switcher is absent when the agent advertises no modes", %{conn: conn} do
+    {:ok, run} = Runs.create_run(%{"title" => "No modes run"})
+    stop_run_server_on_exit(run.id)
+    sync_run_server!(run.id)
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    assert has_element?(view, "#run-prompt-form")
+    refute has_element?(view, "#run-mode-switcher")
+  end
+
+  test "permission-mode switcher is absent on a disconnected run despite advertised modes", %{
+    conn: conn
+  } do
+    run = insert_disconnected_run!("Disconnected modes run")
+
+    Events.append!(run.id, "agent_session_started", %{
+      "agent_session_id" => run.agent_session_id,
+      "modes" => %{
+        "currentModeId" => "default",
+        "availableModes" => [%{"id" => "default", "name" => "Default"}]
+      }
+    })
+
+    {:ok, view, _html} = live(conn, ~p"/runs/#{run.id}")
+
+    refute has_element?(view, "#run-mode-switcher")
+  end
+
   test "configured fake ACP harness cancels duplicate permission requests", %{conn: conn} do
     original = Application.get_env(:haven, :agents)
 
