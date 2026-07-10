@@ -60,6 +60,8 @@ defmodule Haven.Events.Event do
   defp required_string_fields("session_mode_changed"), do: ["agent_session_id", "mode_id"]
   defp required_string_fields("session_mode_rejected"), do: ["mode_id", "reason"]
   defp required_string_fields("session_mode_failed"), do: ["mode_id", "error"]
+  defp required_string_fields("session_replay_settled"), do: ["agent_session_id"]
+  defp required_string_fields("recovery_prompt_abandoned"), do: ["reason"]
   defp required_string_fields("permission_resolved"), do: ["outcome"]
   defp required_string_fields("capability_policy_applied"), do: ["capability", "decision"]
   defp required_string_fields(_type), do: []
@@ -70,6 +72,7 @@ defmodule Haven.Events.Event do
   defp required_id_fields(_type), do: []
 
   defp required_map_fields("permission_requested"), do: ["toolCall"]
+  defp required_map_fields("session_replay_settled"), do: ["folded"]
   defp required_map_fields(_type), do: []
 
   defp required_list_fields(_type), do: []

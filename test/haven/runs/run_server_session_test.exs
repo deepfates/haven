@@ -44,7 +44,7 @@ defmodule Haven.Runs.RunServerSessionTest do
     :ok
   end
 
-  test "reconnect resumes the agent session via session/load and replays history as events" do
+  test "reconnect resumes the agent session via session/load and folds replayed history" do
     {:ok, run} = Runs.create_run(%{"title" => "Resume run", "agent" => "fake-resume"})
     stop_run_server_on_exit(run.id)
     Events.subscribe(run.id)
@@ -77,19 +77,14 @@ defmodule Haven.Runs.RunServerSessionTest do
     assert payload["agent_session_id"] == session_id
     assert %{"currentModeId" => "default"} = payload["modes"]
 
-    assert_receive {:event_appended,
-                    %{
-                      type: "user_message_chunk",
-                      payload: %{"content" => %{"text" => "hello resume"}}
-                    }},
+    # The agent replayed the prior exchange (user chunk + agent chunk), but
+    # both were already in the ledger, so they fold instead of duplicating.
+    assert_receive {:event_appended, %{type: "session_replay_settled", payload: settled_payload}},
                    @agent_event_timeout
 
-    assert_receive {:event_appended,
-                    %{
-                      type: "agent_message_chunk",
-                      payload: %{"text" => "Fake echo: hello resume"}
-                    }},
-                   @agent_event_timeout
+    assert settled_payload["agent_session_id"] == session_id
+    assert settled_payload["folded_total"] == 2
+    assert settled_payload["replayed_new"] == 0
 
     run = Runs.get_run!(run.id)
     assert run.status == "idle"
@@ -105,6 +100,87 @@ defmodule Haven.Runs.RunServerSessionTest do
                     %{
                       type: "agent_message_chunk",
                       payload: %{"text" => "Fake echo: after resume"}
+                    }},
+                   @agent_event_timeout
+
+    assert_receive {:event_appended, %{type: "turn_finished"}}, @agent_event_timeout
+  end
+
+  test "resumed-run ledger shows history once and lands genuinely-new replayed events" do
+    {:ok, run} = Runs.create_run(%{"title" => "Dedupe run", "agent" => "fake-resume"})
+    stop_run_server_on_exit(run.id)
+    Events.subscribe(run.id)
+
+    wait_for_idle_session!(run.id)
+    run = Runs.get_run!(run.id)
+    session_id = run.agent_session_id
+    clean_session_store_on_exit(session_id)
+
+    assert :ok = Runs.send_prompt(run.id, "hello resume")
+    assert_receive {:event_appended, %{type: "turn_finished"}}, @agent_event_timeout
+
+    :ok = Runs.stop_run(run.id)
+
+    # Simulate agent-side history Haven never saw (a turn that happened while
+    # detached): the resume replay now carries one genuinely-new agent chunk
+    # on top of the overlapping history.
+    add_offline_agent_note!(session_id, "offline note")
+
+    assert {:ok, _pid} = Runs.reconnect_run(run.id)
+
+    assert_receive {:event_appended, %{type: "session_replay_settled", payload: settled_payload}},
+                   @agent_event_timeout
+
+    # Overlapping history folded (user chunk + agent chunk)...
+    assert settled_payload["folded_total"] == 2
+
+    assert settled_payload["folded"] == %{
+             "user_message_chunk" => 1,
+             "agent_message_chunk" => 1
+           }
+
+    # ...while the genuinely-new replayed chunk landed, marked as replay.
+    assert settled_payload["replayed_new"] == 1
+
+    assert [%{payload: offline_payload}] =
+             events_with_text(run.id, "agent_message_chunk", "offline note")
+
+    assert offline_payload["replay"] == true
+
+    # The ledger shows the original exchange exactly once.
+    assert [original_chunk] =
+             events_with_text(run.id, "agent_message_chunk", "Fake echo: hello resume")
+
+    refute original_chunk.payload["replay"]
+    assert [_original_prompt] = events_with_text(run.id, "user_message", "hello resume")
+    assert [] = find_events(run.id, "user_message_chunk")
+
+    # A second resume must not re-land the replay-marked offline note either:
+    # the fold identity strips the replay marker, so it folds this time.
+    :ok = Runs.stop_run(run.id)
+    assert {:ok, _pid} = Runs.reconnect_run(run.id)
+
+    assert_receive {:event_appended, %{type: "session_replay_settled", payload: second_settled}},
+                   @agent_event_timeout
+
+    assert second_settled["folded_total"] == 3
+    assert second_settled["replayed_new"] == 0
+
+    assert [_still_one] =
+             events_with_text(run.id, "agent_message_chunk", "Fake echo: hello resume")
+
+    assert [_still_one_note] = events_with_text(run.id, "agent_message_chunk", "offline note")
+    assert [_still_one_prompt] = events_with_text(run.id, "user_message", "hello resume")
+
+    # The resumed session still accepts genuinely-new live turns.
+    run = Runs.get_run!(run.id)
+    assert run.status == "idle"
+    assert :ok = Runs.send_prompt(run.id, "after dedupe")
+
+    assert_receive {:event_appended,
+                    %{
+                      type: "agent_message_chunk",
+                      payload: %{"text" => "Fake echo: after dedupe"}
                     }},
                    @agent_event_timeout
 
@@ -214,6 +290,21 @@ defmodule Haven.Runs.RunServerSessionTest do
 
   defp find_event(run_id, type) do
     run_id |> Events.list_for_run() |> Enum.find(&(&1.type == type))
+  end
+
+  defp events_with_text(run_id, type, text) do
+    run_id
+    |> find_events(type)
+    |> Enum.filter(&(&1.payload["text"] == text))
+  end
+
+  defp add_offline_agent_note!(session_id, text) do
+    path = FakeACPAgent.session_store_path(session_id)
+    store = path |> File.read!() |> Jason.decode!()
+
+    history = Map.get(store, "history", []) ++ [%{"role" => "agent", "text" => text}]
+
+    File.write!(path, Jason.encode!(Map.put(store, "history", history)))
   end
 
   defp find_events(run_id, type) do
