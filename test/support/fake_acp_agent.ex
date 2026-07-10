@@ -10,6 +10,18 @@ defmodule Haven.FakeACPAgent do
 
   alias Haven.ACPWire
 
+  @available_modes [{"default", "Default"}, {"plan", "Plan"}, {"yolo", "YOLO"}]
+  @mode_ids Enum.map(@available_modes, fn {id, _name} -> id end)
+
+  @doc """
+  Where the "resume" scenario persists a session across stub restarts.
+
+  Public so tests can clean the file up after each run.
+  """
+  def session_store_path(session_id) do
+    Path.join(System.tmp_dir!(), "haven-fake-acp-#{session_id}.json")
+  end
+
   def run(scenario, workspace) do
     loop(%{
       scenario: scenario,
@@ -43,6 +55,7 @@ defmodule Haven.FakeACPAgent do
       ACP.ProtocolVersion.v1()
       |> ACP.InitializeResponse.new()
       |> maybe_put_auth_methods(state.scenario)
+      |> maybe_put_load_session_capability(state.scenario)
       |> ACP.InitializeResponse.to_json()
 
     ACPWire.send(ACP.RPC.Response.result(id, result))
@@ -78,16 +91,80 @@ defmodule Haven.FakeACPAgent do
         state
 
       true ->
-        session_id = "fake-session-#{System.unique_integer([:positive])}"
+        session_id = new_session_id(state.scenario)
 
-        result =
-          session_id
-          |> ACP.NewSessionResponse.new()
-          |> ACP.NewSessionResponse.to_json()
+        response = ACP.NewSessionResponse.new(session_id)
 
-        ACPWire.send(ACP.RPC.Response.result(id, result))
+        response =
+          if state.scenario == "resume" do
+            write_session_store!(session_id, %{"current_mode_id" => "default", "history" => []})
+            %{response | modes: mode_state("default")}
+          else
+            response
+          end
+
+        ACPWire.send(ACP.RPC.Response.result(id, ACP.NewSessionResponse.to_json(response)))
         if state.scenario == "idle-banner", do: IO.puts("fake idle banner")
         %{state | session_id: session_id}
+    end
+  end
+
+  # session/load: only the "resume" scenario advertises the loadSession
+  # capability; it replays the persisted conversation as session/update
+  # notifications before answering with the stored mode state.
+  defp handle(%ACP.RPC.Request{method: "session/load", id: id, params: params}, state) do
+    {:ok, request} = ACP.LoadSessionRequest.from_json(params)
+
+    cond do
+      state.scenario != "resume" ->
+        ACPWire.send(ACP.RPC.Response.error(id, ACP.Error.method_not_found()))
+        state
+
+      not File.exists?(session_store_path(request.session_id)) ->
+        ACPWire.send(ACP.RPC.Response.error(id, ACP.Error.new(-32_002, "unknown session")))
+        state
+
+      true ->
+        store = read_session_store!(request.session_id)
+
+        Enum.each(store["history"], fn
+          %{"role" => "user", "text" => text} ->
+            send_user_text(request.session_id, text)
+
+          %{"role" => "agent", "text" => text} ->
+            send_agent_text(request.session_id, text)
+        end)
+
+        result =
+          %ACP.LoadSessionResponse{modes: mode_state(store["current_mode_id"])}
+          |> ACP.LoadSessionResponse.to_json()
+
+        ACPWire.send(ACP.RPC.Response.result(id, result))
+        %{state | session_id: request.session_id}
+    end
+  end
+
+  defp handle(%ACP.RPC.Request{method: "session/set_mode", id: id, params: params}, state) do
+    {:ok, request} = ACP.SetSessionModeRequest.from_json(params)
+
+    cond do
+      state.scenario != "resume" ->
+        ACPWire.send(ACP.RPC.Response.error(id, ACP.Error.method_not_found()))
+        state
+
+      request.mode_id not in @mode_ids ->
+        ACPWire.send(ACP.RPC.Response.error(id, ACP.Error.invalid_params()))
+        state
+
+      true ->
+        update_session_store!(request.session_id, fn store ->
+          Map.put(store, "current_mode_id", request.mode_id)
+        end)
+
+        result = ACP.SetSessionModeResponse.new() |> ACP.SetSessionModeResponse.to_json()
+        ACPWire.send(ACP.RPC.Response.result(id, result))
+        send_current_mode_update(request.session_id, request.mode_id)
+        state
     end
   end
 
@@ -136,6 +213,54 @@ defmodule Haven.FakeACPAgent do
   end
 
   defp maybe_put_auth_methods(response, _scenario), do: response
+
+  defp maybe_put_load_session_capability(response, "resume") do
+    %{response | agent_capabilities: %{ACP.AgentCapabilities.new() | load_session: true}}
+  end
+
+  defp maybe_put_load_session_capability(response, _scenario), do: response
+
+  # Session ids must stay unique across stub restarts: the "resume" scenario
+  # persists sessions on disk, and :erlang.unique_integer restarts with the VM.
+  defp new_session_id("resume") do
+    "fake-session-" <> Base.encode16(:crypto.strong_rand_bytes(6), case: :lower)
+  end
+
+  defp new_session_id(_scenario), do: "fake-session-#{System.unique_integer([:positive])}"
+
+  defp mode_state(current_mode_id) do
+    ACP.SessionModeState.new(
+      current_mode_id || "default",
+      Enum.map(@available_modes, fn {mode_id, name} -> ACP.SessionMode.new(mode_id, name) end)
+    )
+  end
+
+  defp write_session_store!(session_id, store) do
+    File.write!(session_store_path(session_id), Jason.encode!(store))
+  end
+
+  defp read_session_store!(session_id) do
+    session_id |> session_store_path() |> File.read!() |> Jason.decode!()
+  end
+
+  defp update_session_store!(session_id, fun) do
+    if File.exists?(session_store_path(session_id)) do
+      write_session_store!(session_id, fun.(read_session_store!(session_id)))
+    end
+  end
+
+  defp record_exchange!(session_id, prompt, reply) do
+    update_session_store!(session_id, fn store ->
+      history =
+        Map.get(store, "history", []) ++
+          [
+            %{"role" => "user", "text" => prompt},
+            %{"role" => "agent", "text" => reply}
+          ]
+
+      Map.put(store, "history", history)
+    end)
+  end
 
   defp handle_prompt("streaming", "partial-stream", prompt_id, session_id, state) do
     Enum.each(["Partial ", "streamed ", "answer."], fn text ->
@@ -211,6 +336,14 @@ defmodule Haven.FakeACPAgent do
 
   defp handle_prompt("crash", "die", _prompt_id, _session_id, _state) do
     System.halt(1)
+  end
+
+  defp handle_prompt("resume", text, prompt_id, session_id, state) do
+    reply = "Fake echo: #{text}"
+    record_exchange!(session_id, text, reply)
+    send_agent_text(session_id, reply)
+    send_prompt_result(prompt_id)
+    state
   end
 
   defp handle_prompt(_scenario, text, prompt_id, session_id, state) do
@@ -378,6 +511,26 @@ defmodule Haven.FakeACPAgent do
     update =
       {:agent_message_chunk, ACP.ContentChunk.new(ACP.ContentBlock.from_string(text))}
 
+    notification = ACP.SessionNotification.new(session_id, update)
+
+    ACPWire.send(
+      ACP.RPC.Notification.new("session/update", ACP.SessionNotification.to_json(notification))
+    )
+  end
+
+  defp send_user_text(session_id, text) do
+    update =
+      {:user_message_chunk, ACP.ContentChunk.new(ACP.ContentBlock.from_string(text))}
+
+    notification = ACP.SessionNotification.new(session_id, update)
+
+    ACPWire.send(
+      ACP.RPC.Notification.new("session/update", ACP.SessionNotification.to_json(notification))
+    )
+  end
+
+  defp send_current_mode_update(session_id, mode_id) do
+    update = {:current_mode_update, ACP.CurrentModeUpdate.new(mode_id)}
     notification = ACP.SessionNotification.new(session_id, update)
 
     ACPWire.send(

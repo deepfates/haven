@@ -1377,7 +1377,13 @@ defmodule HavenWeb.RunLive do
   defp event_kind("agent_message_chunk"), do: "agent"
 
   defp event_kind(type)
-       when type in ["tool_call", "tool_call_update", "plan_update", "agent_thought_redacted"] do
+       when type in [
+              "tool_call",
+              "tool_call_update",
+              "plan_update",
+              "agent_thought_redacted",
+              "current_mode_update"
+            ] do
     "protocol"
   end
 
@@ -1424,6 +1430,12 @@ defmodule HavenWeb.RunLive do
               "agent_process_down",
               "agent_initialized",
               "agent_session_started",
+              "agent_session_loaded",
+              "session_load_skipped",
+              "session_load_failed",
+              "session_mode_changed",
+              "session_mode_rejected",
+              "session_mode_failed",
               "agent_start_failed",
               "agent_protocol_failed"
             ] do

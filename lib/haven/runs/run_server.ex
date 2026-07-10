@@ -65,6 +65,8 @@ defmodule Haven.Runs.RunServer do
        pending_permissions: %{},
        cancelled_session_ids: MapSet.new(),
        agent_thought_redacted?: false,
+       load_session_supported?: false,
+       session_modes: nil,
        retry_prompt: Keyword.get(opts, :retry_prompt),
        continue_prompt: Keyword.get(opts, :continue_prompt),
        terminals: %{}
@@ -262,8 +264,14 @@ defmodule Haven.Runs.RunServer do
                ACP.InitializeRequest.new(ACP.ProtocolVersion.v1())
              )
            end),
-         {:ok, _response} <- ACP.InitializeResponse.from_json(initialize_result) do
-      Events.append!(state.run_id, "agent_initialized", %{})
+         {:ok, initialize_response} <- ACP.InitializeResponse.from_json(initialize_result) do
+      load_session_supported? = load_session_supported?(initialize_response)
+
+      Events.append!(state.run_id, "agent_initialized", %{
+        "load_session_supported" => load_session_supported?
+      })
+
+      state = %{state | load_session_supported?: load_session_supported?}
 
       with {:ok, state} <- maybe_authenticate_agent(state, initialize_result) do
         start_agent_session(state, run)
@@ -303,7 +311,77 @@ defmodule Haven.Runs.RunServer do
 
   defp auth_method_id(_initialize_result), do: nil
 
+  defp load_session_supported?(%ACP.InitializeResponse{agent_capabilities: capabilities}) do
+    match?(%ACP.AgentCapabilities{load_session: true}, capabilities)
+  end
+
+  # Session start order: when the run carries a prior agent session id, resume
+  # it via session/load — but only when the agent advertised the loadSession
+  # capability in its initialize response (ACP gates session/load on it).
+  # Every skipped or failed resume is recorded loudly as an event before
+  # falling back to a fresh session/new.
   defp start_agent_session(state, run) do
+    case maybe_load_agent_session(state, run) do
+      {:resumed, state} -> {:noreply, state}
+      {:start_new, state} -> start_new_agent_session(state, run)
+    end
+  end
+
+  defp maybe_load_agent_session(state, %{agent_session_id: session_id} = run)
+       when is_binary(session_id) and session_id != "" do
+    if state.load_session_supported? do
+      load_agent_session(state, run, session_id)
+    else
+      Events.append!(state.run_id, "session_load_skipped", %{
+        "agent_session_id" => session_id,
+        "reason" => "load_session_capability_not_advertised"
+      })
+
+      {:start_new, state}
+    end
+  end
+
+  defp maybe_load_agent_session(state, _run), do: {:start_new, state}
+
+  defp load_agent_session(state, run, session_id) do
+    request = %{
+      ACP.LoadSessionRequest.new(session_id, run.workspace)
+      | mcp_servers: mcp_servers(run.workspace)
+    }
+
+    with {:ok, load_result} <-
+           safe_protocol_call(fn ->
+             ACP.ClientSideConnection.load_session(state.conn, request)
+           end),
+         {:ok, response} <- ACP.LoadSessionResponse.from_json(load_result) do
+      Events.append!(
+        state.run_id,
+        "agent_session_loaded",
+        maybe_put_modes(%{"agent_session_id" => session_id}, response.modes)
+      )
+
+      Runs.update_status!(state.run_id, %{status: "idle", agent_session_id: session_id})
+
+      state =
+        state
+        |> Map.put(:agent_session_id, session_id)
+        |> Map.put(:session_modes, response.modes)
+        |> maybe_start_recovery_prompt()
+
+      {:resumed, state}
+    else
+      {:error, reason} ->
+        Events.append!(state.run_id, "session_load_failed", %{
+          "agent_session_id" => session_id,
+          "error" => inspect(reason),
+          "fallback" => "session_new"
+        })
+
+        {:start_new, state}
+    end
+  end
+
+  defp start_new_agent_session(state, run) do
     with {:ok, session_result} <-
            safe_protocol_call(fn ->
              ACP.ClientSideConnection.new_session(
@@ -312,15 +390,18 @@ defmodule Haven.Runs.RunServer do
              )
            end),
          {:ok, session} <- ACP.NewSessionResponse.from_json(session_result) do
-      Events.append!(state.run_id, "agent_session_started", %{
-        "agent_session_id" => session.session_id
-      })
+      Events.append!(
+        state.run_id,
+        "agent_session_started",
+        maybe_put_modes(%{"agent_session_id" => session.session_id}, session.modes)
+      )
 
       Runs.update_status!(state.run_id, %{status: "idle", agent_session_id: session.session_id})
 
       state =
         state
         |> Map.put(:agent_session_id, session.session_id)
+        |> Map.put(:session_modes, session.modes)
         |> maybe_start_recovery_prompt()
 
       {:noreply, state}
@@ -328,6 +409,12 @@ defmodule Haven.Runs.RunServer do
       {:error, reason} ->
         fail_agent_boot(state, run, "agent_protocol_failed", reason)
     end
+  end
+
+  defp maybe_put_modes(payload, nil), do: payload
+
+  defp maybe_put_modes(payload, %ACP.SessionModeState{} = modes) do
+    Map.put(payload, "modes", ACP.SessionModeState.to_json(modes))
   end
 
   defp new_session_request(run) do
@@ -449,6 +536,36 @@ defmodule Haven.Runs.RunServer do
     state.pending_prompts == %{} and state.pending_permissions == %{}
   end
 
+  defp known_session_mode?(%ACP.SessionModeState{available_modes: modes}, mode_id) do
+    Enum.any?(modes, &(&1.id == mode_id))
+  end
+
+  defp set_session_mode(state, mode_id) do
+    request = ACP.SetSessionModeRequest.new(state.agent_session_id, mode_id)
+
+    with {:ok, result} <-
+           safe_protocol_call(fn ->
+             ACP.ClientSideConnection.set_session_mode(state.conn, request)
+           end),
+         {:ok, _response} <- ACP.SetSessionModeResponse.from_json(result) do
+      Events.append!(state.run_id, "session_mode_changed", %{
+        "agent_session_id" => state.agent_session_id,
+        "mode_id" => mode_id
+      })
+
+      modes = %{state.session_modes | current_mode_id: mode_id}
+      {:reply, :ok, %{state | session_modes: modes}}
+    else
+      {:error, reason} ->
+        Events.append!(state.run_id, "session_mode_failed", %{
+          "mode_id" => mode_id,
+          "error" => inspect(reason)
+        })
+
+        {:reply, {:error, reason}, state}
+    end
+  end
+
   @impl true
   def handle_call({:send_prompt, text}, _from, state) do
     run = Runs.get_run!(state.run_id)
@@ -457,6 +574,42 @@ defmodule Haven.Runs.RunServer do
       {:reply, :ok, start_prompt(state, text)}
     else
       {:reply, {:error, :busy}, state}
+    end
+  end
+
+  # Permission-mode switch via session/set_mode. ACP advertises available
+  # modes per session (NewSessionResponse/LoadSessionResponse `modes`), so the
+  # call is gated on that advertisement: an agent that never advertised modes
+  # gets a loud recorded rejection instead of a silent no-op.
+  def handle_call({:set_session_mode, mode_id}, _from, state) do
+    cond do
+      is_nil(state.conn) or is_nil(state.agent_session_id) ->
+        Events.append!(state.run_id, "session_mode_rejected", %{
+          "mode_id" => mode_id,
+          "reason" => "no_active_session"
+        })
+
+        {:reply, {:error, :no_active_session}, state}
+
+      is_nil(state.session_modes) ->
+        Events.append!(state.run_id, "session_mode_rejected", %{
+          "mode_id" => mode_id,
+          "reason" => "modes_not_advertised"
+        })
+
+        {:reply, {:error, :modes_not_advertised}, state}
+
+      not known_session_mode?(state.session_modes, mode_id) ->
+        Events.append!(state.run_id, "session_mode_rejected", %{
+          "mode_id" => mode_id,
+          "reason" => "unknown_mode",
+          "available_mode_ids" => Enum.map(state.session_modes.available_modes, & &1.id)
+        })
+
+        {:reply, {:error, :unknown_mode}, state}
+
+      true ->
+        set_session_mode(state, mode_id)
     end
   end
 
@@ -1309,6 +1462,21 @@ defmodule Haven.Runs.RunServer do
 
       {:agent_thought_chunk, _payload} ->
         append_redacted_agent_thought(state, %{})
+
+      {:current_mode_update, %ACP.CurrentModeUpdate{current_mode_id: mode_id}} ->
+        Events.append!(
+          state.run_id,
+          "current_mode_update",
+          ACP.SessionNotification.to_json(notification)["update"]
+        )
+
+        case state.session_modes do
+          %ACP.SessionModeState{} = modes ->
+            %{state | session_modes: %{modes | current_mode_id: mode_id}}
+
+          _no_modes ->
+            state
+        end
 
       {type, _payload} ->
         Events.append!(

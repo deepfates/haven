@@ -267,7 +267,10 @@ defmodule Haven.Runs do
 
         fail_unresolved_turn!(run_id, "run_reconnect_requested")
         cancel_unresolved_permissions!(run_id, "run_reconnect_requested")
-        update_status!(run_id, %{status: "idle", agent_session_id: nil})
+        # Keep agent_session_id: the booting RunServer offers it back to the
+        # agent via session/load when the agent advertises the loadSession
+        # capability, and records a session_load_skipped event otherwise.
+        update_status!(run_id, %{status: "idle"})
         start_run(run_id, opts)
     end
   end
@@ -331,6 +334,18 @@ defmodule Haven.Runs do
   def cancel(run_id) do
     with {:ok, pid} <- live_run_pid(run_id) do
       GenServer.call(pid, :cancel, 30_000)
+    end
+  end
+
+  @doc """
+  Switch the agent session's permission mode via ACP session/set_mode.
+
+  Gated on the agent having advertised session modes (session/new or
+  session/load response). Rejections and failures are recorded as events.
+  """
+  def set_session_mode(run_id, mode_id) when is_binary(mode_id) do
+    with {:ok, pid} <- live_run_pid(run_id) do
+      GenServer.call(pid, {:set_session_mode, mode_id}, 30_000)
     end
   end
 
