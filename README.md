@@ -156,3 +156,20 @@ against deterministic ACP requests, and terminal create/wait/output/release is
 proven for short-lived non-interactive commands. The next milestone is to
 validate one real external agent and harden capability policy while keeping the
 run/event/LiveView shape.
+
+## Development
+
+Haven is a Phoenix 1.8/LiveView application. Run the repository's full local
+gate before handing off a change:
+
+```bash
+mix precommit
+```
+
+Use the included `Req` dependency for HTTP. Keep UI work within the existing
+HEEx, core-component, LiveView, and Tailwind v4 setup: forms are built with
+`to_form` and `<.input>`, collections use LiveView streams, and JavaScript goes
+through the supported asset bundle or colocated hooks rather than raw inline
+scripts. Tests should exercise stable DOM IDs and observable outcomes. Start
+processes with `start_supervised!/1` and synchronize with monitors or
+`:sys.get_state/1` instead of sleeps.
