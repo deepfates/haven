@@ -80,6 +80,33 @@ mix haven.agent_probe --list-agents --preflight --workspace /path/to/repo
 mix haven.agent_probe --list-agents --registry --preflight --proof-commands --workspace /path/to/repo
 ```
 
+### Operate a Cantrip Familiar
+
+Haven already knows how to launch Cantrip's Familiar over ACP. Point Haven at a
+compiled Cantrip checkout whose `.env` contains a working provider configuration:
+
+```bash
+export CANTRIP_ROOT=/absolute/path/to/cantrip
+
+MIX_ENV=dev mix haven.agent_probe \
+  --list-agents --preflight \
+  --workspace "$CANTRIP_ROOT"
+
+MIX_ENV=dev mix haven.agent_probe \
+  --agent cantrip-familiar \
+  --workspace "$CANTRIP_ROOT" \
+  --prompt "Reply exactly: Haven Cantrip ACP live" \
+  --require-real-agent \
+  --expect-event agent_message_chunk \
+  --expect-event turn_finished
+```
+
+The first command proves the ACP initialize/session handshake. The second sends
+a real model turn through Haven's durable run lifecycle and requires Cantrip's
+streamed answer plus a clean turn completion. `agent_message_completed` is not
+the contract here: Cantrip currently streams an `agent_message_chunk`, records
+its `done` gate as tool activity, and finishes the turn.
+
 Configured agents can be supplied at runtime with `HAVEN_AGENTS_JSON`:
 
 ```bash
