@@ -20,7 +20,7 @@ proved by tests and browser smoke, and what remains unproven.
 ## Run
 
 ```bash
-mix ecto.setup
+mix setup
 mix phx.server
 ```
 
@@ -101,9 +101,10 @@ MIX_ENV=dev mix haven.agent_probe \
   --expect-event turn_finished
 ```
 
-The first command proves the ACP initialize/session handshake. The second sends
-a real model turn through Haven's durable run lifecycle and requires Cantrip's
-streamed answer plus a clean turn completion. `agent_message_completed` is not
+The first command proves the ACP initialize/session handshake. The second is
+the accepted real-agent checkpoint: it sends a real model turn through Haven's
+durable run lifecycle and requires Cantrip's streamed answer plus a clean turn
+completion. `agent_message_completed` is not
 the contract here: Cantrip currently streams an `agent_message_chunk`, records
 its `done` gate as tool activity, and finishes the turn.
 
@@ -158,8 +159,10 @@ only with an approved workspace and auth scope.
 artifacts. `--load-runs N` repeats the same real-agent probe as distinct
 durable runs and writes an aggregate report when paired with `--report`;
 `--load-concurrency N` runs up to N child probes at the same time.
-Passing the probe with `stub-acp` proves the harness; passing it with a real
-configured ACP agent is the next integration milestone. See
+Passing the probe with `stub-acp` proves only the harness. Cantrip Familiar has
+passed the real-agent basic-turn contract above; broader file, terminal,
+permission, persistence, and load evidence against third-party production ACP
+agents remains future production work. See
 `docs/probes/README.md` and `docs/probe-load/README.md` for the report
 requirements that make a probe count as real-agent evidence.
 
@@ -180,9 +183,9 @@ The default development agent is a self-contained ACP stub. Configured agent
 keys can point at another ACP command and can be selected when starting a run,
 alongside an explicit workspace path. File capability callbacks are proven
 against deterministic ACP requests, and terminal create/wait/output/release is
-proven for short-lived non-interactive commands. The next milestone is to
-validate one real external agent and harden capability policy while keeping the
-run/event/LiveView shape.
+proven for short-lived non-interactive commands. Cantrip proves the external
+basic-turn boundary; production work now concerns broader third-party agent
+capabilities and policy, not whether Haven can operate a real ACP agent at all.
 
 ## Development
 
